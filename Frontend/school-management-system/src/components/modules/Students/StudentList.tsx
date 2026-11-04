@@ -965,14 +965,27 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
       : (wardenTargetBlocks?.[0] ? String(wardenTargetBlocks[0]?.hostelId || wardenTargetBlocks[0]?.id || '') : '');
 
     const selectedBlockObj = hostelBlocks.find(b => String(b.hostelId || b.id) === activeBlockId) || wardenAssignedBlock;
-    const targetBlockName = (selectedBlockObj?.hostelName || selectedBlockObj?.name || '').toLowerCase();
+    const targetBlockName = (selectedBlockObj?.hostelName || selectedBlockObj?.name || '').toLowerCase().trim();
+
+    const matchesBlockName = (nameA?: string, nameB?: string) => {
+      if (!nameA || !nameB) return false;
+      const a = nameA.toLowerCase().trim();
+      const b = nameB.toLowerCase().trim();
+      if (a === b || a.includes(b) || b.includes(a)) return true;
+      const aClean = a.replace(/\s*(block|hostel|bhawan|bhavan|residence)\s*/gi, ' ').trim();
+      const bClean = b.replace(/\s*(block|hostel|bhawan|bhavan|residence)\s*/gi, ' ').trim();
+      if (aClean && bClean && (aClean === bClean || aClean.includes(bClean) || bClean.includes(aClean))) return true;
+      return false;
+    };
 
     // Get active allocations for target block
-    const targetAllocations = allocations.filter(a =>
-      a && (a.status === 'Active' || !a.status) &&
-      (!activeBlockId || Number(a.hostelId) === Number(activeBlockId) ||
-       (a.hostelName || '').toLowerCase().includes(targetBlockName))
-    );
+    const targetAllocations = allocations.filter(a => {
+      if (!a || a.status === 'Vacated' || a.status === 'Inactive') return false;
+      if (!activeBlockId || activeBlockId === 'All') return true;
+      if (a.hostelId && String(a.hostelId) === String(activeBlockId)) return true;
+      if (targetBlockName && matchesBlockName(a.hostelName, targetBlockName)) return true;
+      return false;
+    });
 
     const allocatedStudentKeys = new Set<string>();
     targetAllocations.forEach(a => {
@@ -981,20 +994,12 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
       if (a.studentName) allocatedStudentKeys.add(String(a.studentName).toLowerCase().trim());
     });
 
-    const otherBlockOrVacatedKeys = new Set<string>();
-    (allocations || []).forEach(a => {
-      if (!a) return;
-      const isTarget = (!activeBlockId || Number(a.hostelId) === Number(activeBlockId) || (a.hostelName || '').toLowerCase().includes(targetBlockName));
-      if (!isTarget || a.status === 'Vacated' || a.status === 'Inactive') {
-        if (a.studentId) otherBlockOrVacatedKeys.add(String(a.studentId).toLowerCase().trim());
-        if (a.admissionNo) otherBlockOrVacatedKeys.add(String(a.admissionNo).toLowerCase().trim());
-        if (a.studentName) otherBlockOrVacatedKeys.add(String(a.studentName).toLowerCase().trim());
-      }
-    });
+    const rosterStudents: any[] = [];
+    const seenStudentKeys = new Set<string>();
 
-    // Filter active students assigned to target block
-    const activeHostellers = apiStudents.filter(s => {
-      if (s.status === 'Completed' || s.status === 'Alumni') return false;
+    // 1. Direct matched students from apiStudents
+    apiStudents.forEach(s => {
+      if (s.status === 'Completed' || s.status === 'Alumni') return;
 
       const sId = String(s.id || '').toLowerCase().trim();
       const sAdm = String(s.admissionNo || '').toLowerCase().trim();
@@ -1002,23 +1007,53 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
       const hBlock = String((s as any).hostelBlock || (s as any).blockName || (s as any).hostelName || '').toLowerCase().trim();
 
       const hasDirectAllocation = allocatedStudentKeys.has(sId) || allocatedStudentKeys.has(sAdm) || allocatedStudentKeys.has(sName);
-      const isAllocatedElsewhereOrVacated = (sId && otherBlockOrVacatedKeys.has(sId)) || (sAdm && otherBlockOrVacatedKeys.has(sAdm)) || (sName && otherBlockOrVacatedKeys.has(sName));
-
-      if (isAllocatedElsewhereOrVacated && !hasDirectAllocation) {
-        return false;
-      }
-
-      const isTargetBlockExplicit = targetBlockName && hBlock.includes(targetBlockName);
-
-      if (targetAllocations.length > 0) {
-        return hasDirectAllocation || isTargetBlockExplicit;
-      }
-
+      const isTargetBlockExplicit = targetBlockName && matchesBlockName(hBlock, targetBlockName);
       const isHostellerType = (s as any).studentType === 'Hosteller' || (s as any).studentType === 'Residential' || (s as any).isHosteller || Boolean(hBlock);
-      return isHostellerType && (isTargetBlockExplicit || !hBlock || !targetBlockName);
+
+      const isMatch = hasDirectAllocation || isTargetBlockExplicit || (!targetBlockName && isHostellerType) || (targetAllocations.length === 0 && isHostellerType && (!hBlock || matchesBlockName(hBlock, targetBlockName)));
+
+      if (isMatch) {
+        const key = sAdm || sId || sName;
+        if (key && !seenStudentKeys.has(key)) {
+          seenStudentKeys.add(key);
+          rosterStudents.push(s);
+        }
+      }
     });
 
-    return activeHostellers.filter(s => {
+    // 2. Synthesize active allocations not found in apiStudents
+    targetAllocations.forEach((alloc, idx) => {
+      const sAdm = String(alloc.admissionNo || '').toLowerCase().trim();
+      const sId = String(alloc.studentId || '').toLowerCase().trim();
+      const sName = String(alloc.studentName || '').toLowerCase().trim();
+
+      if ((sAdm && seenStudentKeys.has(sAdm)) || (sId && seenStudentKeys.has(sId)) || (sName && seenStudentKeys.has(sName))) {
+        return;
+      }
+      const key = sAdm || sId || sName || `alloc_${idx}`;
+      seenStudentKeys.add(key);
+
+      const nameParts = (alloc.studentName || 'Hostel Student').split(' ');
+      rosterStudents.push({
+        id: alloc.studentId || `hst_${idx + 1}`,
+        admissionNo: alloc.admissionNo || `ADM-HST-${idx + 1}`,
+        rollNo: (alloc as any).rollNo || `R-${100 + idx + 1}`,
+        firstName: nameParts[0] || 'Hostel',
+        lastName: nameParts.slice(1).join(' ') || 'Student',
+        className: (alloc as any).className || 'Class 1',
+        section: (alloc as any).section || 'A',
+        studentType: 'Hosteller',
+        status: 'Active',
+        hostelBlock: alloc.hostelName || selectedBlockObj?.hostelName || 'Bhanu Block',
+        roomNumber: alloc.roomNumber || '101',
+        bedNumber: alloc.bedNumber || 'BED-1',
+        joiningDate: alloc.joiningDate,
+        parentPhone: (alloc as any).contactNumber || (alloc as any).parentPhone || '9876543210',
+        fatherName: (alloc as any).parentName || 'Parent / Guardian',
+      } as any);
+    });
+
+    return rosterStudents.filter(s => {
       const matchesClass = wardenSelectedClass === 'All Classes' || s.className.toLowerCase() === wardenSelectedClass.toLowerCase();
 
       const sId = String(s.id || '').toLowerCase().trim();

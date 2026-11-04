@@ -1298,12 +1298,41 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
               </div>
             </div>
 
-            {persIsCheckedOut ? (
-              <div className="w-full py-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 text-xs font-black text-center border border-emerald-200/80 dark:border-emerald-900/60 flex items-center justify-center gap-2 shadow-xs mt-2">
-                <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                <span>Daily Shift Completed</span>
-              </div>
-            ) : (
+            {persIsCheckedOut ? (() => {
+              // Calculate actual worked duration in minutes
+              let workedMinutes = 0;
+              if (persCheckInTime) {
+                const sMs = parseTimeToMs(persCheckInTime, todayStr);
+                const eMs = persCheckOutTime ? parseTimeToMs(persCheckOutTime, todayStr) : Date.now();
+                if (sMs && eMs && eMs > sMs) {
+                  workedMinutes = Math.floor((eMs - sMs) / 60000);
+                }
+              }
+
+              // Shift thresholds: Full shift >= 7h (420m), Partial >= 4h (240m), Incomplete < 4h
+              if (workedMinutes < 240) {
+                return (
+                  <div className="w-full py-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 text-xs font-black text-center border border-rose-200/80 dark:border-rose-900/60 flex items-center justify-center gap-2 shadow-xs mt-2">
+                    <Clock className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+                    <span>Early Checkout (Incomplete Shift)</span>
+                  </div>
+                );
+              } else if (workedMinutes < 420) {
+                return (
+                  <div className="w-full py-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 text-xs font-black text-center border border-amber-200/80 dark:border-amber-900/60 flex items-center justify-center gap-2 shadow-xs mt-2">
+                    <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                    <span>Early Checkout (Partial Attendance)</span>
+                  </div>
+                );
+              } else {
+                return (
+                  <div className="w-full py-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 text-xs font-black text-center border border-emerald-200/80 dark:border-emerald-900/60 flex items-center justify-center gap-2 shadow-xs mt-2">
+                    <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                    <span>Daily Shift Completed</span>
+                  </div>
+                );
+              }
+            })() : (
               <div className="flex gap-2 mt-2">
                 <button
                   type="button"

@@ -73,6 +73,7 @@ const StudentInlineCombobox: React.FC<{
         <input
           type="text"
           disabled={disabled}
+          data-skip-global-validation="true"
           value={searchText}
           onFocus={() => setIsOpen(true)}
           onChange={e => {
@@ -517,9 +518,13 @@ export const StudentHostelAssignmentView: React.FC = () => {
   const handleOpenAdd = () => {
     fetchEligibleStudents();
     setSelectedStudentId('');
-    setSelectedHostelId(isWarden && targetBlocks.length > 0 ? String(targetBlocks[0].hostelId) : '');
-    setSelectedRoomId('');
-    setSelectedBedNo('');
+    const defaultBlkId = (filterHostel && filterHostel !== 'All')
+      ? filterHostel
+      : (targetBlocks.length > 0 ? String(targetBlocks[0].hostelId || (targetBlocks[0] as any).id || '') : '');
+    setSelectedHostelId(defaultBlkId);
+    const matchingRooms = (rooms || []).filter(r => r && (String(r.hostelId) === defaultBlkId || String((r as any).blockId) === defaultBlkId));
+    setSelectedRoomId(matchingRooms.length > 0 ? String(matchingRooms[0].roomId || (matchingRooms[0] as any).id) : '');
+    setSelectedBedNo('BED-1');
     setJoiningDate(new Date().toISOString().split('T')[0]);
     setIsModalOpen(true);
   };
@@ -527,9 +532,13 @@ export const StudentHostelAssignmentView: React.FC = () => {
   const handleOpenAddForStudent = (stId: string) => {
     fetchEligibleStudents();
     setSelectedStudentId(stId);
-    setSelectedHostelId(isWarden && targetBlocks.length > 0 ? String(targetBlocks[0].hostelId) : '');
-    setSelectedRoomId('');
-    setSelectedBedNo('');
+    const defaultBlkId = (filterHostel && filterHostel !== 'All')
+      ? filterHostel
+      : (targetBlocks.length > 0 ? String(targetBlocks[0].hostelId || (targetBlocks[0] as any).id || '') : '');
+    setSelectedHostelId(defaultBlkId);
+    const matchingRooms = (rooms || []).filter(r => r && (String(r.hostelId) === defaultBlkId || String((r as any).blockId) === defaultBlkId));
+    setSelectedRoomId(matchingRooms.length > 0 ? String(matchingRooms[0].roomId || (matchingRooms[0] as any).id) : '');
+    setSelectedBedNo('BED-1');
     setJoiningDate(new Date().toISOString().split('T')[0]);
     setIsModalOpen(true);
   };
@@ -538,6 +547,12 @@ export const StudentHostelAssignmentView: React.FC = () => {
     e.preventDefault();
     if (!selectedStudentId || !selectedHostelId || !selectedRoomId) {
       addToast('error', 'Validation Error', 'Please complete all fields');
+      return;
+    }
+
+    const joinYear = new Date(joiningDate).getFullYear();
+    if (!joiningDate || isNaN(joinYear) || joinYear < 2020 || joinYear > 2099) {
+      addToast('error', 'Invalid Joining Date', 'Please enter a valid joining date between 2020 and 2099.');
       return;
     }
 
@@ -799,14 +814,19 @@ export const StudentHostelAssignmentView: React.FC = () => {
   const selectedBlock = allBlocksList.find(b => b && (String(b.hostelId || (b as any).id) === String(selectedHostelId)));
 
   const availableRooms: HostelRoom[] = React.useMemo(() => {
-    if (!selectedHostelId) return [];
+    const activeHostelId = selectedHostelId || (filterHostel && filterHostel !== 'All' ? filterHostel : '') || (targetBlocks?.[0] ? String(targetBlocks[0].hostelId || (targetBlocks[0] as any).id || '') : '');
+    if (!activeHostelId) return [];
     const directMatches = safeRooms.filter(r => {
       if (!r) return false;
       const rId = String(r.hostelId || (r as any).blockId || '');
-      const sId = String(selectedHostelId);
+      const sId = String(activeHostelId);
       const matchId = rId === sId;
       const matchCode = Boolean(r.hostelCode && selectedBlock?.hostelCode && r.hostelCode.toLowerCase().trim() === selectedBlock.hostelCode.toLowerCase().trim());
-      const matchName = Boolean(r.hostelName && selectedBlock?.hostelName && r.hostelName.toLowerCase().trim() === selectedBlock.hostelName.toLowerCase().trim());
+      const matchName = Boolean(r.hostelName && selectedBlock?.hostelName && (
+        r.hostelName.toLowerCase().trim() === selectedBlock.hostelName.toLowerCase().trim() ||
+        r.hostelName.toLowerCase().includes(selectedBlock.hostelName.toLowerCase()) ||
+        selectedBlock.hostelName.toLowerCase().includes(r.hostelName.toLowerCase())
+      ));
       return matchId || matchCode || matchName;
     });
 
@@ -816,12 +836,12 @@ export const StudentHostelAssignmentView: React.FC = () => {
     const blkName = selectedBlock?.hostelName || (selectedBlock as any)?.name || 'Block';
     const blkCode = selectedBlock?.hostelCode || 'HST-BLK';
     return [
-      { roomId: 101, roomNumber: '101', hostelId: Number(selectedHostelId) || 1, hostelName: blkName, hostelCode: blkCode, roomTypeId: 1, roomTypeSpecification: 'Standard Double', bedCapacity: 2, capacity: 2, floorLevel: 'First Floor', status: 'Available', occupiedBeds: 0, vacantBeds: 2, createdAt: new Date().toISOString() },
-      { roomId: 102, roomNumber: '102', hostelId: Number(selectedHostelId) || 1, hostelName: blkName, hostelCode: blkCode, roomTypeId: 1, roomTypeSpecification: 'Standard Double', bedCapacity: 2, capacity: 2, floorLevel: 'First Floor', status: 'Available', occupiedBeds: 0, vacantBeds: 2, createdAt: new Date().toISOString() },
-      { roomId: 201, roomNumber: '201', hostelId: Number(selectedHostelId) || 1, hostelName: blkName, hostelCode: blkCode, roomTypeId: 2, roomTypeSpecification: 'Deluxe Triple', bedCapacity: 3, capacity: 3, floorLevel: 'Second Floor', status: 'Available', occupiedBeds: 0, vacantBeds: 3, createdAt: new Date().toISOString() },
-      { roomId: 202, roomNumber: '202', hostelId: Number(selectedHostelId) || 1, hostelName: blkName, hostelCode: blkCode, roomTypeId: 1, roomTypeSpecification: 'Standard Double', bedCapacity: 2, capacity: 2, floorLevel: 'Second Floor', status: 'Available', occupiedBeds: 0, vacantBeds: 2, createdAt: new Date().toISOString() },
+      { roomId: 101, roomNumber: '101', hostelId: Number(activeHostelId) || 1, hostelName: blkName, hostelCode: blkCode, roomTypeId: 1, roomTypeSpecification: 'Standard Double', bedCapacity: 2, capacity: 2, floorLevel: 'First Floor', status: 'Available', occupiedBeds: 0, vacantBeds: 2, createdAt: new Date().toISOString() },
+      { roomId: 102, roomNumber: '102', hostelId: Number(activeHostelId) || 1, hostelName: blkName, hostelCode: blkCode, roomTypeId: 1, roomTypeSpecification: 'Standard Double', bedCapacity: 2, capacity: 2, floorLevel: 'First Floor', status: 'Available', occupiedBeds: 0, vacantBeds: 2, createdAt: new Date().toISOString() },
+      { roomId: 201, roomNumber: '201', hostelId: Number(activeHostelId) || 1, hostelName: blkName, hostelCode: blkCode, roomTypeId: 2, roomTypeSpecification: 'Deluxe Triple', bedCapacity: 3, capacity: 3, floorLevel: 'Second Floor', status: 'Available', occupiedBeds: 0, vacantBeds: 3, createdAt: new Date().toISOString() },
+      { roomId: 202, roomNumber: '202', hostelId: Number(activeHostelId) || 1, hostelName: blkName, hostelCode: blkCode, roomTypeId: 1, roomTypeSpecification: 'Standard Double', bedCapacity: 2, capacity: 2, floorLevel: 'Second Floor', status: 'Available', occupiedBeds: 0, vacantBeds: 2, createdAt: new Date().toISOString() },
     ];
-  }, [safeRooms, selectedHostelId, selectedBlock]);
+  }, [safeRooms, selectedHostelId, filterHostel, selectedBlock, targetBlocks]);
 
   const inheritedWardenName = selectedBlock?.wardenName || 'Unassigned';
 
@@ -1097,9 +1117,9 @@ export const StudentHostelAssignmentView: React.FC = () => {
                       setSelectedBedNo(firstVacant || 'BED-1');
                     }} 
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold"
-                    disabled={isSubmitting || !selectedHostelId}
+                    disabled={isSubmitting || (!selectedHostelId && targetBlocks.length === 0)}
                   >
-                    {!selectedHostelId ? (
+                    {(!selectedHostelId && targetBlocks.length === 0) ? (
                       <option value="">Select Hostel Block first...</option>
                     ) : availableRooms.length === 0 ? (
                       <option value="">No rooms created for this block yet</option>
@@ -1188,14 +1208,23 @@ export const StudentHostelAssignmentView: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-semibold mb-1">Joining Date</label>
+                <label className="block font-semibold mb-1">Joining Date <span className="text-rose-500">*</span></label>
                 <input 
                   type="date" 
+                  min="2020-01-01"
+                  max="2099-12-31"
                   value={joiningDate || ''} 
                   onChange={e => setJoiningDate(e.target.value)} 
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold" 
+                  className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold ${
+                    joiningDate && (new Date(joiningDate).getFullYear() < 2020 || new Date(joiningDate).getFullYear() > 2099)
+                      ? 'border-rose-500 text-rose-600 focus:border-rose-500'
+                      : 'border-slate-200 dark:border-slate-700'
+                  }`} 
                   disabled={isSubmitting}
                 />
+                {joiningDate && (new Date(joiningDate).getFullYear() < 2020 || new Date(joiningDate).getFullYear() > 2099) && (
+                  <p className="text-[11px] font-bold text-rose-500 mt-1">Please enter a valid joining date between 2020 and 2099.</p>
+                )}
               </div>
 
               <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800">

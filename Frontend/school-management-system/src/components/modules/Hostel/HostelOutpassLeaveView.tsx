@@ -217,6 +217,23 @@ export const HostelOutpassLeaveView: React.FC = () => {
   }, []);
 
   const [searchQuery, setSearchQuery] = useState('');
+  // Search Validation
+  const isSearchInvalid = useMemo(() => {
+    if (!searchQuery) return false;
+    return /[<>{}\[\]~\\^%$*+=`|]/.test(searchQuery);
+  }, [searchQuery]);
+
+  const searchValidationMsg = useMemo(() => {
+    if (!searchQuery) return '';
+    if (isSearchInvalid) {
+      return 'Special characters (< > { } [ ] ~ \\ ^ % $ * + = ` |) are not allowed.';
+    }
+    if (searchQuery.length > 50) {
+      return 'Maximum 50 characters allowed.';
+    }
+    return '';
+  }, [searchQuery, isSearchInvalid]);
+
   const [filterStatus, setFilterStatus] = useState('');
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -374,14 +391,22 @@ export const HostelOutpassLeaveView: React.FC = () => {
       {/* Filter Bar */}
       <div className="glass-card p-3 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-2.5 border border-slate-200/80 dark:border-slate-800 shadow-xs">
         <div className="relative w-full sm:w-80">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
-          <input
-            type="text"
-            placeholder="Search student, student ID, room..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all"
-          />
+          <div className="relative">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+            <input
+              type="text"
+              maxLength={50}
+              placeholder="Search student, student ID, room..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className={`w-full pl-10 pr-4 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border text-xs font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all ${
+                searchValidationMsg ? 'border-rose-500 dark:border-rose-500' : 'border-slate-200 dark:border-slate-700'
+              }`}
+            />
+          </div>
+          {searchValidationMsg && (
+            <p className="text-[11px] font-bold text-rose-500 mt-1 pl-1">{searchValidationMsg}</p>
+          )}
         </div>
 
         <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
@@ -412,7 +437,29 @@ export const HostelOutpassLeaveView: React.FC = () => {
           </div>
           <div className="max-w-md mx-auto">
             <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-              Please enter a search query to load records.
+              Please enter a search query or select a status to load records.
+            </p>
+          </div>
+        </div>
+      ) : searchValidationMsg ? (
+        <div className="py-16 px-6 glass-card rounded-3xl border border-rose-300 dark:border-rose-800 text-center space-y-3 bg-white dark:bg-slate-900 shadow-sm">
+          <div className="w-14 h-14 rounded-2xl bg-rose-50 dark:bg-rose-950/50 text-rose-500 border border-rose-200 dark:border-rose-800 flex items-center justify-center mx-auto shadow-inner">
+            <Search className="w-7 h-7" />
+          </div>
+          <div className="max-w-md mx-auto space-y-1">
+            <h4 className="text-sm font-bold text-slate-800 dark:text-white">Invalid Search Criteria</h4>
+            <p className="text-xs text-rose-500 font-semibold">{searchValidationMsg}</p>
+          </div>
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="py-16 px-6 glass-card rounded-3xl border border-slate-200 dark:border-slate-800 text-center space-y-3 bg-white dark:bg-slate-900 shadow-sm">
+          <div className="w-14 h-14 rounded-2xl bg-slate-50 dark:bg-slate-800 text-slate-400 flex items-center justify-center mx-auto">
+            <Search className="w-7 h-7" />
+          </div>
+          <div className="max-w-md mx-auto space-y-1">
+            <h4 className="text-sm font-bold text-slate-800 dark:text-white">No Matching Records Found</h4>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              No outpass or leave applications match &quot;{searchQuery}&quot;. Please verify the student name, ID, or room number.
             </p>
           </div>
         </div>
