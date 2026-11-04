@@ -15,6 +15,7 @@ import {
   ChevronRight,
   ArrowUpDown,
   ChevronDown,
+  AlertCircle,
   X
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
@@ -47,6 +48,26 @@ export const TeacherPayslipsView: React.FC = () => {
   }, [fetchPayslips]);
 
   const [searchQuery, setSearchQuery] = useState('');
+  // Search validation for pay month
+  const isSearchInvalid = useMemo(() => {
+    if (!searchQuery.trim()) return false;
+    const q = searchQuery.trim().toLowerCase();
+    if (/[<>{}\[\]~\\^%$*+=`|!@#]/.test(q)) return true;
+
+    const validMonthTokens = [
+      'jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec',
+      'january', 'february', 'march', 'april', 'june', 'july', 'august', 'september', 'october', 'november', 'december'
+    ];
+
+    const words = q.split(/[\s\-\/\,]+/).filter(Boolean);
+    const hasAnyValidToken = words.some(w => {
+      if (/^\d{1,4}$/.test(w)) return true;
+      return validMonthTokens.some(m => m.startsWith(w) || w.startsWith(m));
+    });
+
+    return !hasAnyValidToken;
+  }, [searchQuery]);
+
   const [selectedYear, setSelectedYear] = useState('All');
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
   const [currentPage, setCurrentPage] = useState(1);
@@ -326,15 +347,26 @@ export const TeacherPayslipsView: React.FC = () => {
 
       {/* Filter Bar */}
       <div className="glass-card p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xs">
-        <div className="relative w-full sm:w-72">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-          <input
-            type="text"
-            placeholder="Search by pay month..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-bold outline-none focus:border-sky-500"
-          />
+        <div className="w-full sm:w-80">
+          <div className="relative">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Search by pay month (e.g. October, 2026)..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className={`w-full pl-9 pr-3 py-1.5 text-xs rounded-lg bg-slate-50 dark:bg-slate-800 border font-bold outline-none text-slate-900 dark:text-white transition-colors ${
+                isSearchInvalid
+                  ? 'border-rose-500 focus:border-rose-500'
+                  : 'border-slate-200 dark:border-slate-700 focus:border-sky-500'
+              }`}
+            />
+          </div>
+          {isSearchInvalid && (
+            <p className="text-[11px] font-bold text-rose-500 mt-1 pl-1">
+              Please enter a valid pay month (e.g., October, Oct 2026, or 2026).
+            </p>
+          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
@@ -352,16 +384,18 @@ export const TeacherPayslipsView: React.FC = () => {
             <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
 
-          <div className="relative">
-            <select
-              value={sortOrder}
-              onChange={e => setSortOrder(e.target.value as 'desc' | 'asc')}
-              className="appearance-none pl-3 pr-8 py-1.5 text-xs font-semibold rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 cursor-pointer outline-none transition-all shadow-xs"
-            >
-              <option value="desc">Sort: Latest Month First</option>
-              <option value="asc">Sort: Oldest Month First</option>
-            </select>
-            <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <div className="relative flex items-center">
+            <div className="relative">
+              <select
+                value={sortOrder}
+                onChange={e => setSortOrder(e.target.value as 'desc' | 'asc')}
+                className="appearance-none pl-3 pr-8 py-1.5 text-xs font-semibold rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 cursor-pointer outline-none transition-all shadow-xs"
+              >
+                <option value="desc">Latest Month First</option>
+                <option value="asc">Oldest Month First</option>
+              </select>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
           </div>
         </div>
       </div>
@@ -383,19 +417,31 @@ export const TeacherPayslipsView: React.FC = () => {
               {paginatedPayslips.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="text-center py-12 text-slate-400 font-medium">
-                    <div className="flex flex-col items-center justify-center gap-2">
-                      <FileText className="w-8 h-8 text-slate-300 dark:text-slate-600" />
-                      <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                        {searchQuery || selectedYear !== 'All'
-                          ? 'No payslips found matching your search filter.'
-                          : 'No payslips generated yet.'}
-                      </p>
-                      <p className="text-xs text-slate-400 max-w-sm">
-                        {searchQuery || selectedYear !== 'All'
-                          ? 'Try adjusting your search query or selecting a different year.'
-                          : 'Official monthly payslips generated by the administration or accounts department will appear here automatically.'}
-                      </p>
-                    </div>
+                    {isSearchInvalid ? (
+                      <div className="flex flex-col items-center justify-center gap-2">
+                        <AlertCircle className="w-8 h-8 text-rose-500" />
+                        <p className="text-sm font-bold text-slate-800 dark:text-white">
+                          Invalid Search Criteria Entered
+                        </p>
+                        <p className="text-xs text-rose-500 font-semibold max-w-sm">
+                          &quot;{searchQuery}&quot; is not a valid pay month. Please enter a valid month (e.g. &quot;October&quot;, &quot;Oct&quot;) or year (e.g. &quot;2026&quot;).
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center gap-2">
+                        <FileText className="w-8 h-8 text-slate-300 dark:text-slate-600" />
+                        <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                          {searchQuery || selectedYear !== 'All'
+                            ? 'No payslips found matching your search filter.'
+                            : 'No payslips generated yet.'}
+                        </p>
+                        <p className="text-xs text-slate-400 max-w-sm">
+                          {searchQuery || selectedYear !== 'All'
+                            ? 'Try adjusting your search query or selecting a different year.'
+                            : 'Official monthly payslips generated by the administration or accounts department will appear here automatically.'}
+                        </p>
+                      </div>
+                    )}
                   </td>
                 </tr>
               ) : (

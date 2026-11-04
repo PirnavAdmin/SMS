@@ -11,6 +11,7 @@ import { SearchableSelect } from '../../common/SearchableSelect';
 import { getHostelBlocks, getRooms, getAllocations, getWardens, formatRoomNumber, HostelBlock, HostelRoom, BedAllocation, WardenRecord } from '../../../api/hostel';
 import { normalizeStudentType } from '../../../utils/studentTypeUtils';
 import { formatPhoneNumber } from '../../../utils/validation';
+import { downloadHostelReportPdf } from '../../../utils/hostelReportPdf';
 
 const ENTERPRISE_HOSTEL_REPORTS = [
   'Block Report',
@@ -400,14 +401,28 @@ export const HostelReportsView: React.FC = () => {
   };
 
   const handlePdfExport = () => {
-    addToast('success', 'PDF Export Complete', `Exported ${reportData.length} filtered records to PDF`);
-    const link = document.createElement('a');
-    const content = `HOSTEL REPORT - ${selectedReport.toUpperCase()}\nRecords Count: ${reportData.length}\nGenerated: ${new Date().toLocaleString()}\n\n` +
-      reportData.map((r, i) => `${i + 1}. ` + Object.entries(r).map(([k, v]) => `${k}: ${v}`).join(' | ')).join('\n');
-    const blob = new Blob([content], { type: 'text/plain;charset=utf-8;' });
-    link.href = URL.createObjectURL(blob);
-    link.download = `Hostel_${selectedReport.replace(/\s+/g, '_')}_Filtered_Report.txt`;
-    link.click();
+    if (!selectedReport) {
+      addToast('warning', 'Select Report', 'Please select a report category to export.');
+      return;
+    }
+    if (reportData.length === 0) {
+      addToast('warning', 'No Records', 'There are no records to export for the selected filter.');
+      return;
+    }
+
+    try {
+      downloadHostelReportPdf({
+        reportTitle: selectedReport,
+        data: reportData,
+        academicYear: selectedAcademicYear || '2025-2026',
+        blockFilter: effectiveHostel || 'All Blocks',
+        filename: `Hostel_${selectedReport.replace(/\s+/g, '_')}_Report.pdf`
+      });
+      addToast('success', 'PDF Export Complete', `Generated and downloaded formatted PDF with ${reportData.length} records.`);
+    } catch (err: any) {
+      console.error('PDF export failed:', err);
+      addToast('error', 'PDF Export Failed', 'Could not generate formatted PDF report.');
+    }
   };
 
   return (

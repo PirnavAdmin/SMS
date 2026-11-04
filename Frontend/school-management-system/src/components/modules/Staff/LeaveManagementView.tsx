@@ -680,11 +680,43 @@ export const LeaveManagementView: React.FC = () => {
     : Boolean(applyForm.fromDate && applyForm.toDate && applyForm.toDate >= applyForm.fromDate);
   const isInvalidDateRange = Boolean(!applyForm.isHalfDay && applyForm.fromDate && applyForm.toDate && applyForm.toDate < applyForm.fromDate);
 
+  const validateLeaveReason = (val: string): { isValid: boolean; error?: string } => {
+    const trimmed = (val || '').trim();
+    if (!trimmed) {
+      return { isValid: false, error: 'Reason for leave is required.' };
+    }
+    if (trimmed.length < 10) {
+      return { isValid: false, error: 'Please enter at least 10 characters explaining your leave reason.' };
+    }
+    if (/(.)\1{3,}/i.test(trimmed)) {
+      return { isValid: false, error: 'Reason contains invalid repetitive characters.' };
+    }
+    const words = trimmed.split(/\s+/).filter(Boolean);
+    if (words.length < 2) {
+      return { isValid: false, error: 'Please enter a clear explanation containing at least 2 words.' };
+    }
+    for (const word of words) {
+      const cleanWord = word.replace(/[^a-zA-Z]/g, '');
+      if (cleanWord.length >= 12 && !/\b(hospitalization|unavailability|transportation|rehabilitation|administration|congratulations|appointment)\b/i.test(cleanWord)) {
+        return { isValid: false, error: 'Please enter a valid, meaningful leave reason.' };
+      }
+      if (cleanWord.length >= 6 && !/[aeiouy]/i.test(cleanWord)) {
+        return { isValid: false, error: 'Please enter a valid, meaningful leave reason.' };
+      }
+      if (/[bcdfghjklmnpqrstvwxyz]{6,}/i.test(cleanWord)) {
+        return { isValid: false, error: 'Please enter a valid, meaningful leave reason.' };
+      }
+    }
+    return { isValid: true };
+  };
+
+  const leaveReasonValidation = validateLeaveReason(applyForm.reason);
+
   const isApplyFormValid = Boolean(
     applyForm.leaveTypeId &&
     hasValidDates &&
     !isInvalidDateRange &&
-    applyForm.reason?.trim() &&
+    leaveReasonValidation.isValid &&
     (isSelfServiceStaff || applyForm.employeeId)
   );
 
@@ -721,6 +753,12 @@ export const LeaveManagementView: React.FC = () => {
 
     if (!lType || !employee || !applyForm.reason.trim()) {
       addToast('warning', 'Missing Details', 'Please provide a reason for your leave request.');
+      return;
+    }
+
+    const reasonValidation = validateLeaveReason(applyForm.reason);
+    if (!reasonValidation.isValid) {
+      addToast('error', 'Invalid Reason', reasonValidation.error || 'Please provide a meaningful reason for your leave request.');
       return;
     }
 
@@ -1941,11 +1979,18 @@ export const LeaveManagementView: React.FC = () => {
                 </label>
                 <textarea
                   required
-                  placeholder="Explain why you are applying for leave..."
+                  placeholder="Explain why you are applying for leave (minimum 10 characters and 2 words)..."
                   value={applyForm.reason}
                   onChange={e => setApplyForm({ ...applyForm, reason: e.target.value })}
-                  className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 h-14 resize-none outline-none text-xs"
+                  className={`w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border h-14 resize-none outline-none text-xs ${
+                    applyForm.reason && !leaveReasonValidation.isValid
+                      ? 'border-rose-500 focus:border-rose-500'
+                      : 'border-slate-200 dark:border-slate-700 focus:border-sky-500'
+                  }`}
                 />
+                {applyForm.reason && !leaveReasonValidation.isValid && (
+                  <p className="text-[11px] font-bold text-rose-500 mt-1 pl-0.5">{leaveReasonValidation.error}</p>
+                )}
               </div>
 
               {/* Submissions Footer */}
