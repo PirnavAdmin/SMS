@@ -1,51 +1,17 @@
-import React, {
-  useState,
-  useEffect,
-  useCallback,
-  useRef,
-  useMemo,
-} from "react";
-import {
-  UserPlus,
-  Plus,
-  Search,
-  Shield,
-  User,
-  Edit,
-  Trash2,
-  ChevronDown,
-  Building2,
-  Layers,
-  Home,
-  CheckCircle2,
-  ShieldCheck,
-  AlertCircle,
-} from "lucide-react";
-import { formatCurrency } from "../../../utils/currency";
-import { isClassInRange } from "../../../utils/classSorter";
-import * as FinanceAPI from "../../../api/finance";
-import { useData } from "../../../context/DataContext";
-import { useToast } from "../../../context/ToastContext";
-import { ConfirmModal } from "../../common/ConfirmModal";
-import { Pagination } from "../../common/Pagination";
-import { SearchableSelect } from "../../common/SearchableSelect";
-import { useAuth } from "../../../context/AuthContext";
-import {
-  getAllocations,
-  createAllocation,
-  vacateAllocation,
-  vacateStudentAllocation,
-  getRooms,
-  getHostelBlocks,
-  formatRoomNumber,
-  getEligibleStudentsForAllocation,
-  BedAllocation,
-  HostelRoom,
-  HostelBlock,
-  EligibleHostelStudent,
-} from "../../../api/hostel";
-import { normalizeStudentType } from "../../../utils/studentTypeUtils";
-import { formatConfiguredStudentAdmissionNo } from "../../../utils/idGenerator";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { UserPlus, Eye, Plus, Search, Shield, User, Edit, Trash2, ChevronDown, Building2, Layers, Home, CheckCircle2, ShieldCheck, AlertCircle } from 'lucide-react';
+import { formatCurrency } from '../../../utils/currency';
+import { isClassInRange } from '../../../utils/classSorter';
+import * as FinanceAPI from '../../../api/finance';
+import { useData } from '../../../context/DataContext';
+import { useToast } from '../../../context/ToastContext';
+import { ConfirmModal } from '../../common/ConfirmModal';
+import { Pagination } from '../../common/Pagination';
+import { SearchableSelect } from '../../common/SearchableSelect';
+import { useAuth } from '../../../context/AuthContext';
+import { getAllocations, createAllocation, vacateAllocation, vacateStudentAllocation, getRooms, getHostelBlocks, formatRoomNumber, getEligibleStudentsForAllocation, BedAllocation, HostelRoom, HostelBlock, EligibleHostelStudent } from '../../../api/hostel';
+import { normalizeStudentType } from '../../../utils/studentTypeUtils';
+import { formatConfiguredStudentAdmissionNo } from '../../../utils/idGenerator';
 
 const getStudentUniqueKey = (st: any) => {
   if (!st) return "";
@@ -1483,9 +1449,23 @@ export const StudentHostelAssignmentView: React.FC = () => {
               Select a Hostel
             </h3>
             <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-              Please select a hostel option from the filter dropdown above to
-              view student room allocations.
+              Please select a hostel option from the filter dropdown above or click below to view all student room allocations.
             </p>
+          </div>
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={() => {
+                setFilterHostel('All');
+                try {
+                  localStorage.setItem('hostel_assignments_filter', 'All');
+                } catch {}
+              }}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-md shadow-sky-600/20 transition-all cursor-pointer hover:scale-105 active:scale-95"
+            >
+              <Eye className="w-4 h-4" />
+              <span>View All Allocations</span>
+            </button>
           </div>
         </div>
       ) : (

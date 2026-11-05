@@ -1,11 +1,13 @@
 // @ts-nocheck
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Users, Edit, Trash2, Plus, Search, ShieldCheck, History, UserCheck, Layers, Building, Filter } from 'lucide-react';
+import { Users, Edit, Trash2, Plus, Search, ShieldCheck, History, UserCheck, Layers, Building, Filter, Eye } from 'lucide-react';
+import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { Badge } from '../../common/Badge';
 import { ExportButton } from '../../common/ExportButton';
 import { ConfirmModal } from '../../common/ConfirmModal';
 import { DateInput } from '../../common/DateInput';
+import { SearchableSelect } from '../../common/SearchableSelect';
 import { getWardens, getStaffCandidates, getHostelBlocks, assignWarden, deleteWarden, HostelBlock, StaffCandidate } from '../../../api/hostel';
 
 interface WardenRecord {
@@ -20,14 +22,52 @@ interface WardenRecord {
   createdAt: string;
 }
 
-export const WardenMasterView: React.FC = () => {
+interface WardenMasterViewProps {
+  selectedHostelFilter?: string;
+  onHostelFilterChange?: (hostelName: string) => void;
+}
+
+export const WardenMasterView: React.FC<WardenMasterViewProps> = ({
+  selectedHostelFilter,
+  onHostelFilterChange
+}) => {
+  const dataContext = useData();
+  const contextStaff = Array.isArray(dataContext?.staff) ? dataContext.staff : [];
   const { addToast } = useToast();
 
   const [activeTab, setActiveTab] = useState<'current' | 'history'>('current');
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterHostel, setFilterHostel] = useState('');
+  const [localFilterHostel, setLocalFilterHostel] = useState(() => {
+    try {
+      const saved = localStorage.getItem('hostel_warden_filter') || localStorage.getItem('hostel_master_selected_filter') || '';
+      return (saved === 'All' || saved === 'ALL_HOSTELS') ? 'ALL_HOSTELS' : saved;
+    } catch {
+      return '';
+    }
+  });
+
+  const filterHostel = selectedHostelFilter !== undefined
+    ? ((selectedHostelFilter === 'All' || selectedHostelFilter === 'ALL_HOSTELS') ? 'ALL_HOSTELS' : selectedHostelFilter)
+    : localFilterHostel;
+
   const [manualHostelInput, setManualHostelInput] = useState('');
   const effectiveHostel = filterHostel === 'MANUAL' ? manualHostelInput : filterHostel;
+
+  const handleFilterHostelChange = (val: string) => {
+    setLocalFilterHostel(val);
+    try {
+      localStorage.setItem('hostel_warden_filter', val);
+      if (val === 'ALL_HOSTELS') {
+        localStorage.setItem('hostel_master_selected_filter', 'All');
+      } else if (val && val !== 'MANUAL') {
+        localStorage.setItem('hostel_master_selected_filter', val);
+      }
+    } catch {}
+    if (onHostelFilterChange) {
+      onHostelFilterChange(val === 'ALL_HOSTELS' ? 'All' : val);
+    }
+    if (val !== 'MANUAL') setManualHostelInput('');
+  };
 
   const [wardens, setWardens] = useState<WardenRecord[]>([]);
   const [staffList, setStaffList] = useState<StaffCandidate[]>([]);
@@ -94,34 +134,73 @@ export const WardenMasterView: React.FC = () => {
         (w.wardenName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
         (w.employeeId || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
         (w.hostelName || '').toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesHostel = !effectiveHostel || effectiveHostel === 'ALL_HOSTELS' || (w.hostelName || '').toLowerCase().includes(effectiveHostel.toLowerCase().trim());
+      const matchesHostel = !effectiveHostel || effectiveHostel === 'ALL_HOSTELS' || effectiveHostel === 'All' || (w.hostelName || '').toLowerCase().includes(effectiveHostel.toLowerCase().trim());
       return matchesSearch && matchesHostel;
     });
   }, [wardens, staffList, hostels, searchQuery, filterHostel, effectiveHostel]);
 
   const wardenCandidates = useMemo(() => {
-    const predefinedWardens = [
-      { staffId: 101, employeeId: 'STF-2026-NTS-01', staffName: 'Dr. Eleanor Vance', designation: 'Chief Hostel Warden' },
-      { staffId: 102, employeeId: 'STF-2026-NTS-02', staffName: 'Rajesh Kumar', designation: 'Senior Hostel Warden' },
-      { staffId: 103, employeeId: 'STF-2026-NTS-03', staffName: 'Savitri Devi', designation: 'Girls Hostel Warden' },
-      { staffId: 104, employeeId: 'STF-2026-NTS-04', staffName: 'Vikram Singh', designation: 'Assistant Hostel Warden' },
-    ];
+    // 100% dynamic candidates from backend API & DataContext staff list (zero hardcoded mock wardens)
+    const combinedList: any[] = [];
+    const seenIds = new Set<string>();
 
-    const fromStaffList = (staffList || [])
-      .filter(s => {
-        const desig = (s.designation || '').toLowerCase();
-        const role = ((s as any).role || '').toLowerCase();
-        const cat = ((s as any).employeeCategory || '').toLowerCase();
-        return desig.includes('warden') || role.includes('warden') || cat.includes('warden');
-      })
-      .map(s => ({
-        ...s,
-        designation: s.designation || 'Hostel Warden'
+    const pushItem = (item: any) => {
+      if (!item) return;
+      const sId = String(item.staffId ?? item.id ?? '');
+      if (!sId || seenIds.has(sId)) return;
+      seenIds.add(sId);
+      combinedList.push(item);
+    };
+
+    (staffList || []).forEach(pushItem);
+    contextStaff.forEach((cs: any) => {
+      pushItem({
+        staffId: Number(cs.id) || cs.staffId,
+        employeeId: cs.empId || cs.employeeId,
+        staffName: cs.name || cs.staffName,
+        designation: cs.designation,
+        phone: cs.phone || cs.mobileNumber,
+        email: cs.email || cs.emailAddress,
+        role: cs.role,
+        employeeCategory: cs.employeeCategory,
+        department: cs.department
+      });
+    });
+
+    // ONLY hostel wardens (strictly filtering out teachers, drivers, attendants, accountants, etc.)
+    const onlyHostelWardens = combinedList.filter(s => {
+      const desig = (s.designation || '').toLowerCase().trim();
+      const role = ((s as any).role || '').toLowerCase().trim();
+      const cat = ((s as any).employeeCategory || '').toLowerCase().trim();
+      return desig.includes('warden') || role.includes('warden') || cat.includes('warden');
+    });
+
+    return onlyHostelWardens.map(s => ({
+      staffId: s.staffId ?? Number(s.id),
+      employeeId: s.employeeId || s.empId || `STF-${s.staffId || s.id}`,
+      staffName: s.staffName || s.name || `${(s as any).firstName || ''} ${(s as any).lastName || ''}`.trim() || 'Staff Member',
+      designation: s.designation || 'Hostel Warden',
+      phone: s.phone || s.mobileNumber || '',
+      email: s.email || s.emailAddress || ''
+    }));
+  }, [staffList, contextStaff]);
+
+  const wardenSelectOptions = useMemo(() => {
+    return wardenCandidates.map(s => ({
+      value: String(s.staffId),
+      label: `${s.staffName} (${s.designation || 'Hostel Warden'})`,
+      code: s.employeeId
+    }));
+  }, [wardenCandidates]);
+
+  const hostelSelectOptions = useMemo(() => {
+    return hostels
+      .filter(h => h && h.hostelId && h.hostelName && !h.hostelName.includes('undefined'))
+      .map(h => ({
+        value: String(h.hostelId),
+        label: `${h.hostelName} (${h.hostelType || 'Hostel'})`
       }));
-
-    const combined = [...predefinedWardens, ...fromStaffList];
-    return Array.from(new Map(combined.map(item => [item.staffId, item])).values());
-  }, [staffList]);
+  }, [hostels]);
 
   const handleOpenAdd = () => {
     setSelectedStaffId('');
@@ -222,10 +301,7 @@ export const WardenMasterView: React.FC = () => {
         <div className="flex flex-col sm:flex-row items-center gap-2 w-full md:w-auto">
           <select
             value={filterHostel}
-            onChange={e => {
-              setFilterHostel(e.target.value);
-              if (e.target.value !== 'MANUAL') setManualHostelInput('');
-            }}
+            onChange={e => handleFilterHostelChange(e.target.value)}
             className="px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white cursor-pointer outline-none focus:border-sky-500 min-w-[180px]"
           >
             <option value="">-- Select Hostel --</option>
@@ -256,6 +332,16 @@ export const WardenMasterView: React.FC = () => {
             <p className="text-xs text-slate-400 max-w-sm mx-auto mt-1">
               Please select a hostel block from the filter dropdown above or use search/manual entry to load warden records.
             </p>
+          </div>
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={() => handleFilterHostelChange('ALL_HOSTELS')}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-md shadow-sky-500/20 transition-all cursor-pointer hover:shadow-lg active:scale-95"
+            >
+              <Eye className="w-4 h-4" />
+              <span>View All Wardens</span>
+            </button>
           </div>
         </div>
       ) : (
@@ -319,28 +405,14 @@ export const WardenMasterView: React.FC = () => {
                 <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
                   Select Hostel Warden <span className="text-rose-500 font-bold ml-0.5">*</span>
                 </label>
-                <select
+                <SearchableSelect
                   value={selectedStaffId}
-                  onChange={e => setSelectedStaffId(e.target.value)}
-                  required
-                  className={`w-full max-w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold truncate outline-none cursor-pointer focus:ring-2 focus:ring-sky-500 transition-all ${
-                    !selectedStaffId
-                      ? 'text-slate-400 dark:text-slate-500 font-normal'
-                      : 'text-slate-900 dark:text-white'
-                  }`}
-                >
-                  <option value="" disabled hidden className="text-slate-400 dark:text-slate-500">
-                    Select Hostel Warden
-                  </option>
-                  <option value="" className="text-slate-400 dark:text-slate-500">
-                    Select Hostel Warden
-                  </option>
-                  {wardenCandidates.map(s => (
-                    <option key={s.staffId} value={s.staffId} className="text-slate-900 dark:text-white font-medium">
-                      {s.staffName} ({s.designation})
-                    </option>
-                  ))}
-                </select>
+                  onChange={val => setSelectedStaffId(val)}
+                  options={wardenSelectOptions}
+                  placeholder="Select Hostel Warden"
+                  searchPlaceholder="Search hostel warden..."
+                  showSearch={true}
+                />
                 <p className="text-[10px] font-semibold text-slate-400 mt-1">Dedicated Hostel Warden directory auto-loaded for assignment.</p>
               </div>
 
@@ -348,30 +420,14 @@ export const WardenMasterView: React.FC = () => {
                 <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
                   Select Hostel Block <span className="text-rose-500 font-bold ml-0.5">*</span>
                 </label>
-                <select
+                <SearchableSelect
                   value={selectedHostelId}
-                  onChange={e => setSelectedHostelId(e.target.value)}
-                  required
-                  className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold truncate outline-none cursor-pointer focus:ring-2 focus:ring-sky-500 transition-all ${
-                    !selectedHostelId
-                      ? 'text-slate-400 dark:text-slate-500 font-normal'
-                      : 'text-sky-600 dark:text-sky-400'
-                  }`}
-                >
-                  <option value="" disabled hidden className="text-slate-400 dark:text-slate-500">
-                    Select Hostel Block
-                  </option>
-                  <option value="" className="text-slate-400 dark:text-slate-500">
-                    Select Hostel Block
-                  </option>
-                  {hostels
-                    .filter(h => h && h.hostelId && h.hostelName && !h.hostelName.includes('undefined'))
-                    .map(h => (
-                      <option key={h.hostelId} value={h.hostelId} className="text-slate-900 dark:text-white font-medium">
-                        {h.hostelName} ({h.hostelType || 'Boys Hostel'})
-                      </option>
-                    ))}
-                </select>
+                  onChange={val => setSelectedHostelId(val)}
+                  options={hostelSelectOptions}
+                  placeholder="Select Hostel Block"
+                  searchPlaceholder="Search hostel block..."
+                  showSearch={true}
+                />
               </div>
 
               <div>

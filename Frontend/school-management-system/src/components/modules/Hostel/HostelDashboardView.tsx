@@ -1,35 +1,12 @@
-import React, { useState, useEffect, useCallback } from "react";
-import {
-  Home,
-  Building2,
-  Bed,
-  Users,
-  IndianRupee,
-  Shield,
-  Plus,
-  CheckCircle2,
-  AlertCircle,
-  ArrowUpRight,
-  TrendingUp,
-  PieChart,
-  Layers,
-  Search,
-} from "lucide-react";
-import { useToast } from "../../../context/ToastContext";
-import { useAuth } from "../../../context/AuthContext";
-import { useData } from "../../../context/DataContext";
-import { Pagination } from "../../common/Pagination";
-import {
-  getHostelBlocks,
-  getRooms,
-  getAllocations,
-  formatRoomNumber,
-  HostelBlock,
-  HostelRoom,
-  BedAllocation,
-} from "../../../api/hostel";
-import { formatCurrency } from "../../../utils/currency";
-import { isClassInRange } from "../../../utils/classSorter";
+import React, { useState, useEffect, useCallback } from 'react';
+import { Home, Building2, Bed, Users, IndianRupee, Shield, Plus, CheckCircle2, AlertCircle, ArrowUpRight, TrendingUp, PieChart, Layers, Search, Eye } from 'lucide-react';
+import { useToast } from '../../../context/ToastContext';
+import { useAuth } from '../../../context/AuthContext';
+import { useData } from '../../../context/DataContext';
+import { Pagination } from '../../common/Pagination';
+import { getHostelBlocks, getRooms, getAllocations, formatRoomNumber, HostelBlock, HostelRoom, BedAllocation } from '../../../api/hostel';
+import { formatCurrency } from '../../../utils/currency';
+import { isClassInRange } from '../../../utils/classSorter';
 
 interface HostelDashboardViewProps {
   onNavigate?: (tab: string) => void;
@@ -412,8 +389,21 @@ export const HostelDashboardView: React.FC<HostelDashboardViewProps> = ({
       ),
   ).size;
 
-  const [dashboardBlockFilter, setDashboardBlockFilter] = useState("");
-  const [dashboardSearchQuery, setDashboardSearchQuery] = useState("");
+  const [dashboardBlockFilter, setDashboardBlockFilterState] = useState(() => {
+    try {
+      return localStorage.getItem('hostel_dashboard_block_filter') || '';
+    } catch {
+      return '';
+    }
+  });
+
+  const setDashboardBlockFilter = (val: string) => {
+    setDashboardBlockFilterState(val);
+    try {
+      localStorage.setItem('hostel_dashboard_block_filter', val);
+    } catch {}
+  };
+  const [dashboardSearchQuery, setDashboardSearchQuery] = useState('');
 
   const filteredBlocksList = displayBlocks.filter((b) => {
     const blockTitle =
@@ -746,9 +736,18 @@ export const HostelDashboardView: React.FC<HostelDashboardViewProps> = ({
                   Select a Hostel Block
                 </p>
                 <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                  Please select a hostel block from the dropdown above or type a
-                  search query to render block details.
+                  Please select a hostel block from the dropdown above or click below to view all operational blocks.
                 </p>
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setDashboardBlockFilter('All')}
+                    className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-md shadow-sky-600/20 transition-all cursor-pointer hover:scale-105 active:scale-95"
+                  >
+                    <Eye className="w-3.5 h-3.5" />
+                    <span>View All Hostel Blocks</span>
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

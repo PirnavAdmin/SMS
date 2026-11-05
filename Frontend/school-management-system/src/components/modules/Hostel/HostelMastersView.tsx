@@ -17,14 +17,45 @@ export const HostelMastersView: React.FC<HostelMastersViewProps> = ({
   const userRole = (role || user?.role || '').toLowerCase();
   const isWarden = userRole.includes('warden');
 
-  const [activeSubTab, setActiveSubTab] = useState<'blocks' | 'room-types' | 'rooms' | 'wardens'>(initialSubTab);
+  const [activeSubTab, setActiveSubTab] = useState<'blocks' | 'room-types' | 'rooms' | 'wardens'>(() => {
+    try {
+      const saved = localStorage.getItem('hostel_master_active_subtab') as any;
+      if (saved && ['blocks', 'room-types', 'rooms', 'wardens'].includes(saved)) {
+        return saved;
+      }
+    } catch {}
+    return initialSubTab;
+  });
+
+  const handleSubTabChange = (tabId: 'blocks' | 'room-types' | 'rooms' | 'wardens') => {
+    setActiveSubTab(tabId);
+    try {
+      localStorage.setItem('hostel_master_active_subtab', tabId);
+    } catch {}
+  };
 
   React.useEffect(() => {
-    if (initialSubTab) {
+    if (initialSubTab && initialSubTab !== 'blocks') {
       setActiveSubTab(initialSubTab);
+      try {
+        localStorage.setItem('hostel_master_active_subtab', initialSubTab);
+      } catch {}
     }
   }, [initialSubTab]);
-  const [sharedHostelFilter, setSharedHostelFilter] = useState('');
+  const [sharedHostelFilter, setSharedHostelFilter] = useState(() => {
+    try {
+      return localStorage.getItem('hostel_master_selected_filter') || '';
+    } catch {
+      return '';
+    }
+  });
+
+  const handleSharedHostelFilterChange = (val: string) => {
+    setSharedHostelFilter(val);
+    try {
+      localStorage.setItem('hostel_master_selected_filter', val);
+    } catch {}
+  };
 
   const allSubTabs = [
     { id: 'blocks', label: 'Hostel Blocks', icon: Building2 },
@@ -47,7 +78,7 @@ export const HostelMastersView: React.FC<HostelMastersViewProps> = ({
           return (
             <button
               key={tab.id}
-              onClick={() => setActiveSubTab(tab.id)}
+              onClick={() => handleSubTabChange(tab.id)}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap flex items-center gap-1.5 transition-all ${
                 isActive
                   ? 'bg-sky-600 text-white shadow-sm'
@@ -63,15 +94,25 @@ export const HostelMastersView: React.FC<HostelMastersViewProps> = ({
 
       {/* Render Active View */}
       <div>
-        {activeSubTab === 'blocks' && <HostelMasterView />}
+        {activeSubTab === 'blocks' && (
+          <HostelMasterView
+            selectedHostelFilter={sharedHostelFilter}
+            onHostelFilterChange={handleSharedHostelFilterChange}
+          />
+        )}
         {activeSubTab === 'room-types' && <RoomTypeMasterView />}
         {activeSubTab === 'rooms' && (
           <RoomMasterView
             selectedHostelFilter={sharedHostelFilter}
-            onHostelFilterChange={setSharedHostelFilter}
+            onHostelFilterChange={handleSharedHostelFilterChange}
           />
         )}
-        {activeSubTab === 'wardens' && <WardenMasterView />}
+        {activeSubTab === 'wardens' && (
+          <WardenMasterView
+            selectedHostelFilter={sharedHostelFilter}
+            onHostelFilterChange={handleSharedHostelFilterChange}
+          />
+        )}
       </div>
     </div>
   );

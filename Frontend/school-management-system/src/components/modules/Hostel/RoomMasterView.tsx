@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Home, Plus, Edit, Trash2, Search, Building2, CheckCircle2, AlertTriangle, XCircle, Users, Layers } from 'lucide-react';
+import { Home, Plus, Edit, Trash2, Search, Building2, CheckCircle2, AlertTriangle, XCircle, Users, Layers, Eye } from 'lucide-react';
 import { useToast } from '../../../context/ToastContext';
 import { useAuth } from '../../../context/AuthContext';
 import { ConfirmModal } from '../../common/ConfirmModal';
@@ -347,8 +347,18 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
           <div className="max-w-md mx-auto space-y-1">
             <h3 className="text-sm font-bold text-slate-900 dark:text-white">Select a Hostel</h3>
             <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-              Please select a hostel option from the filter dropdown above to view room allocations.
+              Please select a hostel option from the filter dropdown above or click below to view all room allocations.
             </p>
+          </div>
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={() => setFilterHostel('All')}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-md shadow-sky-600/20 transition-all cursor-pointer hover:scale-105 active:scale-95"
+            >
+              <Eye className="w-4 h-4" />
+              <span>View All Rooms</span>
+            </button>
           </div>
         </div>
       ) : loading ? (

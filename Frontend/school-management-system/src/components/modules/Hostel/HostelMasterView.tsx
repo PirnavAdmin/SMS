@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Building2, Plus, Edit, Trash2, Search, CheckCircle2, XCircle, FileText, Download } from 'lucide-react';
+import { Building2, Plus, Edit, Trash2, Search, CheckCircle2, XCircle, FileText, Download, Eye } from 'lucide-react';
 import { useToast } from '../../../context/ToastContext';
 import { useAuth } from '../../../context/AuthContext';
 import { ConfirmModal } from '../../common/ConfirmModal';
@@ -17,7 +17,15 @@ interface FloorAlloc {
   isEditing?: boolean;
 }
 
-export const HostelMasterView: React.FC = () => {
+interface HostelMasterViewProps {
+  selectedHostelFilter?: string;
+  onHostelFilterChange?: (filter: string) => void;
+}
+
+export const HostelMasterView: React.FC<HostelMasterViewProps> = ({
+  selectedHostelFilter,
+  onHostelFilterChange
+}) => {
   const { addToast } = useToast();
   const { user, role } = useAuth();
   const userRole = (role || user?.role || '').toLowerCase();
@@ -29,7 +37,26 @@ export const HostelMasterView: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterType, setFilterType] = useState('');
+
+  const [localFilterType, setLocalFilterType] = useState(() => {
+    try {
+      return localStorage.getItem('hostel_master_selected_filter') || '';
+    } catch {
+      return '';
+    }
+  });
+
+  const filterType = selectedHostelFilter !== undefined ? selectedHostelFilter : localFilterType;
+
+  const handleFilterChange = (val: string) => {
+    setLocalFilterType(val);
+    try {
+      localStorage.setItem('hostel_master_selected_filter', val);
+    } catch {}
+    if (onHostelFilterChange) {
+      onHostelFilterChange(val);
+    }
+  };
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -302,7 +329,7 @@ export const HostelMasterView: React.FC = () => {
           <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
             <select
               value={filterType}
-              onChange={e => setFilterType(e.target.value)}
+              onChange={e => handleFilterChange(e.target.value)}
               className={`px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold cursor-pointer outline-none h-[34px] transition-all hover:border-sky-400 ${
                 !filterType ? 'text-slate-400 dark:text-slate-500 font-medium' : 'text-slate-800 dark:text-slate-200'
               }`}
@@ -331,8 +358,18 @@ export const HostelMasterView: React.FC = () => {
           <div className="max-w-md mx-auto space-y-1">
             <h3 className="text-sm font-bold text-slate-900 dark:text-white">Select a Hostel</h3>
             <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-              Please select a hostel option from the filter dropdown above to render operational hostel blocks.
+              Please select a hostel option from the filter dropdown above or click below to view all operational hostel blocks.
             </p>
+          </div>
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={() => handleFilterChange('All')}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-md shadow-sky-600/20 transition-all cursor-pointer hover:scale-105 active:scale-95"
+            >
+              <Eye className="w-4 h-4" />
+              <span>View All Hostel Blocks</span>
+            </button>
           </div>
         </div>
       ) : (

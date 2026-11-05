@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Layers, Plus, Edit, Trash2, Search, ChevronDown, Building2, AlertTriangle } from 'lucide-react';
+import { Layers, Plus, Edit, Trash2, Search, ChevronDown, Building2, AlertTriangle, Eye } from 'lucide-react';
 import { useToast } from '../../../context/ToastContext';
 import { useAuth } from '../../../context/AuthContext';
 import { ConfirmModal } from '../../common/ConfirmModal';
@@ -47,7 +47,21 @@ export const RoomTypeMasterView: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterAcType, setFilterAcType] = useState('');
+  const [filterAcType, setFilterAcType] = useState(() => {
+    try {
+      return localStorage.getItem('hostel_room_categories_filter') || '';
+    } catch {
+      return '';
+    }
+  });
+
+  const handleFilterAcChange = (val: string) => {
+    setFilterAcType(val);
+    try {
+      localStorage.setItem('hostel_room_categories_filter', val);
+    } catch {}
+    if (val !== 'Custom') setManualFilterInput('');
+  };
   const [manualFilterInput, setManualFilterInput] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -572,10 +586,7 @@ export const RoomTypeMasterView: React.FC = () => {
           <div className="min-w-[220px] w-full sm:w-auto">
             <SearchableSelect
               value={filterAcType}
-              onChange={val => {
-                setFilterAcType(val);
-                if (val !== 'Custom') setManualFilterInput('');
-              }}
+              onChange={handleFilterAcChange}
               placeholder="-- Select AC / Non-AC Option --"
               searchPlaceholder="Search option..."
               options={[
@@ -612,6 +623,16 @@ export const RoomTypeMasterView: React.FC = () => {
             <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
               Please select an option from the dropdown above to view room categories.
             </p>
+          </div>
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={() => handleFilterAcChange('All')}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-md shadow-sky-500/20 transition-all cursor-pointer hover:shadow-lg active:scale-95"
+            >
+              <Eye className="w-4 h-4" />
+              <span>View All Room Categories</span>
+            </button>
           </div>
         </div>
       ) : (
