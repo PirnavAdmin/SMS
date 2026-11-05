@@ -79,8 +79,8 @@ export const WardenMasterView: React.FC<WardenMasterViewProps> = ({
 
   const [selectedStaffId, setSelectedStaffId] = useState('');
   const [selectedHostelId, setSelectedHostelId] = useState('');
-  const [selectedBlock, setSelectedBlock] = useState('Block A');
-  const [selectedFloor, setSelectedFloor] = useState('Floor 1');
+  const [selectedBlock, setSelectedBlock] = useState('');
+  const [selectedFloor, setSelectedFloor] = useState('');
   const [assignmentDate, setAssignmentDate] = useState('');
 
   const fetchData = useCallback(async () => {
@@ -205,8 +205,8 @@ export const WardenMasterView: React.FC<WardenMasterViewProps> = ({
   const handleOpenAdd = () => {
     setSelectedStaffId('');
     setSelectedHostelId('');
-    setSelectedBlock('Block A');
-    setSelectedFloor('Floor 1');
+    setSelectedBlock('');
+    setSelectedFloor('');
     setAssignmentDate('');
     setIsModalOpen(true);
   };

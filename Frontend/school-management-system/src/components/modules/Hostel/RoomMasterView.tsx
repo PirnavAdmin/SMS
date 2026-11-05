@@ -172,13 +172,7 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
 
     if (matched.length > 0) return matched;
 
-    const defaultWardenBlock = blocks.find(b =>
-      (b.hostelName || '').toLowerCase().includes('ramachandra') ||
-      (b.hostelName || '').toLowerCase().includes('bhanu') ||
-      (b.hostelName || '').toLowerCase().includes('boys')
-    );
-
-    return defaultWardenBlock ? [defaultWardenBlock] : (blocks.length > 0 ? [blocks[0]] : []);
+    return blocks.length > 0 ? [blocks[0]] : [];
   }, [blocks, isWarden, user]);
 
   const targetBlocks = isWarden ? wardenAssignedHostels : blocks;

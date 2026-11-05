@@ -3,7 +3,7 @@ import { ArrowRightLeft, Plus, Search, CheckCircle2, Trash2, ChevronDown } from 
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
-import { getHostelBlocks, getAllocations, vacateAllocation, createAllocation, updateStudentAllocationBlock, vacateStudentAllocation, getTransferVacateRequests, createTransferVacateRequest, deleteTransferVacateRequest } from '../../../api/hostel';
+import { getHostelBlocks, getRooms, getAllocations, vacateAllocation, createAllocation, updateStudentAllocationBlock, vacateStudentAllocation, getTransferVacateRequests, createTransferVacateRequest, deleteTransferVacateRequest } from '../../../api/hostel';
 import { SearchableSelect } from '../../common/SearchableSelect';
 import { ConfirmModal } from '../../common/ConfirmModal';
 
@@ -38,18 +38,21 @@ export const HostelTransferVacateView: React.FC = () => {
 
   const [blocks, setBlocks] = useState<any[]>([]);
   const [allocations, setAllocations] = useState<any[]>([]);
+  const [rooms, setRooms] = useState<any[]>([]);
 
   useEffect(() => {
     let isMounted = true;
     const loadHostelData = async () => {
       try {
-        const [bData, aData] = await Promise.all([
+        const [bData, aData, rData] = await Promise.all([
           getHostelBlocks().catch(() => []),
-          getAllocations().catch(() => [])
+          getAllocations().catch(() => []),
+          getRooms().catch(() => [])
         ]);
         if (isMounted) {
           setBlocks(Array.isArray(bData) ? bData : []);
           setAllocations(Array.isArray(aData) ? aData : []);
+          setRooms(Array.isArray(rData) ? rData : []);
         }
       } catch (e) {
         console.warn('Failed to load hostel data for transfer view', e);
@@ -100,14 +103,7 @@ export const HostelTransferVacateView: React.FC = () => {
       if (matched.length > 0) return matched;
     }
 
-    // Default warden block fallback matching StudentList.tsx
-    const defaultBlock = blocks.find(b =>
-      (b.hostelName || (b as any).name || '').toLowerCase().includes('ramachandra') ||
-      (b.hostelName || (b as any).name || '').toLowerCase().includes('bhanu') ||
-      (b.hostelName || (b as any).name || '').toLowerCase().includes('boys')
-    );
-
-    return defaultBlock ? [defaultBlock] : (blocks.length > 0 ? [blocks[0]] : []);
+    return blocks.length > 0 ? [blocks[0]] : [];
   }, [blocks, allocations, isWarden, user]);
 
   // Strictly filter residential hostellers allocated to assigned block
@@ -199,9 +195,7 @@ export const HostelTransferVacateView: React.FC = () => {
   }, [students, wardenAssignedBlocks, blocks, allocations]);
 
   const availableBlockNames = useMemo(() => {
-    const dynamicNames = (blocks || []).map(b => b.hostelName || b.name).filter(Boolean);
-    const fallbackNames = ['Boys Residence - Block A', 'Bhanu Block', 'Girls Hostel - Block B'];
-    return Array.from(new Set([...dynamicNames, ...fallbackNames]));
+    return (blocks || []).map(b => b.hostelName || b.name).filter(Boolean);
   }, [blocks]);
 
   const [records, setRecords] = useState<TransferRecord[]>([]);
@@ -239,9 +233,45 @@ export const HostelTransferVacateView: React.FC = () => {
   const [targetBed, setTargetBed] = useState('');
   const [reason, setReason] = useState('');
 
+  const destinationRooms = useMemo(() => {
+    if (!targetBlock) return [];
+    const selName = String(targetBlock).toLowerCase().trim();
+    return (rooms || []).filter(r => {
+      const hName = String(r.hostelName || '').toLowerCase().trim();
+      const matchBlock = blocks.find(b => String(b.hostelId) === String(r.hostelId));
+      const bName = matchBlock ? (matchBlock.hostelName || '').toLowerCase().trim() : '';
+      return hName === selName || bName === selName;
+    });
+  }, [rooms, targetBlock, blocks]);
+
+  const selectedDestinationRoomObj = useMemo(() => {
+    return destinationRooms.find(r => String(r.roomId) === String(targetRoom) || String(r.roomNumber) === String(targetRoom));
+  }, [destinationRooms, targetRoom]);
+
+  const destinationBedOptions = useMemo(() => {
+    if (!selectedDestinationRoomObj) return [];
+    const cap = Number(selectedDestinationRoomObj.bedCapacity) || Number(selectedDestinationRoomObj.capacity) || 2;
+    const roomNumber = selectedDestinationRoomObj.roomNumber;
+    const roomId = selectedDestinationRoomObj.roomId;
+
+    return Array.from({ length: Math.max(1, cap) }, (_, i) => {
+      const bedVal = `BED-${i + 1}`;
+      const isOccupied = (allocations || []).some(a =>
+        a && a.status !== 'Vacated' && a.status !== 'Inactive' &&
+        (String(a.roomId) === String(roomId) || String(a.roomNumber) === String(roomNumber)) &&
+        String(a.bedNumber || '').toLowerCase().trim() === bedVal.toLowerCase()
+      );
+      return {
+        value: bedVal,
+        label: `Bed #${i + 1}`,
+        isOccupied
+      };
+    });
+  }, [selectedDestinationRoomObj, allocations]);
+
   // Fee Settlement fields
-  const [totalFeePaid, setTotalFeePaid] = useState<number>(60000);
-  const [monthsStayed, setMonthsStayed] = useState<number>(3);
+  const [totalFeePaid, setTotalFeePaid] = useState<number>(0);
+  const [monthsStayed, setMonthsStayed] = useState<number>(1);
   const [feeAdjustmentMode, setFeeAdjustmentMode] = useState<string>('');
 
   const hostellers = (students || []).filter(s => s && (s.studentType === 'Hosteller' || s.studentType === 'Residential' || (s as any).isHostelRequired));
@@ -257,8 +287,8 @@ export const HostelTransferVacateView: React.FC = () => {
     setTargetRoom('');
     setTargetBed('');
     setReason('');
-    setTotalFeePaid(60000);
-    setMonthsStayed(3);
+    setTotalFeePaid(0);
+    setMonthsStayed(1);
     setFeeAdjustmentMode('');
     setIsModalOpen(true);
   };
@@ -284,8 +314,12 @@ export const HostelTransferVacateView: React.FC = () => {
     const selectedSt = displayStudentsList.find(s => String(s.id) === String(selectedStudentId)) || students.find(s => String(s.id) === String(selectedStudentId));
     const stName = selectedSt ? `${selectedSt.firstName || ''} ${selectedSt.lastName || ''}`.trim() : 'Student';
     const admNo = selectedSt?.admissionNo || `ADM-2026-${selectedStudentId}`;
-    const fromHostel = (selectedSt as any)?.hostelName || (selectedSt as any)?.hostelBlock || (wardenAssignedBlocks[0]?.hostelName || 'Hostel Block');
-    const fromRoom = (selectedSt as any)?.roomNumber || '101';
+    const activeStudentAlloc = (allocations || []).find(a =>
+      a && a.status !== 'Vacated' && a.status !== 'Inactive' &&
+      (String(a.studentId) === String(selectedStudentId) || (a.admissionNo && a.admissionNo === selectedSt?.admissionNo))
+    );
+    const fromHostel = activeStudentAlloc?.hostelName || (selectedSt as any)?.hostelName || (selectedSt as any)?.hostelBlock || (wardenAssignedBlocks[0]?.hostelName || '');
+    const fromRoom = activeStudentAlloc?.roomNumber || (selectedSt as any)?.roomNumber || '';
 
     if (actionType === 'Room Transfer') {
       if (!targetBlock) {
@@ -306,7 +340,7 @@ export const HostelTransferVacateView: React.FC = () => {
       try {
         const matchBlock = blocks.find(b => (b.hostelName || b.name || '').toLowerCase() === targetBlock.toLowerCase());
         const targetBlockId = matchBlock?.hostelId || matchBlock?.id;
-        await updateStudentAllocationBlock(selectedStudentId, admNo, targetBlock, targetRoom, targetBlockId, stName);
+        await updateStudentAllocationBlock(selectedStudentId, admNo, targetBlock, targetRoom, targetBlockId, stName, targetBed);
       } catch (err) {
         console.error('Failed to update student allocation block:', err);
       }
@@ -609,11 +643,14 @@ export const HostelTransferVacateView: React.FC = () => {
                         }`}
                         required
                       >
-                        <option value="" disabled className="text-slate-400 font-sans">Select Destination Room</option>
-                        <option value="101" className="text-slate-900 dark:text-white font-mono">Room 101</option>
-                        <option value="102" className="text-slate-900 dark:text-white font-mono">Room 102</option>
-                        <option value="201" className="text-slate-900 dark:text-white font-mono">Room 201</option>
-                        <option value="202" className="text-slate-900 dark:text-white font-mono">Room 202</option>
+                        <option value="" disabled className="text-slate-400 font-sans">
+                          {destinationRooms.length === 0 ? 'No rooms configured in this block' : 'Select Destination Room'}
+                        </option>
+                        {destinationRooms.map(r => (
+                          <option key={r.roomId || r.roomNumber} value={r.roomNumber || r.roomId} className="text-slate-900 dark:text-white font-mono">
+                            Room #{r.roomNumber} ({r.roomTypeSpecification || `${r.bedCapacity || 2} Beds`})
+                          </option>
+                        ))}
                       </select>
                     </div>
                     <div>
@@ -625,12 +662,16 @@ export const HostelTransferVacateView: React.FC = () => {
                           !targetBed ? 'text-slate-400 dark:text-slate-500 font-sans font-medium' : 'font-mono text-slate-900 dark:text-white'
                         }`}
                         required
+                        disabled={!targetRoom || destinationBedOptions.length === 0}
                       >
-                        <option value="" disabled className="text-slate-400 font-sans">Select Destination Bed Number</option>
-                        <option value="Bed #1" className="text-slate-900 dark:text-white font-mono">Bed #1</option>
-                        <option value="Bed #2" className="text-slate-900 dark:text-white font-mono">Bed #2</option>
-                        <option value="Bed #3" className="text-slate-900 dark:text-white font-mono">Bed #3</option>
-                        <option value="Bed #4" className="text-slate-900 dark:text-white font-mono">Bed #4</option>
+                        <option value="" disabled className="text-slate-400 font-sans">
+                          {!targetRoom ? 'Select room first' : destinationBedOptions.length === 0 ? 'No beds available' : 'Select Destination Bed Number'}
+                        </option>
+                        {destinationBedOptions.map(b => (
+                          <option key={b.value} value={b.value} disabled={b.isOccupied} className="text-slate-900 dark:text-white font-mono">
+                            {b.label} {b.isOccupied ? '(Occupied)' : '(Available)'}
+                          </option>
+                        ))}
                       </select>
                     </div>
                   </div>

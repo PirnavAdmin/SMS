@@ -97,19 +97,7 @@ export const HostelDashboardView: React.FC<HostelDashboardViewProps> = ({
     const activeList =
       matched.length > 0
         ? matched
-        : (() => {
-            const defaultWardenBlock = blocks.find(
-              (b) =>
-                (b.hostelName || "").toLowerCase().includes("ramachandra") ||
-                (b.hostelName || "").toLowerCase().includes("bhanu") ||
-                (b.hostelName || "").toLowerCase().includes("boys"),
-            );
-            return defaultWardenBlock
-              ? [defaultWardenBlock]
-              : blocks.length > 0
-                ? [blocks[0]]
-                : [];
-          })();
+        : (blocks.length > 0 ? [blocks[0]] : []);
 
     return activeList.map((b) => ({
       ...b,

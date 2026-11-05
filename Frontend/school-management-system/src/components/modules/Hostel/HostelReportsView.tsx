@@ -58,14 +58,7 @@ export const HostelReportsView: React.FC = () => {
       return false;
     });
 
-    const activeList = matched.length > 0 ? matched : (() => {
-      const defaultWardenBlock = blocks.find(b =>
-        (b.hostelName || '').toLowerCase().includes('ramachandra') ||
-        (b.hostelName || '').toLowerCase().includes('bhanu') ||
-        (b.hostelName || '').toLowerCase().includes('boys')
-      );
-      return defaultWardenBlock ? [defaultWardenBlock] : (blocks.length > 0 ? [blocks[0]] : []);
-    })();
+    const activeList = matched.length > 0 ? matched : (blocks.length > 0 ? [blocks[0]] : []);
 
     // Synchronize the block's assigned warden with the currently logged-in warden's details
     return activeList.map(b => ({
@@ -250,13 +243,13 @@ export const HostelReportsView: React.FC = () => {
       case 'Warden Report': {
         if (isWarden) {
           const assignedBlock = targetBlocks[0];
-          const blockName = assignedBlock?.hostelName || 'Bhanu Block';
-          const empId = (user as any)?.employeeId || (user as any)?.empId || (assignedBlock ? `EMP-${assignedBlock.hostelId}` : 'EMP-21');
+          const blockName = assignedBlock?.hostelName || 'N/A';
+          const empId = (user as any)?.employeeId || (user as any)?.empId || (assignedBlock?.hostelId ? `EMP-${assignedBlock.hostelId}` : 'N/A');
           const phone = user?.phone || (user as any)?.mobileNumber || assignedBlock?.primaryMobileNumber || 'Not Available';
           const email = user?.email || assignedBlock?.email || 'Not Available';
 
           return [{
-            'Warden Name': user?.name || 'Varma koti',
+            'Warden Name': user?.name || 'Assigned Warden',
             'Employee ID': empId,
             'Assigned Block': blockName,
             'Mobile Number': phone !== 'N/A' && phone !== 'Not Available' && !/^[0\s-]+$/.test(phone) ? formatPhoneNumber(phone) : 'Not Available',
@@ -272,8 +265,8 @@ export const HostelReportsView: React.FC = () => {
             : wardens;
           return filteredWardens.map(w => ({
             'Warden Name': w.wardenName || 'Warden',
-            'Employee ID': w.employeeId || 'EMP-101',
-            'Assigned Block': w.hostelName || 'Hostel Block',
+            'Employee ID': w.employeeId || 'N/A',
+            'Assigned Block': w.hostelName || 'N/A',
             'Mobile Number': w.mobileNumber ? formatPhoneNumber(w.mobileNumber) : 'N/A',
             'Email': w.emailAddress || 'N/A',
             'Assignment Date': w.createdAt ? w.createdAt.split('T')[0] : 'Active'

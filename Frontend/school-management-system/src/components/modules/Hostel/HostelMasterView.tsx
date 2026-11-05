@@ -267,13 +267,7 @@ export const HostelMasterView: React.FC<HostelMasterViewProps> = ({
 
     if (matched.length > 0) return matched;
 
-    const defaultWardenBlock = hostelMasters.find(h =>
-      (h.hostelName || '').toLowerCase().includes('ramachandra') ||
-      (h.hostelName || '').toLowerCase().includes('bhanu') ||
-      (h.hostelName || '').toLowerCase().includes('boys')
-    );
-
-    return defaultWardenBlock ? [defaultWardenBlock] : (hostelMasters.length > 0 ? [hostelMasters[0]] : []);
+    return hostelMasters.length > 0 ? [hostelMasters[0]] : [];
   }, [hostelMasters, isWarden, user]);
 
   const targetHostels = isWarden ? wardenAssignedHostels : hostelMasters;

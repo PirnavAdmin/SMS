@@ -548,7 +548,8 @@ export const updateStudentAllocationBlock = async (
   targetBlockName: string,
   targetRoomNumber: string,
   targetBlockId?: number,
-  studentName?: string
+  studentName?: string,
+  targetBedNumber?: string
 ) => {
   try {
     await createTransferVacateRequest({
@@ -559,6 +560,7 @@ export const updateStudentAllocationBlock = async (
       destinationHostelId: targetBlockId,
       destinationHostelName: targetBlockName,
       destinationRoomNumber: targetRoomNumber,
+      destinationBedNumber: targetBedNumber,
       reason: 'Room and block transfer'
     });
   } catch (e) {}
@@ -711,7 +713,7 @@ export const getTransferVacateRequests = async (search?: string, actionType?: st
         admissionNo: t.admissionNo || t.admNo || '',
         actionType: (t.actionType && t.actionType.toLowerCase().includes('vacate')) ? 'Bed Vacate' : 'Room Transfer',
         fromHostel: t.currentRoom ? t.currentRoom.split(' - ')[0] || t.currentRoom : (t.fromHostel || 'Hostel Block'),
-        fromRoom: t.currentRoom ? t.currentRoom.split(' - ')[1] || t.currentRoom : (t.fromRoom || '101'),
+        fromRoom: t.currentRoom ? t.currentRoom.split(' - ')[1] || t.currentRoom : (t.fromRoom || ''),
         toHostel: t.destinationHostelName || t.toHostel || 'N/A',
         toRoom: t.destinationRoomNumber || t.toRoom || 'N/A',
         requestDate: t.createdAt ? new Date(t.createdAt).toISOString().split('T')[0] : (t.requestDate || new Date().toISOString().split('T')[0]),
@@ -740,7 +742,7 @@ export const createTransferVacateRequest = async (data: any): Promise<any> => {
     destinationHostelName: data.destinationHostelName || data.toHostel,
     destinationRoomId: data.destinationRoomId ? Number(data.destinationRoomId) : null,
     destinationRoomNumber: data.destinationRoomNumber || data.toRoom,
-    destinationBedNumber: data.destinationBedNumber || '1',
+    destinationBedNumber: data.destinationBedNumber || '',
     reason: data.reason || ''
   };
   return hostelApiClient('/api/hostel/transfers', {

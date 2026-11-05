@@ -96,14 +96,7 @@ export const HostelOutpassLeaveView: React.FC = () => {
       if (matched.length > 0) return matched;
     }
 
-    // Default warden block fallback matching StudentList.tsx
-    const defaultBlock = blocks.find(b =>
-      (b.hostelName || (b as any).name || '').toLowerCase().includes('ramachandra') ||
-      (b.hostelName || (b as any).name || '').toLowerCase().includes('bhanu') ||
-      (b.hostelName || (b as any).name || '').toLowerCase().includes('boys')
-    );
-
-    return defaultBlock ? [defaultBlock] : (blocks.length > 0 ? [blocks[0]] : []);
+    return blocks.length > 0 ? [blocks[0]] : [];
   }, [blocks, allocations, isWarden, user]);
 
   // Strictly filter residential hostellers allocated to assigned block

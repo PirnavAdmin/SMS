@@ -1226,10 +1226,10 @@ public class HostelService : IHostelService
                 var w = wardens.FirstOrDefault(w => w.HostelId == h.HostelId);
                 return new HostelReportItemDto
                 {
-                    BlockCode = h.HostelCode ?? "HST-01",
-                    BlockName = h.HostelName ?? "Block A",
-                    HostelName = h.HostelName ?? "Hostel Facility",
-                    FloorsCount = 3,
+                    BlockCode = h.HostelCode ?? "",
+                    BlockName = h.HostelName ?? "",
+                    HostelName = h.HostelName ?? "",
+                    FloorsCount = h.TotalFloors > 0 ? h.TotalFloors : 1,
                     AssignedSupervisor = w?.WardenName ?? h.WardenName ?? "Unassigned",
                     SupervisorMobile = w?.MobileNumber ?? h.PrimaryMobileNumber ?? "N/A",
                     Status = h.Status ?? "Active"
@@ -1279,9 +1279,9 @@ public class HostelService : IHostelService
                 return new HostelReportItemDto
                 {
                     AssignedSupervisor = w?.WardenName ?? h.WardenName ?? "Unassigned",
-                    EmployeeId = w?.Staff?.EmployeeId ?? "EMP-101",
-                    BlockName = h.HostelName ?? "Block A",
-                    HostelName = h.HostelName ?? "Hostel Facility",
+                    EmployeeId = w?.Staff?.EmployeeId ?? "N/A",
+                    BlockName = h.HostelName ?? "",
+                    HostelName = h.HostelName ?? "",
                     MobileNumber = w?.MobileNumber ?? h.PrimaryMobileNumber ?? "N/A",
                     Email = w?.EmailAddress ?? h.Email ?? "N/A",
                     JoiningDate = w?.EffectiveDate?.ToString("yyyy-MM-dd") ?? w?.CreatedAt?.ToString("yyyy-MM-dd") ?? "N/A",
@@ -1299,12 +1299,12 @@ public class HostelService : IHostelService
         {
             var list = wardens.Select(w => new HostelReportItemDto
             {
-                WardenName = w.WardenName ?? (w.Staff != null ? $"{w.Staff.FirstName} {w.Staff.LastName}" : "Arthur Pendelton"),
-                EmployeeId = w.Staff?.EmployeeId ?? "EMP-101",
-                HostelName = w.Hostel?.HostelName ?? "Aravali",
+                WardenName = w.WardenName ?? (w.Staff != null ? $"{w.Staff.FirstName} {w.Staff.LastName}".Trim() : ""),
+                EmployeeId = w.Staff?.EmployeeId ?? "N/A",
+                HostelName = w.Hostel?.HostelName ?? "",
                 MobileNumber = !string.IsNullOrWhiteSpace(w.MobileNumber) ? w.MobileNumber : (w.Staff?.Phone ?? "N/A"),
                 Email = !string.IsNullOrWhiteSpace(w.EmailAddress) ? w.EmailAddress : (w.Staff?.Email ?? "N/A"),
-                JoiningDate = w.EffectiveDate?.ToString("yyyy-MM-dd") ?? w.CreatedAt?.ToString("yyyy-MM-dd") ?? "2026-08-09",
+                JoiningDate = w.EffectiveDate?.ToString("yyyy-MM-dd") ?? w.CreatedAt?.ToString("yyyy-MM-dd") ?? "",
                 Status = "Active"
             }).ToList();
 
@@ -1325,11 +1325,11 @@ public class HostelService : IHostelService
 
                 return new HostelReportItemDto
                 {
-                    RoomNumber = r.RoomNumber?.StartsWith("Room #") == true ? r.RoomNumber : $"Room #{r.RoomNumber ?? "101"}",
-                    HostelName = r.Hostel?.HostelName ?? "Boys Central Hostel Block A",
-                    BlockName = w?.BlockName ?? "Block A",
-                    FloorLevel = r.FloorLevel ?? "1st Floor",
-                    RoomType = r.RoomType?.RoomTypeSpecification ?? "Double Sharing",
+                    RoomNumber = !string.IsNullOrWhiteSpace(r.RoomNumber) ? (r.RoomNumber.StartsWith("Room #") ? r.RoomNumber : $"Room #{r.RoomNumber}") : "N/A",
+                    HostelName = r.Hostel?.HostelName ?? "",
+                    BlockName = w?.BlockName ?? r.Hostel?.HostelName ?? "",
+                    FloorLevel = r.FloorLevel ?? "",
+                    RoomType = r.RoomType?.RoomTypeSpecification ?? "Standard Room",
                     TotalBeds = cap,
                     OccupiedBeds = occ,
                     AvailableBeds = avail,
@@ -1495,9 +1495,9 @@ public class HostelService : IHostelService
         {
             StudentId = activeAlloc?.StudentId ?? dto.StudentId,
             StudentName = !string.IsNullOrWhiteSpace(dto.StudentName) ? dto.StudentName.Trim() : (activeAlloc?.StudentName ?? "Hostel Student"),
-            AdmissionNo = activeAlloc?.RegistrationNo ?? "ADM-001",
-            HostelName = activeAlloc?.Hostel?.HostelName ?? "Main Hostel",
-            RoomNumber = activeAlloc?.Room?.RoomNumber ?? "101",
+            AdmissionNo = activeAlloc?.RegistrationNo ?? "",
+            HostelName = activeAlloc?.Hostel?.HostelName ?? "",
+            RoomNumber = activeAlloc?.Room?.RoomNumber ?? "",
             RequestType = string.IsNullOrWhiteSpace(dto.RequestType) ? "Local Outpass (Same Day)" : dto.RequestType.Trim(),
             Reason = dto.Reason?.Trim(),
             OutDate = dto.OutDate,
@@ -1573,34 +1573,48 @@ public class HostelService : IHostelService
             activeAlloc = await _hostelRepo.GetActiveAllocationByStudentIdAsync(dto.StudentId);
         }
 
-        if (activeAlloc == null)
+        string stName = !string.IsNullOrWhiteSpace(dto.StudentName) ? dto.StudentName.Trim() : (activeAlloc?.StudentName ?? "");
+        string admNo = activeAlloc?.RegistrationNo ?? "";
+
+        if (dto.StudentId > 0 && (string.IsNullOrWhiteSpace(admNo) || string.IsNullOrWhiteSpace(stName)))
         {
-            var allAlloc = await _hostelRepo.GetAllBedAllocationsAsync(null, null, null);
-            if (!string.IsNullOrWhiteSpace(dto.StudentName))
+            var st = await _context.Students.FirstOrDefaultAsync(s => s.StudentId == dto.StudentId);
+            if (st != null)
             {
-                activeAlloc = allAlloc.FirstOrDefault(a => a.StudentName != null && a.StudentName.Contains(dto.StudentName.Trim(), StringComparison.OrdinalIgnoreCase));
+                if (string.IsNullOrWhiteSpace(stName)) stName = st.StudentName;
+                if (string.IsNullOrWhiteSpace(admNo)) admNo = st.AdmissionNumber ?? st.RollNumber ?? "";
             }
-            if (activeAlloc == null) activeAlloc = allAlloc.FirstOrDefault();
+            else
+            {
+                var app = await _context.AdmissionApplications.FirstOrDefaultAsync(a => a.Id == dto.StudentId);
+                if (app != null)
+                {
+                    if (string.IsNullOrWhiteSpace(stName)) stName = $"{app.FirstName} {app.LastName}".Trim();
+                    if (string.IsNullOrWhiteSpace(admNo)) admNo = app.AdmissionNo ?? app.RegistrationNo ?? "";
+                }
+            }
         }
 
         string actionType = string.IsNullOrWhiteSpace(dto.ActionType)
             ? "Room Transfer"
             : (dto.ActionType.Contains("Vacate", StringComparison.OrdinalIgnoreCase) ? "Bed Vacate" : "Room Transfer");
 
+        string currentRoomStr = (activeAlloc?.Hostel != null && activeAlloc?.Room != null)
+            ? $"{activeAlloc.Hostel.HostelName} - Room #{activeAlloc.Room.RoomNumber}"
+            : (activeAlloc != null ? $"{activeAlloc.HostelId} - Room #{activeAlloc.RoomId}" : "");
+
         var req = new HostelTransferVacate
         {
             StudentId = activeAlloc?.StudentId ?? dto.StudentId,
-            StudentName = !string.IsNullOrWhiteSpace(dto.StudentName) ? dto.StudentName.Trim() : (activeAlloc?.StudentName ?? "Resident Student"),
-            AdmissionNo = activeAlloc?.RegistrationNo ?? "ADM-001",
+            StudentName = stName,
+            AdmissionNo = admNo,
             ActionType = actionType,
-            CurrentRoom = (activeAlloc?.Hostel != null && activeAlloc?.Room != null)
-                ? $"{activeAlloc.Hostel.HostelName} - Room #{activeAlloc.Room.RoomNumber}"
-                : "Main Block - Room #101",
+            CurrentRoom = currentRoomStr,
             DestinationHostelId = dto.DestinationHostelId,
-            DestinationHostelName = dto.DestinationHostelName ?? "Boys Residence - Block A",
+            DestinationHostelName = dto.DestinationHostelName ?? "",
             DestinationRoomId = dto.DestinationRoomId,
-            DestinationRoomNumber = dto.DestinationRoomNumber ?? "201",
-            DestinationBedNumber = dto.DestinationBedNumber ?? "Bed #1",
+            DestinationRoomNumber = dto.DestinationRoomNumber ?? "",
+            DestinationBedNumber = dto.DestinationBedNumber ?? "",
             Reason = dto.Reason?.Trim(),
             Status = "Approved",
             CreatedAt = DateTime.UtcNow
@@ -1609,6 +1623,29 @@ public class HostelService : IHostelService
         if (actionType.Equals("Bed Vacate", StringComparison.OrdinalIgnoreCase) && activeAlloc != null)
         {
             activeAlloc.Status = "Vacated";
+        }
+        else if (actionType.Equals("Room Transfer", StringComparison.OrdinalIgnoreCase) && activeAlloc != null)
+        {
+            if (dto.DestinationHostelId.HasValue && dto.DestinationHostelId.Value > 0)
+            {
+                activeAlloc.HostelId = dto.DestinationHostelId.Value;
+            }
+            if (dto.DestinationRoomId.HasValue && dto.DestinationRoomId.Value > 0)
+            {
+                activeAlloc.RoomId = dto.DestinationRoomId.Value;
+            }
+            else if (!string.IsNullOrWhiteSpace(dto.DestinationRoomNumber))
+            {
+                var targetRoomEntity = (await _hostelRepo.GetAllRoomsAsync(activeAlloc.HostelId, null, null, dto.DestinationRoomNumber.Trim())).FirstOrDefault();
+                if (targetRoomEntity != null)
+                {
+                    activeAlloc.RoomId = targetRoomEntity.RoomId;
+                }
+            }
+            if (!string.IsNullOrWhiteSpace(dto.DestinationBedNumber))
+            {
+                activeAlloc.BedNumber = dto.DestinationBedNumber.Trim();
+            }
         }
 
         await _hostelRepo.AddTransferVacateRequestAsync(req);

@@ -52,7 +52,7 @@ namespace SMS.Api.Dtos
         public string TargetRoomOrFeeAdjustment => ActionType.Equals("Bed Vacate", StringComparison.OrdinalIgnoreCase)
             ? "Checkout & Switch to Day Scholar"
             : (!string.IsNullOrWhiteSpace(DestinationHostelName) || !string.IsNullOrWhiteSpace(DestinationRoomNumber))
-                ? $"{DestinationHostelName ?? "Block"} - Room #{DestinationRoomNumber ?? "N/A"} ({DestinationBedNumber ?? "Bed #1"})"
+                ? $"{DestinationHostelName ?? ""} - Room #{DestinationRoomNumber ?? "N/A"}{(!string.IsNullOrWhiteSpace(DestinationBedNumber) ? $" ({DestinationBedNumber})" : "")}"
                 : "Checkout & Switch to Day Scholar";
 
         [JsonPropertyName("reason")]
