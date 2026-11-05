@@ -537,16 +537,16 @@ export const WardenAttendanceView: React.FC = () => {
 
         {/* Logs Table */}
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
+          <table className="w-full text-center text-xs">
             <thead>
               <tr className="border-b border-slate-200 dark:border-slate-800 text-[10px] uppercase font-black tracking-wider text-slate-400 bg-slate-50/50 dark:bg-slate-800/40 whitespace-nowrap">
-                <th className="px-4 py-3 whitespace-nowrap">Date</th>
-                <th className="px-4 py-3 whitespace-nowrap">Warden Name</th>
-                <th className="px-4 py-3 whitespace-nowrap">Shift</th>
-                <th className="px-4 py-3 whitespace-nowrap">Check-In</th>
-                <th className="px-4 py-3 whitespace-nowrap">Check-Out</th>
-                <th className="px-4 py-3 whitespace-nowrap">Duty Hours</th>
-                <th className="px-4 py-3 whitespace-nowrap">Status</th>
+                <th className="px-4 py-3 text-center whitespace-nowrap">Date</th>
+                <th className="px-4 py-3 text-center whitespace-nowrap">Warden Name</th>
+                <th className="px-4 py-3 text-center whitespace-nowrap">Shift</th>
+                <th className="px-4 py-3 text-center whitespace-nowrap">Check-In</th>
+                <th className="px-4 py-3 text-center whitespace-nowrap">Check-Out</th>
+                <th className="px-4 py-3 text-center whitespace-nowrap">Duty Hours</th>
+                <th className="px-4 py-3 text-center whitespace-nowrap">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
@@ -559,25 +559,25 @@ export const WardenAttendanceView: React.FC = () => {
               ) : (
                 filteredLogs.map(log => (
                   <tr key={log.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition">
-                    <td className="px-4 py-3 font-mono font-bold text-slate-900 dark:text-white whitespace-nowrap">
+                    <td className="px-4 py-3 text-center font-mono font-bold text-slate-900 dark:text-white whitespace-nowrap">
                       {log.date}
                     </td>
-                    <td className="px-4 py-3 font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap">
+                    <td className="px-4 py-3 text-center font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap">
                       {log.wardenName}
                     </td>
-                    <td className="px-4 py-3 text-slate-500 font-medium whitespace-nowrap">
+                    <td className="px-4 py-3 text-center text-slate-500 font-medium whitespace-nowrap">
                       {log.shift}
                     </td>
-                    <td className="px-4 py-3 font-mono text-emerald-600 font-bold whitespace-nowrap">
+                    <td className="px-4 py-3 text-center font-mono text-emerald-600 font-bold whitespace-nowrap">
                       {log.checkInTime || '--:--'}
                     </td>
-                    <td className="px-4 py-3 font-mono text-rose-600 font-bold whitespace-nowrap">
+                    <td className="px-4 py-3 text-center font-mono text-rose-600 font-bold whitespace-nowrap">
                       {log.checkOutTime || '--:--'}
                     </td>
-                    <td className="px-4 py-3 font-mono font-bold text-brand-600 dark:text-brand-400 whitespace-nowrap">
+                    <td className="px-4 py-3 text-center font-mono font-bold text-brand-600 dark:text-brand-400 whitespace-nowrap">
                       {log.workingHours || calculateWorkedDutyHours(log.checkInTime, log.checkOutTime)}
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
+                    <td className="px-4 py-3 text-center whitespace-nowrap">
                       <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase border ${
                         log.status === 'Present'
                           ? 'bg-emerald-50 text-emerald-700 border-emerald-200'

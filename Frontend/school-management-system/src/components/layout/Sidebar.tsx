@@ -371,6 +371,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       ? []
       : safeRole.includes("warden")
       ? [
+          { id: "hostel-dashboard", label: "Dashboard", icon: LayoutDashboard },
           {
             id: "hostel-masters",
             label: "Hostel Blocks & Rooms",

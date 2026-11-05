@@ -448,15 +448,15 @@ export const HostelTransferVacateView: React.FC = () => {
       ) : (
         <div className="glass-card rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 overflow-hidden shadow-xs">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-700 dark:text-slate-300">
+            <table className="w-full text-center text-xs text-slate-700 dark:text-slate-300">
               <thead className="bg-slate-50 dark:bg-slate-800/80 uppercase font-extrabold text-[10px] tracking-wider text-slate-500 border-b border-slate-200 dark:border-slate-800">
                 <tr>
-                  <th className="py-2 px-3">Student</th>
-                  <th className="py-2 px-3">Student ID</th>
-                  <th className="py-2 px-3">Action Type</th>
-                  <th className="py-2 px-3">Current Room</th>
-                  <th className="py-2 px-3">Target Room / Fee Adjustment</th>
-                  <th className="py-2 px-3">Date</th>
+                  <th className="py-2 px-3 text-center">Student</th>
+                  <th className="py-2 px-3 text-center">Student ID</th>
+                  <th className="py-2 px-3 text-center">Action Type</th>
+                  <th className="py-2 px-3 text-center">Current Room</th>
+                  <th className="py-2 px-3 text-center">Target Room / Fee Adjustment</th>
+                  <th className="py-2 px-3 text-center">Date</th>
                   <th className="py-2 px-3 text-center">Status</th>
                   <th className="py-2 px-3 text-center">Actions</th>
                 </tr>
@@ -469,11 +469,11 @@ export const HostelTransferVacateView: React.FC = () => {
                 ) : (
                   filtered.map(r => (
                     <tr key={r.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
-                      <td className="py-2 px-3 font-bold text-slate-900 dark:text-white">{r.studentName}</td>
-                      <td className="py-2 px-3 font-mono text-slate-500">{r.studentId || r.admissionNo}</td>
-                      <td className="py-2 px-3 font-bold text-sky-600 dark:text-sky-400">{r.actionType}</td>
-                      <td className="py-2 px-3 text-slate-600 font-semibold">{r.fromHostel} (#{r.fromRoom})</td>
-                      <td className="py-2 px-3">
+                      <td className="py-2 px-3 text-center font-bold text-slate-900 dark:text-white">{r.studentName}</td>
+                      <td className="py-2 px-3 text-center font-mono text-slate-500">{r.studentId || r.admissionNo}</td>
+                      <td className="py-2 px-3 text-center font-bold text-sky-600 dark:text-sky-400">{r.actionType}</td>
+                      <td className="py-2 px-3 text-center text-slate-600 font-semibold">{r.fromHostel} (#{r.fromRoom})</td>
+                      <td className="py-2 px-3 text-center">
                         {r.actionType === 'Bed Vacate' ? (
                           <div className="space-y-1">
                             <span className="text-emerald-600 font-bold block">✓ Old Bed Released to Available</span>
@@ -493,7 +493,7 @@ export const HostelTransferVacateView: React.FC = () => {
                           </div>
                         )}
                       </td>
-                      <td className="py-2 px-3 text-slate-500 font-mono text-[11px]">{r.requestDate}</td>
+                      <td className="py-2 px-3 text-center text-slate-500 font-mono text-[11px]">{r.requestDate}</td>
                       <td className="py-2 px-3 text-center">
                         <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold ${
                           r.status === 'Completed' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' :

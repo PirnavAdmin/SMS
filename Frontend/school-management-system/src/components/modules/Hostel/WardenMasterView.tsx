@@ -261,14 +261,14 @@ export const WardenMasterView: React.FC = () => {
       ) : (
         <div className="glass-card rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+            <table className="w-full text-center text-xs">
               <thead>
                 <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
-                  <th className="py-3.5 px-4">Employee ID</th>
-                  <th className="py-3.5 px-4">Warden Name</th>
-                  <th className="py-3.5 px-4">Mobile & Email</th>
-                  <th className="py-3.5 px-4">Assigned Hostel</th>
-                  <th className="py-3.5 px-4 text-right">Actions</th>
+                  <th className="py-3.5 px-4 text-center">Employee ID</th>
+                  <th className="py-3.5 px-4 text-center">Warden Name</th>
+                  <th className="py-3.5 px-4 text-center">Mobile & Email</th>
+                  <th className="py-3.5 px-4 text-center">Assigned Hostel</th>
+                  <th className="py-3.5 px-4 text-center">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
@@ -283,15 +283,15 @@ export const WardenMasterView: React.FC = () => {
                 ) : (
                   filteredWardens.map(a => (
                     <tr key={a.wardenId} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                      <td className="py-3 px-4 font-mono font-bold text-slate-500">{a.employeeId}</td>
-                      <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{a.wardenName}</td>
-                      <td className="py-3 px-4">
+                      <td className="py-3 px-4 text-center font-mono font-bold text-slate-500">{a.employeeId}</td>
+                      <td className="py-3 px-4 text-center font-bold text-slate-900 dark:text-white">{a.wardenName}</td>
+                      <td className="py-3 px-4 text-center">
                         <p className="font-mono font-bold text-sky-600">{a.mobileNumber}</p>
                         <p className="text-[10px] text-slate-400">{a.emailAddress}</p>
                       </td>
-                      <td className="py-3 px-4 font-bold text-sky-600 dark:text-sky-400">{a.hostelName}</td>
-                      <td className="py-3 px-4 text-right">
-                        <div className="flex items-center justify-end gap-1">
+                      <td className="py-3 px-4 text-center font-bold text-sky-600 dark:text-sky-400">{a.hostelName}</td>
+                      <td className="py-3 px-4 text-center">
+                        <div className="flex items-center justify-center gap-1 mx-auto">
                           <button onClick={() => setDeletingWarden(a)} className="p-1.5 rounded hover:bg-rose-50 text-rose-600" title="Revoke Assignment"><Trash2 className="w-3.5 h-3.5" /></button>
                         </div>
                       </td>

@@ -83,13 +83,7 @@ export const HostelDashboardView: React.FC<HostelDashboardViewProps> = ({ onNavi
 
     if (matched.length > 0) return matched;
 
-    const defaultWardenBlock = blocks.find(b =>
-      (b.hostelName || '').toLowerCase().includes('ramachandra') ||
-      (b.hostelName || '').toLowerCase().includes('bhanu') ||
-      (b.hostelName || '').toLowerCase().includes('boys')
-    );
-
-    return defaultWardenBlock ? [defaultWardenBlock] : (blocks.length > 0 ? [blocks[0]] : []);
+    return blocks.length > 0 ? [blocks[0]] : [];
   }, [blocks, isWarden, user]);
 
   // Derived calculations from real data across all hostel modules
@@ -611,16 +605,16 @@ export const HostelDashboardView: React.FC<HostelDashboardViewProps> = ({ onNavi
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs">
+              <table className="w-full text-center border-collapse text-xs">
                 <thead>
                   <tr className="border-b border-slate-200 dark:border-slate-700 text-[10px] font-extrabold uppercase text-slate-400">
-                    <th className="py-2.5 px-3">Student</th>
-                    <th className="py-2.5 px-3">Room & Bed</th>
-                    <th className="py-2.5 px-3">Security Deposit</th>
-                    <th className="py-2.5 px-3">Expected Fee</th>
-                    <th className="py-2.5 px-3">Amount Paid</th>
-                    <th className="py-2.5 px-3">Remaining Due</th>
-                    <th className="py-2.5 px-3">Status</th>
+                    <th className="py-2.5 px-3 text-center">Student</th>
+                    <th className="py-2.5 px-3 text-center">Room & Bed</th>
+                    <th className="py-2.5 px-3 text-center">Security Deposit</th>
+                    <th className="py-2.5 px-3 text-center">Expected Fee</th>
+                    <th className="py-2.5 px-3 text-center">Amount Paid</th>
+                    <th className="py-2.5 px-3 text-center">Remaining Due</th>
+                    <th className="py-2.5 px-3 text-center">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
@@ -633,34 +627,34 @@ export const HostelDashboardView: React.FC<HostelDashboardViewProps> = ({ onNavi
                   ) : (
                     dynamicHostelRevenue.hostellersFeeStatus.map((h, i) => (
                       <tr key={h.allocationId || i} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40 transition-colors">
-                        <td className="py-2.5 px-3">
+                        <td className="py-2.5 px-3 text-center">
                           <span className="font-bold text-slate-900 dark:text-white block">{h.studentName}</span>
                           <span className="text-[10px] text-slate-400 font-mono">{h.admissionNo}</span>
                         </td>
-                        <td className="py-2.5 px-3 font-mono text-[11px]">
+                        <td className="py-2.5 px-3 text-center font-mono text-[11px]">
                           {formatRoomNumber(h.roomNumber)} • {h.bedNumber}
                         </td>
-                        <td className="py-2.5 px-3">
+                        <td className="py-2.5 px-3 text-center">
                           {h.isDepositPaid ? (
-                            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                            <span className="inline-block px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
                               ✓ Paid
                             </span>
                           ) : (
-                            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                            <span className="inline-block px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
                               Pending
                             </span>
                           )}
                         </td>
-                        <td className="py-2.5 px-3 font-mono font-semibold text-slate-700 dark:text-slate-300">
+                        <td className="py-2.5 px-3 text-center font-mono font-semibold text-slate-700 dark:text-slate-300">
                           {formatCurrency(h.expected)}
                         </td>
-                        <td className="py-2.5 px-3 font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                        <td className="py-2.5 px-3 text-center font-mono font-bold text-emerald-600 dark:text-emerald-400">
                           {formatCurrency(h.paid)}
                         </td>
-                        <td className="py-2.5 px-3 font-mono font-bold text-rose-600 dark:text-rose-400">
+                        <td className="py-2.5 px-3 text-center font-mono font-bold text-rose-600 dark:text-rose-400">
                           {formatCurrency(h.due)}
                         </td>
-                        <td className="py-2.5 px-3">
+                        <td className="py-2.5 px-3 text-center">
                           <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${ 
                             h.status === 'Paid'
                               ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'

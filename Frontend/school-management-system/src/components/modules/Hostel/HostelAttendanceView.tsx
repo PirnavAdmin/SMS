@@ -696,13 +696,13 @@ export const HostelAttendanceView: React.FC = () => {
       {/* Student Attendance Roster Table */}
       <div className="glass-card rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 overflow-hidden shadow-xs p-3 space-y-3">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-slate-700 dark:text-slate-300 border-collapse">
+          <table className="w-full text-center text-xs text-slate-700 dark:text-slate-300 border-collapse">
             <thead className="bg-slate-50 dark:bg-slate-800/80 uppercase font-extrabold text-[10px] tracking-wider text-slate-500 border-b border-slate-200 dark:border-slate-800">
               <tr>
-                <th className="py-2 px-3">STUDENT ID</th>
-                <th className="py-2 px-3">STUDENT NAME</th>
-                <th className="py-2 px-3">HOSTEL BLOCK</th>
-                <th className="py-2 px-3">ROOM & BED NO</th>
+                <th className="py-2 px-3 text-center">STUDENT ID</th>
+                <th className="py-2 px-3 text-center">STUDENT NAME</th>
+                <th className="py-2 px-3 text-center">HOSTEL BLOCK</th>
+                <th className="py-2 px-3 text-center">ROOM & BED NO</th>
                 <th className="py-2 px-3 text-center">ATTENDANCE STATUS</th>
                 <th className="py-2 px-3 text-center">IN TIME</th>
                 <th className="py-2 px-3 text-center">OUT TIME</th>
@@ -723,20 +723,20 @@ export const HostelAttendanceView: React.FC = () => {
                   const currentSt = getAttendanceStatus(itemKey);
                   return (
                     <tr key={`alloc_${a.allocationId}_${idx}`} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
-                      <td className="py-2 px-3 font-mono font-bold text-slate-500 whitespace-nowrap">{a.studentId || a.admissionNo}</td>
-                      <td className="py-2 px-3 font-bold text-slate-900 dark:text-white text-xs whitespace-nowrap">
+                      <td className="py-2 px-3 text-center font-mono font-bold text-slate-500 whitespace-nowrap">{a.studentId || a.admissionNo}</td>
+                      <td className="py-2 px-3 text-center font-bold text-slate-900 dark:text-white text-xs whitespace-nowrap">
                         {a.studentName}
                       </td>
-                      <td className="py-2 px-3 font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap">
+                      <td className="py-2 px-3 text-center font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap">
                         {a.hostelName && isNaN(Number(a.hostelName))
                           ? a.hostelName
                           : (blocks.find(b => String(b.hostelId ?? '') === String(a.hostelName || a.hostelId))?.hostelName || `Block #${a.hostelName || '1'}`)}
                       </td>
-                      <td className="py-2 px-3 font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap font-mono">
+                      <td className="py-2 px-3 text-center font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap font-mono">
                         {formatRoomNumber(a.roomNumber)} ({a.bedNumber || 'BED-1'})
                       </td>
-                      <td className="py-2 px-3">
-                        <div className="flex items-center justify-center gap-1.5 whitespace-nowrap">
+                      <td className="py-2 px-3 text-center">
+                        <div className="flex items-center justify-center gap-1.5 whitespace-nowrap mx-auto">
                           {(['Present', 'Absent', 'Late', 'Leave'] as const).map(st => (
                             <button
                               key={st}

@@ -617,15 +617,15 @@ export const RoomTypeMasterView: React.FC = () => {
       ) : (
         <div className="glass-card rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 overflow-hidden shadow-md">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-700 dark:text-slate-300">
+            <table className="w-full text-center text-xs text-slate-700 dark:text-slate-300">
               <thead className="bg-slate-50 dark:bg-slate-800/80 uppercase font-extrabold text-[10px] tracking-wider text-slate-500 border-b border-slate-200 dark:border-slate-800">
                 <tr>
-                  <th className="py-2 px-3">Room Category</th>
+                  <th className="py-2 px-3 text-center">Room Category</th>
                   <th className="py-2 px-3 text-center">Bed Capacity</th>
                   <th className="py-2 px-3 text-center">AC / NON AC</th>
-                  <th className="py-2 px-3">Description</th>
+                  <th className="py-2 px-3 text-center">Description</th>
                   <th className="py-2 px-3 text-center">Status</th>
-                  {!isWarden && <th className="py-2 px-3 text-right">Actions</th>}
+                  {!isWarden && <th className="py-2 px-3 text-center">Actions</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
@@ -640,7 +640,7 @@ export const RoomTypeMasterView: React.FC = () => {
                 ) : (
                   paginated.map((rt, idx) => (
                     <tr key={`rt-row-${rt.roomTypeId || idx}-${idx}`} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
-                      <td className="py-2 px-3 font-bold text-slate-900 dark:text-white">{rt.roomTypeSpecification}</td>
+                      <td className="py-2 px-3 text-center font-bold text-slate-900 dark:text-white">{rt.roomTypeSpecification}</td>
                       <td className="py-2 px-3 text-center">
                         <span className="px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300">
                           {rt.bedCapacity} Beds
@@ -651,15 +651,15 @@ export const RoomTypeMasterView: React.FC = () => {
                           {rt.acType}
                         </span>
                       </td>
-                      <td className="py-2 px-3 text-slate-500 max-w-xs truncate">{rt.description || 'No description provided'}</td>
+                      <td className="py-2 px-3 text-center text-slate-500 max-w-xs truncate">{rt.description || 'No description provided'}</td>
                       <td className="py-2 px-3 text-center">
                         <span className={`px-2.5 py-1 rounded-full text-[11px] font-extrabold ${rt.status === 'Active' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'}`}>
                           {rt.status}
                         </span>
                       </td>
                       {!isWarden && (
-                        <td className="py-2 px-3 text-right">
-                          <div className="flex items-center justify-end gap-2">
+                        <td className="py-2 px-3 text-center">
+                          <div className="flex items-center justify-center gap-2 mx-auto">
                             <button onClick={() => handleOpenEdit(rt)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-sky-600"><Edit className="w-4 h-4" /></button>
                             <button onClick={() => setDeletingRt(rt)} className="p-1.5 rounded-lg hover:bg-rose-50 text-rose-600"><Trash2 className="w-4 h-4" /></button>
                           </div>

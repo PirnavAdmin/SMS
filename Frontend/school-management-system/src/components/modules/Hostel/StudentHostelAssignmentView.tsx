@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { UserPlus, Plus, Search, Shield, User, Edit, Trash2, ChevronDown, Building2, Layers, Home, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { UserPlus, Plus, Search, Shield, User, Edit, Trash2, ChevronDown, Building2, Layers, Home, CheckCircle2, ShieldCheck, AlertCircle } from 'lucide-react';
 import { formatCurrency } from '../../../utils/currency';
 import { isClassInRange } from '../../../utils/classSorter';
 import * as FinanceAPI from '../../../api/finance';
@@ -13,6 +13,16 @@ import { getAllocations, createAllocation, vacateAllocation, vacateStudentAlloca
 import { normalizeStudentType } from '../../../utils/studentTypeUtils';
 import { formatConfiguredStudentAdmissionNo } from '../../../utils/idGenerator';
 
+const getStudentUniqueKey = (st: any) => {
+  if (!st) return '';
+  if (st.admissionNo && String(st.admissionNo).trim()) return String(st.admissionNo).trim();
+  if (st.studentId && st.applicationId) return `std_${st.studentId}_app_${st.applicationId}`;
+  if (st.studentId) return `std_${st.studentId}`;
+  if (st.applicationId) return `app_${st.applicationId}`;
+  if (st.id) return String(st.id).trim();
+  return '';
+};
+
 const StudentInlineCombobox: React.FC<{
   students: any[];
   value: string;
@@ -23,12 +33,22 @@ const StudentInlineCombobox: React.FC<{
   const [searchText, setSearchText] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const selectedStudent = students.find(s => 
-    String(s.id) === String(value) || 
-    String(s.studentId) === String(value) || 
-    String(s.applicationId) === String(value) ||
-    String(s.admissionNo) === String(value)
-  );
+  const selectedStudent = useMemo(() => {
+    if (!value) return null;
+    return (
+      students.find(s => {
+        const key = getStudentUniqueKey(s);
+        return key && key === value;
+      }) ||
+      students.find(s => s.admissionNo && String(s.admissionNo).trim().toLowerCase() === String(value).trim().toLowerCase()) ||
+      students.find(s => 
+        String(s.id) === String(value) || 
+        String(s.studentId) === String(value) || 
+        String(s.applicationId) === String(value)
+      ) ||
+      null
+    );
+  }, [students, value]);
 
   useEffect(() => {
     if (selectedStudent) {
@@ -99,21 +119,24 @@ const StudentInlineCombobox: React.FC<{
             </div>
           ) : (
             filteredStudents.map(st => {
-              const stId = String(st.studentId || st.id || st.applicationId);
-              const isSelected = String(value) === stId;
+              const stKey = getStudentUniqueKey(st);
+              const isSelected = String(value) === stKey || (st.admissionNo && String(value) === String(st.admissionNo));
               const name = st.studentName || st.name || 'Student';
               const cls = st.className || '';
               const sec = st.section ? `-${st.section}` : '';
               const adm = st.admissionNo || '';
-              const depositAmount = Number(st.paidSecurityDeposit || st.requiredSecurityDeposit || 0);
+              const paidDeposit = Number(st.paidSecurityDeposit || 0);
+              const reqDeposit = Number(st.requiredSecurityDeposit || 0);
+              const isPaid = Boolean(st.isSecurityDepositPaid || st.paymentStatus === 'Paid' || st.hostelSecurityDepositPaid || (reqDeposit > 0 && paidDeposit >= reqDeposit));
+              const isPartial = !isPaid && (st.paymentStatus === 'Partial' || paidDeposit > 0);
 
               return (
                 <button
-                  key={`eligible_st_${stId}`}
+                  key={`eligible_st_${stKey}`}
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    onChange(stId, st);
+                    onChange(stKey, st);
                     setSearchText(`${name} (${cls}${sec} • ${adm})`);
                     setIsOpen(false);
                   }}
@@ -126,12 +149,29 @@ const StudentInlineCombobox: React.FC<{
                   <div className="truncate">
                     <div className="font-bold flex items-center gap-1.5">
                       <span>{name}</span>
-                      <span className="font-mono text-[10px] text-slate-400">({cls}{sec} • {adm})</span>
+                      <span className="font-mono text-[10px] text-slate-400">({cls}${sec} • ${adm})</span>
                     </div>
-                    <div className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 mt-0.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"></span>
-                      <span>Available for Allocation • Deposit Paid ({depositAmount > 0 ? `₹${depositAmount.toLocaleString('en-IN')}` : 'Verified'})</span>
-                    </div>
+                    {isPaid ? (
+                      <div className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 mt-0.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"></span>
+                        <span>Available • Deposit Paid {paidDeposit > 0 ? `(${formatCurrency(paidDeposit)})` : '• Verified'}</span>
+                      </div>
+                    ) : isPartial ? (
+                      <div className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1 mt-0.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block"></span>
+                        <span>Available • Deposit Partial ({formatCurrency(paidDeposit)} / {formatCurrency(reqDeposit)})</span>
+                      </div>
+                    ) : reqDeposit > 0 ? (
+                      <div className="text-[10px] font-semibold text-rose-500 dark:text-rose-400 flex items-center gap-1 mt-0.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-rose-500 inline-block"></span>
+                        <span>Deposit Pending ({formatCurrency(reqDeposit)} Required)</span>
+                      </div>
+                    ) : (
+                      <div className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-slate-400 inline-block"></span>
+                        <span>Available • No Deposit Required</span>
+                      </div>
+                    )}
                   </div>
                   <span className="text-[10px] font-extrabold text-sky-600 bg-sky-100 dark:bg-sky-950 px-2 py-0.5 rounded-full shrink-0 ml-1">
                     ★ Residential
@@ -192,13 +232,7 @@ export const StudentHostelAssignmentView: React.FC = () => {
 
     if (matched.length > 0) return matched;
 
-    const defaultWardenBlock = blocks.find(b =>
-      (b.hostelName || '').toLowerCase().includes('ramachandra') ||
-      (b.hostelName || '').toLowerCase().includes('bhanu') ||
-      (b.hostelName || '').toLowerCase().includes('boys')
-    );
-
-    return defaultWardenBlock ? [defaultWardenBlock] : (blocks.length > 0 ? [blocks[0]] : []);
+    return blocks.length > 0 ? [blocks[0]] : [];
   }, [blocks, isWarden, user]);
 
   const targetBlocks = isWarden ? wardenAssignedBlocks : blocks;
@@ -378,6 +412,7 @@ export const StudentHostelAssignmentView: React.FC = () => {
   }, [dataContext?.students, dataContext?.admissions, allocations]);
 
   const [selectedStudentId, setSelectedStudentId] = useState('');
+  const [selectedStudentObj, setSelectedStudentObj] = useState<any>(null);
   const [selectedHostelId, setSelectedHostelId] = useState('');
   const [selectedRoomId, setSelectedRoomId] = useState('');
   const [selectedBedNo, setSelectedBedNo] = useState('BED-1');
@@ -445,11 +480,21 @@ export const StudentHostelAssignmentView: React.FC = () => {
     };
   }, [fetchData, fetchEligibleStudents]);
 
-  const selectedCandidate = useMemo(() => {
-    return candidateStudents.find(s => String(s.id) === String(selectedStudentId));
-  }, [candidateStudents, selectedStudentId]);
+  const currentSelectedStudent = useMemo(() => {
+    if (selectedStudentObj) return selectedStudentObj;
+    if (!selectedStudentId) return null;
+    return (
+      eligibleStudents.find(s => {
+        const key = getStudentUniqueKey(s);
+        return key === selectedStudentId || (s.admissionNo && s.admissionNo === selectedStudentId);
+      }) ||
+      eligibleStudents.find(s => String(s.id) === String(selectedStudentId) || String(s.studentId) === String(selectedStudentId) || String(s.applicationId) === String(selectedStudentId)) ||
+      candidateStudents.find(s => String(s.admissionNo) === String(selectedStudentId) || String(s.id) === String(selectedStudentId)) ||
+      null
+    );
+  }, [selectedStudentObj, selectedStudentId, eligibleStudents, candidateStudents]);
 
-  const candidateClass = selectedCandidate?.className || selectedCandidate?.appliedClass || '';
+  const candidateClass = currentSelectedStudent?.className || currentSelectedStudent?.appliedClass || (currentSelectedStudent as any)?.class || '';
 
   const applicableHostelFeeConfig = useMemo(() => {
     if (!selectedStudentId || !selectedRoomId) return null;
@@ -486,38 +531,60 @@ export const StudentHostelAssignmentView: React.FC = () => {
     return fhc || null;
   }, [selectedStudentId, selectedRoomId, selectedHostelId, candidateClass, rooms, dataContext?.financeHostelConfigs, dataContext?.academicClasses]);
 
-  const secDepAmount = Number(applicableHostelFeeConfig?.securityDeposit) || 0;
+  const effectiveReqDeposit = useMemo(() => {
+    if (currentSelectedStudent?.requiredSecurityDeposit !== undefined && currentSelectedStudent.requiredSecurityDeposit !== null) {
+      return Number(currentSelectedStudent.requiredSecurityDeposit) || 0;
+    }
+    return Number(applicableHostelFeeConfig?.securityDeposit) || 0;
+  }, [currentSelectedStudent, applicableHostelFeeConfig]);
 
-  const isDepositAlreadyPaid = useMemo(() => {
-    if (secDepAmount <= 0) return true;
-    if (depositPaidOverride) return true;
-    if (!selectedStudentId) return false;
-
-    const sId = String(selectedStudentId);
-    const sAdm = String(selectedCandidate?.admissionNo || '');
-    const sName = String(selectedCandidate?.name || '').toLowerCase().trim();
-
-    if ((selectedCandidate as any)?.hostelSecurityDepositPaid) return true;
+  const effectivePaidDeposit = useMemo(() => {
+    if (currentSelectedStudent?.paidSecurityDeposit !== undefined && currentSelectedStudent.paidSecurityDeposit !== null && Number(currentSelectedStudent.paidSecurityDeposit) > 0) {
+      return Number(currentSelectedStudent.paidSecurityDeposit);
+    }
+    const sId = String(currentSelectedStudent?.studentId || currentSelectedStudent?.id || '');
+    const sAdm = String(currentSelectedStudent?.admissionNo || '');
+    const sName = String(currentSelectedStudent?.studentName || currentSelectedStudent?.name || '').toLowerCase().trim();
 
     const payments = dataContext?.feePayments || [];
-    return payments.some(p => {
+    const matchingPayments = payments.filter(p => {
       const pId = String(p.studentId || '');
       const pAdm = String(p.admissionNo || '');
       const pName = String(p.studentName || '').toLowerCase().trim();
-
-      const matchesId = (pId && (pId === sId || pId === sAdm)) || (pAdm && (pAdm === sId || pAdm === sAdm)) || (sName && pName && sName === pName);
-      const isDepositHead =
+      const matches = (pId && (pId === sId || pId === sAdm)) || (pAdm && (pAdm === sId || pAdm === sAdm)) || (sName && pName && sName === pName);
+      if (!matches) return false;
+      return (
         String(p.feeHeadName || '').toLowerCase().includes('security deposit') ||
         String(p.remarks || '').toLowerCase().includes('security deposit') ||
-        String(p.paidItemsJson || '').toLowerCase().includes('security deposit');
-
-      return matchesId && isDepositHead;
+        String(p.paidItemsJson || '').toLowerCase().includes('security deposit') ||
+        (Array.isArray(p.paymentAllocation) && p.paymentAllocation.some(alloc => String(alloc.feeHeadName || '').toLowerCase().includes('security deposit')))
+      );
     });
-  }, [secDepAmount, depositPaidOverride, selectedStudentId, selectedCandidate, dataContext?.feePayments]);
+    const sumPaid = matchingPayments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+    if (sumPaid > 0) return sumPaid;
+    if (currentSelectedStudent?.hostelSecurityDepositPaid || currentSelectedStudent?.isSecurityDepositPaid || currentSelectedStudent?.paymentStatus === 'Paid') {
+      return effectiveReqDeposit;
+    }
+    return 0;
+  }, [currentSelectedStudent, dataContext?.feePayments, effectiveReqDeposit]);
+
+  const isDepositPaid = useMemo(() => {
+    if (depositPaidOverride) return true;
+    if (effectiveReqDeposit <= 0) return true;
+    if (currentSelectedStudent?.isSecurityDepositPaid === true) return true;
+    if (currentSelectedStudent?.paymentStatus === 'Paid') return true;
+    if (currentSelectedStudent?.hostelSecurityDepositPaid === true) return true;
+    return effectivePaidDeposit >= effectiveReqDeposit && effectiveReqDeposit > 0;
+  }, [depositPaidOverride, effectiveReqDeposit, effectivePaidDeposit, currentSelectedStudent]);
+
+  const secDepAmount = effectiveReqDeposit;
+  const isDepositAlreadyPaid = isDepositPaid;
 
   const handleOpenAdd = () => {
     fetchEligibleStudents();
     setSelectedStudentId('');
+    setSelectedStudentObj(null);
+    setDepositPaidOverride(false);
     const defaultBlkId = (filterHostel && filterHostel !== 'All')
       ? filterHostel
       : (targetBlocks.length > 0 ? String(targetBlocks[0].hostelId || (targetBlocks[0] as any).id || '') : '');
@@ -532,6 +599,12 @@ export const StudentHostelAssignmentView: React.FC = () => {
   const handleOpenAddForStudent = (stId: string) => {
     fetchEligibleStudents();
     setSelectedStudentId(stId);
+    const targetObj = eligibleStudents.find(s => {
+      const k = getStudentUniqueKey(s);
+      return k === stId || (s.admissionNo && s.admissionNo === stId) || String(s.id) === stId || String(s.studentId) === stId;
+    }) || candidateStudents.find(s => String(s.admissionNo) === stId || String(s.id) === stId);
+    setSelectedStudentObj(targetObj || null);
+    setDepositPaidOverride(false);
     const defaultBlkId = (filterHostel && filterHostel !== 'All')
       ? filterHostel
       : (targetBlocks.length > 0 ? String(targetBlocks[0].hostelId || (targetBlocks[0] as any).id || '') : '');
@@ -546,7 +619,7 @@ export const StudentHostelAssignmentView: React.FC = () => {
   const handleSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!selectedStudentId || !selectedHostelId || !selectedRoomId) {
-      addToast('error', 'Validation Error', 'Please complete all fields');
+      addToast('error', 'Validation Error', 'Please complete all required fields');
       return;
     }
 
@@ -556,27 +629,30 @@ export const StudentHostelAssignmentView: React.FC = () => {
       return;
     }
 
-    if (secDepAmount > 0 && !isDepositAlreadyPaid) {
-      addToast('error', 'Security Deposit Required', `Security deposit fee of ${formatCurrency(secDepAmount)} must be paid before allotting a bed to this student.`);
+    const st = currentSelectedStudent;
+    if (!st) {
+      addToast('error', 'Validation Error', 'Selected student record not found. Please re-select the student.');
+      return;
+    }
+
+    if (effectiveReqDeposit > 0 && !isDepositPaid) {
+      addToast('error', 'Security Deposit Required', `Security deposit fee of ${formatCurrency(effectiveReqDeposit)} must be paid before allotting a bed to this student.`);
       return;
     }
 
     try {
       setIsSubmitting(true);
-      const selectedSt = eligibleStudents.find(s => 
-        String(s.id) === String(selectedStudentId) || 
-        String(s.studentId) === String(selectedStudentId) || 
-        String(s.applicationId) === String(selectedStudentId) ||
-        String(s.admissionNo) === String(selectedStudentId)
-      ) || candidateStudents.find(s => String(s.id) === String(selectedStudentId));
-
       const selectedBlk = blocks.find(b => String(b.hostelId || (b as any).id) === String(selectedHostelId));
       const selectedRm = rooms.find(r => String(r.roomId || (r as any).id) === String(selectedRoomId));
 
+      const targetStudentId = Number(st.studentId || st.applicationId || (typeof st.id === 'number' ? st.id : parseInt(String(st.id), 10)) || 0);
+      const targetStudentName = (st as any).studentName || st.name || 'Student';
+      const targetAdmissionNo = st.admissionNo || '';
+
       const payload = {
-        studentId: selectedSt?.studentId || (typeof selectedStudentId === 'number' ? selectedStudentId : parseInt(selectedStudentId, 10)) || selectedSt?.applicationId || 0,
-        studentName: (selectedSt as any)?.studentName || selectedSt?.name || 'Student',
-        admissionNo: selectedSt?.admissionNo || '',
+        studentId: targetStudentId,
+        studentName: targetStudentName,
+        admissionNo: targetAdmissionNo,
         hostelId: Number(selectedHostelId),
         hostelName: selectedBlk?.hostelName || (selectedBlk as any)?.name || 'Hostel Block',
         roomId: Number(selectedRoomId),
@@ -590,13 +666,11 @@ export const StudentHostelAssignmentView: React.FC = () => {
       addToast('success', 'Allocation Created', 'Room & bed allocated successfully');
       fetchEligibleStudents();
 
-
-      
       if (dataContext?.assignStudentHostelRoom) {
         dataContext.assignStudentHostelRoom({
-          studentId: String(selectedStudentId),
-          studentName: (selectedSt as any)?.studentName || selectedSt?.name || 'Student',
-          admissionNo: selectedSt?.admissionNo || formatConfiguredStudentAdmissionNo(selectedSt?.admissionNo, selectedStudentId),
+          studentId: String(targetStudentId || selectedStudentId),
+          studentName: targetStudentName,
+          admissionNo: targetAdmissionNo || formatConfiguredStudentAdmissionNo(targetAdmissionNo, selectedStudentId),
           hostelId: String(selectedHostelId),
           hostelName: selectedBlk?.hostelName || (selectedBlk as any)?.name || 'Hostel Block',
           roomNo: selectedRm?.roomNumber || '101',
@@ -692,9 +766,7 @@ export const StudentHostelAssignmentView: React.FC = () => {
         return matchesId && isDepHead;
       });
 
-      if (!isDepositFlagPaid && !hasDepPayment) {
-        return false;
-      }
+      // Residential student is eligible for room & bed allocation
 
       // Check if already allocated
       const isAllocated =
@@ -832,15 +904,8 @@ export const StudentHostelAssignmentView: React.FC = () => {
 
     if (directMatches.length > 0) return directMatches;
 
-    // Fallback standard rooms for this block if none configured yet
-    const blkName = selectedBlock?.hostelName || (selectedBlock as any)?.name || 'Block';
-    const blkCode = selectedBlock?.hostelCode || 'HST-BLK';
-    return [
-      { roomId: 101, roomNumber: '101', hostelId: Number(activeHostelId) || 1, hostelName: blkName, hostelCode: blkCode, roomTypeId: 1, roomTypeSpecification: 'Standard Double', bedCapacity: 2, capacity: 2, floorLevel: 'First Floor', status: 'Available', occupiedBeds: 0, vacantBeds: 2, createdAt: new Date().toISOString() },
-      { roomId: 102, roomNumber: '102', hostelId: Number(activeHostelId) || 1, hostelName: blkName, hostelCode: blkCode, roomTypeId: 1, roomTypeSpecification: 'Standard Double', bedCapacity: 2, capacity: 2, floorLevel: 'First Floor', status: 'Available', occupiedBeds: 0, vacantBeds: 2, createdAt: new Date().toISOString() },
-      { roomId: 201, roomNumber: '201', hostelId: Number(activeHostelId) || 1, hostelName: blkName, hostelCode: blkCode, roomTypeId: 2, roomTypeSpecification: 'Deluxe Triple', bedCapacity: 3, capacity: 3, floorLevel: 'Second Floor', status: 'Available', occupiedBeds: 0, vacantBeds: 3, createdAt: new Date().toISOString() },
-      { roomId: 202, roomNumber: '202', hostelId: Number(activeHostelId) || 1, hostelName: blkName, hostelCode: blkCode, roomTypeId: 1, roomTypeSpecification: 'Standard Double', bedCapacity: 2, capacity: 2, floorLevel: 'Second Floor', status: 'Available', occupiedBeds: 0, vacantBeds: 2, createdAt: new Date().toISOString() },
-    ];
+    // Return only actual rooms configured in the database
+    return [];
   }, [safeRooms, selectedHostelId, filterHostel, selectedBlock, targetBlocks]);
 
   const inheritedWardenName = selectedBlock?.wardenName || 'Unassigned';
@@ -941,16 +1006,16 @@ export const StudentHostelAssignmentView: React.FC = () => {
           {/* Allocations Table */}
       <div className="glass-card rounded-3xl border border-slate-200/80 dark:border-slate-800 overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
+          <table className="w-full text-center text-xs">
             <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200/80 dark:border-slate-800 text-slate-500 font-extrabold uppercase tracking-wider text-[10px]">
               <tr>
-                <th className="py-2 px-3">Student Name</th>
-                <th className="py-2 px-3">Admission ID</th>
-                <th className="py-2 px-3">Hostel Facility</th>
-                <th className="py-2 px-3">Room & Bed</th>
-                <th className="py-2 px-3">Joining Date</th>
-                <th className="py-2 px-3">Status</th>
-                <th className="py-2 px-3 text-right">Actions</th>
+                <th className="py-2.5 px-3 text-center">Student Name</th>
+                <th className="py-2.5 px-3 text-center">Admission ID</th>
+                <th className="py-2.5 px-3 text-center">Hostel Facility</th>
+                <th className="py-2.5 px-3 text-center">Room & Bed</th>
+                <th className="py-2.5 px-3 text-center">Joining Date</th>
+                <th className="py-2.5 px-3 text-center">Status</th>
+                <th className="py-2.5 px-3 text-center">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
@@ -963,39 +1028,42 @@ export const StudentHostelAssignmentView: React.FC = () => {
                   <tr key={`alloc_tr_${a.allocationId || a.studentId || 'item'}_${idx}`} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
                     <td
                       onClick={() => setViewStudentModal(a as any)}
-                      className="py-2 px-3 font-bold text-sky-600 dark:text-sky-400 hover:underline cursor-pointer"
+                      className="py-2.5 px-3 text-center font-bold text-sky-600 dark:text-sky-400 hover:underline cursor-pointer"
                       title="Click to view student hostel details"
                     >
                       <span>{a.studentName}</span>
                     </td>
-                    <td className="py-2 px-3 font-mono text-slate-500">{a.admissionNo}</td>
-                    <td className="py-3.5 px-4 font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap">
+                    <td className="py-2.5 px-3 text-center font-mono text-slate-500">{a.admissionNo}</td>
+                    <td className="py-2.5 px-4 text-center font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap">
                       {a.hostelName && isNaN(Number(a.hostelName))
                         ? a.hostelName
                         : (blocks.find(b => String(b.hostelId ?? '') === String(a.hostelName || (a as any).hostelId))?.hostelName || `Block #${a.hostelName || '1'}`)}
                     </td>
-                    <td className="py-2 px-3 font-mono font-bold">
+                    <td className="py-2.5 px-3 text-center font-mono font-bold">
                       {a.isPendingAdmitted ? (
-                        <span className="text-amber-600">Unassigned (Needs Room)</span>
+                        <span className="inline-block px-2.5 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800 text-[11px] font-semibold">
+                          Unassigned (Needs Room)
+                        </span>
                       ) : (
                         <span className="text-emerald-600">{formatRoomNumber(a.roomNumber)} ({a.bedNumber || 'BED-1'})</span>
                       )}
                     </td>
-                    <td className="py-2 px-3 text-slate-500 font-mono text-xs">
+                    <td className="py-2.5 px-3 text-center text-slate-500 font-mono text-xs">
                       {a.joiningDate ? a.joiningDate.split('T')[0] : 'N/A'}
                     </td>
-                    <td className="py-2 px-3">
+                    <td className="py-2.5 px-3 text-center">
                       {a.isPendingAdmitted ? (
-                        <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                        <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
                           Pending Bed
                         </span>
                       ) : (
-                        <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                        <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
                           {a.status}
                         </span>
                       )}
                     </td>
-                    <td className="py-2 px-3 text-right flex justify-end gap-2">
+                    <td className="py-2.5 px-3 text-center">
+                      <div className="flex items-center justify-center gap-2 mx-auto">
                       {a.isPendingAdmitted ? (
                         <button
                           onClick={() => handleOpenAddForStudent((a as any).rawStudentId)}
@@ -1008,6 +1076,7 @@ export const StudentHostelAssignmentView: React.FC = () => {
                           <button onClick={() => handleVacate(a as any)} className="px-2.5 py-1 rounded-xl bg-amber-50 text-amber-600 font-bold hover:bg-amber-100">Vacate</button>
                         )
                       )}
+                    </div>
                     </td>
                   </tr>
                 ))
@@ -1044,7 +1113,11 @@ export const StudentHostelAssignmentView: React.FC = () => {
                 </div>
                 <StudentInlineCombobox
                   value={selectedStudentId}
-                  onChange={val => setSelectedStudentId(val)}
+                  onChange={(val, st) => {
+                    setSelectedStudentId(val);
+                    setSelectedStudentObj(st || null);
+                    setDepositPaidOverride(false);
+                  }}
                   students={eligibleStudents}
                   disabled={isSubmitting}
                 />
@@ -1084,15 +1157,63 @@ export const StudentHostelAssignmentView: React.FC = () => {
                 )}
               </div>
 
-              {selectedStudentId && (
-                <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 flex items-center justify-between text-xs">
-                  <span className="font-bold text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
-                    <ShieldCheck className="w-4 h-4 text-emerald-600" />
-                    Hostel Security Deposit: Verified &amp; Paid
-                  </span>
-                  <span className="text-[10px] font-extrabold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/60 px-2 py-0.5 rounded-full border border-emerald-300">
-                    PAID
-                  </span>
+              {currentSelectedStudent && (
+                <div>
+                  {isDepositPaid && (effectiveReqDeposit > 0 || effectivePaidDeposit > 0) ? (
+                    <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 flex items-center justify-between text-xs">
+                      <span className="font-bold text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
+                        <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                        Hostel Security Deposit: Verified &amp; Paid
+                        {effectivePaidDeposit > 0 && (
+                          <span className="font-mono text-[11px] text-emerald-700 dark:text-emerald-400">
+                            ({formatCurrency(effectivePaidDeposit)})
+                          </span>
+                        )}
+                      </span>
+                      <span className="text-[10px] font-extrabold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/60 px-2 py-0.5 rounded-full border border-emerald-300">
+                        PAID
+                      </span>
+                    </div>
+                  ) : effectivePaidDeposit > 0 && effectiveReqDeposit > effectivePaidDeposit ? (
+                    <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 flex items-center justify-between text-xs">
+                      <span className="font-bold text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
+                        <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                        Hostel Security Deposit: Partially Paid ({formatCurrency(effectivePaidDeposit)} / {formatCurrency(effectiveReqDeposit)})
+                      </span>
+                      <span className="text-[10px] font-extrabold text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/60 px-2 py-0.5 rounded-full border border-amber-300">
+                        PARTIAL
+                      </span>
+                    </div>
+                  ) : effectiveReqDeposit > 0 ? (
+                    <div className="p-2.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 flex items-center justify-between text-xs">
+                      <span className="font-bold text-rose-800 dark:text-rose-300 flex items-center gap-1.5">
+                        <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                        Hostel Security Deposit: Payment Pending ({formatCurrency(effectiveReqDeposit)} Required)
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-extrabold text-rose-700 dark:text-rose-300 bg-rose-100 dark:bg-rose-900/60 px-2 py-0.5 rounded-full border border-rose-300">
+                          PENDING
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setDepositPaidOverride(true)}
+                          className="text-[10px] font-bold text-sky-600 hover:text-sky-800 underline cursor-pointer"
+                        >
+                          Mark Paid / Override
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex items-center justify-between text-xs">
+                      <span className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                        <ShieldCheck className="w-4 h-4 text-slate-500 shrink-0" />
+                        Hostel Security Deposit: Not Required
+                      </span>
+                      <span className="text-[10px] font-extrabold text-slate-600 dark:text-slate-400 bg-slate-200 dark:bg-slate-700 px-2 py-0.5 rounded-full">
+                        EXEMPT
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
               <div className="grid grid-cols-2 gap-3">

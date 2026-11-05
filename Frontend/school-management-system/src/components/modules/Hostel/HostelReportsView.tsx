@@ -613,11 +613,11 @@ export const HostelReportsView: React.FC = () => {
             ) : reportData.length === 0 ? (
               <p className="text-center py-10 text-xs text-slate-400 italic font-semibold">No report records found matching filter.</p>
             ) : (
-              <table className="w-full text-left border-collapse text-xs text-slate-700 dark:text-slate-300">
+              <table className="w-full text-center border-collapse text-xs text-slate-700 dark:text-slate-300">
                 <thead>
                   <tr className="bg-slate-50 dark:bg-slate-800/80 uppercase font-extrabold text-[10px] tracking-wider text-slate-500 border-b border-slate-200 dark:border-slate-800">
                     {Object.keys(reportData[0] || {}).map(key => (
-                      <th key={key} className="py-3 px-4">{key}</th>
+                      <th key={key} className="py-3 px-4 text-center">{key}</th>
                     ))}
                   </tr>
                 </thead>
@@ -625,7 +625,7 @@ export const HostelReportsView: React.FC = () => {
                   {paginatedData.map((row, idx) => (
                     <tr key={idx} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
                       {Object.values(row).map((val: any, valIdx) => (
-                        <td key={valIdx} className="py-2 px-3 text-slate-800 dark:text-slate-200 font-semibold">
+                        <td key={valIdx} className="py-2 px-3 text-center text-slate-800 dark:text-slate-200 font-semibold">
                           {String(val)}
                         </td>
                       ))}

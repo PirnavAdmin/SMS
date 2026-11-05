@@ -22,9 +22,6 @@ export const HostelContainerView: React.FC<HostelContainerViewProps> = ({ initia
     if (clean === 'room-allocation' || clean === 'room-allocations' || clean === 'allocation' || clean === 'allocations' || clean === 'student-room-allocation') {
       return 'student-hostel';
     }
-    if (isWarden && (clean === 'dashboard' || !clean)) {
-      return 'masters';
-    }
     return clean || 'dashboard';
   };
 
@@ -33,10 +30,7 @@ export const HostelContainerView: React.FC<HostelContainerViewProps> = ({ initia
   useEffect(() => {
     const clean = getCleanTab(initialTab);
     setActiveTab(clean);
-    // If warden landed on hostel or dashboard, sync activeModule to hostel-masters so sidebar highlights properly
-    if (isWarden && (initialTab === 'dashboard' || initialTab === 'hostel-dashboard' || initialTab === 'hostel')) {
-      if (onTabChange) onTabChange('hostel-masters');
-    }
+    // Tab synced
   }, [initialTab, isWarden]);
 
   const handleNavigate = (tab: string) => {
@@ -47,7 +41,7 @@ export const HostelContainerView: React.FC<HostelContainerViewProps> = ({ initia
   };
 
   const navTabs = [
-    ...(!isWarden ? [{ id: 'dashboard', label: 'Hostel Dashboard', icon: LayoutDashboard }] : []),
+    { id: 'dashboard', label: 'Hostel Dashboard', icon: LayoutDashboard },
     { id: 'masters', label: 'Hostel Masters Setup', icon: Building2 },
     { id: 'student-hostel', label: 'Student Management', icon: Users },
     { id: 'reports', label: 'Hostel Reports', icon: BarChart3 }
@@ -61,9 +55,6 @@ export const HostelContainerView: React.FC<HostelContainerViewProps> = ({ initia
   };
 
   const renderTabContent = () => {
-    if (isWarden && activeTab === 'dashboard') {
-      return <HostelMastersView />;
-    }
 
     switch (activeTab) {
       case 'dashboard':
