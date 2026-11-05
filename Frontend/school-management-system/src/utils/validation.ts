@@ -1573,6 +1573,20 @@ function shouldSkipGlobalValidation(input: HTMLInputElement | HTMLTextAreaElemen
     return true;
   }
   const meta = `${input.name || ''} ${input.id || ''} ${input.placeholder || ''} ${input.autocomplete || ''}`.toLowerCase();
+  const label = inferInputFieldLabel(input);
+
+  // Search filter inputs should NEVER be subjected to global form-submission error validation
+  const isSearch =
+    (input instanceof HTMLInputElement && input.type === 'search') ||
+    input.hasAttribute('data-search-input') ||
+    input.getAttribute('role') === 'searchbox' ||
+    label.includes('search') ||
+    meta.includes('search') ||
+    (input.placeholder || '').toLowerCase().includes('search');
+
+  if (isSearch) {
+    return true;
+  }
   if (
     meta.includes('password') ||
     meta.includes('pass') ||
@@ -1591,7 +1605,6 @@ function shouldSkipGlobalValidation(input: HTMLInputElement | HTMLTextAreaElemen
   ) {
     return true;
   }
-  const label = inferInputFieldLabel(input);
   if (
     label.includes('email') ||
     label.includes('phone') ||

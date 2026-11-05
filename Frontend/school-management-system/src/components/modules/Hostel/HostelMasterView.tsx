@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Building2, Plus, Edit, Trash2, Search, CheckCircle2, XCircle, FileText, Download, Eye } from 'lucide-react';
+import { Building2, Plus, Edit, Trash2, Search, CheckCircle2, XCircle, FileText, Download, Eye, X, AlertCircle } from 'lucide-react';
+import { validateSearchQuery } from '../../../utils/validation';
 import { useToast } from '../../../context/ToastContext';
 import { useAuth } from '../../../context/AuthContext';
 import { ConfirmModal } from '../../common/ConfirmModal';
+import { Pagination } from '../../common/Pagination';
 import { getHostelBlocks, createHostelBlock, updateHostelBlock, deleteHostelBlock, getRooms, getAllocations, HostelBlock, HostelRoom, BedAllocation } from '../../../api/hostel';
 
 interface FloorAlloc {
@@ -37,6 +39,22 @@ export const HostelMasterView: React.FC<HostelMasterViewProps> = ({
   const [loading, setLoading] = useState(true);
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchError, setSearchError] = useState<string | undefined>(undefined);
+
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 6;
+
+  const handleSearchQueryChange = (val: string) => {
+    setCurrentPage(1);
+    setSearchQuery(val);
+    if (!val.trim()) {
+      setSearchError(undefined);
+    } else {
+      const res = validateSearchQuery(val, 30);
+      setSearchError(res.isValid ? undefined : (res.error || 'Enter a valid search term.'));
+    }
+  };
 
   const [localFilterType, setLocalFilterType] = useState(() => {
     try {
@@ -49,6 +67,7 @@ export const HostelMasterView: React.FC<HostelMasterViewProps> = ({
   const filterType = selectedHostelFilter !== undefined ? selectedHostelFilter : localFilterType;
 
   const handleFilterChange = (val: string) => {
+    setCurrentPage(1);
     setLocalFilterType(val);
     try {
       localStorage.setItem('hostel_master_selected_filter', val);
@@ -273,6 +292,7 @@ export const HostelMasterView: React.FC<HostelMasterViewProps> = ({
   const targetHostels = isWarden ? wardenAssignedHostels : hostelMasters;
 
   const filteredHostels = targetHostels.filter(h => {
+    if (searchError) return false;
     const displayTitle = h.hostelName || (h as any).name || (h as any).blockName || `Block #${h.hostelId}`;
 
     const matchesSearch = displayTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -286,6 +306,11 @@ export const HostelMasterView: React.FC<HostelMasterViewProps> = ({
 
     return matchesSearch && matchesType;
   });
+
+  const paginatedHostels = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredHostels.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredHostels, currentPage, itemsPerPage]);
 
   return (
     <div className="space-y-3.5 animate-in fade-in">
@@ -308,23 +333,50 @@ export const HostelMasterView: React.FC<HostelMasterViewProps> = ({
 
       {/* Filter Bar */}
       {!isWarden && (
-        <div className="glass-card p-3 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-2.5 border border-slate-200/80 dark:border-slate-800 shadow-xs">
-          <div className="relative w-full sm:w-72">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-            <input
-              type="text"
-              placeholder="Search by name or code..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              className="w-full pl-8 pr-3.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none h-[34px]"
-            />
+        <div className="glass-card p-3 rounded-xl flex flex-col sm:flex-row items-start justify-between gap-2.5 border border-slate-200/80 dark:border-slate-800 shadow-xs">
+          <div className="flex flex-col w-full sm:w-72">
+            <div className="relative w-full h-[36px]">
+              <Search className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none transition-colors ${searchError ? "text-rose-500" : "text-slate-400"}`} />
+              <input
+                type="text"
+                data-skip-global-validation="true"
+                data-search-input="true"
+                placeholder="Search by name or code..."
+                value={searchQuery}
+                onChange={e => handleSearchQueryChange(e.target.value)}
+                className={`w-full h-[36px] pl-9 ${searchQuery ? "pr-8" : "pr-4"} rounded-lg bg-slate-50 dark:bg-slate-800 border text-xs font-semibold text-slate-900 dark:text-white outline-none transition-all ${
+                  searchError
+                    ? "border-rose-500 focus:border-rose-500 ring-1 ring-rose-500/20"
+                    : "border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500"
+                }`}
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setSearchError(undefined);
+                  }}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                  title="Clear search"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+            {searchError && (
+              <p className="text-[11px] font-bold text-rose-500 flex items-center gap-1.5 mt-1.5 animate-in fade-in">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>{searchError}</span>
+              </p>
+            )}
           </div>
 
           <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
             <select
               value={filterType}
               onChange={e => handleFilterChange(e.target.value)}
-              className={`px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold cursor-pointer outline-none h-[34px] transition-all hover:border-sky-400 ${
+              className={`px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold cursor-pointer outline-none h-[36px] transition-all hover:border-sky-400 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 min-w-[180px] ${
                 !filterType ? 'text-slate-400 dark:text-slate-500 font-medium' : 'text-slate-800 dark:text-slate-200'
               }`}
             >
@@ -367,14 +419,15 @@ export const HostelMasterView: React.FC<HostelMasterViewProps> = ({
           </div>
         </div>
       ) : (
-        /* Hostels Grid */
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+        <div className="space-y-4">
+          {/* Hostels Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
           {loading ? (
             <div className="col-span-full py-12 text-center text-slate-400 font-semibold italic">Loading Hostels...</div>
           ) : filteredHostels.length === 0 ? (
             <div className="col-span-full py-12 text-center text-slate-400 font-semibold italic">No hostels found for this category.</div>
           ) : (
-            filteredHostels.map((h, idx) => {
+            paginatedHostels.map((h, idx) => {
               const hRooms = roomMasters.filter(r => 
                 (r.hostelCode && h.hostelCode && r.hostelCode.toLowerCase().trim() === h.hostelCode.toLowerCase().trim()) ||
                 (Number(r.hostelId) === Number(h.hostelId) && String(r.hostelName || '').toLowerCase().trim() === String(h.hostelName || '').toLowerCase().trim())
@@ -448,6 +501,21 @@ export const HostelMasterView: React.FC<HostelMasterViewProps> = ({
                 </div>
               );
             })
+          )}
+        </div>
+
+          {/* Neat Pagination Footer Container */}
+          {filteredHostels.length > 0 && (
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl px-5 py-3.5 shadow-xs">
+              <Pagination
+                currentPage={currentPage}
+                totalItems={filteredHostels.length}
+                itemsPerPage={itemsPerPage}
+                onPageChange={setCurrentPage}
+                showBorder={false}
+                className="pt-0 pb-0"
+              />
+            </div>
           )}
         </div>
       )}

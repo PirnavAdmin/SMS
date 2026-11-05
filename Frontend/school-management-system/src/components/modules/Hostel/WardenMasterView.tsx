@@ -1,6 +1,7 @@
 // @ts-nocheck
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Users, Edit, Trash2, Plus, Search, ShieldCheck, History, UserCheck, Layers, Building, Filter, Eye } from 'lucide-react';
+import { Users, Edit, Trash2, Plus, Search, ShieldCheck, History, UserCheck, Layers, Building, Filter, Eye, X, AlertCircle } from 'lucide-react';
+import { validateSearchQuery } from '../../../utils/validation';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { Badge } from '../../common/Badge';
@@ -8,6 +9,7 @@ import { ExportButton } from '../../common/ExportButton';
 import { ConfirmModal } from '../../common/ConfirmModal';
 import { DateInput } from '../../common/DateInput';
 import { SearchableSelect } from '../../common/SearchableSelect';
+import { Pagination } from '../../common/Pagination';
 import { getWardens, getStaffCandidates, getHostelBlocks, assignWarden, deleteWarden, HostelBlock, StaffCandidate } from '../../../api/hostel';
 
 interface WardenRecord {
@@ -37,6 +39,22 @@ export const WardenMasterView: React.FC<WardenMasterViewProps> = ({
 
   const [activeTab, setActiveTab] = useState<'current' | 'history'>('current');
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchError, setSearchError] = useState<string | undefined>(undefined);
+
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  const handleSearchQueryChange = (val: string) => {
+    setCurrentPage(1);
+    setSearchQuery(val);
+    if (!val.trim()) {
+      setSearchError(undefined);
+    } else {
+      const res = validateSearchQuery(val, 30);
+      setSearchError(res.isValid ? undefined : (res.error || 'Enter a valid search term.'));
+    }
+  };
   const [localFilterHostel, setLocalFilterHostel] = useState(() => {
     try {
       const saved = localStorage.getItem('hostel_warden_filter') || localStorage.getItem('hostel_master_selected_filter') || '';
@@ -54,6 +72,7 @@ export const WardenMasterView: React.FC<WardenMasterViewProps> = ({
   const effectiveHostel = filterHostel === 'MANUAL' ? manualHostelInput : filterHostel;
 
   const handleFilterHostelChange = (val: string) => {
+    setCurrentPage(1);
     setLocalFilterHostel(val);
     try {
       localStorage.setItem('hostel_warden_filter', val);
@@ -106,6 +125,7 @@ export const WardenMasterView: React.FC<WardenMasterViewProps> = ({
   }, [fetchData]);
 
   const filteredWardens = useMemo(() => {
+    if (searchError) return [];
     if (!filterHostel && !searchQuery.trim()) return [];
     return wardens.map(w => {
       const matchedStaff = staffList.find(s => 
@@ -137,7 +157,12 @@ export const WardenMasterView: React.FC<WardenMasterViewProps> = ({
       const matchesHostel = !effectiveHostel || effectiveHostel === 'ALL_HOSTELS' || effectiveHostel === 'All' || (w.hostelName || '').toLowerCase().includes(effectiveHostel.toLowerCase().trim());
       return matchesSearch && matchesHostel;
     });
-  }, [wardens, staffList, hostels, searchQuery, filterHostel, effectiveHostel]);
+  }, [wardens, staffList, hostels, searchQuery, searchError, filterHostel, effectiveHostel]);
+
+  const paginatedWardens = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredWardens.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredWardens, currentPage, itemsPerPage]);
 
   const wardenCandidates = useMemo(() => {
     // 100% dynamic candidates from backend API & DataContext staff list (zero hardcoded mock wardens)
@@ -286,23 +311,50 @@ export const WardenMasterView: React.FC<WardenMasterViewProps> = ({
         </div>
       </div>
 
-      <div className="glass-card p-3 rounded-xl flex flex-col md:flex-row items-center justify-between gap-2.5 border border-slate-200/80 dark:border-slate-800 shadow-xs">
-        <div className="relative w-full md:w-64">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-          <input
-            type="text"
-            placeholder="Search warden by name, ID, hostel..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className="w-full pl-8 pr-3.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white outline-none focus:border-sky-500 h-[34px]"
-          />
+      <div className="glass-card p-3 rounded-xl flex flex-col md:flex-row items-start justify-between gap-2.5 border border-slate-200/80 dark:border-slate-800 shadow-xs">
+        <div className="flex flex-col w-full md:w-64">
+          <div className="relative w-full h-[36px]">
+            <Search className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none transition-colors ${searchError ? "text-rose-500" : "text-slate-400"}`} />
+            <input
+              type="text"
+              data-skip-global-validation="true"
+              data-search-input="true"
+              placeholder="Search warden by name, ID, hostel..."
+              value={searchQuery}
+              onChange={e => handleSearchQueryChange(e.target.value)}
+              className={`w-full h-[36px] pl-9 ${searchQuery ? "pr-8" : "pr-4"} rounded-lg bg-slate-50 dark:bg-slate-800 border text-xs font-semibold text-slate-900 dark:text-white outline-none transition-all ${
+                searchError
+                  ? "border-rose-500 focus:border-rose-500 ring-1 ring-rose-500/20"
+                  : "border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500"
+              }`}
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery('');
+                  setSearchError(undefined);
+                }}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                title="Clear search"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+          {searchError && (
+            <p className="text-[11px] font-bold text-rose-500 flex items-center gap-1.5 mt-1.5 animate-in fade-in">
+              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+              <span>{searchError}</span>
+            </p>
+          )}
         </div>
 
         <div className="flex flex-col sm:flex-row items-center gap-2 w-full md:w-auto">
           <select
             value={filterHostel}
             onChange={e => handleFilterHostelChange(e.target.value)}
-            className="px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white cursor-pointer outline-none focus:border-sky-500 min-w-[180px]"
+            className="px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white cursor-pointer outline-none hover:border-sky-400 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 min-w-[180px] h-[36px] transition-all"
           >
             <option value="">-- Select Hostel --</option>
             <option value="ALL_HOSTELS">All Hostels</option>
@@ -367,7 +419,7 @@ export const WardenMasterView: React.FC<WardenMasterViewProps> = ({
                     <td colSpan={5} className="py-8 text-center text-slate-400 italic">No warden assignments found matching filter.</td>
                   </tr>
                 ) : (
-                  filteredWardens.map(a => (
+                  paginatedWardens.map(a => (
                     <tr key={a.wardenId} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
                       <td className="py-3 px-4 text-center font-mono font-bold text-slate-500">{a.employeeId}</td>
                       <td className="py-3 px-4 text-center font-bold text-slate-900 dark:text-white">{a.wardenName}</td>
@@ -387,6 +439,20 @@ export const WardenMasterView: React.FC<WardenMasterViewProps> = ({
               </tbody>
             </table>
           </div>
+
+          {/* Neat Table Footer with Integrated Pagination */}
+          {filteredWardens.length > 0 && (
+            <div className="px-5 py-3.5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40 rounded-b-2xl">
+              <Pagination
+                currentPage={currentPage}
+                totalItems={filteredWardens.length}
+                itemsPerPage={itemsPerPage}
+                onPageChange={setCurrentPage}
+                showBorder={false}
+                className="pt-0 pb-0"
+              />
+            </div>
+          )}
         </div>
       )}
 

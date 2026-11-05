@@ -865,13 +865,18 @@ export const HostelDashboardView: React.FC<HostelDashboardViewProps> = ({
               </div>
             )}
 
+            {/* Neat Table/Card Footer with Integrated Pagination */}
             {displayBlocks.length > blocksPerPage && (
-              <Pagination
-                currentPage={blockPage}
-                totalItems={displayBlocks.length}
-                itemsPerPage={blocksPerPage}
-                onPageChange={setBlockPage}
-              />
+              <div className="px-5 py-3.5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40 rounded-b-3xl -mx-6 -mb-6 mt-4">
+                <Pagination
+                  currentPage={blockPage}
+                  totalItems={displayBlocks.length}
+                  itemsPerPage={blocksPerPage}
+                  onPageChange={setBlockPage}
+                  showBorder={false}
+                  className="pt-0 pb-0"
+                />
+              </div>
             )}
           </div>
 
@@ -883,10 +888,6 @@ export const HostelDashboardView: React.FC<HostelDashboardViewProps> = ({
                   <IndianRupee className="w-4 h-4 text-emerald-500" /> Hosteller
                   Fee Payment & Due Balance Register
                 </h3>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                  Live dynamic billing, security deposit tracking, and remaining
-                  balance for admitted hostellers.
-                </p>
               </div>
               <div className="flex items-center gap-2 text-xs font-mono">
                 <span className="px-2.5 py-1 rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 font-bold">

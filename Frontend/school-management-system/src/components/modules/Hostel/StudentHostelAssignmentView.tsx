@@ -1586,14 +1586,21 @@ export const StudentHostelAssignmentView: React.FC = () => {
                 </tbody>
               </table>
             </div>
-          </div>
 
-          <Pagination
-            currentPage={currentPage}
-            totalItems={filteredAssignments.length}
-            itemsPerPage={itemsPerPage}
-            onPageChange={setCurrentPage}
-          />
+            {/* Neat Table Footer with Integrated Pagination */}
+            {filteredAssignments.length > 0 && (
+              <div className="px-5 py-3.5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40 rounded-b-3xl">
+                <Pagination
+                  currentPage={currentPage}
+                  totalItems={filteredAssignments.length}
+                  itemsPerPage={itemsPerPage}
+                  onPageChange={setCurrentPage}
+                  showBorder={false}
+                  className="pt-0 pb-0"
+                />
+              </div>
+            )}
+          </div>
         </>
       )}
 

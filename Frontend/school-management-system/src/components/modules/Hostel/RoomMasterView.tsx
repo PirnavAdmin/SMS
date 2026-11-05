@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Home, Plus, Edit, Trash2, Search, Building2, CheckCircle2, AlertTriangle, XCircle, Users, Layers, Eye } from 'lucide-react';
+import { Home, Plus, Edit, Trash2, Search, Building2, CheckCircle2, AlertTriangle, XCircle, Users, Layers, Eye, X, AlertCircle } from 'lucide-react';
+import { validateSearchQuery } from '../../../utils/validation';
 import { useToast } from '../../../context/ToastContext';
 import { useAuth } from '../../../context/AuthContext';
 import { ConfirmModal } from '../../common/ConfirmModal';
@@ -24,6 +25,18 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
   const [loading, setLoading] = useState(true);
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchError, setSearchError] = useState<string | undefined>(undefined);
+
+  const handleSearchQueryChange = (val: string) => {
+    setSearchQuery(val);
+    setCurrentPage(1);
+    if (!val.trim()) {
+      setSearchError(undefined);
+    } else {
+      const res = validateSearchQuery(val, 30);
+      setSearchError(res.isValid ? undefined : (res.error || 'Enter a valid search term.'));
+    }
+  };
   const [filterHostelState, setFilterHostelState] = useState('');
   const filterHostel = selectedHostelFilter !== undefined ? selectedHostelFilter : filterHostelState;
   const setFilterHostel = onHostelFilterChange || setFilterHostelState;
@@ -223,6 +236,7 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
   };
 
   const filteredRooms = useMemo(() => {
+    if (searchError) return [];
     const matched = (rooms || []).filter(rm => {
       if (!rm) return false;
       const rmHostelId = String(rm.hostelId ?? (rm as any).hostel_id ?? (rm as any).hostelBlockId ?? '');
@@ -244,7 +258,7 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
       if (numA !== numB) return numA - numB;
       return (a.roomNumber || '').localeCompare(b.roomNumber || '', undefined, { numeric: true });
     });
-  }, [rooms, isWarden, targetBlocks, searchQuery, filterHostel, filterFloor]);
+  }, [rooms, isWarden, targetBlocks, searchQuery, searchError, filterHostel, filterFloor]);
 
   const totalPages = Math.ceil(filteredRooms.length / itemsPerPage);
   const paginatedRooms = filteredRooms.slice(
@@ -281,28 +295,56 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
         )}
       </div>
 
-      <div className="glass-card p-3 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-2.5 border border-slate-200/80 dark:border-slate-800 shadow-xs">
-        <div className="relative w-full sm:w-72">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-          <input
-            type="text"
-            placeholder="Search room number, hostel..."
-            value={searchQuery}
-            onChange={e => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-            className="w-full pl-8 pr-3.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none h-[34px]"
-          />
+      <div className="glass-card p-3 rounded-xl flex flex-col sm:flex-row items-start justify-between gap-2.5 border border-slate-200/80 dark:border-slate-800 shadow-xs">
+        <div className="flex flex-col w-full sm:w-72">
+          <div className="relative w-full h-[36px]">
+            <Search className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none transition-colors ${searchError ? "text-rose-500" : "text-slate-400"}`} />
+            <input
+              type="text"
+              data-skip-global-validation="true"
+              data-search-input="true"
+              placeholder="Search room number, hostel..."
+              value={searchQuery}
+              onChange={e => handleSearchQueryChange(e.target.value)}
+              className={`w-full h-[36px] pl-9 ${searchQuery ? "pr-8" : "pr-4"} rounded-lg bg-slate-50 dark:bg-slate-800 border text-xs font-semibold text-slate-900 dark:text-white outline-none transition-all ${
+                searchError
+                  ? "border-rose-500 focus:border-rose-500 ring-1 ring-rose-500/20"
+                  : "border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500"
+              }`}
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery('');
+                  setSearchError(undefined);
+                  setCurrentPage(1);
+                }}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                title="Clear search"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+          {searchError && (
+            <p className="text-[11px] font-bold text-rose-500 flex items-center gap-1.5 mt-1.5 animate-in fade-in">
+              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+              <span>{searchError}</span>
+            </p>
+          )}
         </div>
 
         <div className="flex items-center gap-2.5 w-full sm:w-auto flex-wrap justify-end">
           {isWarden ? (
-            <div className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 h-[34px] flex items-center">
+            <div className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 h-[36px] flex items-center">
               {targetBlocks[0]?.hostelName || 'Assigned Hostel Block'}
             </div>
           ) : (
             <select
               value={filterHostel}
               onChange={e => { setFilterHostel(e.target.value); setCurrentPage(1); }}
-              className="px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer h-[34px] hover:border-sky-400 transition-colors"
+              className="px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer h-[36px] hover:border-sky-400 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
             >
               <option value="">Select Hostel...</option>
               <option value="All">All Hostels</option>
@@ -324,7 +366,7 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
           <select
             value={filterFloor}
             onChange={e => { setFilterFloor(e.target.value); setCurrentPage(1); }}
-            className="px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer h-[34px] hover:border-sky-400 transition-colors"
+            className="px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer h-[36px] hover:border-sky-400 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
           >
             {availableFloorOptions.map(f => (
               <option key={f} value={f}>{f}</option>
@@ -398,14 +440,18 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
             })}
           </div>
 
-          {totalPages > 1 && (
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              totalItems={filteredRooms.length}
-              itemsPerPage={itemsPerPage}
-              onPageChange={setCurrentPage}
-            />
+          {/* Neat Pagination Footer Container */}
+          {filteredRooms.length > 0 && (
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl px-5 py-3.5 shadow-xs">
+              <Pagination
+                currentPage={currentPage}
+                totalItems={filteredRooms.length}
+                itemsPerPage={itemsPerPage}
+                onPageChange={setCurrentPage}
+                showBorder={false}
+                className="pt-0 pb-0"
+              />
+            </div>
           )}
         </div>
       )}

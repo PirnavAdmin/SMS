@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { UserCheck, Calendar, Search, Filter, Save, Sun, Moon, Printer, FileText, FileSpreadsheet, CheckCircle2, XCircle, Clock, UserX, RotateCcw } from 'lucide-react';
+import { UserCheck, Calendar, Search, Filter, Save, Sun, Moon, Printer, FileText, FileSpreadsheet, CheckCircle2, XCircle, Clock, UserX, RotateCcw, X, AlertCircle } from 'lucide-react';
+import { validateSearchQuery } from '../../../utils/validation';
 import { useToast } from '../../../context/ToastContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useData } from '../../../context/DataContext';
@@ -53,6 +54,18 @@ export const HostelAttendanceView: React.FC = () => {
   const [selectedFloor, setSelectedFloor] = useState('');
   const [selectedRoomId, setSelectedRoomId] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchError, setSearchError] = useState<string | undefined>(undefined);
+
+  const handleSearchQueryChange = (val: string) => {
+    setSearchQuery(val);
+    setCurrentPage(1);
+    if (!val.trim()) {
+      setSearchError(undefined);
+    } else {
+      const res = validateSearchQuery(val, 30);
+      setSearchError(res.isValid ? undefined : (res.error || 'Enter a valid search term.'));
+    }
+  };
   const [statusFilter, setStatusFilter] = useState('All');
 
   useEffect(() => {
@@ -540,18 +553,43 @@ export const HostelAttendanceView: React.FC = () => {
       <div className="glass-card p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-2">
         <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
           {/* Left: Search input */}
-          <div className="relative w-full lg:w-72">
-            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-            <input
-              type="text"
-              placeholder="Search by name, student ID, room..."
-              value={searchQuery}
-              onChange={e => {
-                setSearchQuery(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="w-full pl-8 pr-3.5 py-1.5 text-xs rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:border-sky-500 h-[34px]"
-            />
+          <div className="flex flex-col w-full lg:w-72">
+            <div className="relative w-full h-[36px]">
+              <Search className={`w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none transition-colors ${searchError ? "text-rose-500" : "text-slate-400"}`} />
+              <input
+                type="text"
+                data-skip-global-validation="true"
+                data-search-input="true"
+                placeholder="Search by name, student ID, room..."
+                value={searchQuery}
+                onChange={e => handleSearchQueryChange(e.target.value)}
+                className={`w-full h-[36px] pl-9 ${searchQuery ? "pr-8" : "pr-4"} text-xs font-semibold rounded-lg bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white outline-none transition-all ${
+                  searchError
+                    ? "border-rose-500 focus:border-rose-500 ring-1 ring-rose-500/20"
+                    : "border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500"
+                }`}
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setSearchError(undefined);
+                    setCurrentPage(1);
+                  }}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                  title="Clear search"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+            {searchError && (
+              <p className="text-[11px] font-bold text-rose-500 flex items-center gap-1.5 mt-1.5 animate-in fade-in">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>{searchError}</span>
+              </p>
+            )}
           </div>
 
           {/* Right: Date, Block, Room filters */}
@@ -774,14 +812,16 @@ export const HostelAttendanceView: React.FC = () => {
           </table>
         </div>
 
-        {totalPages > 1 && (
-          <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+        {/* Neat Table Footer with Integrated Pagination */}
+        {matchedAssignments.length > 0 && (
+          <div className="px-5 py-3.5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40 rounded-b-xl">
             <Pagination
               currentPage={currentPage}
-              totalPages={totalPages}
               totalItems={matchedAssignments.length}
               itemsPerPage={itemsPerPage}
               onPageChange={setCurrentPage}
+              showBorder={false}
+              className="pt-0 pb-0"
             />
           </div>
         )}

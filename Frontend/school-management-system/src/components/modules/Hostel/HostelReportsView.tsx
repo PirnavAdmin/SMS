@@ -1,6 +1,7 @@
 // @ts-nocheck
 import React, { useState, useEffect, useMemo } from 'react';
-import { FileSpreadsheet, Printer, FileText, Search } from 'lucide-react';
+import { FileSpreadsheet, Printer, FileText, Search, X, AlertCircle } from 'lucide-react';
+import { validateSearchQuery } from '../../../utils/validation';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { useAuth } from '../../../context/AuthContext';
@@ -33,6 +34,18 @@ export const HostelReportsView: React.FC = () => {
   const [selectedReport, setSelectedReport] = useState<string>('');
   const [manualReportInput, setManualReportInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchError, setSearchError] = useState<string | undefined>(undefined);
+
+  const handleSearchQueryChange = (val: string) => {
+    setSearchQuery(val);
+    setCurrentPage(1);
+    if (!val.trim()) {
+      setSearchError(undefined);
+    } else {
+      const res = validateSearchQuery(val, 30);
+      setSearchError(res.isValid ? undefined : (res.error || 'Enter a valid search term.'));
+    }
+  };
   const [filterHostel, setFilterHostel] = useState('');
   const [manualHostelInput, setManualHostelInput] = useState('');
   const [tabFilter, setTabFilter] = useState('');
@@ -577,18 +590,43 @@ export const HostelReportsView: React.FC = () => {
         </div>
 
         <div className="flex flex-col lg:flex-row items-center justify-between gap-4 pt-2 border-t border-slate-100 dark:border-slate-800">
-          <div className="relative w-full">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
-            <input
-              type="text"
-              placeholder="Search hostel report records..."
-              value={searchQuery}
-              onChange={e => {
-                setSearchQuery(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="w-full pl-10 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all"
-            />
+          <div className="flex flex-col w-full">
+            <div className="relative w-full h-[36px]">
+              <Search className={`w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none transition-colors ${searchError ? "text-rose-500" : "text-slate-400"}`} />
+              <input
+                type="text"
+                data-skip-global-validation="true"
+                data-search-input="true"
+                placeholder="Search hostel report records..."
+                value={searchQuery}
+                onChange={e => handleSearchQueryChange(e.target.value)}
+                className={`w-full h-[36px] pl-10 ${searchQuery ? "pr-8" : "pr-4"} rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-semibold text-slate-900 dark:text-white outline-none transition-all ${
+                  searchError
+                    ? "border-rose-500 focus:border-rose-500 ring-1 ring-rose-500/20"
+                    : "border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500"
+                }`}
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setSearchError(undefined);
+                    setCurrentPage(1);
+                  }}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                  title="Clear search"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+            {searchError && (
+              <p className="text-[11px] font-bold text-rose-500 flex items-center gap-1.5 mt-1.5 animate-in fade-in">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>{searchError}</span>
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -653,8 +691,9 @@ export const HostelReportsView: React.FC = () => {
             )}
           </div>
 
+          {/* Neat Table Footer with Integrated Pagination */}
           {reportData.length > 0 && (
-            <div className="pt-2 no-print print:hidden">
+            <div className="px-5 py-3.5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40 rounded-b-2xl no-print print:hidden">
               <Pagination
                 currentPage={currentPage}
                 totalItems={reportData.length}
@@ -662,6 +701,8 @@ export const HostelReportsView: React.FC = () => {
                 onPageChange={setCurrentPage}
                 onItemsPerPageChange={setItemsPerPage}
                 itemsPerPageOptions={[5, 8, 10, 25, 50]}
+                showBorder={false}
+                className="pt-0 pb-0"
               />
             </div>
           )}
