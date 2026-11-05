@@ -344,17 +344,17 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
             <select
               value={filterHostel}
               onChange={e => { setFilterHostel(e.target.value); setCurrentPage(1); }}
-              className="px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer h-[36px] hover:border-sky-400 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
+              className="px-3 py-1.5 rounded-lg bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 text-xs font-bold text-sky-900 dark:text-sky-100 outline-none cursor-pointer h-[36px] hover:border-sky-400 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
             >
-              <option value="">Select Hostel...</option>
-              <option value="All">All Hostels</option>
+              <option value="" className="bg-white text-slate-800 dark:bg-slate-900 dark:text-slate-100">Select Hostel...</option>
+              <option value="All" className="bg-white text-slate-800 dark:bg-slate-900 dark:text-slate-100">All Hostels</option>
               {(targetBlocks || [])
                 .filter(h => h != null)
                 .map((h, idx) => {
                   const idVal = h.hostelId !== undefined && h.hostelId !== null ? String(h.hostelId) : String((h as any).id || idx);
                   const nameVal = h.hostelName || (h as any).name || `Hostel Block #${idVal}`;
                   return (
-                    <option key={`filter_h_${idVal}_${idx}`} value={idVal}>
+                    <option key={`filter_h_${idVal}_${idx}`} value={idVal} className="bg-white text-slate-800 dark:bg-slate-900 dark:text-slate-100">
                       {nameVal}
                     </option>
                   );
@@ -366,10 +366,10 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
           <select
             value={filterFloor}
             onChange={e => { setFilterFloor(e.target.value); setCurrentPage(1); }}
-            className="px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer h-[36px] hover:border-sky-400 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
+            className="px-3 py-1.5 rounded-lg bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 text-xs font-bold text-sky-900 dark:text-sky-100 outline-none cursor-pointer h-[36px] hover:border-sky-400 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
           >
             {availableFloorOptions.map(f => (
-              <option key={f} value={f}>{f}</option>
+              <option key={f} value={f} className="bg-white text-slate-800 dark:bg-slate-900 dark:text-slate-100">{f}</option>
             ))}
           </select>
         </div>
@@ -516,15 +516,15 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
                     <select 
                       value={formFloorLevel} 
                       onChange={e => setFormFloorLevel(e.target.value)} 
-                      className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold cursor-pointer transition-all ${
-                        !formFloorLevel ? 'text-slate-400 dark:text-slate-500 font-sans font-medium' : 'text-slate-900 dark:text-white'
+                      className={`w-full px-3 py-2 rounded-xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 font-bold cursor-pointer transition-all hover:border-sky-400 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 ${
+                        !formFloorLevel ? 'text-sky-600/70 dark:text-sky-400/70 font-sans font-medium' : 'text-sky-950 dark:text-sky-100'
                       }`}
                       disabled={isSubmitting || !formHostelId}
                       required
                     >
                       <option value="" disabled className="text-slate-400 dark:text-slate-500 font-sans italic bg-white dark:bg-slate-900">{!formHostelId ? 'Select Hostel Block first...' : 'Select Floor Level...'}</option>
                       {floorList.map((fl, idx) => (
-                        <option key={`fl_opt_${idx}`} value={fl}>
+                        <option key={`fl_opt_${idx}`} value={fl} className="bg-white text-slate-800 dark:bg-slate-900 dark:text-slate-100">
                           {fl}
                         </option>
                       ))}
@@ -542,7 +542,7 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
                     placeholder="e.g. 101"
                     value={formRoomNumber}
                     onChange={e => setFormRoomNumber(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono font-bold text-slate-900 dark:text-white"
+                    className="w-full px-3 py-2 rounded-xl bg-sky-50/50 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-800 font-mono font-bold text-sky-950 dark:text-sky-100 outline-none focus:border-sky-500"
                     disabled={isSubmitting}
                   />
                 </div>
@@ -551,8 +551,8 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
                   <select 
                     value={formRoomTypeId} 
                     onChange={e => setFormRoomTypeId(e.target.value)} 
-                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold cursor-pointer transition-all ${
-                      !formRoomTypeId ? 'text-slate-400 dark:text-slate-500 font-sans font-medium' : 'text-slate-900 dark:text-white'
+                    className={`w-full px-3 py-2 rounded-xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 font-bold cursor-pointer transition-all hover:border-sky-400 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 ${
+                      !formRoomTypeId ? 'text-sky-600/70 dark:text-sky-400/70 font-sans font-medium' : 'text-sky-950 dark:text-sky-100'
                     }`}
                     disabled={isSubmitting}
                     required
@@ -562,7 +562,7 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
                       const hasAcInSpec = (rt.roomTypeSpecification || '').toLowerCase().includes('ac');
                       const acLabel = rt.acType && !hasAcInSpec ? ` (${rt.acType})` : '';
                       return (
-                        <option key={rt.roomTypeId} value={String(rt.roomTypeId ?? '')}>
+                        <option key={rt.roomTypeId} value={String(rt.roomTypeId ?? '')} className="bg-white text-slate-800 dark:bg-slate-900 dark:text-slate-100">
                           {rt.roomTypeSpecification}{acLabel} • (Cap: {rt.bedCapacity} {rt.bedCapacity === 1 ? 'Bed' : 'Beds'})
                         </option>
                       );
@@ -576,12 +576,12 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
                 <select 
                   value={formStatus} 
                   onChange={e => setFormStatus(e.target.value)} 
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold"
+                  className="w-full px-3 py-2 rounded-xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 font-bold text-sky-900 dark:text-sky-100 cursor-pointer hover:border-sky-400 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500"
                   disabled={isSubmitting}
                 >
-                  <option value="Active">Active</option>
-                  <option value="Inactive">Inactive</option>
-                  <option value="Maintenance">Maintenance</option>
+                  <option value="Active" className="bg-white text-slate-800 dark:bg-slate-900 dark:text-slate-100">Active</option>
+                  <option value="Inactive" className="bg-white text-slate-800 dark:bg-slate-900 dark:text-slate-100">Inactive</option>
+                  <option value="Maintenance" className="bg-white text-slate-800 dark:bg-slate-900 dark:text-slate-100">Maintenance</option>
                 </select>
               </div>
 

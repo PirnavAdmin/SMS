@@ -19,6 +19,7 @@ interface SearchableSelectProps {
   className?: string;
   error?: string;
   allowCustom?: boolean;
+  variant?: 'default' | 'sky';
 }
 
 export const SearchableSelect: React.FC<SearchableSelectProps> = ({
@@ -31,7 +32,8 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   disabled = false,
   className = '',
   error,
-  allowCustom = false
+  allowCustom = false,
+  variant = 'sky'
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -101,6 +103,10 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
         className={`w-full flex items-center justify-between text-left rounded-xl border transition px-3.5 py-2 text-xs font-medium ${
           disabled
             ? 'bg-slate-100 dark:bg-slate-900 text-slate-400 cursor-not-allowed border-slate-200 dark:border-slate-800'
+            : variant === 'sky' || className?.includes('bg-sky')
+            ? isOpen
+              ? 'border-sky-500 ring-2 ring-sky-500/20 bg-sky-50 dark:bg-sky-950/60 text-sky-950 dark:text-white'
+              : 'border-sky-200 dark:border-sky-800 bg-sky-50 dark:bg-sky-950/40 text-sky-950 dark:text-sky-100 hover:border-sky-400'
             : isOpen
             ? 'border-brand-500 ring-2 ring-brand-500/20 bg-white dark:bg-slate-950 text-slate-900 dark:text-white'
             : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 text-slate-900 dark:text-white hover:border-slate-300 dark:hover:border-slate-700'

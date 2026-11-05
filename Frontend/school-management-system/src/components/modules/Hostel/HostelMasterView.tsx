@@ -376,8 +376,8 @@ export const HostelMasterView: React.FC<HostelMasterViewProps> = ({
             <select
               value={filterType}
               onChange={e => handleFilterChange(e.target.value)}
-              className={`px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold cursor-pointer outline-none h-[36px] transition-all hover:border-sky-400 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 min-w-[180px] ${
-                !filterType ? 'text-slate-400 dark:text-slate-500 font-medium' : 'text-slate-800 dark:text-slate-200'
+              className={`px-3 py-1.5 rounded-lg bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 text-xs font-bold cursor-pointer outline-none h-[36px] transition-all hover:border-sky-400 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 min-w-[180px] ${
+                !filterType ? 'text-sky-600/70 dark:text-sky-400/70 font-medium' : 'text-sky-900 dark:text-sky-100'
               }`}
             >
               <option value="" className="text-slate-400 dark:text-slate-500 font-sans italic bg-white dark:bg-slate-900">Select Hostel...</option>
@@ -561,8 +561,8 @@ export const HostelMasterView: React.FC<HostelMasterViewProps> = ({
                   <select
                     value={form.hostelType || ''}
                     onChange={e => setForm({ ...form, hostelType: e.target.value })}
-                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold cursor-pointer transition-all ${
-                      !form.hostelType ? 'text-slate-600 dark:text-slate-300 font-sans font-medium' : 'text-slate-900 dark:text-white'
+                    className={`w-full px-3 py-2 rounded-xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 font-bold cursor-pointer transition-all hover:border-sky-400 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 ${
+                      !form.hostelType ? 'text-sky-600/70 dark:text-sky-400/70 font-sans font-medium' : 'text-sky-950 dark:text-sky-100'
                     }`}
                     disabled={isSubmitting}
                     required
@@ -577,10 +577,10 @@ export const HostelMasterView: React.FC<HostelMasterViewProps> = ({
                   <select
                     value={(form as any).totalFloors || ''}
                     onChange={e => setForm({ ...form, totalFloors: parseInt(e.target.value) || 1 } as any)}
-                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold cursor-pointer transition-all ${
+                    className={`w-full px-3 py-2 rounded-xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 font-bold cursor-pointer transition-all hover:border-sky-400 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 ${
                       !(form as any).totalFloors
-                        ? 'text-slate-600 dark:text-slate-300 font-sans font-medium'
-                        : 'font-mono text-slate-900 dark:text-white'
+                        ? 'text-sky-600/70 dark:text-sky-400/70 font-sans font-medium'
+                        : 'font-mono text-sky-950 dark:text-sky-100'
                     }`}
                     disabled={isSubmitting}
                     required

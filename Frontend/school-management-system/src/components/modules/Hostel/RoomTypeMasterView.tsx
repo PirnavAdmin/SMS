@@ -872,7 +872,7 @@ export const RoomTypeMasterView: React.FC = () => {
                       <select
                         value={selectedFloorLevel}
                         onChange={e => setSelectedFloorLevel(e.target.value)}
-                        className="w-full appearance-none pl-3.5 pr-9 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-sky-500 outline-none transition-all"
+                        className="w-full appearance-none pl-3.5 pr-9 py-2.5 rounded-xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 text-xs font-bold text-sky-900 dark:text-sky-100 hover:border-sky-400 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all cursor-pointer"
                         disabled={!selectedBlock || isSubmitting}
                       >
                         {(() => {
@@ -1373,7 +1373,7 @@ export const RoomTypeMasterView: React.FC = () => {
                                 <select
                                   value={formStatus}
                                   onChange={e => setFormStatus(e.target.value)}
-                                  className="w-full px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-800 dark:text-slate-200 outline-none"
+                                  className="w-full px-3 py-1.5 rounded-lg bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 text-xs font-bold text-sky-900 dark:text-sky-100 outline-none hover:border-sky-400 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 cursor-pointer"
                                 >
                                   <option value="Active">Active</option>
                                   <option value="Inactive">Inactive</option>

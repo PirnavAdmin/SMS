@@ -1391,10 +1391,10 @@ export const StudentHostelAssignmentView: React.FC = () => {
             <select
               value={filterHostel}
               onChange={(e) => setFilterHostel(e.target.value)}
-              className="px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer h-[34px] hover:border-sky-400 transition-colors"
+              className="px-3 py-1.5 rounded-lg bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 text-xs font-bold text-sky-900 dark:text-sky-100 outline-none cursor-pointer h-[34px] hover:border-sky-400 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
             >
-              <option value="">Select Hostel...</option>
-              <option value="All">All Hostels</option>
+              <option value="" className="bg-white text-slate-800 dark:bg-slate-900 dark:text-slate-100">Select Hostel...</option>
+              <option value="All" className="bg-white text-slate-800 dark:bg-slate-900 dark:text-slate-100">All Hostels</option>
               {(targetBlocks || [])
                 .filter((b) => b != null)
                 .map((b, idx) => {
@@ -1405,7 +1405,7 @@ export const StudentHostelAssignmentView: React.FC = () => {
                   const nameVal =
                     b.hostelName || (b as any).name || `Hostel Block #${idVal}`;
                   return (
-                    <option key={`stu_filter_${idVal}_${idx}`} value={idVal}>
+                    <option key={`stu_filter_${idVal}_${idx}`} value={idVal} className="bg-white text-slate-800 dark:bg-slate-900 dark:text-slate-100">
                       {nameVal}
                     </option>
                   );
@@ -1416,10 +1416,10 @@ export const StudentHostelAssignmentView: React.FC = () => {
           <select
             value={filterFloor}
             onChange={(e) => setFilterFloor(e.target.value)}
-            className="px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer h-[34px] hover:border-sky-400 transition-colors"
+            className="px-3 py-1.5 rounded-lg bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 text-xs font-bold text-sky-900 dark:text-sky-100 outline-none cursor-pointer h-[34px] hover:border-sky-400 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
           >
             {availableFloorOptions.map((f: string) => (
-              <option key={f} value={f}>
+              <option key={f} value={f} className="bg-white text-slate-800 dark:bg-slate-900 dark:text-slate-100">
                 {f}
               </option>
             ))}
@@ -1428,10 +1428,10 @@ export const StudentHostelAssignmentView: React.FC = () => {
           <select
             value={filterRoom}
             onChange={(e) => setFilterRoom(e.target.value)}
-            className="px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer h-[34px] hover:border-sky-400 transition-colors"
+            className="px-3 py-1.5 rounded-lg bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 text-xs font-bold text-sky-900 dark:text-sky-100 outline-none cursor-pointer h-[34px] hover:border-sky-400 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
           >
             {availableRoomOptions.map((r: string) => (
-              <option key={r} value={r}>
+              <option key={r} value={r} className="bg-white text-slate-800 dark:bg-slate-900 dark:text-slate-100">
                 {r}
               </option>
             ))}
@@ -1666,7 +1666,7 @@ export const StudentHostelAssignmentView: React.FC = () => {
                         newRooms.length > 0 ? String(newRooms[0].roomId) : "",
                       );
                     }}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-sky-600"
+                    className="w-full px-3 py-2 rounded-xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 font-bold text-sky-900 dark:text-sky-100 hover:border-sky-400 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 cursor-pointer"
                     disabled={isSubmitting}
                   >
                     <option value="" disabled>
@@ -1795,7 +1795,7 @@ export const StudentHostelAssignmentView: React.FC = () => {
                       );
                       setSelectedBedNo(firstVacant || "BED-1");
                     }}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-xs text-slate-800 dark:text-slate-200 outline-none focus:border-sky-500 h-[38px]"
+                    className="w-full px-3 py-2 rounded-xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 font-bold text-xs text-sky-900 dark:text-sky-100 outline-none hover:border-sky-400 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 h-[38px] cursor-pointer"
                     disabled={
                       isSubmitting ||
                       (!selectedHostelId && targetBlocks.length === 0)
@@ -1900,11 +1900,11 @@ export const StudentHostelAssignmentView: React.FC = () => {
                             }
                             setSelectedBedNo(e.target.value);
                           }}
-                          className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-xs text-slate-800 dark:text-slate-200 outline-none h-[38px] transition-all ${
+                          className={`w-full px-3 py-2 rounded-xl bg-sky-50 dark:bg-sky-950/40 border font-bold text-xs text-sky-900 dark:text-sky-100 outline-none h-[38px] transition-all hover:border-sky-400 ${
                             currentBedOccupant
                               ? "border-amber-400 text-amber-600 dark:text-amber-400"
-                              : "border-slate-200 dark:border-slate-700 focus:border-sky-500"
-                          } ${secDepAmount > 0 && !isDepositAlreadyPaid ? "opacity-60 cursor-not-allowed bg-slate-100 dark:bg-slate-800/60" : ""}`}
+                              : "border-sky-200 dark:border-sky-800 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20"
+                          } ${secDepAmount > 0 && !isDepositAlreadyPaid ? "opacity-60 cursor-not-allowed bg-sky-100/50 dark:bg-sky-950/60" : "cursor-pointer"}`}
                           disabled={
                             isSubmitting ||
                             (secDepAmount > 0 && !isDepositAlreadyPaid)

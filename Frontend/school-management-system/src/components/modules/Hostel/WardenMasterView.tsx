@@ -354,12 +354,12 @@ export const WardenMasterView: React.FC<WardenMasterViewProps> = ({
           <select
             value={filterHostel}
             onChange={e => handleFilterHostelChange(e.target.value)}
-            className="px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white cursor-pointer outline-none hover:border-sky-400 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 min-w-[180px] h-[36px] transition-all"
+            className="px-3 py-1.5 rounded-lg bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 text-xs font-bold text-sky-900 dark:text-sky-100 cursor-pointer outline-none hover:border-sky-400 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 min-w-[180px] h-[36px] transition-all"
           >
-            <option value="">-- Select Hostel --</option>
-            <option value="ALL_HOSTELS">All Hostels</option>
-            {hostels.map(h => <option key={h.hostelId} value={h.hostelName}>{h.hostelName}</option>)}
-            <option value="MANUAL">✍️ Custom / Manual Entry</option>
+            <option value="" className="bg-white text-slate-800 dark:bg-slate-900 dark:text-slate-100">-- Select Hostel --</option>
+            <option value="ALL_HOSTELS" className="bg-white text-slate-800 dark:bg-slate-900 dark:text-slate-100">All Hostels</option>
+            {hostels.map(h => <option key={h.hostelId} value={h.hostelName} className="bg-white text-slate-800 dark:bg-slate-900 dark:text-slate-100">{h.hostelName}</option>)}
+            <option value="MANUAL" className="bg-white text-slate-800 dark:bg-slate-900 dark:text-slate-100">✍️ Custom / Manual Entry</option>
           </select>
 
           {filterHostel === 'MANUAL' && (
@@ -505,7 +505,7 @@ export const WardenMasterView: React.FC<WardenMasterViewProps> = ({
                   onChange={e => setAssignmentDate(e.target.value)}
                   placeholder="Select Assignment Date"
                   required
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 placeholder:font-normal outline-none focus:ring-2 focus:ring-sky-500 transition-all"
+                  className="w-full px-3 py-2 rounded-xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 font-bold text-sky-900 dark:text-sky-100 placeholder:text-sky-400 placeholder:font-normal outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
                 />
               </div>
 

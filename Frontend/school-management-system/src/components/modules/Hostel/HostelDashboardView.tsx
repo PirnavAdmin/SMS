@@ -680,10 +680,10 @@ export const HostelDashboardView: React.FC<HostelDashboardViewProps> = ({
                   <select
                     value={dashboardBlockFilter}
                     onChange={(e) => setDashboardBlockFilter(e.target.value)}
-                    className="px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none"
+                    className="px-3 py-1.5 rounded-xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 text-xs font-bold text-sky-900 dark:text-sky-100 outline-none hover:border-sky-400 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 cursor-pointer"
                   >
-                    <option value="">Select Hostel Block...</option>
-                    <option value="All">All Hostel Blocks</option>
+                    <option value="" className="bg-white text-slate-800 dark:bg-slate-900 dark:text-slate-100">Select Hostel Block...</option>
+                    <option value="All" className="bg-white text-slate-800 dark:bg-slate-900 dark:text-slate-100">All Hostel Blocks</option>
                     {(displayBlocks || [])
                       .filter((b) => b != null)
                       .map((b, idx) => {

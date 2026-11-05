@@ -1,6 +1,6 @@
 // @ts-nocheck
 import React, { useState, useEffect, useMemo } from 'react';
-import { FileSpreadsheet, Printer, FileText, Search, X, AlertCircle } from 'lucide-react';
+import { FileSpreadsheet, Printer, Search, X, AlertCircle } from 'lucide-react';
 import { validateSearchQuery } from '../../../utils/validation';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
@@ -474,18 +474,11 @@ export const HostelReportsView: React.FC = () => {
             <Printer className="w-4 h-4 text-sky-600" /> Print
           </button>
 
-          <button
-            onClick={handlePdfExport}
-            title="Generate and download formatted PDF report"
-            className="px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center gap-1.5 shadow-sm cursor-pointer transition-colors"
-          >
-            <FileText className="w-4 h-4 text-rose-600" /> Export PDF
-          </button>
-
           <ExportButton
             data={reportData}
             filename={`Hostel_${(selectedReport || 'Report').replace(/\s+/g, '_')}_Report`}
             label="Export Excel"
+            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-50 dark:bg-emerald-500/10 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-500/20 flex items-center gap-1.5 shadow-sm transition-all cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed"
           />
         </div>
       </div>
