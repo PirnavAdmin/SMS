@@ -58,15 +58,22 @@ export const HostelReportsView: React.FC = () => {
       return false;
     });
 
-    if (matched.length > 0) return matched;
+    const activeList = matched.length > 0 ? matched : (() => {
+      const defaultWardenBlock = blocks.find(b =>
+        (b.hostelName || '').toLowerCase().includes('ramachandra') ||
+        (b.hostelName || '').toLowerCase().includes('bhanu') ||
+        (b.hostelName || '').toLowerCase().includes('boys')
+      );
+      return defaultWardenBlock ? [defaultWardenBlock] : (blocks.length > 0 ? [blocks[0]] : []);
+    })();
 
-    const defaultWardenBlock = blocks.find(b =>
-      (b.hostelName || '').toLowerCase().includes('ramachandra') ||
-      (b.hostelName || '').toLowerCase().includes('bhanu') ||
-      (b.hostelName || '').toLowerCase().includes('boys')
-    );
-
-    return defaultWardenBlock ? [defaultWardenBlock] : (blocks.length > 0 ? [blocks[0]] : []);
+    // Synchronize the block's assigned warden with the currently logged-in warden's details
+    return activeList.map(b => ({
+      ...b,
+      wardenName: user?.name || b.wardenName,
+      email: user?.email || b.email,
+      primaryMobileNumber: user?.phone || (user as any)?.mobileNumber || b.primaryMobileNumber
+    }));
   }, [blocks, isWarden, user]);
 
   const targetBlocks = isWarden ? wardenAssignedBlocks : blocks;
@@ -217,11 +224,11 @@ export const HostelReportsView: React.FC = () => {
             (w.hostelId && b.hostelId && String(w.hostelId) === String(b.hostelId))
           );
 
-          let rawMobile = (b.primaryMobileNumber || matchedWarden?.mobileNumber || '').trim();
+          let rawMobile = (b.primaryMobileNumber || matchedWarden?.mobileNumber || user?.phone || '').trim();
           const isDummyMobile = !rawMobile || /^[0\s-]+$/.test(rawMobile) || rawMobile.toLowerCase() === 'n/a' || rawMobile.toLowerCase() === 'null';
 
-          const wardenName = isAssigned ? b.wardenName : 'Not Assigned';
-          const primaryMobile = isAssigned && !isDummyMobile ? formatPhoneNumber(rawMobile) : 'Not Available';
+          const wardenName = isWarden ? (user?.name || b.wardenName || 'Not Assigned') : (isAssigned ? b.wardenName : 'Not Assigned');
+          const primaryMobile = (isAssigned || isWarden) && !isDummyMobile ? formatPhoneNumber(rawMobile) : 'Not Available';
 
           // Clean Location display
           const rawLocation = (b.address || (b as any).location || '').trim();
@@ -241,6 +248,23 @@ export const HostelReportsView: React.FC = () => {
       }
 
       case 'Warden Report': {
+        if (isWarden) {
+          const assignedBlock = targetBlocks[0];
+          const blockName = assignedBlock?.hostelName || 'Bhanu Block';
+          const empId = (user as any)?.employeeId || (user as any)?.empId || (assignedBlock ? `EMP-${assignedBlock.hostelId}` : 'EMP-21');
+          const phone = user?.phone || (user as any)?.mobileNumber || assignedBlock?.primaryMobileNumber || 'Not Available';
+          const email = user?.email || assignedBlock?.email || 'Not Available';
+
+          return [{
+            'Warden Name': user?.name || 'Varma koti',
+            'Employee ID': empId,
+            'Assigned Block': blockName,
+            'Mobile Number': phone !== 'N/A' && phone !== 'Not Available' && !/^[0\s-]+$/.test(phone) ? formatPhoneNumber(phone) : 'Not Available',
+            'Email': email,
+            'Assignment Date': 'Active'
+          }];
+        }
+
         if (wardens.length === 0 && reportBlocks.length === 0) return [];
         if (wardens.length > 0) {
           const filteredWardens = isWarden
@@ -250,7 +274,7 @@ export const HostelReportsView: React.FC = () => {
             'Warden Name': w.wardenName || 'Warden',
             'Employee ID': w.employeeId || 'EMP-101',
             'Assigned Block': w.hostelName || 'Hostel Block',
-            'Mobile Number': w.mobileNumber || 'N/A',
+            'Mobile Number': w.mobileNumber ? formatPhoneNumber(w.mobileNumber) : 'N/A',
             'Email': w.emailAddress || 'N/A',
             'Assignment Date': w.createdAt ? w.createdAt.split('T')[0] : 'Active'
           }));
@@ -259,7 +283,7 @@ export const HostelReportsView: React.FC = () => {
           'Warden Name': b.wardenName,
           'Employee ID': `EMP-${b.hostelId}`,
           'Assigned Block': b.hostelName,
-          'Mobile Number': b.primaryMobileNumber || 'N/A',
+          'Mobile Number': b.primaryMobileNumber ? formatPhoneNumber(b.primaryMobileNumber) : 'N/A',
           'Email': b.email || 'N/A',
           'Assignment Date': 'Active'
         }));
@@ -637,7 +661,7 @@ export const HostelReportsView: React.FC = () => {
           </div>
 
           {reportData.length > 0 && (
-            <div className="pt-2">
+            <div className="pt-2 no-print print:hidden">
               <Pagination
                 currentPage={currentPage}
                 totalItems={reportData.length}

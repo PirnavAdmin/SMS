@@ -509,15 +509,14 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
         </div>
       </div>
 
-      {/* 4. Main Analytics & Operations Section (12-Col Grid) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 sm:gap-4">
-        {/* Left Column (7 Cols) */}
-        <div className="lg:col-span-7 space-y-3.5">
-          {/* Bed Occupancy Donut Chart Card */}
-          <div className="bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 shadow-xs hover:border-sky-400 dark:hover:border-sky-600 transition-all duration-300 p-4 sm:p-4.5 rounded-2xl space-y-3">
+      {/* 4. Main Analytics & Operations Section - Aligned Row 1 */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 sm:gap-4 items-stretch">
+        {/* Bed Occupancy Donut Chart Card */}
+        <div className="lg:col-span-7 flex flex-col">
+          <div className="bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 shadow-xs hover:border-sky-400 dark:hover:border-sky-600 transition-all duration-300 p-4 sm:p-4.5 rounded-2xl flex flex-col justify-between h-full space-y-3">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2.5">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-sky-50 dark:bg-sky-950 text-sky-600 dark:text-sky-400 flex items-center justify-center border border-sky-100 dark:border-sky-900">
+                <div className="w-8 h-8 rounded-xl bg-sky-50 dark:bg-sky-950 text-sky-600 dark:text-sky-400 flex items-center justify-center border border-sky-100 dark:border-sky-900 shrink-0">
                   <Bed className="w-4 h-4" />
                 </div>
                 <div>
@@ -531,108 +530,29 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
               </div>
               <button
                 onClick={() => onNavigate && onNavigate("hostel-student-hostel")}
-                className="text-xs font-bold text-sky-600 hover:text-sky-700 flex items-center gap-1 cursor-pointer"
+                className="text-xs font-bold text-sky-600 hover:text-sky-700 flex items-center gap-1 cursor-pointer shrink-0"
               >
                 Allocations <ArrowRight className="w-3 h-3" />
               </button>
             </div>
 
-            <WardenOccupancyDonutChart
-              occupied={occupiedBedsCount}
-              total={totalBedsCount}
-              vacant={vacantBedsCount}
-              outpass={activeOutpassCount}
-            />
-          </div>
-
-          {/* Hostel Blocks Occupancy Progress Card */}
-          <div className="bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 shadow-xs hover:border-sky-400 dark:hover:border-sky-600 transition-all duration-300 p-4 sm:p-4.5 rounded-2xl space-y-3">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2.5">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 flex items-center justify-center border border-indigo-100 dark:border-indigo-900">
-                  <Building2 className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900 dark:text-white leading-tight">
-                    Hostel Buildings & Room Occupancy
-                  </h3>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                    Block-wise capacity distribution
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => onNavigate && onNavigate("hostel-blocks")}
-                className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 cursor-pointer"
-              >
-                Manage Blocks <ArrowRight className="w-3 h-3" />
-              </button>
-            </div>
-
-            <div className="space-y-2 max-h-[190px] overflow-y-auto pr-1 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-700 [&::-webkit-scrollbar-thumb]:rounded-full">
-              {blockSummary.length === 0 ? (
-                <p className="text-xs text-slate-400 italic text-center py-4">No hostel blocks recorded.</p>
-              ) : (
-                blockSummary.map((block) => (
-                  <div
-                    key={block.id}
-                    className="p-2.5 rounded-xl bg-slate-50/80 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700/60 space-y-1.5"
-                  >
-                    <div className="flex items-center justify-between text-xs">
-                      <div>
-                        <h4 className="font-extrabold text-slate-900 dark:text-white text-xs">
-                          {block.name}
-                        </h4>
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                          <span className="text-[10px] text-slate-400 font-medium">Assigned Warden:</span>
-                          {!block.isUnassigned ? (
-                            <span className="text-sky-600 dark:text-sky-400 font-bold text-[10px]">{block.warden}</span>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onNavigate && onNavigate("hostel-blocks");
-                              }}
-                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9.5px] font-black bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-300 dark:border-amber-800 hover:bg-amber-200 transition-colors cursor-pointer"
-                              title="Click to assign warden"
-                            >
-                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                              Action Required: Unassigned
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <span className="font-black text-indigo-600 dark:text-indigo-400 font-mono text-xs block">
-                          {block.occupiedBeds} / {block.totalBeds} Beds
-                        </span>
-                        <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider">
-                          {block.pct}% Capacity
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="w-full h-1.5 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
-                      <div
-                        className="h-full bg-indigo-600 rounded-full transition-all duration-500"
-                        style={{ width: `${block.pct}%` }}
-                      />
-                    </div>
-                  </div>
-                ))
-              )}
+            <div className="flex-1 flex items-center justify-center py-1">
+              <WardenOccupancyDonutChart
+                occupied={occupiedBedsCount}
+                total={totalBedsCount}
+                vacant={vacantBedsCount}
+                outpass={activeOutpassCount}
+              />
             </div>
           </div>
         </div>
 
-        {/* Right Column (5 Cols) */}
-        <div className="lg:col-span-5 space-y-3.5">
-          {/* Out-Pass Approvals Card */}
-          <div className="bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 shadow-xs hover:border-sky-400 dark:hover:border-sky-600 transition-all duration-300 p-4 sm:p-4.5 rounded-2xl space-y-3">
+        {/* Out-Pass Approvals Card */}
+        <div className="lg:col-span-5 flex flex-col">
+          <div className="bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 shadow-xs hover:border-sky-400 dark:hover:border-sky-600 transition-all duration-300 p-4 sm:p-4.5 rounded-2xl flex flex-col justify-between h-full space-y-3">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2.5">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400 flex items-center justify-center border border-amber-100 dark:border-amber-900">
+                <div className="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400 flex items-center justify-center border border-amber-100 dark:border-amber-900 shrink-0">
                   <LogOut className="w-4 h-4" />
                 </div>
                 <div>
@@ -646,15 +566,15 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
               </div>
               <button
                 onClick={() => onNavigate && onNavigate("hostel-outpass")}
-                className="text-xs font-bold text-amber-600 hover:text-amber-700 flex items-center gap-1 cursor-pointer"
+                className="text-xs font-bold text-amber-600 hover:text-amber-700 flex items-center gap-1 cursor-pointer shrink-0"
               >
                 Register <ArrowRight className="w-3 h-3" />
               </button>
             </div>
 
-            <div className="space-y-2.5 max-h-[310px] overflow-y-auto pr-1 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-700 [&::-webkit-scrollbar-thumb]:rounded-full">
+            <div className="space-y-2.5 flex-1 flex flex-col justify-center min-h-[160px] max-h-[310px] overflow-y-auto pr-1 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-700 [&::-webkit-scrollbar-thumb]:rounded-full">
               {outpassRecords.length === 0 ? (
-                <div className="text-center py-6 space-y-2">
+                <div className="text-center py-6 space-y-2 my-auto">
                   <p className="text-xs text-slate-400 italic">No out-pass requests recorded.</p>
                   <button
                     onClick={() => onNavigate && onNavigate("hostel-outpass")}
@@ -726,52 +646,151 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
               )}
             </div>
           </div>
+        </div>
+      </div>
 
-          {/* Hostel Schedule & Timings Card */}
-          <div className="bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 shadow-xs hover:border-sky-400 dark:hover:border-sky-600 transition-all duration-300 p-4 sm:p-4.5 rounded-2xl space-y-2.5">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+      {/* 4. Main Analytics & Operations Section - Aligned Row 2 */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 sm:gap-4 items-stretch">
+        {/* Hostel Buildings & Room Occupancy */}
+        <div className="lg:col-span-7 flex flex-col">
+          <div className="bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 shadow-xs hover:border-sky-400 dark:hover:border-sky-600 transition-all duration-300 p-4 sm:p-4.5 rounded-2xl flex flex-col justify-between h-full space-y-3">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2.5">
               <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-100 dark:border-emerald-900">
+                <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 flex items-center justify-center border border-indigo-100 dark:border-indigo-900 shrink-0">
+                  <Building2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white leading-tight">
+                    Hostel Buildings & Room Occupancy
+                  </h3>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Block-wise capacity distribution
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => onNavigate && onNavigate("hostel-blocks")}
+                className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 cursor-pointer shrink-0"
+              >
+                Manage Blocks <ArrowRight className="w-3 h-3" />
+              </button>
+            </div>
+
+            <div className="space-y-2 flex-1 max-h-[220px] overflow-y-auto pr-1 [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-300 dark:[&::-webkit-scrollbar-thumb]:bg-slate-700 [&::-webkit-scrollbar-thumb]:rounded-full">
+              {blockSummary.length === 0 ? (
+                <p className="text-xs text-slate-400 italic text-center py-6">No hostel blocks recorded.</p>
+              ) : (
+                blockSummary.map((block) => (
+                  <div
+                    key={block.id}
+                    className="p-2.5 rounded-xl bg-slate-50/80 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700/60 space-y-1.5"
+                  >
+                    <div className="flex items-center justify-between text-xs">
+                      <div>
+                        <h4 className="font-extrabold text-slate-900 dark:text-white text-xs">
+                          {block.name}
+                        </h4>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className="text-[10px] text-slate-400 font-medium">Assigned Warden:</span>
+                          {!block.isUnassigned ? (
+                            <span className="text-sky-600 dark:text-sky-400 font-bold text-[10px]">{block.warden}</span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onNavigate && onNavigate("hostel-blocks");
+                              }}
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9.5px] font-black bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-300 dark:border-amber-800 hover:bg-amber-200 transition-colors cursor-pointer"
+                              title="Click to assign warden"
+                            >
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                              Action Required: Unassigned
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <span className="font-black text-indigo-600 dark:text-indigo-400 font-mono text-xs block">
+                          {block.occupiedBeds} / {block.totalBeds} Beds
+                        </span>
+                        <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider">
+                          {block.pct}% Capacity
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="w-full h-1.5 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+                      <div
+                        className="h-full bg-indigo-600 rounded-full transition-all duration-500"
+                        style={{ width: `${block.pct}%` }}
+                      />
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Hostel Schedule & Timings Card */}
+        <div className="lg:col-span-5 flex flex-col">
+          <div className="bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 shadow-xs hover:border-sky-400 dark:hover:border-sky-600 transition-all duration-300 p-4 sm:p-4.5 rounded-2xl flex flex-col justify-between h-full space-y-3">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2.5">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-100 dark:border-emerald-900 shrink-0">
                   <Clock className="w-4 h-4" />
                 </div>
-                <h3 className="text-xs font-bold text-slate-900 dark:text-white">
-                  Hostel Schedule & Timings
-                </h3>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white leading-tight">
+                    Hostel Schedule & Timings
+                  </h3>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Daily routine & curfew schedule
+                  </p>
+                </div>
               </div>
-              <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 dark:bg-emerald-950 px-2 py-0.5 rounded-full border border-emerald-200/60 dark:border-emerald-800">
+              <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 dark:bg-emerald-950 px-2 py-0.5 rounded-full border border-emerald-200/60 dark:border-emerald-800 shrink-0">
                 Daily Routine
               </span>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
-                <div className="flex items-center gap-1 text-[10px] text-slate-400 font-bold">
-                  <Clock className="w-3 h-3 text-sky-500" /> Night Roll Call
+            <div className="flex-1 flex flex-col justify-center space-y-2.5 py-1">
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center gap-1 text-[10px] text-slate-400 font-bold">
+                    <Clock className="w-3.5 h-3.5 text-sky-500" /> Night Roll Call
+                  </div>
+                  <div className="text-sm font-black text-slate-900 dark:text-white mt-1">
+                    09:30 PM
+                  </div>
+                  <p className="text-[9.5px] text-slate-400 mt-0.5">Daily Verification</p>
                 </div>
-                <div className="text-xs font-black text-slate-900 dark:text-white mt-0.5">
-                  09:30 PM
+
+                <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
+                  <div className="flex items-center gap-1 text-[10px] text-slate-400 font-bold">
+                    <DoorOpen className="w-3.5 h-3.5 text-rose-500" /> Gate Curfew
+                  </div>
+                  <div className="text-sm font-black text-slate-900 dark:text-white mt-1">
+                    10:00 PM
+                  </div>
+                  <p className="text-[9.5px] text-slate-400 mt-0.5">Main Gates Locked</p>
                 </div>
-                <p className="text-[9px] text-slate-400 mt-0.5">Daily Verification</p>
               </div>
 
-              <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
-                <div className="flex items-center gap-1 text-[10px] text-slate-400 font-bold">
-                  <DoorOpen className="w-3 h-3 text-rose-500" /> Gate Curfew
-                </div>
-                <div className="text-xs font-black text-slate-900 dark:text-white mt-0.5">
-                  10:00 PM
-                </div>
-                <p className="text-[9px] text-slate-400 mt-0.5">Main Gates Locked</p>
+              <div className="p-2 rounded-xl bg-sky-50/60 dark:bg-sky-950/30 border border-sky-100 dark:border-sky-900/40 text-[10.5px] text-slate-600 dark:text-slate-300 flex items-center justify-between">
+                <span className="font-semibold text-slate-500 dark:text-slate-400">Hostel Attendance Status:</span>
+                <span className="font-bold text-sky-600 dark:text-sky-400">Night Attendance Ready</span>
               </div>
             </div>
 
-            <div className="flex items-center justify-between pt-1 text-[11px] text-slate-500">
-              <span className="flex items-center gap-1 font-medium">
-                {/* <Phone className="w-3 h-3 text-slate-400" /> Emergency Hotline: Ext 104 */}
+            <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800 text-[11px] text-slate-500">
+              <span className="text-[10px] text-slate-400 font-medium">
+                Mandatory night log verification
               </span>
               <button
                 onClick={() => onNavigate && onNavigate("hostel-attendance")}
-                className="font-bold text-sky-600 hover:underline cursor-pointer"
+                className="font-bold text-sky-600 hover:text-sky-700 flex items-center gap-1 cursor-pointer"
               >
                 Mark Attendance →
               </button>

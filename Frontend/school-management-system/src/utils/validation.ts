@@ -1729,7 +1729,7 @@ function setGlobalInputError(input: HTMLInputElement | HTMLTextAreaElement, erro
     // Kept zero margin on absolute anchors to prevent layout shift (Bug 19)
 
     errEl.style.position = 'absolute';
-    errEl.style.left = '0';
+    errEl.style.left = '4px';
     errEl.style.top = '100%';
     errEl.style.marginTop = '4px';
     errEl.style.fontSize = '11px';
@@ -1739,7 +1739,7 @@ function setGlobalInputError(input: HTMLInputElement | HTMLTextAreaElement, erro
     errEl.style.zIndex = '30';
     errEl.style.pointerEvents = 'none';
     errEl.style.whiteSpace = 'normal';
-    errEl.style.maxWidth = '180px';
+    errEl.style.maxWidth = '280px';
     errEl.style.wordBreak = 'break-word';
 
     if (errEl.parentElement !== anchor) {

@@ -883,6 +883,10 @@ public class HostelService : IHostelService
             {
                 paidDeposit = studentApp.SecurityDepositAmount ?? requiredDeposit;
             }
+            else if (studentApp?.HostelSecurityDepositPaid == true && paidDeposit == 0m)
+            {
+                paidDeposit = requiredDeposit > 0 ? requiredDeposit : (studentApp.SecurityDepositAmount ?? 0m);
+            }
 
             bool isDepositFullyPaid = (requiredDeposit > 0 && paidDeposit >= requiredDeposit) ||
                                       (studentApp?.HostelSecurityDepositPaid == true && paidDeposit >= (studentApp.SecurityDepositAmount ?? requiredDeposit)) ||

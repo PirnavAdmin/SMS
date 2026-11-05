@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { LogOut, Plus, Search, CheckCircle2, XCircle, Clock, Trash2, AlertTriangle } from 'lucide-react';
+import { LogOut, Plus, Search, CheckCircle2, XCircle, Clock, Trash2, AlertTriangle, AlertCircle, X } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { useAuth } from '../../../context/AuthContext';
 import { SearchableSelect } from '../../common/SearchableSelect';
 import { ConfirmModal } from '../../common/ConfirmModal';
 import { getHostelBlocks, getAllocations, formatRoomNumber, HostelBlock, BedAllocation, getOutpasses, createOutpass, updateOutpassStatus, deleteOutpass } from '../../../api/hostel';
+import { validateSearchQuery } from '../../../utils/validation';
 
 interface OutpassRecord {
   id: number | string;
@@ -218,21 +219,11 @@ export const HostelOutpassLeaveView: React.FC = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
   // Search Validation
-  const isSearchInvalid = useMemo(() => {
-    if (!searchQuery) return false;
-    return /[<>{}\[\]~\\^%$*+=`|]/.test(searchQuery);
-  }, [searchQuery]);
-
   const searchValidationMsg = useMemo(() => {
-    if (!searchQuery) return '';
-    if (isSearchInvalid) {
-      return 'Special characters (< > { } [ ] ~ \\ ^ % $ * + = ` |) are not allowed.';
-    }
-    if (searchQuery.length > 50) {
-      return 'Maximum 50 characters allowed.';
-    }
-    return '';
-  }, [searchQuery, isSearchInvalid]);
+    if (!searchQuery.trim()) return '';
+    const res = validateSearchQuery(searchQuery, 50);
+    return res.isValid ? '' : (res.error || 'Enter a valid search term.');
+  }, [searchQuery]);
 
   const [filterStatus, setFilterStatus] = useState('');
 
@@ -389,23 +380,37 @@ export const HostelOutpassLeaveView: React.FC = () => {
       </div>
 
       {/* Filter Bar */}
-      <div className="glass-card p-3 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-2.5 border border-slate-200/80 dark:border-slate-800 shadow-xs">
-        <div className="relative w-full sm:w-80">
+      <div className="glass-card p-3.5 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border border-slate-200/80 dark:border-slate-800 shadow-xs">
+        <div className="w-full sm:w-80 flex flex-col">
           <div className="relative">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
               maxLength={50}
+              data-skip-global-validation="true"
               placeholder="Search student, student ID, room..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className={`w-full pl-10 pr-4 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border text-xs font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all ${
-                searchValidationMsg ? 'border-rose-500 dark:border-rose-500' : 'border-slate-200 dark:border-slate-700'
+              className={`w-full pl-10 ${searchQuery ? 'pr-8' : 'pr-4'} py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border text-xs font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all ${
+                searchValidationMsg ? 'border-rose-500 focus:border-rose-500 ring-1 ring-rose-500/20' : 'border-slate-200 dark:border-slate-700'
               }`}
             />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                title="Clear search"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
           {searchValidationMsg && (
-            <p className="text-[11px] font-bold text-rose-500 mt-1 pl-1">{searchValidationMsg}</p>
+            <p className="text-[11px] font-bold text-rose-500 flex items-center gap-1.5 mt-1.5 pl-1 animate-in fade-in duration-150">
+              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+              <span>{searchValidationMsg}</span>
+            </p>
           )}
         </div>
 

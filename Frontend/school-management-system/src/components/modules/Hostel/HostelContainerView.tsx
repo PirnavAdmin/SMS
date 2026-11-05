@@ -111,7 +111,7 @@ export const HostelContainerView: React.FC<HostelContainerViewProps> = ({ initia
   return (
     <div className="space-y-3.5 animate-in fade-in">
       {/* Top Module Sub-tab Navigation */}
-      <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm p-1 rounded-xl flex items-center gap-1 overflow-x-auto no-scrollbar border border-slate-200/80 dark:border-slate-800 shadow-xs">
+      <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm p-1 rounded-xl flex items-center gap-1 overflow-x-auto no-scrollbar border border-slate-200/80 dark:border-slate-800 shadow-xs no-print print:hidden">
         {navTabs.map(tab => {
           const Icon = tab.icon;
           const active = isTabActive(tab.id);
