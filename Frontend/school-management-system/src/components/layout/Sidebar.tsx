@@ -125,62 +125,206 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   if (safeRole === "student" || safeRole === "parent") {
     const userEmail = (user?.email || '').toLowerCase().trim();
-    const userPhone = (user?.phone || '').replace(/\D/g, '');
-    const userId = String(user?.id || '').trim();
+    const rawUserPhone = String(user?.phone || (user as any)?.mobileNumber || '').trim();
+    const userPhone = rawUserPhone.replace(/\D/g, '');
+    const userId = String(user?.id || '').trim().toLowerCase();
+    const userAdm = String((user as any)?.admissionNo || (user as any)?.admissionNumber || (user as any)?.admNo || '').trim().toLowerCase();
+    const userRoll = String((user as any)?.rollNo || (user as any)?.rollNumber || (user as any)?.empId || '').trim().toLowerCase();
+    const userStudentId = String((user as any)?.studentId || '').trim().toLowerCase();
+    const rawUserName = (user?.name || (user as any)?.fullName || (user as any)?.studentName || '').trim().toLowerCase();
+    const isNameReal = rawUserName && !['student', 'user', 'demo', 'test', 'admin'].includes(rawUserName);
 
-    const matchedStudents = (students || []).filter((s) => {
-      if (!s || s.status !== "Active") return false;
+    // 1. Match from students array
+    const matchedStudents = (students || []).filter((s: any) => {
+      if (!s) return false;
+      const stStatus = String(s.status || '').toLowerCase().trim();
+      if (stStatus && ['inactive', 'rejected', 'deleted', 'left', 'discontinued'].includes(stStatus)) return false;
+
+      const sId = String(s.id || '').trim().toLowerCase();
+      const sAdm = String(s.admissionNo || s.admissionNumber || s.admNo || '').trim().toLowerCase();
+      const sRoll = String(s.rollNo || s.rollNumber || s.registrationNo || '').trim().toLowerCase();
+      const sStudentId = String(s.studentId || '').trim().toLowerCase();
+      const sEmail = String(s.email || s.studentEmail || s.contactEmail || '').trim().toLowerCase();
+      const sPhone = String(s.phone || s.mobileNumber || s.contactNumber || '').replace(/\D/g, '');
+      const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase();
+      const sName = String(s.name || s.studentName || '').trim().toLowerCase();
+
       if (safeRole === "student") {
-        return (
-          (userId && (String(s.id) === userId || s.admissionNo === userId)) ||
-          (userEmail && s.email && s.email.toLowerCase().trim() === userEmail) ||
-          (userPhone && userPhone.length >= 7 && (
-            (s.phone && s.phone.replace(/\D/g, '').endsWith(userPhone)) ||
-            ((s as any).mobileNumber && (s as any).mobileNumber.replace(/\D/g, '').endsWith(userPhone))
-          ))
-        );
+        if (userAdm && (sAdm === userAdm || sRoll === userAdm)) return true;
+        if (userRoll && (sRoll === userRoll || sAdm === userRoll || sStudentId === userRoll)) return true;
+        if (userStudentId && (sId === userStudentId || sStudentId === userStudentId)) return true;
+        if (userId && (sId === userId || sAdm === userId || sRoll === userId || sStudentId === userId)) return true;
+        if (isNameReal && (sFullName === rawUserName || sName === rawUserName || (s.firstName && s.lastName && rawUserName.includes(s.firstName.toLowerCase()) && rawUserName.includes(s.lastName.toLowerCase())))) return true;
+        if (userEmail && !userEmail.endsWith('@school.internal') && sEmail === userEmail) return true;
+        if (userPhone && userPhone.length >= 7 && sPhone && (sPhone.endsWith(userPhone) || userPhone.endsWith(sPhone))) return true;
+        return false;
       } else {
         // Parent
-        return (
-          (userPhone && userPhone.length >= 7 && (
-            (s.fatherPhone && s.fatherPhone.replace(/\D/g, '').endsWith(userPhone)) ||
-            (s.motherPhone && s.motherPhone.replace(/\D/g, '').endsWith(userPhone)) ||
-            ((s as any).parentPhone && (s as any).parentPhone.replace(/\D/g, '').endsWith(userPhone)) ||
-            (s.phone && s.phone.replace(/\D/g, '').endsWith(userPhone))
-          )) ||
-          (userEmail && (
-            (s.email && s.email.toLowerCase().trim() === userEmail) ||
-            ((s as any).parentEmail && (s as any).parentEmail.toLowerCase().trim() === userEmail) ||
-            s.guardianEmail?.toLowerCase().trim() === userEmail ||
-            s.contactEmail?.toLowerCase().trim() === userEmail ||
-            s.fatherPhone?.toLowerCase().trim() === userEmail
-          ))
-        );
+        const fPhone = String(s.fatherPhone || s.fatherMobile || '').replace(/\D/g, '');
+        const mPhone = String(s.motherPhone || s.motherMobile || '').replace(/\D/g, '');
+        const pPhone = String(s.parentPhone || s.guardianPhone || '').replace(/\D/g, '');
+
+        const fEmail = String(s.fatherEmail || '').trim().toLowerCase();
+        const mEmail = String(s.motherEmail || '').trim().toLowerCase();
+        const pEmail = String(s.parentEmail || s.guardianEmail || s.contactEmail || '').trim().toLowerCase();
+
+        if (userPhone && userPhone.length >= 7 && (
+          (fPhone && (fPhone.endsWith(userPhone) || userPhone.endsWith(fPhone))) ||
+          (mPhone && (mPhone.endsWith(userPhone) || userPhone.endsWith(mPhone))) ||
+          (pPhone && (pPhone.endsWith(userPhone) || userPhone.endsWith(pPhone))) ||
+          (sPhone && (sPhone.endsWith(userPhone) || userPhone.endsWith(sPhone)))
+        )) return true;
+
+        if (userEmail && !userEmail.endsWith('@school.internal') && (
+          fEmail === userEmail ||
+          mEmail === userEmail ||
+          pEmail === userEmail ||
+          sEmail === userEmail
+        )) return true;
+
+        return false;
       }
     });
 
-    const studentIds = new Set(matchedStudents.map(s => String(s.id)));
-    const studentAdmissions = new Set(matchedStudents.map(s => String(s.admissionNo)));
+    // 2. Match from admissions array
+    const matchedAdmissions = (admissions || []).filter((a: any) => {
+      if (!a) return false;
+      const aStatus = String(a.status || '').toLowerCase().trim();
+      if (aStatus && ['rejected', 'cancelled', 'deleted'].includes(aStatus)) return false;
+
+      const aId = String(a.id || '').trim().toLowerCase();
+      const aAdm = String(a.admissionNo || a.admissionNumber || '').trim().toLowerCase();
+      const aReg = String(a.registrationNo || a.applicationNo || '').trim().toLowerCase();
+      const aName = String(a.applicantName || `${a.firstName || ''} ${a.lastName || ''}`).trim().toLowerCase();
+      const aEmail = String(a.email || a.studentEmail || '').trim().toLowerCase();
+      const aPhone = String(a.phone || a.mobileNumber || '').replace(/\D/g, '');
+
+      if (safeRole === "student") {
+        if (userAdm && (aAdm === userAdm || aReg === userAdm)) return true;
+        if (userRoll && (aReg === userRoll || aAdm === userRoll)) return true;
+        if (userStudentId && (aId === userStudentId || aAdm === userStudentId)) return true;
+        if (userId && (aId === userId || aAdm === userId || aReg === userId)) return true;
+        if (isNameReal && (aName === rawUserName || (a.firstName && a.lastName && rawUserName.includes(a.firstName.toLowerCase()) && rawUserName.includes(a.lastName.toLowerCase())))) return true;
+        if (userEmail && !userEmail.endsWith('@school.internal') && aEmail === userEmail) return true;
+        if (userPhone && userPhone.length >= 7 && aPhone && (aPhone.endsWith(userPhone) || userPhone.endsWith(aPhone))) return true;
+        return false;
+      } else {
+        // Parent
+        const fContact = String(a.fatherContact || a.fatherMobileNo || a.fatherPhone || '').replace(/\D/g, '');
+        const mContact = String(a.motherContact || a.motherMobileNo || a.motherPhone || '').replace(/\D/g, '');
+        const pEmail = String(a.parentEmail || a.fatherEmail || a.motherEmail || '').trim().toLowerCase();
+
+        if (userPhone && userPhone.length >= 7 && (
+          (fContact && (fContact.endsWith(userPhone) || userPhone.endsWith(fContact))) ||
+          (mContact && (mContact.endsWith(userPhone) || userPhone.endsWith(mContact))) ||
+          (aPhone && (aPhone.endsWith(userPhone) || userPhone.endsWith(aPhone)))
+        )) return true;
+
+        if (userEmail && !userEmail.endsWith('@school.internal') && (
+          pEmail === userEmail ||
+          aEmail === userEmail
+        )) return true;
+
+        return false;
+      }
+    });
+
+    const studentIds = new Set<string>([
+      ...matchedStudents.map((s: any) => String(s.id || s.studentId || '').trim().toLowerCase()),
+      ...matchedAdmissions.map((a: any) => String(a.id || '').trim().toLowerCase()),
+      ...(userAdm ? [userAdm] : []),
+      ...(userStudentId ? [userStudentId] : []),
+      ...(userId ? [userId] : [])
+    ].filter(Boolean));
+
+    const studentAdmissions = new Set<string>([
+      ...matchedStudents.map((s: any) => String(s.admissionNo || s.admissionNumber || '').trim().toLowerCase()),
+      ...matchedAdmissions.map((a: any) => String(a.admissionNo || a.admissionNumber || a.registrationNo || '').trim().toLowerCase()),
+      ...(userAdm ? [userAdm] : [])
+    ].filter(Boolean));
 
     // Check Hostel Enrollment
-    const hasHostelRecord = (studentHostels || []).some(sh => 
-      (sh.status === 'Active' || sh.status === 'Occupied') && 
-      (studentIds.has(String(sh.studentId)) || studentAdmissions.has(String(sh.studentId)))
-    );
-    const hasHostelStudentType = matchedStudents.some(s => 
-      s.studentType && ['hosteller', 'residential', 'hostel'].includes(s.studentType.toLowerCase())
-    );
-    isHosteller = hasHostelRecord || hasHostelStudentType;
+    const hasHostelRecord = (studentHostels || []).some((sh: any) => {
+      const shStatus = String(sh.status || '').toLowerCase().trim();
+      const isActive = !shStatus || shStatus === 'active' || shStatus === 'occupied';
+      if (!isActive) return false;
+      const shStudentId = String(sh.studentId || '').trim().toLowerCase();
+      const shAdmNo = String(sh.admissionNo || '').trim().toLowerCase();
+      return (
+        (shStudentId && (studentIds.has(shStudentId) || (userAdm && shStudentId === userAdm))) ||
+        (shAdmNo && (studentAdmissions.has(shAdmNo) || (userAdm && shAdmNo === userAdm)))
+      );
+    });
+
+    const hasHostelStudentType = matchedStudents.some((s: any) => {
+      const sType = String(s.studentType || '').toLowerCase().trim();
+      return (
+        ['hosteller', 'residential', 'hostel'].some(term => sType.includes(term)) ||
+        Boolean(s.isHosteller || s.hostelBlock || s.hostelRoom || s.hostelBed)
+      );
+    });
+
+    const hasHostelAdmission = matchedAdmissions.some((a: any) => {
+      const aType = String(a.studentType || '').toLowerCase().trim();
+      return (
+        ['hosteller', 'residential', 'hostel'].some(term => aType.includes(term)) ||
+        Boolean(a.isHosteller || a.hostelBlock || a.hostelRoom || a.hostelBed || a.allocatedBedId)
+      );
+    });
+
+    const userType = String((user as any)?.studentType || '').toLowerCase().trim();
+    const hasHostelUser =
+      ['hosteller', 'residential', 'hostel'].some(term => userType.includes(term)) ||
+      Boolean((user as any)?.isHosteller || (user as any)?.hostelBlock);
+
+    isHosteller = hasHostelRecord || hasHostelStudentType || hasHostelAdmission || hasHostelUser;
 
     // Check Transport Enrollment
-    const hasTransportRecord = (studentTransports || []).some((ta: any) => 
-      (ta.status === 'Active' || !ta.status) && 
-      (studentIds.has(String(ta.studentId)) || studentAdmissions.has(String(ta.studentId)))
-    );
-    const hasTransportField = matchedStudents.some((s: any) => 
-      Boolean(s.transportRoute || s.route || s.transport || s.busNumber || s.pickupPoint || s.transportOpted || s.transportType || s.routeId)
-    );
-    usesTransport = hasTransportRecord || hasTransportField;
+    const hasTransportRecord = (studentTransports || []).some((ta: any) => {
+      const taStatus = String(ta.status || '').toLowerCase().trim();
+      const isActive = !taStatus || taStatus === 'active' || taStatus === 'assigned';
+      if (!isActive) return false;
+      const taStudentId = String(ta.studentId || '').trim().toLowerCase();
+      const taAdmNo = String(ta.admissionNo || '').trim().toLowerCase();
+      return (
+        (taStudentId && (studentIds.has(taStudentId) || (userAdm && taStudentId === userAdm))) ||
+        (taAdmNo && (studentAdmissions.has(taAdmNo) || (userAdm && taAdmNo === userAdm)))
+      );
+    });
+
+    const hasTransportField = matchedStudents.some((s: any) => {
+      const isReq = s.transportRequired === true || String(s.transportRequired).toLowerCase() === 'true' || String(s.transportRequired).toLowerCase() === 'yes';
+      const sType = String(s.studentType || '').toLowerCase();
+      const typeHasTransport = sType.includes('transport') || sType.includes('bus');
+      return (
+        isReq ||
+        typeHasTransport ||
+        Boolean(s.busRoute && s.busRoute.trim()) ||
+        Boolean(s.pickupPoint && s.pickupPoint.trim()) ||
+        Boolean(s.dropPoint && s.dropPoint.trim()) ||
+        Boolean(s.transportRoute || s.route || s.transport || s.busNumber || s.transportOpted || s.transportType || s.routeId)
+      );
+    });
+
+    const hasTransportAdmission = matchedAdmissions.some((a: any) => {
+      const isReq = a.transportRequired === true || String(a.transportRequired).toLowerCase() === 'true' || String(a.transportRequired).toLowerCase() === 'yes';
+      return (
+        isReq ||
+        Boolean(a.busRoute && a.busRoute.trim()) ||
+        Boolean(a.pickupPoint && a.pickupPoint.trim()) ||
+        Boolean(a.dropPoint && a.dropPoint.trim()) ||
+        Boolean(a.transportType && a.transportType.trim())
+      );
+    });
+
+    const userReq = (user as any)?.transportRequired === true || String((user as any)?.transportRequired).toLowerCase() === 'true';
+    const hasTransportUser =
+      userReq ||
+      Boolean((user as any)?.busRoute) ||
+      Boolean((user as any)?.pickupPoint) ||
+      Boolean((user as any)?.transport);
+
+    usesTransport = hasTransportRecord || hasTransportField || hasTransportAdmission || hasTransportUser;
   }
 
   const isFinanceActive =
@@ -904,12 +1048,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             setTransportExpanded(false);
                             setUniformExpanded(false);
                           }
-                          if (!isHostelActive) {
+                          if (
+                            role.toLowerCase() === "parent" ||
+                            role.toLowerCase() === "student"
+                          ) {
+                            setActiveModule("parent-hostel-details");
+                          } else if (!isHostelActive) {
                             setActiveModule(
-                              role.toLowerCase() === "parent" ||
-                                role.toLowerCase() === "student"
-                                ? "parent-hostel-details"
-                                : role.toLowerCase().includes("warden")
+                              role.toLowerCase().includes("warden")
                                 ? "hostel-masters"
                                 : "hostel-dashboard",
                             );
@@ -1023,13 +1169,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             setHostelExpanded(false);
                             setUniformExpanded(false);
                           }
-                          if (!isTransportActive) {
-                            if (
-                              role.toLowerCase() === "parent" ||
-                              role.toLowerCase() === "student"
-                            ) {
-                              setActiveModule("parent-bus-info");
-                            } else if (role.toLowerCase() === "driver") {
+                          if (
+                            role.toLowerCase() === "parent" ||
+                            role.toLowerCase() === "student"
+                          ) {
+                            setActiveModule("parent-bus-info");
+                          } else if (!isTransportActive) {
+                            if (role.toLowerCase() === "driver") {
                               setActiveModule("transport");
                             } else {
                               setActiveModule("transport-dashboard");

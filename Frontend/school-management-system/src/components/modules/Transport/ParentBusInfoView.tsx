@@ -11,6 +11,7 @@ import { getParentTransport } from '../../../api/parent/parentApi';
 import { useParentWards, ParentStudentSelector } from '../../common/ParentStudentSelector';
 
 export const ParentBusInfoView: React.FC = () => {
+  const { studentTransports = [], routeMasters = [], admissions = [], students = [] } = useData();
   const [selectedWardIdx, setSelectedWardIdx] = useState(0);
   const parentWards = useParentWards();
   const [transportInfo, setTransportInfo] = useState<any>(null);
@@ -40,6 +41,93 @@ export const ParentBusInfoView: React.FC = () => {
     return () => { isMounted = false; };
   }, [currentWard?.studentId, currentWard?.id]);
 
+  const fallbackTransportAssignment = useMemo(() => {
+    if (!currentWard) return null;
+    const wId = String(currentWard.id || currentWard.studentId || '').trim().toLowerCase();
+    const wAdm = String(currentWard.admissionNo || '').trim().toLowerCase();
+
+    // 1. Check studentTransports
+    const matchSt = (studentTransports || []).find((st: any) => {
+      const stId = String(st.studentId || '').trim().toLowerCase();
+      const stAdm = String(st.admissionNo || '').trim().toLowerCase();
+      return (wId && stId === wId) || (wAdm && stAdm === wAdm);
+    });
+    if (matchSt) {
+      return {
+        routeName: matchSt.routeName || matchSt.routeId,
+        pickupPoint: matchSt.pickupPoint,
+        dropPoint: matchSt.dropPoint,
+        vehicleNumber: matchSt.vehicleNumber || ''
+      };
+    }
+
+    // 2. Check currentWard directly
+    if (currentWard.busRoute || currentWard.pickupPoint || currentWard.transportRequired) {
+      return {
+        routeName: currentWard.busRoute,
+        pickupPoint: currentWard.pickupPoint,
+        dropPoint: currentWard.dropPoint,
+        vehicleNumber: ''
+      };
+    }
+
+    // 3. Check admissions
+    const matchAdm = (admissions || []).find((a: any) => {
+      const aId = String(a.id || '').trim().toLowerCase();
+      const aAdm = String(a.admissionNo || a.admissionNumber || '').trim().toLowerCase();
+      return (wAdm && aAdm === wAdm) || (wId && aId === wId);
+    });
+    if (matchAdm && (matchAdm.busRoute || matchAdm.pickupPoint || matchAdm.transportRequired)) {
+      return {
+        routeName: matchAdm.busRoute,
+        pickupPoint: matchAdm.pickupPoint,
+        dropPoint: matchAdm.dropPoint,
+        vehicleNumber: ''
+      };
+    }
+
+    // 4. Check students
+    const matchStudent = (students || []).find((s: any) => {
+      const sId = String(s.id || '').trim().toLowerCase();
+      const sAdm = String(s.admissionNo || s.admissionNumber || '').trim().toLowerCase();
+      return (wAdm && sAdm === wAdm) || (wId && sId === wId);
+    });
+    if (matchStudent && (matchStudent.busRoute || matchStudent.pickupPoint || matchStudent.transportRequired)) {
+      return {
+        routeName: matchStudent.busRoute,
+        pickupPoint: matchStudent.pickupPoint,
+        dropPoint: matchStudent.dropPoint,
+        vehicleNumber: ''
+      };
+    }
+
+    return null;
+  }, [currentWard, studentTransports, admissions, students]);
+
+  const isAssigned = (transportInfo?.isAssigned === true && transportInfo?.routeName && transportInfo?.routeName !== 'N/A') ||
+    Boolean(fallbackTransportAssignment?.routeName || fallbackTransportAssignment?.pickupPoint);
+
+  const matchedRouteMaster = useMemo(() => {
+    const rName = transportInfo?.routeName || fallbackTransportAssignment?.routeName;
+    if (!rName || rName === 'N/A') return null;
+    return (routeMasters || []).find((r: any) => 
+      String(r.id) === String(rName) || 
+      String(r.routeName || '').toLowerCase() === String(rName).toLowerCase() ||
+      String(r.routeCode || '').toLowerCase() === String(rName).toLowerCase()
+    );
+  }, [transportInfo, fallbackTransportAssignment, routeMasters]);
+
+  const busInfo = {
+    hasTransport: isAssigned,
+    routeName: (transportInfo?.routeName && transportInfo?.routeName !== 'N/A' ? transportInfo.routeName : fallbackTransportAssignment?.routeName) || matchedRouteMaster?.routeName || '',
+    busNumber: (transportInfo?.vehicleNumber && transportInfo?.vehicleNumber !== 'N/A' ? transportInfo.vehicleNumber : fallbackTransportAssignment?.vehicleNumber) || matchedRouteMaster?.vehicleNumber || '-',
+    pickupTime: (transportInfo?.pickupTime && transportInfo?.pickupTime !== 'N/A' ? transportInfo.pickupTime : null) || matchedRouteMaster?.pickupTime || '-',
+    dropTime: (transportInfo?.dropTime && transportInfo?.dropTime !== 'N/A' ? transportInfo.dropTime : null) || matchedRouteMaster?.dropTime || '-',
+    stopName: (transportInfo?.pickupPoint && transportInfo?.pickupPoint !== 'N/A' ? transportInfo.pickupPoint : fallbackTransportAssignment?.pickupPoint) || '-',
+    driverName: (transportInfo?.driverName && transportInfo?.driverName !== 'N/A' ? transportInfo.driverName : null) || matchedRouteMaster?.driverName || '-',
+    driverPhone: (transportInfo?.driverPhone && transportInfo?.driverPhone !== 'N/A' ? transportInfo.driverPhone : null) || matchedRouteMaster?.driverPhone || '-',
+  };
+
   if (parentWards.length === 0) {
     return (
       <div className="p-8 text-center text-slate-500 font-medium">
@@ -47,19 +135,6 @@ export const ParentBusInfoView: React.FC = () => {
       </div>
     );
   }
-
-  const isAssigned = transportInfo?.isAssigned === true && transportInfo?.routeName && transportInfo?.routeName !== 'N/A';
-
-  const busInfo = {
-    hasTransport: isAssigned,
-    routeName: transportInfo?.routeName || 'Transit Route',
-    busNumber: transportInfo?.vehicleNumber || 'Bus Transit',
-    pickupTime: transportInfo?.pickupTime || transportInfo?.morningPickupTime || '-',
-    dropTime: transportInfo?.dropTime || transportInfo?.eveningDropTime || '-',
-    stopName: transportInfo?.pickupPoint || 'Assigned Stop',
-    driverName: transportInfo?.driverName || 'Designated Driver',
-    driverPhone: transportInfo?.driverPhone || 'Contact School',
-  };
 
   return (
     <div className="space-y-6 animate-in fade-in">
@@ -70,7 +145,6 @@ export const ParentBusInfoView: React.FC = () => {
           </div>
           <div>
             <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">Transport & Bus Tracking</h2>
-            <p className="text-xs text-slate-500">Live GPS tracking and daily morning & evening commute schedule</p>
           </div>
         </div>
 

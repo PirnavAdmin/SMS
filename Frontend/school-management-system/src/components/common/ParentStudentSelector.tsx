@@ -26,6 +26,14 @@ export interface ParentWard {
   boardType?: string;
   casteCategory?: string;
   address?: string;
+  transportRequired?: boolean;
+  busRoute?: string;
+  pickupPoint?: string;
+  dropPoint?: string;
+  transportType?: string;
+  hostelBlock?: string;
+  hostelRoom?: string;
+  hostelBed?: string;
 }
 
 /**
@@ -157,7 +165,15 @@ export function useParentWards() {
           gender: matched.gender || 'Male',
           dob: matched.dob || '',
           status: matched.status || 'Active',
-          studentType: (matched as any).studentType || 'Non-Residential'
+          studentType: (matched as any).studentType || 'Non-Residential',
+          transportRequired: Boolean((matched as any).transportRequired === true || String((matched as any).transportRequired).toLowerCase() === 'true' || (matched as any).busRoute || (matched as any).pickupPoint),
+          busRoute: (matched as any).busRoute || (matched as any).transportRoute || '',
+          pickupPoint: (matched as any).pickupPoint || '',
+          dropPoint: (matched as any).dropPoint || '',
+          transportType: (matched as any).transportType || '',
+          hostelBlock: (matched as any).hostelBlock || '',
+          hostelRoom: (matched as any).hostelRoom || '',
+          hostelBed: (matched as any).hostelBed || ''
         }];
       }
 
@@ -209,7 +225,15 @@ export function useParentWards() {
           gender: matchedAdm.gender || 'Male',
           dob: (matchedAdm as any).dateOfBirth || (matchedAdm as any).dob || '',
           status: 'Active',
-          studentType: (matchedAdm as any).studentType || 'Non-Residential'
+          studentType: (matchedAdm as any).studentType || 'Non-Residential',
+          transportRequired: Boolean((matchedAdm as any).transportRequired === true || String((matchedAdm as any).transportRequired).toLowerCase() === 'true' || (matchedAdm as any).busRoute || (matchedAdm as any).pickupPoint),
+          busRoute: (matchedAdm as any).busRoute || '',
+          pickupPoint: (matchedAdm as any).pickupPoint || '',
+          dropPoint: (matchedAdm as any).dropPoint || '',
+          transportType: (matchedAdm as any).transportType || '',
+          hostelBlock: (matchedAdm as any).hostelBlock || '',
+          hostelRoom: (matchedAdm as any).hostelRoom || '',
+          hostelBed: (matchedAdm as any).availableBed || (matchedAdm as any).hostelBed || ''
         }];
       }
 
@@ -228,13 +252,146 @@ export function useParentWards() {
         gender: 'Male',
         dob: '',
         status: 'Active',
-        studentType: 'Day Scholar'
+        studentType: (user as any)?.studentType || 'Non-Residential',
+        transportRequired: Boolean((user as any)?.transportRequired === true || String((user as any)?.transportRequired).toLowerCase() === 'true' || (user as any)?.busRoute || (user as any)?.pickupPoint),
+        busRoute: (user as any)?.busRoute || '',
+        pickupPoint: (user as any)?.pickupPoint || '',
+        dropPoint: (user as any)?.dropPoint || '',
+        transportType: (user as any)?.transportType || '',
+        hostelBlock: (user as any)?.hostelBlock || '',
+        hostelRoom: (user as any)?.hostelRoom || '',
+        hostelBed: (user as any)?.hostelBed || ''
       }];
     }
 
     // 2. Authoritative parent ward list from backend /api/parent/children
     if (!apiChildren || apiChildren.length === 0) {
-      return [];
+      // Robust Fallback: Match by parent's phone or email against students and admissions
+      const rawUserPhone = String(user?.phone || (user as any)?.mobileNumber || '').trim();
+      const userPhoneDigits = rawUserPhone.replace(/\D/g, '');
+      const userEmail = (user?.email || '').toLowerCase().trim();
+
+      const matchedList: ParentWard[] = [];
+      const seenIds = new Set<string>();
+
+      (students || []).forEach((s: any) => {
+        if (!s) return;
+        const sStatus = String(s.status || '').toLowerCase().trim();
+        if (sStatus && ['inactive', 'deleted', 'left', 'rejected'].includes(sStatus)) return;
+
+        const fPhone = String(s.fatherPhone || s.fatherMobile || '').replace(/\D/g, '');
+        const mPhone = String(s.motherPhone || s.motherMobile || '').replace(/\D/g, '');
+        const pPhone = String(s.parentPhone || s.guardianPhone || '').replace(/\D/g, '');
+        const sPhone = String(s.phone || s.mobileNumber || '').replace(/\D/g, '');
+
+        const fEmail = String(s.fatherEmail || '').trim().toLowerCase();
+        const mEmail = String(s.motherEmail || '').trim().toLowerCase();
+        const pEmail = String(s.parentEmail || s.guardianEmail || s.contactEmail || '').trim().toLowerCase();
+        const sEmail = String(s.email || '').trim().toLowerCase();
+
+        const phoneMatches = userPhoneDigits && userPhoneDigits.length >= 7 && (
+          (fPhone && (fPhone.endsWith(userPhoneDigits) || userPhoneDigits.endsWith(fPhone))) ||
+          (mPhone && (mPhone.endsWith(userPhoneDigits) || userPhoneDigits.endsWith(mPhone))) ||
+          (pPhone && (pPhone.endsWith(userPhoneDigits) || userPhoneDigits.endsWith(pPhone))) ||
+          (sPhone && (sPhone.endsWith(userPhoneDigits) || userPhoneDigits.endsWith(sPhone)))
+        );
+
+        const emailMatches = userEmail && !userEmail.endsWith('@school.internal') && (
+          fEmail === userEmail || mEmail === userEmail || pEmail === userEmail || sEmail === userEmail
+        );
+
+        if (phoneMatches || emailMatches) {
+          const sKey = String(s.id);
+          if (!seenIds.has(sKey)) {
+            seenIds.add(sKey);
+            const studentName = `${s.firstName || ''} ${s.lastName || ''}`.trim() || s.name || s.studentName || 'Student';
+            matchedList.push({
+              id: sKey,
+              studentId: s.id,
+              admissionNo: s.admissionNo || s.admissionNumber || `ADM-${s.id}`,
+              rollNo: s.rollNo || s.rollNumber || `ROLL-${s.id}`,
+              firstName: s.firstName || studentName.split(' ')[0] || 'Student',
+              lastName: s.lastName || studentName.split(' ').slice(1).join(' ') || '',
+              studentName,
+              className: s.className || s.class || '',
+              section: s.section || s.sectionName || '',
+              gender: s.gender || 'Male',
+              dob: s.dob || '',
+              status: 'Active',
+              fatherName: s.fatherName,
+              motherName: s.motherName,
+              studentType: s.studentType || 'Non-Residential',
+              transportRequired: Boolean(s.transportRequired === true || String(s.transportRequired).toLowerCase() === 'true' || s.busRoute || s.pickupPoint),
+              busRoute: s.busRoute || s.transportRoute || '',
+              pickupPoint: s.pickupPoint || '',
+              dropPoint: s.dropPoint || '',
+              transportType: s.transportType || '',
+              hostelBlock: s.hostelBlock || '',
+              hostelRoom: s.hostelRoom || '',
+              hostelBed: s.hostelBed || ''
+            });
+          }
+        }
+      });
+
+      (admissions || []).forEach((a: any) => {
+        if (!a) return;
+        const aStatus = String(a.status || '').toLowerCase().trim();
+        if (aStatus && ['rejected', 'cancelled', 'deleted'].includes(aStatus)) return;
+
+        const fContact = String(a.fatherContact || a.fatherMobileNo || a.fatherPhone || '').replace(/\D/g, '');
+        const mContact = String(a.motherContact || a.motherMobileNo || a.motherPhone || '').replace(/\D/g, '');
+        const aPhone = String(a.phone || a.mobileNumber || '').replace(/\D/g, '');
+        const pEmail = String(a.parentEmail || a.fatherEmail || a.motherEmail || '').trim().toLowerCase();
+        const aEmail = String(a.email || '').trim().toLowerCase();
+
+        const phoneMatches = userPhoneDigits && userPhoneDigits.length >= 7 && (
+          (fContact && (fContact.endsWith(userPhoneDigits) || userPhoneDigits.endsWith(fContact))) ||
+          (mContact && (mContact.endsWith(userPhoneDigits) || userPhoneDigits.endsWith(mContact))) ||
+          (aPhone && (aPhone.endsWith(userPhoneDigits) || userPhoneDigits.endsWith(aPhone)))
+        );
+
+        const emailMatches = userEmail && !userEmail.endsWith('@school.internal') && (
+          pEmail === userEmail || aEmail === userEmail
+        );
+
+        if (phoneMatches || emailMatches) {
+          const aKey = String(a.id);
+          const aAdm = String(a.admissionNo || a.admissionNumber || a.registrationNo || '');
+          if (!seenIds.has(aKey) && (!aAdm || !seenIds.has(aAdm))) {
+            seenIds.add(aKey);
+            if (aAdm) seenIds.add(aAdm);
+            const studentName = a.applicantName || `${a.firstName || ''} ${a.lastName || ''}`.trim() || 'Student';
+            matchedList.push({
+              id: aKey,
+              studentId: a.id,
+              admissionNo: aAdm || `ADM-${a.id}`,
+              rollNo: a.registrationNo || a.applicationNo || `ROLL-${a.id}`,
+              firstName: a.firstName || studentName.split(' ')[0] || 'Student',
+              lastName: a.lastName || studentName.split(' ').slice(1).join(' ') || '',
+              studentName,
+              className: a.appliedClass?.className || a.className || a.appliedClass || '',
+              section: a.section || 'A',
+              gender: a.gender || 'Male',
+              dob: a.dateOfBirth || a.dob || '',
+              status: 'Active',
+              fatherName: a.fatherFullName || a.parentName,
+              motherName: a.motherFullName,
+              studentType: a.studentType || 'Non-Residential',
+              transportRequired: Boolean(a.transportRequired === true || String(a.transportRequired).toLowerCase() === 'true' || a.busRoute || a.pickupPoint),
+              busRoute: a.busRoute || '',
+              pickupPoint: a.pickupPoint || '',
+              dropPoint: a.dropPoint || '',
+              transportType: a.transportType || '',
+              hostelBlock: a.hostelBlock || '',
+              hostelRoom: a.hostelRoom || '',
+              hostelBed: a.availableBed || a.hostelBed || ''
+            });
+          }
+        }
+      });
+
+      return matchedList;
     }
 
     const mappedApi: ParentWard[] = apiChildren.map(c => {
@@ -260,6 +417,13 @@ export function useParentWards() {
         return false;
       });
 
+      const isTrp = Boolean(
+        (c as any).transportRequired ||
+        (matched as any)?.transportRequired ||
+        (matchedAdm as any)?.transportRequired ||
+        matched?.busRoute ||
+        (matchedAdm as any)?.busRoute
+      );
       return {
         id: String(c.studentId),
         studentId: c.studentId,
@@ -275,11 +439,19 @@ export function useParentWards() {
         status: 'Active',
         fatherName: matched?.fatherName || (matchedAdm as any)?.fatherFullName || (matchedAdm as any)?.parentName,
         motherName: matched?.motherName || (matchedAdm as any)?.motherFullName,
-        studentType: (c as any).studentType || (matched as any)?.studentType || (matchedAdm as any)?.studentType || 'Day Scholar',
+        studentType: (c as any).studentType || (matched as any)?.studentType || (matchedAdm as any)?.studentType || 'Non-Residential',
         bloodGroup: (c as any).bloodGroup || (matched as any)?.bloodGroup || (matchedAdm as any)?.bloodGroup,
         boardType: (c as any).boardType || (matched as any)?.boardType || (matchedAdm as any)?.boardType,
         casteCategory: (c as any).casteCategory || (matched as any)?.casteCategory || (matchedAdm as any)?.casteCategory || (matchedAdm as any)?.caste,
-        address: (c as any).address || (matched as any)?.address || ((matchedAdm as any)?.houseNo ? `${(matchedAdm as any).houseNo} ${(matchedAdm as any).street || ''} ${(matchedAdm as any).areaLocality || ''} ${(matchedAdm as any).city || ''}`.trim() : undefined)
+        address: (c as any).address || (matched as any)?.address || ((matchedAdm as any)?.houseNo ? `${(matchedAdm as any).houseNo} ${(matchedAdm as any).street || ''} ${(matchedAdm as any).areaLocality || ''} ${(matchedAdm as any).city || ''}`.trim() : undefined),
+        transportRequired: isTrp,
+        busRoute: (c as any).busRoute || matched?.busRoute || (matchedAdm as any)?.busRoute || '',
+        pickupPoint: (c as any).pickupPoint || matched?.pickupPoint || (matchedAdm as any)?.pickupPoint || '',
+        dropPoint: (c as any).dropPoint || matched?.dropPoint || (matchedAdm as any)?.dropPoint || '',
+        transportType: (c as any).transportType || matched?.transportType || (matchedAdm as any)?.transportType || '',
+        hostelBlock: (c as any).hostelBlock || (matched as any)?.hostelBlock || (matchedAdm as any)?.hostelBlock || '',
+        hostelRoom: (c as any).hostelRoom || (matched as any)?.hostelRoom || (matchedAdm as any)?.hostelRoom || '',
+        hostelBed: (c as any).hostelBed || (matched as any)?.hostelBed || (matchedAdm as any)?.availableBed || (matchedAdm as any)?.hostelBed || ''
       };
     });
 

@@ -5,9 +5,51 @@ import { useAuth } from '../../../context/AuthContext';
 import { useParentWards, ParentStudentSelector } from '../../common/ParentStudentSelector';
 
 export const ParentHostelView: React.FC = () => {
-  const { studentHostels = [], hostelMasters = [] } = useData();
+  const { studentHostels = [], hostelMasters = [], admissions = [] } = useData();
   const parentWards = useParentWards();
   const [selectedChildIdx, setSelectedChildIdx] = useState(0);
+
+  const currentWard = parentWards[selectedChildIdx] || parentWards[0];
+  
+  // Find hostel assignment
+  const hostelAssignment = studentHostels.find(h => 
+    (String(h.studentId) === String(currentWard?.id) || 
+     String(h.studentId) === String(currentWard?.studentId) || 
+     (h.admissionNo && currentWard?.admissionNo && String(h.admissionNo).toLowerCase() === String(currentWard.admissionNo).toLowerCase())) && 
+    (h.status === 'Active' || h.status === 'Occupied')
+  );
+
+  const fallbackHostel = useMemo(() => {
+    if (!currentWard) return null;
+    if (currentWard.hostelBlock || currentWard.hostelRoom || currentWard.hostelBed) {
+      return {
+        hostelName: currentWard.hostelBlock || '',
+        roomNo: currentWard.hostelRoom || '-',
+        bedNo: currentWard.hostelBed || '-',
+      };
+    }
+    const wAdm = String(currentWard.admissionNo || '').trim().toLowerCase();
+    const wId = String(currentWard.studentId || currentWard.id || '').trim().toLowerCase();
+    const adm = (admissions || []).find((a: any) => 
+      (wAdm && String(a.admissionNo || a.admissionNumber || '').toLowerCase() === wAdm) || 
+      (wId && String(a.id || '').toLowerCase() === wId)
+    );
+    if (adm && (adm.hostelBlock || adm.hostelRoom || (adm as any).availableBed || (adm as any).hostelBed)) {
+      return {
+        hostelName: adm.hostelBlock || '',
+        roomNo: adm.hostelRoom || '-',
+        bedNo: (adm as any).availableBed || (adm as any).hostelBed || '-',
+      };
+    }
+    return null;
+  }, [currentWard, admissions]);
+
+  const activeHostelAssignment = hostelAssignment || fallbackHostel;
+  
+  // Retrieve additional details if assignment is found
+  const hostelMaster = activeHostelAssignment ? hostelMasters.find(hm => 
+    (activeHostelAssignment as any).hostelId ? hm.id === (activeHostelAssignment as any).hostelId : (hm.hostelName === activeHostelAssignment.hostelName)
+  ) : null;
 
   if (parentWards.length === 0) {
     return (
@@ -17,13 +59,9 @@ export const ParentHostelView: React.FC = () => {
     );
   }
 
-  const currentWard = parentWards[selectedChildIdx] || parentWards[0];
-  
-  // Find hostel assignment
-  const hostelAssignment = studentHostels.find(h => h.studentId === currentWard.id && h.status === 'Active');
-  
-  // Retrieve additional details if assignment is found
-  const hostelMaster = hostelAssignment ? hostelMasters.find(hm => hm.id === hostelAssignment.hostelId || hm.hostelName === hostelAssignment.hostelName) : null;
+  const isResidential = 
+    Boolean(activeHostelAssignment) ||
+    ['hosteller', 'residential', 'hostel'].some(term => String(currentWard.studentType || '').toLowerCase().includes(term));
 
   return (
     <div className="space-y-6 animate-in fade-in">
@@ -36,8 +74,6 @@ export const ParentHostelView: React.FC = () => {
         </h2>
       </div>
 
-
-
       {/* Ward Selector Tabs (Hidden for Students since they only see themselves) */}
       <ParentStudentSelector
         wards={parentWards}
@@ -45,7 +81,7 @@ export const ParentHostelView: React.FC = () => {
         onSelect={setSelectedChildIdx}
       />
       
-      {currentWard.studentType === 'Day Scholar' || currentWard.studentType === 'Non-Residential' ? (
+      {!isResidential ? (
         <div className="bg-white dark:bg-slate-900 p-8 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm text-center max-w-2xl mx-auto mt-10">
           <Home className="w-16 h-16 text-slate-300 mx-auto mb-4" />
           <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Non-Residential</h3>
@@ -53,7 +89,7 @@ export const ParentHostelView: React.FC = () => {
             {currentWard.firstName} is registered as a Non-Residential student and is not assigned to any campus residential facilities.
           </p>
         </div>
-      ) : hostelAssignment ? (
+      ) : activeHostelAssignment ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Allocation Details */}
           <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-6">
@@ -68,7 +104,7 @@ export const ParentHostelView: React.FC = () => {
                 </div>
                 <div>
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-0.5">Hostel Name</p>
-                  <p className="font-semibold text-slate-900 dark:text-white text-base">{hostelAssignment.hostelName}</p>
+                  <p className="font-semibold text-slate-900 dark:text-white text-base">{activeHostelAssignment.hostelName}</p>
                   {hostelMaster?.hostelType && (
                     <span className="inline-block mt-1 text-[10px] px-2 py-0.5 bg-sky-50 text-sky-700 rounded-full font-bold">
                       {hostelMaster.hostelType} Hostel
@@ -84,7 +120,7 @@ export const ParentHostelView: React.FC = () => {
                 <div>
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-0.5">Room & Bed details</p>
                   <p className="font-semibold text-slate-900 dark:text-white text-base">
-                    Room {hostelAssignment.roomNo} <span className="text-slate-300 mx-2">|</span> Bed {hostelAssignment.bedNo}
+                    Room {activeHostelAssignment.roomNo} <span className="text-slate-300 mx-2">|</span> Bed {activeHostelAssignment.bedNo}
                   </p>
                 </div>
               </div>

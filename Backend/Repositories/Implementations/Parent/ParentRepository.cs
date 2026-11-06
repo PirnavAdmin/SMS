@@ -762,21 +762,67 @@ namespace SMS.Api.Repositories.Implementations.Parent
                         .ThenInclude(va => va.Vehicle)
                     .Include(a => a.VehicleAssignment)
                         .ThenInclude(va => va.Driver)
-                    .FirstOrDefaultAsync(a => !a.IsDeleted && a.Status && (!string.IsNullOrEmpty(student.AdmissionNumber) && a.AdmissionNo == student.AdmissionNumber));
+                    .FirstOrDefaultAsync(a => !a.IsDeleted && a.Status && 
+                        ((a.StudentId.HasValue && a.StudentId.Value == studentId) ||
+                         (!string.IsNullOrEmpty(student.AdmissionNumber) && a.AdmissionNo == student.AdmissionNumber)));
 
                 if (assignment != null)
                 {
                     return new ParentTransportInfoDto
                     {
                         IsAssigned = true,
-                        RouteName = assignment.Route?.RouteName ?? "Bus Route",
+                        RouteName = assignment.Route?.RouteName ?? "",
                         VehicleNumber = assignment.VehicleAssignment?.Vehicle?.VehicleNumber ?? "",
                         PickupPoint = assignment.PickupPoint?.PickupPointName ?? "",
-                        PickupTime = assignment.PickupPoint?.PickupTime.ToString(@"hh\:mm") ?? "07:30 AM",
-                        DropTime = "04:00 PM",
-                        DriverName = assignment.VehicleAssignment?.Driver?.DriverName ?? "Driver",
+                        PickupTime = assignment.PickupPoint != null ? assignment.PickupPoint.PickupTime.ToString(@"hh\:mm") : (assignment.VehicleAssignment?.MorningTripTime ?? ""),
+                        DropTime = assignment.PickupPoint != null ? assignment.PickupPoint.DropTime.ToString(@"hh\:mm") : (assignment.VehicleAssignment?.EveningTripTime ?? ""),
+                        DriverName = assignment.VehicleAssignment?.Driver?.DriverName ?? "",
                         DriverPhone = assignment.VehicleAssignment?.Driver?.MobileNumber ?? ""
                     };
+                }
+
+                if (!string.IsNullOrEmpty(student.AdmissionNumber))
+                {
+                    var adm = await _context.AdmissionApplications
+                        .FirstOrDefaultAsync(a => !a.IsDeleted && a.AdmissionNo == student.AdmissionNumber && (a.TransportRequired == true || !string.IsNullOrEmpty(a.BusRoute)));
+                    if (adm != null && (!string.IsNullOrEmpty(adm.BusRoute) || !string.IsNullOrEmpty(adm.PickupPoint)))
+                    {
+                        var route = await _context.TransportRoutes
+                            .FirstOrDefaultAsync(r => !r.IsDeleted && (r.RouteName == adm.BusRoute || r.RouteCode == adm.BusRoute || r.RouteId.ToString() == adm.BusRoute));
+
+                        PickupPoint? pickup = null;
+                        if (route != null)
+                        {
+                            pickup = await _context.PickupPoints
+                                .FirstOrDefaultAsync(p => !p.IsDeleted && p.RouteId == route.RouteId && (p.PickupPointName == adm.PickupPoint || p.Landmark == adm.PickupPoint));
+                        }
+                        if (pickup == null && !string.IsNullOrEmpty(adm.PickupPoint))
+                        {
+                            pickup = await _context.PickupPoints
+                                .FirstOrDefaultAsync(p => !p.IsDeleted && (p.PickupPointName == adm.PickupPoint || p.Landmark == adm.PickupPoint));
+                        }
+
+                        TransportVehicleAssignment? vAssign = null;
+                        if (route != null)
+                        {
+                            vAssign = await _context.TransportVehicleAssignments
+                                .Include(va => va.Vehicle)
+                                .Include(va => va.Driver)
+                                .FirstOrDefaultAsync(va => !va.IsDeleted && va.Status && va.RouteId == route.RouteId);
+                        }
+
+                        return new ParentTransportInfoDto
+                        {
+                            IsAssigned = true,
+                            RouteName = route?.RouteName ?? adm.BusRoute ?? "",
+                            VehicleNumber = vAssign?.Vehicle?.VehicleNumber ?? "",
+                            PickupPoint = pickup?.PickupPointName ?? adm.PickupPoint ?? "",
+                            PickupTime = pickup != null ? pickup.PickupTime.ToString(@"hh\:mm") : (vAssign?.MorningTripTime ?? ""),
+                            DropTime = pickup != null ? pickup.DropTime.ToString(@"hh\:mm") : (vAssign?.EveningTripTime ?? ""),
+                            DriverName = vAssign?.Driver?.DriverName ?? "",
+                            DriverPhone = vAssign?.Driver?.MobileNumber ?? ""
+                        };
+                    }
                 }
             }
             catch (Exception ex)
@@ -787,13 +833,13 @@ namespace SMS.Api.Repositories.Implementations.Parent
             return new ParentTransportInfoDto
             {
                 IsAssigned = false,
-                RouteName = "N/A",
-                VehicleNumber = "N/A",
-                PickupPoint = "N/A",
-                PickupTime = "N/A",
-                DropTime = "N/A",
-                DriverName = "N/A",
-                DriverPhone = "N/A"
+                RouteName = "",
+                VehicleNumber = "",
+                PickupPoint = "",
+                PickupTime = "",
+                DropTime = "",
+                DriverName = "",
+                DriverPhone = ""
             };
         }
 
@@ -810,21 +856,53 @@ namespace SMS.Api.Repositories.Implementations.Parent
                 var alloc = await _context.StudentBedAllocations
                     .Include(a => a.Hostel)
                     .Include(a => a.Room)
-                    .FirstOrDefaultAsync(a => a.Status == "Active" && (a.StudentId == studentId || (!string.IsNullOrEmpty(student.AdmissionNumber) && a.RegistrationNo == student.AdmissionNumber)));
+                    .FirstOrDefaultAsync(a => a.Status == "Active" && 
+                        ((a.StudentId.HasValue && a.StudentId.Value == studentId) ||
+                         (!string.IsNullOrEmpty(student.AdmissionNumber) && a.RegistrationNo == student.AdmissionNumber)));
 
                 if (alloc != null)
                 {
                     return new ParentHostelInfoDto
                     {
                         IsAllocated = true,
-                        HostelName = alloc.Hostel?.HostelName ?? "School Hostel",
-                        BlockName = alloc.Hostel?.HostelType ?? "Block A",
+                        HostelName = alloc.Hostel?.HostelName ?? "",
+                        BlockName = alloc.Hostel?.HostelType ?? alloc.Hostel?.HostelCode ?? "",
                         RoomNumber = alloc.Room?.RoomNumber ?? "",
                         BedNumber = alloc.BedNumber ?? "",
-                        RoomType = alloc.Room?.FloorLevel ?? "Standard",
-                        WardenName = alloc.Hostel?.WardenName ?? "Hostel Warden",
+                        RoomType = alloc.Room?.FloorLevel ?? "",
+                        WardenName = alloc.Hostel?.WardenName ?? "",
                         WardenPhone = alloc.Hostel?.PrimaryMobileNumber ?? ""
                     };
+                }
+
+                if (!string.IsNullOrEmpty(student.AdmissionNumber))
+                {
+                    var adm = await _context.AdmissionApplications
+                        .FirstOrDefaultAsync(a => !a.IsDeleted && a.AdmissionNo == student.AdmissionNumber && (a.StudentType == "Residential" || !string.IsNullOrEmpty(a.HostelBlock)));
+                    if (adm != null && (!string.IsNullOrEmpty(adm.HostelBlock) || !string.IsNullOrEmpty(adm.HostelRoom)))
+                    {
+                        var block = await _context.HostelBlocks
+                            .FirstOrDefaultAsync(b => b.Status == "Active" && (b.HostelName == adm.HostelBlock || b.HostelCode == adm.HostelBlock || b.HostelType == adm.HostelBlock));
+
+                        RoomMaster? room = null;
+                        if (block != null && !string.IsNullOrEmpty(adm.HostelRoom))
+                        {
+                            room = await _context.RoomMasters
+                                .FirstOrDefaultAsync(r => r.HostelId == block.HostelId && r.RoomNumber == adm.HostelRoom);
+                        }
+
+                        return new ParentHostelInfoDto
+                        {
+                            IsAllocated = true,
+                            HostelName = block?.HostelName ?? adm.HostelBlock ?? "",
+                            BlockName = block?.HostelType ?? block?.HostelCode ?? "",
+                            RoomNumber = room?.RoomNumber ?? adm.HostelRoom ?? "",
+                            BedNumber = adm.AvailableBed ?? adm.AllocatedBedId ?? "",
+                            RoomType = room?.FloorLevel ?? adm.FloorLevel ?? "",
+                            WardenName = block?.WardenName ?? "",
+                            WardenPhone = block?.PrimaryMobileNumber ?? ""
+                        };
+                    }
                 }
             }
             catch (Exception ex)
@@ -835,13 +913,13 @@ namespace SMS.Api.Repositories.Implementations.Parent
             return new ParentHostelInfoDto
             {
                 IsAllocated = false,
-                HostelName = "N/A",
-                BlockName = "N/A",
-                RoomNumber = "N/A",
-                BedNumber = "N/A",
-                RoomType = "N/A",
-                WardenName = "N/A",
-                WardenPhone = "N/A"
+                HostelName = "",
+                BlockName = "",
+                RoomNumber = "",
+                BedNumber = "",
+                RoomType = "",
+                WardenName = "",
+                WardenPhone = ""
             };
         }
 
