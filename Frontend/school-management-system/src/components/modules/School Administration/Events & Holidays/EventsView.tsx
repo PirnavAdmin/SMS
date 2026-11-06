@@ -13,6 +13,13 @@ import {
   Holiday, SchoolEvent, UnifiedCalendarEvent, UnifiedEventType, HolidayType, EventCategory, Student, Staff
 } from '../../../../types';
 import { fetchHolidaysApi, fetchSchoolEventsApi } from '../../../../api/events';
+import { Pagination } from '../../../common/Pagination';
+
+const isValidCalendarYear = (val: string): boolean => {
+  if (!val) return true;
+  const year = parseInt(val.split('-')[0], 10);
+  return !isNaN(year) && year >= 2000 && year <= 2099;
+};
 
 export const EventsView: React.FC = () => {
   const {
@@ -763,7 +770,7 @@ export const EventsView: React.FC = () => {
         <div className="space-y-4">
           
           {/* Calendar Navigation & Mode Switcher Bar */}
-          <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-sky-400 dark:border-sky-500 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-sky-400 dark:border-sky-500 shadow-sm flex flex-wrap items-center justify-between gap-4">
             
             {/* Month & Year Navigation with Fast Switcher */}
             <div className="flex items-center gap-3">
@@ -859,21 +866,21 @@ export const EventsView: React.FC = () => {
 
           {/* MONTH VIEW GRID */}
           {calendarViewMode === 'month' && (
-            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-sky-400 dark:border-sky-500 shadow-sm overflow-hidden p-4 space-y-2">
-              
-              {/* Day Headers (Sun - Sat) */}
-              <div className="grid grid-cols-7 gap-1 text-center text-xs font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 pb-1">
-                <div className="py-2 text-rose-500 font-black">SUN</div>
-                <div className="py-2">MON</div>
-                <div className="py-2">TUE</div>
-                <div className="py-2">WED</div>
-                <div className="py-2">THU</div>
-                <div className="py-2">FRI</div>
-                <div className="py-2 text-sky-600 font-black">SAT</div>
-              </div>
+            <div className="bg-white dark:bg-slate-900 rounded-3xl border border-sky-400 dark:border-sky-500 shadow-sm overflow-x-auto p-4">
+              <div className="min-w-[700px] space-y-2">
+                {/* Day Headers (Sun - Sat) */}
+                <div className="grid grid-cols-7 gap-1 text-center text-xs font-black uppercase tracking-wider text-slate-400 dark:text-slate-500 pb-1">
+                  <div className="py-2 text-rose-500 font-black">SUN</div>
+                  <div className="py-2">MON</div>
+                  <div className="py-2">TUE</div>
+                  <div className="py-2">WED</div>
+                  <div className="py-2">THU</div>
+                  <div className="py-2">FRI</div>
+                  <div className="py-2 text-sky-600 font-black">SAT</div>
+                </div>
 
-              {/* 42-Day Month Grid Cells */}
-              <div className="grid grid-cols-7 gap-1.5">
+                {/* 42-Day Month Grid Cells */}
+                <div className="grid grid-cols-7 gap-1.5">
                 {calendarGridDays.map((cell, idx) => {
                   const isToday = cell.dateString === todayDateStr;
                   const isSunday = idx % 7 === 0;
@@ -953,9 +960,9 @@ export const EventsView: React.FC = () => {
                   );
                 })}
               </div>
-
             </div>
-          )}
+          </div>
+        )}
 
           {/* AGENDA LIST VIEW */}
           {calendarViewMode === 'agenda' && (
@@ -979,8 +986,14 @@ export const EventsView: React.FC = () => {
                   <div className="relative">
                     <input
                       type="date"
+                      min="2020-01-01"
+                      max="2099-12-31"
                       value={agendaDateFilter}
-                      onChange={e => setAgendaDateFilter(e.target.value)}
+                      onChange={e => {
+                        const val = e.target.value;
+                        if (!isValidCalendarYear(val)) return;
+                        setAgendaDateFilter(val);
+                      }}
                       className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-xs font-bold text-slate-600 dark:text-slate-300 focus:ring-2 focus:ring-sky-500/20 outline-none cursor-pointer h-[34px]"
                     />
                   </div>
@@ -1027,52 +1040,17 @@ export const EventsView: React.FC = () => {
                 )}
               </div>
 
-              {/* 25 Entries Pagination Bar */}
+              {/* Agenda Pagination Controls */}
               {filteredEvents.length > 0 && (
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-xs">
-                  <span className="text-slate-500 font-medium">
-                    Showing <strong className="text-slate-800 dark:text-slate-200">{(agendaPage - 1) * agendaPageSize + 1}</strong> - <strong className="text-slate-800 dark:text-slate-200">{Math.min(agendaPage * agendaPageSize, filteredEvents.length)}</strong> of <strong className="text-slate-800 dark:text-slate-200">{filteredEvents.length}</strong> entries
-                  </span>
-
-                  {totalAgendaPages > 1 && (
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        type="button"
-                        disabled={agendaPage === 1}
-                        onClick={() => setAgendaPage(p => Math.max(1, p - 1))}
-                        className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer flex items-center gap-1 font-bold text-xs shadow-xs"
-                      >
-                        <ChevronLeft className="w-3.5 h-3.5" /> Prev
-                      </button>
-
-                      <div className="flex items-center gap-1">
-                        {Array.from({ length: totalAgendaPages }, (_, i) => i + 1).map(page => (
-                          <button
-                            key={page}
-                            type="button"
-                            onClick={() => setAgendaPage(page)}
-                            className={`w-8 h-8 rounded-xl font-bold text-xs transition cursor-pointer flex items-center justify-center ${
-                              agendaPage === page
-                                ? 'bg-sky-600 text-white shadow-xs'
-                                : 'border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
-                            }`}
-                          >
-                            {page}
-                          </button>
-                        ))}
-                      </div>
-
-                      <button
-                        type="button"
-                        disabled={agendaPage === totalAgendaPages}
-                        onClick={() => setAgendaPage(p => Math.min(totalAgendaPages, p + 1))}
-                        className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer flex items-center gap-1 font-bold text-xs shadow-xs"
-                      >
-                        Next <ChevronRight className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  )}
-                </div>
+                <Pagination
+                  currentPage={agendaPage}
+                  totalItems={filteredEvents.length}
+                  itemsPerPage={agendaPageSize}
+                  onPageChange={setAgendaPage}
+                  label="entries"
+                  separator="-"
+                  className="pt-3"
+                />
               )}
             </div>
           )}
@@ -1251,52 +1229,17 @@ export const EventsView: React.FC = () => {
               </table>
             </div>
 
-            {/* 25 Entries Holiday Pagination Controls */}
+            {/* Holiday Pagination Controls */}
             {filteredHolidays.length > 0 && (
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 border-t border-slate-100 dark:border-slate-800 text-xs">
-                <span className="text-slate-500 font-medium">
-                  Showing <strong className="text-slate-800 dark:text-slate-200">{(holidayPage - 1) * holidayPageSize + 1}</strong> - <strong className="text-slate-800 dark:text-slate-200">{Math.min(holidayPage * holidayPageSize, filteredHolidays.length)}</strong> of <strong className="text-slate-800 dark:text-slate-200">{filteredHolidays.length}</strong> entries
-                </span>
-
-                {totalHolidayPages > 1 && (
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      disabled={holidayPage === 1}
-                      onClick={() => setHolidayPage(p => Math.max(1, p - 1))}
-                      className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer flex items-center gap-1 font-bold text-xs shadow-xs"
-                    >
-                      <ChevronLeft className="w-3.5 h-3.5" /> Prev
-                    </button>
-
-                    <div className="flex items-center gap-1">
-                      {Array.from({ length: totalHolidayPages }, (_, i) => i + 1).map(page => (
-                        <button
-                          key={page}
-                          type="button"
-                          onClick={() => setHolidayPage(page)}
-                          className={`w-8 h-8 rounded-xl font-bold text-xs transition cursor-pointer flex items-center justify-center ${
-                            holidayPage === page
-                              ? 'bg-sky-600 text-white shadow-xs'
-                              : 'border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'
-                          }`}
-                        >
-                          {page}
-                        </button>
-                      ))}
-                    </div>
-
-                    <button
-                      type="button"
-                      disabled={holidayPage === totalHolidayPages}
-                      onClick={() => setHolidayPage(p => Math.min(totalHolidayPages, p + 1))}
-                      className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer flex items-center gap-1 font-bold text-xs shadow-xs"
-                    >
-                      Next <ChevronRight className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                )}
-              </div>
+              <Pagination
+                currentPage={holidayPage}
+                totalItems={filteredHolidays.length}
+                itemsPerPage={holidayPageSize}
+                onPageChange={setHolidayPage}
+                label="entries"
+                separator="-"
+                className="pt-3"
+              />
             )}
           </div>
 
@@ -1502,8 +1445,14 @@ export const EventsView: React.FC = () => {
                   <input
                     type="date"
                     required
+                    min="2020-01-01"
+                    max="2099-12-31"
                     value={eventForm.startDate}
-                    onChange={e => setEventForm({ ...eventForm, startDate: e.target.value })}
+                    onChange={e => {
+                      const val = e.target.value;
+                      if (!isValidCalendarYear(val)) return;
+                      setEventForm({ ...eventForm, startDate: val });
+                    }}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono outline-none"
                   />
                 </div>
@@ -1512,8 +1461,14 @@ export const EventsView: React.FC = () => {
                   <input
                     type="date"
                     required
+                    min="2020-01-01"
+                    max="2099-12-31"
                     value={eventForm.endDate}
-                    onChange={e => setEventForm({ ...eventForm, endDate: e.target.value })}
+                    onChange={e => {
+                      const val = e.target.value;
+                      if (!isValidCalendarYear(val)) return;
+                      setEventForm({ ...eventForm, endDate: val });
+                    }}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono outline-none"
                   />
                 </div>
@@ -1622,8 +1577,14 @@ export const EventsView: React.FC = () => {
                   <input
                     type="date"
                     required
+                    min="2020-01-01"
+                    max="2099-12-31"
                     value={holidayForm.startDate}
-                    onChange={e => setHolidayForm({ ...holidayForm, startDate: e.target.value })}
+                    onChange={e => {
+                      const val = e.target.value;
+                      if (!isValidCalendarYear(val)) return;
+                      setHolidayForm({ ...holidayForm, startDate: val });
+                    }}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono outline-none"
                   />
                 </div>
@@ -1632,8 +1593,14 @@ export const EventsView: React.FC = () => {
                   <input
                     type="date"
                     required
+                    min="2020-01-01"
+                    max="2099-12-31"
                     value={holidayForm.endDate}
-                    onChange={e => setHolidayForm({ ...holidayForm, endDate: e.target.value })}
+                    onChange={e => {
+                      const val = e.target.value;
+                      if (!isValidCalendarYear(val)) return;
+                      setHolidayForm({ ...holidayForm, endDate: val });
+                    }}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono outline-none"
                   />
                 </div>

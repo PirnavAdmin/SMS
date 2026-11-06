@@ -51,6 +51,7 @@ import { useAuth } from "../../../context/AuthContext";
 import { useToast } from "../../../context/ToastContext";
 import { ExportButton } from "../../common/ExportButton";
 import { ConfirmModal } from "../../common/ConfirmModal";
+import { SearchableSelect } from "../../common/SearchableSelect";
 import { compareClassesAscending } from "../../../utils/classSorter";
 
 export type FeeCategoryType = string;
@@ -86,12 +87,13 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
   const [structName, setStructName] = useState("");
   const [structClass, setStructClass] = useState("");
   const [structAcademicYear, setStructAcademicYear] = useState("");
-  const [structStatus, setStructStatus] = useState<"Active" | "Inactive">("Active");
+  const [structStatus, setStructStatus] = useState<"Active" | "Inactive" | "">("");
   const [structItems, setStructItems] = useState<FeeStructureItem[]>([]);
 
   // Fee Head Selector State inside Modal
   const [selectedFeeHeadId, setSelectedFeeHeadId] = useState("");
   const [feeHeadInputAmount, setFeeHeadInputAmount] = useState("");
+  const [amountError, setAmountError] = useState(false);
 
   // Sorted Academic Classes for dropdowns
   const sortedClasses = useMemo(
@@ -154,20 +156,14 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
   // Open modal for Create
   const handleOpenAdd = () => {
     setEditingStruct(null);
-    const initialAy =
-      selectedAcademicYear ||
-      (academicYears && (academicYears[0]?.academicYear || (academicYears[0] as any)?.name)) ||
-      (academicYears && (academicYears.find((ay: any) => ay.isCurrent || ay.isCurrentAcademicYear || ay.status === 'Active')?.academicYear || (academicYears[0] as any)?.academicYear || (academicYears[0] as any)?.name)) ||
-      "";
-
-    const defaultClass = sortedClasses[0]?.name || "";
-    setStructClass(defaultClass);
-    setStructName(defaultClass ? `${defaultClass} Fee Structure` : "General Fee Structure");
-    setStructAcademicYear(initialAy);
-    setStructStatus("Active");
+    setStructClass("");
+    setStructName("");
+    setStructAcademicYear("");
+    setStructStatus("");
     setStructItems([]);
-    setSelectedFeeHeadId(activeFeeHeads[0]?.id || "");
+    setSelectedFeeHeadId("");
     setFeeHeadInputAmount("");
+    setAmountError(false);
     setIsModalOpen(true);
   };
 
@@ -186,8 +182,9 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
       return (iId && activeHeadIds.has(iId)) || (iName && activeHeadNames.has(iName));
     });
     setStructItems(validItems);
-    setSelectedFeeHeadId(activeFeeHeads[0]?.id || "");
+    setSelectedFeeHeadId("");
     setFeeHeadInputAmount("");
+    setAmountError(false);
     setIsModalOpen(true);
   };
 
@@ -196,7 +193,7 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
     setStructClass(newClass);
     // Auto-update structure name if it was empty or default
     if (!structName || structName.includes("Fee Structure")) {
-      setStructName(newClass ? `${newClass} Fee Structure` : "General Fee Structure");
+      setStructName(newClass ? `${newClass} Fee Structure` : "");
     }
   };
 
@@ -213,11 +210,20 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
       return;
     }
 
+    if (!feeHeadInputAmount || !feeHeadInputAmount.trim()) {
+      setAmountError(true);
+      addToast("warning", "Amount Required", "Amount is required. Please enter an amount.");
+      return;
+    }
+
     const amt = parseFloat(feeHeadInputAmount);
     if (isNaN(amt) || amt <= 0) {
+      setAmountError(true);
       addToast("warning", "Invalid Amount", "Please enter a valid fee amount greater than 0.");
       return;
     }
+
+    setAmountError(false);
 
     // Check if fee head is already in the list
     const existingIndex = structItems.findIndex(
@@ -256,8 +262,10 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
       addToast("success", "Fee Head Added", `Added ${head.name} (${formatCurrency(amt)}) to structure.`);
     }
 
-    // Clear amount input
+    // Clear selection and amount input
+    setSelectedFeeHeadId("");
     setFeeHeadInputAmount("");
+    setAmountError(false);
   };
 
   // Remove Fee Head item from structure
@@ -285,6 +293,21 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
 
     if (!structClass.trim()) {
       addToast("warning", "Class Required", "Please select a Class Grade.");
+      return;
+    }
+
+    if (!structName.trim()) {
+      addToast("warning", "Structure Name Required", "Please enter a Structure Name.");
+      return;
+    }
+
+    if (!structAcademicYear.trim()) {
+      addToast("warning", "Academic Year Required", "Please select an Academic Year.");
+      return;
+    }
+
+    if (!structStatus) {
+      addToast("warning", "Status Required", "Please select a Status.");
       return;
     }
 
@@ -392,7 +415,7 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
       </div>
 
       {/* Filter Bar */}
-      <div className="glass-card p-4 rounded-2xl grid grid-cols-1 sm:grid-cols-12 gap-3">
+      <div className="glass-card p-4 rounded-2xl grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
         {/* Search */}
         <div className="sm:col-span-6 relative">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
@@ -407,31 +430,33 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
 
         {/* Class Filter */}
         <div className="sm:col-span-3">
-          <select
+          <SearchableSelect
+            options={[
+              { value: "All", label: "All Class Grades" },
+              ...sortedClasses.map((c) => ({ value: c.name, label: c.name })),
+            ]}
             value={selectedClassFilter}
-            onChange={(e) => setSelectedClassFilter(e.target.value)}
-            className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none cursor-pointer"
-          >
-            <option value="All">All Class Grades</option>
-            {sortedClasses.map((c) => (
-              <option key={c.id} value={c.name}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+            onChange={(val) => setSelectedClassFilter(val)}
+            placeholder="All Class Grades"
+            searchPlaceholder="Search class..."
+            variant="sky"
+          />
         </div>
 
         {/* Status Filter */}
         <div className="sm:col-span-3">
-          <select
+          <SearchableSelect
+            options={[
+              { value: "All", label: "All Statuses" },
+              { value: "Active", label: "Active" },
+              { value: "Inactive", label: "Inactive" },
+            ]}
             value={selectedStatusFilter}
-            onChange={(e) => setSelectedStatusFilter(e.target.value)}
-            className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none cursor-pointer"
-          >
-            <option value="All">All Statuses</option>
-            <option value="Active">Active</option>
-            <option value="Inactive">Inactive</option>
-          </select>
+            onChange={(val) => setSelectedStatusFilter(val)}
+            placeholder="All Statuses"
+            showSearch={false}
+            variant="sky"
+          />
         </div>
       </div>
 
@@ -620,6 +645,7 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
                     onChange={(e) => setStructAcademicYear(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-semibold outline-none text-xs cursor-pointer"
                   >
+                    <option value="">Select Academic Year</option>
                     {academicYears && academicYears.length > 0 ? (
                       academicYears.map((ay) => {
                         const yr = ay.academicYear || (ay as any).name;
@@ -630,20 +656,21 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
                         );
                       })
                     ) : (
-                      <option value={structAcademicYear}>{structAcademicYear || selectedAcademicYear || "Select Academic Year"}</option>
+                      <option value={structAcademicYear}>{structAcademicYear || "Select Academic Year"}</option>
                     )}
                   </select>
                 </div>
 
                 <div>
                   <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
-                    Status
+                    Status <span className="text-rose-500">*</span>
                   </label>
                   <select
                     value={structStatus}
                     onChange={(e) => setStructStatus(e.target.value as "Active" | "Inactive")}
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-semibold outline-none text-xs cursor-pointer"
                   >
+                    <option value="">Select Status</option>
                     <option value="Active">Active</option>
                     <option value="Inactive">Inactive</option>
                   </select>
@@ -676,14 +703,14 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
                       {/* Fee Head Dropdown */}
                       <div className="sm:col-span-7">
                         <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                          Select Fee Head
+                          Select Fee Head <span className="text-rose-500">*</span>
                         </label>
                         <select
                           value={selectedFeeHeadId}
                           onChange={(e) => setSelectedFeeHeadId(e.target.value)}
                           className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border text-xs font-semibold outline-none cursor-pointer"
                         >
-                          <option value="">-- Choose Fee Head --</option>
+                          <option value="">Select Fee Head</option>
                           {activeFeeHeads.map((head) => (
                             <option key={head.id} value={head.id}>
                               {head.name} {head.code ? `(${head.code})` : ""} • {getFeeHeadDisplayFrequency(head)}
@@ -695,20 +722,27 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
                       {/* Amount Input */}
                       <div className="sm:col-span-3">
                         <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                          Amount (₹)
+                          Amount (₹) <span className="text-rose-500">*</span>
                         </label>
                         <input
                           type="number"
                           placeholder="0.00"
                           value={feeHeadInputAmount}
-                          onChange={(e) => setFeeHeadInputAmount(e.target.value)}
+                          onChange={(e) => {
+                            setFeeHeadInputAmount(e.target.value);
+                            if (amountError) setAmountError(false);
+                          }}
                           onKeyDown={(e) => {
                             if (e.key === "Enter") {
                               e.preventDefault();
                               handleAddFeeHead();
                             }
                           }}
-                          className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border font-mono font-bold text-xs outline-none text-right"
+                          className={`w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border font-mono font-bold text-xs outline-none text-right transition-colors ${
+                            amountError
+                              ? "border-rose-500 ring-2 ring-rose-500/20 text-rose-600 dark:text-rose-400"
+                              : "border-slate-200 dark:border-slate-700"
+                          }`}
                         />
                       </div>
 
@@ -717,7 +751,8 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
                         <button
                           type="button"
                           onClick={handleAddFeeHead}
-                          className="w-full py-2 px-3 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs flex items-center justify-center gap-1 shadow-md shadow-sky-500/20 transition-all cursor-pointer"
+                          disabled={!selectedFeeHeadId || !feeHeadInputAmount || parseFloat(feeHeadInputAmount) <= 0}
+                          className="w-full py-2 px-3 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs flex items-center justify-center gap-1 shadow-md shadow-sky-500/20 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <Plus className="w-3.5 h-3.5" /> Add
                         </button>

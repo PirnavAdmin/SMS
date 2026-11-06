@@ -11,6 +11,7 @@ interface ExportButtonProps<T> {
   className?: string;
   label?: string;
   emptyMessage?: string;
+  disabled?: boolean;
 }
 
 export function ExportButton<T extends Record<string, any>>({
@@ -20,14 +21,18 @@ export function ExportButton<T extends Record<string, any>>({
   className = "",
   label = "Download",
   emptyMessage = "No data available to export. Please select filters or load data first.",
+  disabled,
 }: ExportButtonProps<T>) {
   const [isDownloading, setIsDownloading] = useState(false);
   const { addToast } = useToast();
 
-  const handleExportExcel = () => {
-    if (isDownloading) return;
+  const isDataEmpty = !data || data.length === 0;
+  const isButtonDisabled = disabled !== undefined ? disabled : (isDownloading || isDataEmpty);
 
-    if (!data || data.length === 0) {
+  const handleExportExcel = () => {
+    if (isButtonDisabled) return;
+
+    if (isDataEmpty) {
       if (addToast) {
         addToast(
           "warning",
@@ -64,14 +69,14 @@ export function ExportButton<T extends Record<string, any>>({
   };
 
   const defaultClasses =
-    "px-4 py-2.5 flex items-center gap-2 rounded-xl text-xs font-bold bg-emerald-50 dark:bg-emerald-500/10 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 transition-all shadow-xs border border-emerald-200/50 dark:border-emerald-500/20 disabled:opacity-75 disabled:cursor-not-allowed";
+    "px-4 py-2.5 flex items-center gap-2 rounded-xl text-xs font-bold bg-emerald-50 dark:bg-emerald-500/10 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 transition-all shadow-xs border border-emerald-200/50 dark:border-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer";
 
   return (
     <button
       onClick={handleExportExcel}
-      disabled={isDownloading}
+      disabled={isButtonDisabled}
       className={className || defaultClasses}
-      title="Download Excel Report"
+      title={isDataEmpty ? "No data available to export" : "Download Excel Report"}
     >
       {isDownloading ? (
         <Loader2 className="w-4 h-4 animate-spin text-emerald-600 dark:text-emerald-400" />
