@@ -10,6 +10,7 @@ export interface PaginationProps {
   onItemsPerPageChange?: (perPage: number) => void;
   itemsPerPageOptions?: number[];
   label?: string;
+  separator?: string;
   className?: string;
   showBorder?: boolean;
 }
@@ -23,6 +24,7 @@ export const Pagination: React.FC<PaginationProps> = ({
   onItemsPerPageChange,
   itemsPerPageOptions = [10, 25, 50, 100],
   label = 'records',
+  separator = 'to',
   className = '',
   showBorder = true,
 }) => {
@@ -63,9 +65,9 @@ export const Pagination: React.FC<PaginationProps> = ({
 
   return (
     <div className={`flex flex-col sm:flex-row items-center justify-between gap-3 ${hasPt ? 'pt-3.5' : ''} ${hasPb ? 'pb-1' : ''} select-none ${hasBorder ? 'border-t border-slate-200/80 dark:border-slate-800/80' : ''} no-print print:hidden flex-wrap ${className}`}>
-      {/* Left side: Showing X to Y of Z records */}
-      <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 shrink-0">
-        Showing <span className="font-black text-slate-800 dark:text-slate-200">{startItem}</span> to{' '}
+      {/* Left side: Showing X to/– Y of Z records */}
+      <div className="text-xs font-semibold text-slate-500 dark:text-slate-400 shrink-0 whitespace-nowrap">
+        Showing <span className="font-black text-slate-800 dark:text-slate-200">{startItem}</span> {separator}{' '}
         <span className="font-black text-slate-800 dark:text-slate-200">{endItem}</span> of{' '}
         <span className="font-black text-slate-800 dark:text-slate-200">{totalItems}</span> {label}
       </div>
@@ -147,4 +149,3 @@ export const Pagination: React.FC<PaginationProps> = ({
     </div>
   );
 };
-
