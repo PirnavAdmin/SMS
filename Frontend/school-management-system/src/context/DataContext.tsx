@@ -4323,7 +4323,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     }
     const promise = (async () => {
       try {
-        const json = await fetchAdmissionsApi();
+        const json = await fetchAdmissionsApi({ branch: selectedBranch, academicYear: selectedAcademicYear });
         if (json && json.success && json.data) {
           if (json.data.length === 0) {
             addToast(
@@ -4519,6 +4519,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                   new Date().toISOString(),
                 branch:
                   item.branch || item.branchName || existing?.branch || "",
+                academicYear:
+                  item.academicYear || item.academic_year || existing?.academicYear || "",
                 avatar: item.avatar || existing?.avatar || "",
                 scholarshipId:
                   item.scholarshipId ||
@@ -6868,6 +6870,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           try {
             localStorage.setItem("edu_db_profile", JSON.stringify(next));
             localStorage.setItem("profile", JSON.stringify(next));
+            localStorage.setItem("school_name", next.name || "");
             localStorage.setItem("school_logo", next.logoUrl || "");
             localStorage.setItem("logoUrl", next.logoUrl || "");
             localStorage.setItem("schoolLogo", next.logoUrl || "");
@@ -26106,6 +26109,28 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
       // Check academic year
       let ayMatch = true;
+      if (selectedAcademicYear && selectedAcademicYear !== "All") {
+        if (anyItem.academicYear && anyItem.academicYear !== "All") {
+          const selClean = selectedAcademicYear.replace(/[^0-9]/g, "");
+          const itemClean = String(anyItem.academicYear).replace(/[^0-9]/g, "");
+          if (selClean && itemClean) {
+            const selStart = selClean.slice(0, 4);
+            const itemStart = itemClean.slice(0, 4);
+            ayMatch =
+              selClean === itemClean ||
+              selStart === itemStart ||
+              anyItem.academicYear === selectedAcademicYear;
+          } else {
+            ayMatch = anyItem.academicYear === selectedAcademicYear;
+          }
+        } else if (anyItem.appliedClass || anyItem.applicationNo || anyItem.registrationNo || anyItem.studentId) {
+          ayMatch = false;
+        }
+      }
+      return branchMatch && ayMatch;
+    });
+  };
+  /* const _unusedFilter = () => {
       if (
         selectedAcademicYear &&
         selectedAcademicYear !== "All" &&
@@ -26130,6 +26155,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     });
   };
 
+  */
   const filteredStudents = useMemo(() => {
     return filterByBranch(students);
   }, [students, selectedBranch, selectedAcademicYear]);
