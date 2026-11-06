@@ -222,7 +222,7 @@ public class SchoolRepository : ISchoolRepository
     public void RemoveClassGrade(ClassGrade classGrade) => _context.Classes.Remove(classGrade);
 
     // --- ADMISSIONS ---
-    public async Task<List<AdmissionApplication>> GetAllApplicationsAsync(string? search, string? branch, int? classId, string? status)
+    public async Task<List<AdmissionApplication>> GetAllApplicationsAsync(string? search, string? branch, int? classId, string? status, string? academicYear = null)
     {
         var query = _context.AdmissionApplications
             .AsNoTracking()
@@ -230,8 +230,25 @@ public class SchoolRepository : ISchoolRepository
             .Where(a => !a.IsDeleted && a.Status != "Deleted")
             .AsQueryable();
 
-        if (!string.IsNullOrWhiteSpace(branch) && !branch.Equals("All Branches", System.StringComparison.OrdinalIgnoreCase))
-            query = query.Where(a => a.BranchName != null && a.BranchName.ToLower() == branch.ToLower());
+        if (!string.IsNullOrWhiteSpace(branch) && !branch.Equals("All Branches", System.StringComparison.OrdinalIgnoreCase) && !branch.Equals("All", System.StringComparison.OrdinalIgnoreCase))
+        {
+            if (int.TryParse(branch, out int bId))
+            {
+                var bObj = _context.Branches.FirstOrDefault(b => b.BranchId == bId);
+                if (bObj != null) branch = bObj.BranchName;
+            }
+            query = query.Where(a => a.BranchName != null && (a.BranchName.ToLower() == branch.ToLower() || a.BranchName.ToLower().Contains(branch.ToLower()) || branch.ToLower().Contains(a.BranchName.ToLower())));
+        }
+
+        if (!string.IsNullOrWhiteSpace(academicYear) && !academicYear.Equals("All", System.StringComparison.OrdinalIgnoreCase))
+        {
+            var cleanYear = academicYear.Trim().ToLower().Replace(" ", "");
+            var startYear = cleanYear.Length >= 4 ? cleanYear.Substring(0, 4) : cleanYear;
+            query = query.Where(a => 
+                (a.AcademicYear != null && (a.AcademicYear.ToLower().Replace(" ", "") == cleanYear || a.AcademicYear.ToLower().Replace(" ", "").Contains(cleanYear) || cleanYear.Contains(a.AcademicYear.ToLower().Replace(" ", "")) || a.AcademicYear.StartsWith(startYear))) ||
+                (a.AppliedClass != null && a.AppliedClass.AcademicYear != null && (a.AppliedClass.AcademicYear.ToLower().Replace(" ", "") == cleanYear || a.AppliedClass.AcademicYear.ToLower().Replace(" ", "").Contains(cleanYear) || cleanYear.Contains(a.AppliedClass.AcademicYear.ToLower().Replace(" ", "")) || a.AppliedClass.AcademicYear.StartsWith(startYear)))
+            );
+        }
 
         if (classId.HasValue && classId.Value > 0)
             query = query.Where(a => a.AppliedClassId == classId.Value);

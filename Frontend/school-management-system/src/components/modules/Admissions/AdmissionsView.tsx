@@ -1627,8 +1627,25 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
   }, []);
 
   const unifiedAdmissions = useMemo(() => {
-    return admissions || [];
-  }, [admissions]);
+    return (admissions || []).filter((a) => {
+      if (!a) return false;
+      if (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches") {
+        const b = (a.branch || (a as any).branchName || "").toLowerCase().trim();
+        if (b && b !== selectedBranch.toLowerCase().trim() && !b.includes(selectedBranch.toLowerCase().trim()) && !selectedBranch.toLowerCase().trim().includes(b)) {
+          return false;
+        }
+      }
+      if (selectedAcademicYear && selectedAcademicYear !== "All") {
+        const ay = (a.academicYear || (a as any).year || "").toLowerCase().replace(/\s+/g, "");
+        const targetAy = selectedAcademicYear.toLowerCase().replace(/\s+/g, "");
+        const startTarget = targetAy.length >= 4 ? targetAy.substring(0, 4) : targetAy;
+        if (ay && ay !== targetAy && !ay.includes(targetAy) && !targetAy.includes(ay) && !ay.startsWith(startTarget)) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [admissions, selectedBranch, selectedAcademicYear]);
 
   const dynamicClassOptions = useMemo(() => {
     const fromMaster = (academicClasses || [])
@@ -2793,6 +2810,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           securityDepositTxnId: formData.securityDepositTxnId || depositTxnId,
           securityDepositDate: formData.securityDepositDate || depositDate,
           branch: formData.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" && dynamicCampuses.includes(selectedBranch) ? selectedBranch : "") || (dynamicCampuses[0] || ""),
+          academicYear: formData.academicYear || selectedAcademicYear || "2026-27",
           scholarshipId: formData.scholarshipId,
           discountId: formData.discountId,
           selectedOptionalFees: formData.selectedOptionalFees || [],

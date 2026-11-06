@@ -4613,7 +4613,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     })();
     activeRequests.current["admissions"] = promise;
     return promise;
-  }, [addToast]);
+  }, [addToast, selectedBranch, selectedAcademicYear]);
 
   const fetchDepartments = useCallback(async () => {
     try {

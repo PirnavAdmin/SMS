@@ -44,7 +44,7 @@ public interface ISchoolService
     Task<bool> DeleteClassGradeAsync(int id);
 
     // Admission Application Operations
-    Task<List<AdmissionApplicationResponseDto>> GetAllApplicationsAsync(string? search, string? branch, int? classId, string? status);
+    Task<List<AdmissionApplicationResponseDto>> GetAllApplicationsAsync(string? search, string? branch, int? classId, string? status, string? academicYear = null);
     Task<AdmissionApplicationResponseDto> GetApplicationByIdAsync(int id);
     Task<AdmissionApplicationResponseDto?> GetApplicationByIdentifierAsync(string identifier);
     Task<AdmissionApplicationResponseDto> SubmitApplicationAsync(SubmitAdmissionDto dto);

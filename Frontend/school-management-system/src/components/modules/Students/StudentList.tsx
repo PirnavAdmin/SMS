@@ -360,7 +360,13 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
       : classOverviewList.reduce((acc, c) => acc + c.totalClassStudents, 0);
 
     const inactiveStudentsCount = displayStudents.filter(s => s.status === 'Inactive').length;
-    const newAdmissions = Math.round(totalActiveStudents * 0.045) || (totalActiveStudents > 0 ? Math.max(1, Math.round(totalActiveStudents * 0.08)) : 0);
+    const newAdmissions = (admissions || []).filter(a => {
+      if (!a || a.status === 'Deleted' || (a as any).isDeleted) return false;
+      const isBranchMatch = !selectedBranch || selectedBranch === 'All' || selectedBranch === 'All Branches' || 
+        (a.branch || (a as any).branchName || '').toLowerCase() === selectedBranch.toLowerCase();
+      const st = (a.status || '').toLowerCase().trim();
+      return isBranchMatch && (st === 'enrolled' || st === 'admitted' || st === 'pending');
+    }).length;
 
     return {
       totalClasses,
@@ -369,7 +375,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
       inactiveStudentsCount,
       newAdmissions
     };
-  }, [classOverviewList, displayStudents, selectedBranch]);
+  }, [classOverviewList, displayStudents, selectedBranch, admissions]);
 
   // Landing Page Filter States
   const [searchClassQuery, setSearchClassQuery] = useState('');

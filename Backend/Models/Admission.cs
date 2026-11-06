@@ -38,6 +38,9 @@ public class Admission
     [Column("branch_id")]
     public long BranchId { get; set; } = 1;
 
+    [Column("academic_year")]
+    public string? AcademicYear { get; set; }
+
     [Column("class_id")]
     public int? ClassId { get; set; }
 
