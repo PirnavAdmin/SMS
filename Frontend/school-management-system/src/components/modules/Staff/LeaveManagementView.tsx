@@ -349,9 +349,38 @@ export const LeaveManagementView: React.FC = () => {
   const [balanceCurrentPage, setBalanceCurrentPage] = useState(1);
   const [balancePageSize, setBalancePageSize] = useState(10);
 
+  // Pagination states for all other tabs
+  const [appsCurrentPage, setAppsCurrentPage] = useState(1);
+  const [appsPageSize, setAppsPageSize] = useState(8);
+
+  const [queueCurrentPage, setQueueCurrentPage] = useState(1);
+  const [queuePageSize, setQueuePageSize] = useState(8);
+
+  const [typesCurrentPage, setTypesCurrentPage] = useState(1);
+  const [typesPageSize, setTypesPageSize] = useState(6);
+
+  const [holidaysCurrentPage, setHolidaysCurrentPage] = useState(1);
+  const [holidaysPageSize, setHolidaysPageSize] = useState(8);
+
   useEffect(() => {
     setBalanceCurrentPage(1);
   }, [query, balanceCategoryFilter, selectedBranch]);
+
+  useEffect(() => {
+    setAppsCurrentPage(1);
+  }, [query, filterCategory, filterStatus, filterType, selectedBranch]);
+
+  useEffect(() => {
+    setQueueCurrentPage(1);
+  }, [selectedBranch]);
+
+  useEffect(() => {
+    setTypesCurrentPage(1);
+  }, [selectedBranch]);
+
+  useEffect(() => {
+    setHolidaysCurrentPage(1);
+  }, [selectedBranch]);
 
   const filteredStaffForBalance = useMemo(() => {
     if (isSelfServiceStaff) {
@@ -399,6 +428,48 @@ export const LeaveManagementView: React.FC = () => {
     const start = (balanceCurrentPage - 1) * balancePageSize;
     return filteredStaffForBalance.slice(start, start + balancePageSize);
   }, [filteredStaffForBalance, balanceCurrentPage, balancePageSize]);
+
+  // Memoized applications list & pagination
+  const filteredApplicationsList = useMemo(() => {
+    const baseApps = isSelfServiceStaff ? myApplications : campusApplications;
+    return baseApps.filter(app => {
+      const qClean = query.trim().toLowerCase();
+      const nameMatch = !qClean || 
+        app.employeeName.toLowerCase().includes(qClean) ||
+        (app.empId && app.empId.toLowerCase().includes(qClean));
+      const catMatch = filterCategory === 'All' || app.employeeCategory === filterCategory;
+      const statusMatch = filterStatus === 'All' || (app.status || '').toLowerCase() === filterStatus.toLowerCase();
+      const typeMatch = filterType === 'All' || app.leaveTypeName === filterType;
+      return nameMatch && catMatch && statusMatch && typeMatch;
+    });
+  }, [isSelfServiceStaff, myApplications, campusApplications, query, filterCategory, filterStatus, filterType]);
+
+  const paginatedApplicationsList = useMemo(() => {
+    const start = (appsCurrentPage - 1) * appsPageSize;
+    return filteredApplicationsList.slice(start, start + appsPageSize);
+  }, [filteredApplicationsList, appsCurrentPage, appsPageSize]);
+
+  // Memoized queue pending list & pagination
+  const pendingQueueApps = useMemo(() => {
+    return campusApplications.filter(app => (app.status || '').toLowerCase() === 'pending');
+  }, [campusApplications]);
+
+  const paginatedQueueApps = useMemo(() => {
+    const start = (queueCurrentPage - 1) * queuePageSize;
+    return pendingQueueApps.slice(start, start + queuePageSize);
+  }, [pendingQueueApps, queueCurrentPage, queuePageSize]);
+
+  // Memoized leave types pagination
+  const paginatedLeaveTypes = useMemo(() => {
+    const start = (typesCurrentPage - 1) * typesPageSize;
+    return activeLeaveTypes.slice(start, start + typesPageSize);
+  }, [activeLeaveTypes, typesCurrentPage, typesPageSize]);
+
+  // Memoized holidays pagination
+  const paginatedHolidays = useMemo(() => {
+    const start = (holidaysCurrentPage - 1) * holidaysPageSize;
+    return holidays.slice(start, start + holidaysPageSize);
+  }, [holidays, holidaysCurrentPage, holidaysPageSize]);
 
   // Modals / Drawer triggers
   const [isApplyOpen, setIsApplyOpen] = useState(false);
@@ -1197,10 +1268,10 @@ export const LeaveManagementView: React.FC = () => {
 
       {/* Dashboard Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border shadow-sm">
-          <span className="text-[10px] uppercase font-bold text-brand-500">Approved Leaves</span>
+        <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-sky-400 dark:border-sky-600 shadow-xs">
+          <span className="text-[10px] uppercase font-bold text-sky-500 dark:text-sky-400">Approved Leaves</span>
           <div className="flex items-baseline gap-2 mt-1">
-            <p className="text-lg font-black text-brand-600">
+            <p className="text-lg font-black text-sky-600 dark:text-sky-400">
               {approvedDays} {approvedDays === 1 ? 'Day' : 'Days'}
             </p>
             <span className="text-xs text-slate-400 font-semibold">
@@ -1208,10 +1279,10 @@ export const LeaveManagementView: React.FC = () => {
             </span>
           </div>
         </div>
-        <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border shadow-sm">
-          <span className="text-[10px] uppercase font-bold text-amber-500">Pending Approvals</span>
+        <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-amber-400 dark:border-amber-600 shadow-xs">
+          <span className="text-[10px] uppercase font-bold text-amber-500 dark:text-amber-400">Pending Approvals</span>
           <div className="flex items-baseline gap-2 mt-1">
-            <p className="text-lg font-black text-amber-600">
+            <p className="text-lg font-black text-amber-600 dark:text-amber-400">
               {pendingCount} {pendingCount === 1 ? 'Application' : 'Applications'}
             </p>
             {pendingDays > 0 && (
@@ -1221,10 +1292,10 @@ export const LeaveManagementView: React.FC = () => {
             )}
           </div>
         </div>
-        <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border shadow-sm">
-          <span className="text-[10px] uppercase font-bold text-rose-500">Rejected / Cancelled</span>
+        <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-rose-400 dark:border-rose-600 shadow-xs">
+          <span className="text-[10px] uppercase font-bold text-rose-500 dark:text-rose-400">Rejected / Cancelled</span>
           <div className="flex items-baseline gap-2 mt-1">
-            <p className="text-lg font-black text-rose-600">
+            <p className="text-lg font-black text-rose-600 dark:text-rose-400">
               {rejectedDays} {rejectedDays === 1 ? 'Day' : 'Days'}
             </p>
             <span className="text-xs text-slate-400 font-semibold">
@@ -1235,12 +1306,12 @@ export const LeaveManagementView: React.FC = () => {
       </div>
 
       {/* Internal Tabs Layout */}
-      <div className="flex items-center gap-1 overflow-x-auto no-scrollbar border-b border-slate-200 dark:border-slate-800 py-1">
+      <div className="flex items-center gap-1 overflow-x-auto no-scrollbar border-b border-sky-100 dark:border-sky-900/50 py-1">
         {hasApprovalPermission && (
           <button
             onClick={() => setActiveTab('queue')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all relative ${
-              activeTab === 'queue' ? 'bg-brand-50 dark:bg-brand-950 text-brand-600 dark:text-brand-400' : 'text-slate-500 hover:bg-slate-50'
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all relative cursor-pointer ${
+              activeTab === 'queue' ? 'bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 border border-sky-200 dark:border-sky-800' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 border border-transparent'
             }`}
           >
             Approval Queue
@@ -1253,8 +1324,8 @@ export const LeaveManagementView: React.FC = () => {
         )}
         <button
           onClick={() => setActiveTab('applications')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-            activeTab === 'applications' ? 'bg-brand-50 dark:bg-brand-950 text-brand-600 dark:text-brand-400' : 'text-slate-500 hover:bg-slate-50'
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            activeTab === 'applications' ? 'bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 border border-sky-200 dark:border-sky-800' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 border border-transparent'
           }`}
         >
           Leave Applications
@@ -1262,8 +1333,8 @@ export const LeaveManagementView: React.FC = () => {
         {hasApprovalPermission && (
           <button
             onClick={() => setActiveTab('types')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-              activeTab === 'types' ? 'bg-brand-50 dark:bg-brand-950 text-brand-600 dark:text-brand-400' : 'text-slate-500 hover:bg-slate-50'
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              activeTab === 'types' ? 'bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 border border-sky-200 dark:border-sky-800' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 border border-transparent'
             }`}
           >
             Leave Types
@@ -1271,8 +1342,8 @@ export const LeaveManagementView: React.FC = () => {
         )}
         <button
           onClick={() => setActiveTab('balance')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-            activeTab === 'balance' ? 'bg-brand-50 dark:bg-brand-950 text-brand-600 dark:text-brand-400' : 'text-slate-500 hover:bg-slate-50'
+          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            activeTab === 'balance' ? 'bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 border border-sky-200 dark:border-sky-800' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 border border-transparent'
           }`}
         >
           Leave Balance
@@ -1283,7 +1354,7 @@ export const LeaveManagementView: React.FC = () => {
       {activeTab === 'applications' && (
         <div className="space-y-4">
           {/* Advanced Filter Header */}
-          <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-sky-200 dark:border-sky-800 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div className="w-full sm:w-64">
               <div className="relative w-full">
                 <Search className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 transition-colors ${searchError ? 'text-rose-500' : 'text-slate-400'}`} />
@@ -1365,11 +1436,11 @@ export const LeaveManagementView: React.FC = () => {
           </div>
 
           {/* Applications list table */}
-          <div className="glass-card rounded-2xl overflow-hidden border">
+          <div className="glass-card rounded-2xl overflow-hidden border border-sky-200 dark:border-sky-800 bg-white dark:bg-slate-900 shadow-xs">
             <div className="overflow-x-auto">
               <table className="w-full text-center border-collapse text-xs">
                 <thead>
-                  <tr className="bg-slate-50 text-slate-500 font-bold uppercase border-b">
+                  <tr className="bg-slate-50 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-bold uppercase border-b border-sky-100 dark:border-sky-900/50">
                     <th className="py-3.5 px-4 text-center whitespace-nowrap">S.No.</th>
                     <th className="py-3.5 px-4 text-center whitespace-nowrap">Employee</th>
                     <th className="py-3.5 px-4 text-center whitespace-nowrap">Emp ID</th>
@@ -1382,62 +1453,47 @@ export const LeaveManagementView: React.FC = () => {
                     <th className="py-3.5 px-4 text-center whitespace-nowrap">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y font-medium">
-                  {(() => {
-                    const baseApps = isSelfServiceStaff ? myApplications : campusApplications;
-                    const filteredList = baseApps.filter(app => {
-                      const qClean = query.trim().toLowerCase();
-                      const nameMatch = !qClean || 
-                        app.employeeName.toLowerCase().includes(qClean) ||
-                        (app.empId && app.empId.toLowerCase().includes(qClean));
-                      const catMatch = filterCategory === 'All' || app.employeeCategory === filterCategory;
-                      const statusMatch = filterStatus === 'All' || (app.status || '').toLowerCase() === filterStatus.toLowerCase();
-                      const typeMatch = filterType === 'All' || app.leaveTypeName === filterType;
-                      return nameMatch && catMatch && statusMatch && typeMatch;
-                    });
-
-                    if (filteredList.length === 0) {
-                      if (query.trim()) {
-                        return (
-                          <tr>
-                            <td colSpan={10} className="py-12 text-center">
-                              <div className="flex flex-col items-center justify-center gap-2 max-w-sm mx-auto">
-                                <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400">
-                                  <Search className="w-5 h-5" />
-                                </div>
-                                <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
-                                  No matching records found
-                                </p>
-                                <p className="text-xs text-slate-500 dark:text-slate-400">
-                                  No leave applications match &ldquo;<span className="font-semibold text-slate-700 dark:text-slate-200">{query.trim()}</span>&rdquo;. Please check your spelling or adjust your filters.
-                                </p>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setQuery('');
-                                    setSearchError(undefined);
-                                  }}
-                                  className="mt-1 text-xs font-bold text-brand-600 hover:text-brand-700 underline cursor-pointer"
-                                >
-                                  Clear Search
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      }
-                      return (
-                        <tr>
-                          <td colSpan={10} className="py-12 text-center text-slate-400 font-bold italic">
-                            No leave applications found. Click "+ Apply for Leave" above to file a new leave request.
-                          </td>
-                        </tr>
-                      );
-                    }
-
-                    return filteredList.map((app, idx) => (
+                <tbody className="divide-y divide-sky-100/60 dark:divide-sky-900/30 font-medium">
+                  {filteredApplicationsList.length === 0 ? (
+                    query.trim() ? (
+                      <tr>
+                        <td colSpan={10} className="py-12 text-center">
+                          <div className="flex flex-col items-center justify-center gap-2 max-w-sm mx-auto">
+                            <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400">
+                              <Search className="w-5 h-5" />
+                            </div>
+                            <p className="text-sm font-bold text-slate-800 dark:text-slate-200">
+                              No matching records found
+                            </p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">
+                              No leave applications match &ldquo;<span className="font-semibold text-slate-700 dark:text-slate-200">{query.trim()}</span>&rdquo;. Please check your spelling or adjust your filters.
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setQuery('');
+                                setSearchError(undefined);
+                              }}
+                              className="mt-1 text-xs font-bold text-brand-600 hover:text-brand-700 underline cursor-pointer"
+                            >
+                              Clear Search
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : (
+                      <tr>
+                        <td colSpan={10} className="py-12 text-center text-slate-400 font-bold italic">
+                          No leave applications found. Click "+ Apply for Leave" above to file a new leave request.
+                        </td>
+                      </tr>
+                    )
+                  ) : (
+                    paginatedApplicationsList.map((app, idx) => (
                       <tr key={app.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                        <td className="py-3.5 px-4 font-mono font-bold text-slate-500 text-center whitespace-nowrap">{idx + 1}</td>
+                        <td className="py-3.5 px-4 font-mono font-bold text-slate-500 text-center whitespace-nowrap">
+                          {(appsCurrentPage - 1) * appsPageSize + idx + 1}
+                        </td>
                         <td className="py-3.5 px-4 font-bold text-slate-800 dark:text-slate-100 text-center whitespace-nowrap">{app.employeeName}</td>
                         <td className="py-3.5 px-4 font-mono text-center whitespace-nowrap">{app.empId}</td>
                         <td className="py-3.5 px-4 text-center whitespace-nowrap">{app.department}</td>
@@ -1478,11 +1534,27 @@ export const LeaveManagementView: React.FC = () => {
                           </div>
                         </td>
                       </tr>
-                    ));
-                  })()}
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
+
+            {/* Neat Table Footer with Integrated Pagination */}
+            {filteredApplicationsList.length > 0 && (
+              <div className="px-5 py-3.5 border-t border-sky-100 dark:border-sky-900/40 bg-slate-50/60 dark:bg-slate-900/40 rounded-b-2xl">
+                <Pagination
+                  currentPage={appsCurrentPage}
+                  totalItems={filteredApplicationsList.length}
+                  itemsPerPage={appsPageSize}
+                  onPageChange={setAppsCurrentPage}
+                  onItemsPerPageChange={(n) => { setAppsPageSize(n); setAppsCurrentPage(1); }}
+                  showBorder={false}
+                  className="pt-0 pb-0"
+                  label="applications"
+                />
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1494,15 +1566,15 @@ export const LeaveManagementView: React.FC = () => {
             <h3 className="text-sm font-extrabold uppercase text-slate-400 tracking-wider">Leave Category Configuration</h3>
             <button
               onClick={() => { setEditingType(null); setIsTypeModalOpen(true); }}
-              className="px-3 py-1.5 bg-brand-600 text-white font-bold rounded-xl text-xs flex items-center gap-1.5"
+              className="px-3 py-1.5 bg-brand-600 hover:bg-brand-500 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
             >
               <Plus className="w-3.5 h-3.5" /> Configure Leave Type
             </button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {activeLeaveTypes.map(t => (
-              <div key={t.id} className="p-5 bg-white dark:bg-slate-900 border rounded-3xl space-y-3 relative group">
+            {paginatedLeaveTypes.map(t => (
+              <div key={t.id} className="p-5 bg-white dark:bg-slate-900 border border-sky-200 dark:border-sky-800 rounded-3xl space-y-3 relative group hover:border-sky-400 hover:shadow-md transition-all">
                 <div className="flex justify-between items-center">
                   <div>
                     <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">{t.name}</h4>
@@ -1518,20 +1590,37 @@ export const LeaveManagementView: React.FC = () => {
                   </button>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 text-[11px] pt-2 border-t">
-                  <div><span className="text-slate-400">Allowance:</span> <span className="font-bold text-slate-800">{t.annualAllowance} {Number(t.annualAllowance) === 1 ? 'Day' : 'Days'}/yr</span></div>
-                  <div><span className="text-slate-400">Carry Forward:</span> <span className="font-bold text-slate-800">{t.carryForward ? 'Yes' : 'No'}</span></div>
-                  <div><span className="text-slate-400">Max Consecutive:</span> <span className="font-bold text-slate-800">{t.maxConsecutiveDays} {Number(t.maxConsecutiveDays) === 1 ? 'Day' : 'Days'}</span></div>
-                  <div><span className="text-slate-400">Type:</span> <span className={`font-bold ${t.isPaid ? 'text-brand-600' : 'text-amber-600'}`}>{t.isPaid ? 'Paid' : 'Unpaid (LOP)'}</span></div>
+                <div className="grid grid-cols-2 gap-2 text-[11px] pt-2 border-t border-sky-100 dark:border-sky-900/50">
+                  <div><span className="text-slate-400">Allowance:</span> <span className="font-bold text-slate-800 dark:text-slate-200">{t.annualAllowance} {Number(t.annualAllowance) === 1 ? 'Day' : 'Days'}/yr</span></div>
+                  <div><span className="text-slate-400">Carry Forward:</span> <span className="font-bold text-slate-800 dark:text-slate-200">{t.carryForward ? 'Yes' : 'No'}</span></div>
+                  <div><span className="text-slate-400">Max Consecutive:</span> <span className="font-bold text-slate-800 dark:text-slate-200">{t.maxConsecutiveDays} {Number(t.maxConsecutiveDays) === 1 ? 'Day' : 'Days'}</span></div>
+                  <div><span className="text-slate-400">Type:</span> <span className={`font-bold ${t.isPaid ? 'text-brand-600 dark:text-brand-400' : 'text-amber-600 dark:text-amber-400'}`}>{t.isPaid ? 'Paid' : 'Unpaid (LOP)'}</span></div>
                 </div>
 
-                <div className="flex justify-end gap-2 pt-3 border-t opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onClick={() => { setEditingType(t); setIsTypeModalOpen(true); }} className="p-1 text-blue-600 hover:bg-slate-100 rounded-lg"><Edit className="w-4 h-4" /></button>
-                  <button onClick={() => deleteLeaveType(t.id)} className="p-1 text-rose-600 hover:bg-rose-50 rounded-lg"><Trash2 className="w-4 h-4" /></button>
+                <div className="flex justify-end gap-2 pt-3 border-t border-sky-100 dark:border-sky-900/50 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button onClick={() => { setEditingType(t); setIsTypeModalOpen(true); }} className="p-1 text-blue-600 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer"><Edit className="w-4 h-4" /></button>
+                  <button onClick={() => deleteLeaveType(t.id)} className="p-1 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg cursor-pointer"><Trash2 className="w-4 h-4" /></button>
                 </div>
               </div>
             ))}
           </div>
+
+          {/* Neat Pagination Footer for Leave Types */}
+          {activeLeaveTypes.length > 0 && (
+            <div className="px-5 py-3.5 border border-sky-200 dark:border-sky-800 bg-white dark:bg-slate-900 rounded-2xl shadow-xs">
+              <Pagination
+                currentPage={typesCurrentPage}
+                totalItems={activeLeaveTypes.length}
+                itemsPerPage={typesPageSize}
+                itemsPerPageOptions={[6, 9, 12, 24]}
+                onPageChange={setTypesCurrentPage}
+                onItemsPerPageChange={(n) => { setTypesPageSize(n); setTypesCurrentPage(1); }}
+                showBorder={false}
+                className="pt-0 pb-0"
+                label="leave types"
+              />
+            </div>
+          )}
         </div>
       )}
 
@@ -1539,7 +1628,7 @@ export const LeaveManagementView: React.FC = () => {
       {activeTab === 'balance' && (
         <div className="space-y-4">
           {!isSelfServiceStaff && (
-            <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-sky-200 dark:border-sky-800 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div className="w-full sm:w-64">
                 <div className="relative w-full">
                   <Search className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 transition-colors ${searchError ? 'text-rose-500' : 'text-slate-400'}`} />
@@ -1594,10 +1683,10 @@ export const LeaveManagementView: React.FC = () => {
             </div>
           )}
 
-          <div className="glass-card rounded-2xl overflow-hidden border bg-white dark:bg-slate-900">
+          <div className="glass-card rounded-2xl overflow-hidden border border-sky-200 dark:border-sky-800 bg-white dark:bg-slate-900 shadow-xs">
             <table className="w-full text-center border-collapse text-xs">
               <thead>
-                <tr className="bg-slate-50 text-slate-500 font-bold uppercase border-b">
+                <tr className="bg-slate-50 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-bold uppercase border-b border-sky-100 dark:border-sky-900/50">
                   <th className="py-3.5 px-4 text-center">S.No.</th>
                   <th className="py-3.5 px-4 text-center">Employee</th>
                   <th className="py-3.5 px-4 text-center">Casual Leave Balance</th>
@@ -1607,7 +1696,7 @@ export const LeaveManagementView: React.FC = () => {
                   <th className="py-3.5 px-4 text-center">Total Remaining Balance</th>
                 </tr>
               </thead>
-              <tbody className="divide-y font-medium text-slate-705 dark:text-slate-300">
+              <tbody className="divide-y divide-sky-100/60 dark:divide-sky-900/30 font-medium text-slate-700 dark:text-slate-300">
                 {paginatedStaffForBalance.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="py-12 text-center">
@@ -1663,15 +1752,17 @@ export const LeaveManagementView: React.FC = () => {
               </tbody>
             </table>
 
-            {/* Pagination bar */}
+            {/* Neat Table Footer with Integrated Pagination */}
             {!isSelfServiceStaff && filteredStaffForBalance.length > 0 && (
-              <div className="px-4 pb-3">
+              <div className="px-5 py-3.5 border-t border-sky-100 dark:border-sky-900/40 bg-slate-50/60 dark:bg-slate-900/40 rounded-b-2xl">
                 <Pagination
                   currentPage={balanceCurrentPage}
                   totalItems={filteredStaffForBalance.length}
                   itemsPerPage={balancePageSize}
                   onPageChange={setBalanceCurrentPage}
                   onItemsPerPageChange={(n) => { setBalancePageSize(n); setBalanceCurrentPage(1); }}
+                  showBorder={false}
+                  className="pt-0 pb-0"
                   label="staff records"
                 />
               </div>
@@ -1683,62 +1774,63 @@ export const LeaveManagementView: React.FC = () => {
       {/* TAB CONTENT: APPROVAL QUEUE */}
       {activeTab === 'queue' && hasApprovalPermission && (
         <div className="space-y-4 animate-in fade-in">
-          <div className="glass-card rounded-2xl overflow-hidden border">
-            <table className="w-full text-center border-collapse text-xs">
-              <thead>
-                <tr className="bg-slate-50 text-slate-500 font-bold uppercase border-b">
-                  <th className="py-3.5 px-4 text-center">S.No.</th>
-                  <th className="py-3.5 px-4 text-center">Employee</th>
-                  <th className="py-3.5 px-4 text-center">Leave Type</th>
-                  <th className="py-3.5 px-4 text-center">Applied Date</th>
-                  <th className="py-3.5 px-4 text-center">From - To Date</th>
-                  <th className="py-3.5 px-4 text-center">Requested Days</th>
-                  <th className="py-3.5 px-4 text-center">Reason</th>
-                  <th className="py-3.5 px-4 text-center">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y font-medium">
-                {campusApplications.filter(app => (app.status || '').toLowerCase() === 'pending').length === 0 ? (
-                  <tr><td colSpan={8} className="text-center py-8 text-slate-400">All pending leave applications processed.</td></tr>
-                ) : (
-                  campusApplications
-                    .filter(app => (app.status || '').toLowerCase() === 'pending')
-                    .map((app, idx) => (
-                      <tr key={app.id} className="hover:bg-slate-50">
-                        <td className="py-3 px-4 font-mono font-bold text-slate-500 text-center">{idx + 1}</td>
-                        <td className="py-3 px-4 text-center">
-                          <p className="font-bold text-slate-800">{app.employeeName}</p>
+          <div className="glass-card rounded-2xl overflow-hidden border border-sky-200 dark:border-sky-800 bg-white dark:bg-slate-900 shadow-xs">
+            <div className="overflow-x-auto">
+              <table className="w-full text-center border-collapse text-xs">
+                <thead>
+                  <tr className="bg-slate-50 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-bold uppercase border-b border-sky-100 dark:border-sky-900/50">
+                    <th className="py-3.5 px-4 text-center whitespace-nowrap">S.No.</th>
+                    <th className="py-3.5 px-4 text-center whitespace-nowrap">Employee</th>
+                    <th className="py-3.5 px-4 text-center whitespace-nowrap">Leave Type</th>
+                    <th className="py-3.5 px-4 text-center whitespace-nowrap">Applied Date</th>
+                    <th className="py-3.5 px-4 text-center whitespace-nowrap">From - To Date</th>
+                    <th className="py-3.5 px-4 text-center whitespace-nowrap">Requested Days</th>
+                    <th className="py-3.5 px-4 text-center whitespace-nowrap">Reason</th>
+                    <th className="py-3.5 px-4 text-center whitespace-nowrap">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-sky-100/60 dark:divide-sky-900/30 font-medium">
+                  {pendingQueueApps.length === 0 ? (
+                    <tr><td colSpan={8} className="text-center py-8 text-slate-400 font-bold italic">All pending leave applications processed.</td></tr>
+                  ) : (
+                    paginatedQueueApps.map((app, idx) => (
+                      <tr key={app.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                        <td className="py-3 px-4 font-mono font-bold text-slate-500 text-center whitespace-nowrap">
+                          {(queueCurrentPage - 1) * queuePageSize + idx + 1}
+                        </td>
+                        <td className="py-3 px-4 text-center whitespace-nowrap">
+                          <p className="font-bold text-slate-800 dark:text-slate-100">{app.employeeName}</p>
                           <p className="text-[10px] text-slate-400">{app.designation} • {app.empId || app.employeeId}</p>
                         </td>
-                        <td className="py-3 px-4 font-semibold text-sky-600 text-center">{app.leaveTypeName}</td>
-                        <td className="py-3 px-4 text-center">{app.appliedDate}</td>
+                        <td className="py-3 px-4 font-semibold text-sky-600 text-center whitespace-nowrap">{app.leaveTypeName}</td>
+                        <td className="py-3 px-4 text-center whitespace-nowrap">{app.appliedDate}</td>
                         <td className="py-3 px-4 text-center font-mono text-slate-700 dark:text-slate-300 whitespace-nowrap">{formatLeaveDateRange(app.fromDate, app.toDate)}</td>
                         {(() => {
                           const reqDays = Number(app.numberOfDays || (app as any).daysCount || 1);
                           return (
-                            <td className="py-3 px-4 font-bold text-slate-900 text-center">
+                            <td className="py-3 px-4 font-bold text-slate-900 dark:text-white text-center whitespace-nowrap">
                               {reqDays} {reqDays === 1 ? 'Day' : 'Days'}
                             </td>
                           );
                         })()}
                         <td className="py-3 px-4 text-slate-500 italic max-w-xs truncate text-center">{app.reason}</td>
-                        <td className="py-3 px-4 text-center">
+                        <td className="py-3 px-4 text-center whitespace-nowrap">
                           <div className="flex items-center justify-center gap-1.5">
                             <button
                               onClick={() => { setSelectedQueueApp(app); setQueueActionType('Approved'); }}
-                              className="px-2.5 py-1 bg-brand-50 text-brand-700 hover:bg-brand-100 font-bold rounded-lg"
+                              className="px-2.5 py-1 bg-brand-50 text-brand-700 hover:bg-brand-100 font-bold rounded-lg cursor-pointer"
                             >
                               Approve
                             </button>
                             <button
                               onClick={() => { setSelectedQueueApp(app); setQueueActionType('Rejected'); }}
-                              className="px-2.5 py-1 bg-rose-50 text-rose-700 hover:bg-rose-100 font-bold rounded-lg"
+                              className="px-2.5 py-1 bg-rose-50 text-rose-700 hover:bg-rose-100 font-bold rounded-lg cursor-pointer"
                             >
                               Reject
                             </button>
                             <button
                               onClick={() => { setSelectedQueueApp(app); setQueueActionType('Sent Back'); }}
-                              className="px-2.5 py-1 bg-amber-50 text-amber-700 hover:bg-amber-100 font-bold rounded-lg"
+                              className="px-2.5 py-1 bg-amber-50 text-amber-700 hover:bg-amber-100 font-bold rounded-lg cursor-pointer"
                             >
                               Send Back
                             </button>
@@ -1746,9 +1838,26 @@ export const LeaveManagementView: React.FC = () => {
                         </td>
                       </tr>
                     ))
-                )}
-              </tbody>
-            </table>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Neat Table Footer with Integrated Pagination */}
+            {pendingQueueApps.length > 0 && (
+              <div className="px-5 py-3.5 border-t border-sky-100 dark:border-sky-900/40 bg-slate-50/60 dark:bg-slate-900/40 rounded-b-2xl">
+                <Pagination
+                  currentPage={queueCurrentPage}
+                  totalItems={pendingQueueApps.length}
+                  itemsPerPage={queuePageSize}
+                  onPageChange={setQueueCurrentPage}
+                  onItemsPerPageChange={(n) => { setQueuePageSize(n); setQueueCurrentPage(1); }}
+                  showBorder={false}
+                  className="pt-0 pb-0"
+                  label="applications"
+                />
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1766,42 +1875,60 @@ export const LeaveManagementView: React.FC = () => {
             </button>
           </div>
 
-          <div className="glass-card rounded-2xl overflow-hidden border">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="bg-slate-50 text-slate-500 font-bold uppercase border-b">
-                  <th className="py-3 px-4">Holiday Name</th>
-                  <th className="py-3 px-4">Type</th>
-                  <th className="py-3 px-4">From Date</th>
-                  <th className="py-3 px-4">To Date</th>
-                  <th className="py-3 px-4">Applicable Branch</th>
-                  <th className="py-3 px-4">Description</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y font-medium">
-                {holidays.length === 0 ? (
-                  <tr><td colSpan={7} className="text-center py-8 text-slate-400">No holidays scheduled in the calendar.</td></tr>
-                ) : (
-                  holidays.map(h => (
-                    <tr key={h.id} className="hover:bg-slate-50">
-                      <td className="py-3 px-4 font-bold text-slate-800">{h.name}</td>
-                      <td className="py-3 px-4"><Badge variant="info">{h.type}</Badge></td>
-                      <td className="py-3 px-4 font-mono">{h.startDate}</td>
-                      <td className="py-3 px-4 font-mono">{h.endDate}</td>
-                      <td className="py-3 px-4 font-semibold text-slate-600">{h.branch || 'All Branches'}</td>
-                      <td className="py-3 px-4 text-slate-400">{h.description || 'No description'}</td>
-                      <td className="py-3 px-4 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <button onClick={() => { setEditingHoliday(h); setIsHolidayModalOpen(true); }} className="p-1 hover:bg-slate-100 text-blue-600 rounded"><Edit className="w-4 h-4" /></button>
-                          <button onClick={() => deleteHoliday(h.id)} className="p-1 hover:bg-rose-50 text-rose-600 rounded"><Trash2 className="w-4 h-4" /></button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+          <div className="glass-card rounded-2xl overflow-hidden border border-sky-200 dark:border-sky-800 bg-white dark:bg-slate-900 shadow-xs">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="bg-slate-50 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-bold uppercase border-b border-sky-100 dark:border-sky-900/50">
+                    <th className="py-3 px-4">Holiday Name</th>
+                    <th className="py-3 px-4">Type</th>
+                    <th className="py-3 px-4">From Date</th>
+                    <th className="py-3 px-4">To Date</th>
+                    <th className="py-3 px-4">Applicable Branch</th>
+                    <th className="py-3 px-4">Description</th>
+                    <th className="py-3 px-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-sky-100/60 dark:divide-sky-900/30 font-medium">
+                  {holidays.length === 0 ? (
+                    <tr><td colSpan={7} className="text-center py-8 text-slate-400 font-bold italic">No holidays scheduled in the calendar.</td></tr>
+                  ) : (
+                    paginatedHolidays.map(h => (
+                      <tr key={h.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                        <td className="py-3 px-4 font-bold text-slate-800 dark:text-slate-100">{h.name}</td>
+                        <td className="py-3 px-4"><Badge variant="info">{h.type}</Badge></td>
+                        <td className="py-3 px-4 font-mono">{h.startDate}</td>
+                        <td className="py-3 px-4 font-mono">{h.endDate}</td>
+                        <td className="py-3 px-4 font-semibold text-slate-600 dark:text-slate-400">{h.branch || 'All Branches'}</td>
+                        <td className="py-3 px-4 text-slate-400">{h.description || 'No description'}</td>
+                        <td className="py-3 px-4 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <button onClick={() => { setEditingHoliday(h); setIsHolidayModalOpen(true); }} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 text-blue-600 rounded cursor-pointer"><Edit className="w-4 h-4" /></button>
+                            <button onClick={() => deleteHoliday(h.id)} className="p-1 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-600 rounded cursor-pointer"><Trash2 className="w-4 h-4" /></button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Neat Table Footer with Integrated Pagination */}
+            {holidays.length > 0 && (
+              <div className="px-5 py-3.5 border-t border-sky-100 dark:border-sky-900/40 bg-slate-50/60 dark:bg-slate-900/40 rounded-b-2xl">
+                <Pagination
+                  currentPage={holidaysCurrentPage}
+                  totalItems={holidays.length}
+                  itemsPerPage={holidaysPageSize}
+                  onPageChange={setHolidaysCurrentPage}
+                  onItemsPerPageChange={(n) => { setHolidaysPageSize(n); setHolidaysCurrentPage(1); }}
+                  showBorder={false}
+                  className="pt-0 pb-0"
+                  label="holidays"
+                />
+              </div>
+            )}
           </div>
         </div>
       )}
