@@ -58,42 +58,74 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ onNa
   const rawUserName = (user?.name || '').trim().toLowerCase();
 
   const currentWard = React.useMemo(() => {
-    // 1. Check in students array with comprehensive criteria
+    const rawUserPhone = String(user?.phone || (user as any)?.mobileNumber || '').trim();
+    const userPhoneDigits = rawUserPhone.replace(/\D/g, '');
+    const userAdm = String((user as any)?.admissionNo || '').trim().toLowerCase();
+    const userRoll = String((user as any)?.rollNo || (user as any)?.empId || '').trim().toLowerCase();
+    const userStudentId = String((user as any)?.studentId || '').trim().toLowerCase();
+
+    const identifierFromPhone = /^(stu|adm|reg)-/i.test(rawUserPhone) ? rawUserPhone.toLowerCase() : '';
+    const identifierFromEmail = /^([a-z0-9_-]+)@/i.exec(userEmail)?.[1]?.toLowerCase() || '';
+    const regFromEmail = /^(stu|adm|reg)-/i.test(identifierFromEmail) ? identifierFromEmail : '';
+
+    const isNameReal = rawUserName && !['student', 'user', 'demo', 'test', 'admin'].includes(rawUserName);
+
+    // 1. Search in students array with high-precision criteria
     const matchedStudent = (students || []).find(s => {
       if (!s) return false;
       const sId = String(s.id || '').trim().toLowerCase();
       const sAdm = String(s.admissionNo || (s as any).admNo || (s as any).admissionNumber || '').trim().toLowerCase();
-      const sRoll = String((s as any).rollNo || '').trim().toLowerCase();
+      const sRoll = String((s as any).rollNo || (s as any).rollNumber || (s as any).registrationNo || '').trim().toLowerCase();
+      const sStudentId = String((s as any).studentId || '').trim().toLowerCase();
       const sEmail = (s.email || (s as any).studentEmail || (s as any).contactEmail || '').trim().toLowerCase();
+      const sPhoneDigits = (s.phone || (s as any).mobileNumber || (s as any).contactNumber || '').replace(/\D/g, '');
+      const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase();
+      const sName = String((s as any).name || (s as any).studentName || '').trim().toLowerCase();
 
-      // Check ID or Admission Number
-      if (userId && (sId === userId.toLowerCase() || sAdm === userId.toLowerCase() || sRoll === userId.toLowerCase())) return true;
-      if ((user as any)?.studentId && (sId === String((user as any).studentId).toLowerCase() || sAdm === String((user as any).studentId).toLowerCase())) return true;
-      if ((user as any)?.admissionNo && sAdm === String((user as any).admissionNo).trim().toLowerCase()) return true;
+      const nameMatches = isNameReal && (
+        sFullName === rawUserName ||
+        sName === rawUserName ||
+        (s.firstName && s.lastName && rawUserName.includes(s.firstName.toLowerCase()) && rawUserName.includes(s.lastName.toLowerCase())) ||
+        (sName && (rawUserName.includes(sName) || sName.includes(rawUserName)))
+      );
 
-      // Check Email
-      if (userEmail && sEmail && sEmail === userEmail) return true;
+      // Direct admission number match
+      if (userAdm && (sAdm === userAdm || sRoll === userAdm)) return true;
 
-      // Check Phone
-      if (userPhone && userPhone.length >= 7) {
-        const sPhone = (s.phone || (s as any).mobileNumber || (s as any).contactNumber || '').replace(/\D/g, '');
-        if (sPhone && (sPhone.endsWith(userPhone) || userPhone.endsWith(sPhone))) return true;
+      // Direct roll / registration number match
+      if (userRoll && (sRoll === userRoll || sAdm === userRoll || sStudentId === userRoll)) return true;
+
+      // Direct student ID match
+      if (userStudentId && (sId === userStudentId || sStudentId === userStudentId)) return true;
+
+      // Registration number extracted from phone or email
+      if (identifierFromPhone && (sRoll === identifierFromPhone || sAdm === identifierFromPhone || sStudentId === identifierFromPhone)) return true;
+      if (regFromEmail && (sRoll === regFromEmail || sAdm === regFromEmail || sStudentId === regFromEmail)) return true;
+
+      // Exact name match
+      if (nameMatches) return true;
+
+      // Real email match (not internal dummy email)
+      if (userEmail && !userEmail.endsWith('@school.internal') && sEmail === userEmail) return true;
+
+      // Phone digits match
+      if (userPhoneDigits && userPhoneDigits.length >= 10 && sPhoneDigits && (sPhoneDigits.endsWith(userPhoneDigits) || userPhoneDigits.endsWith(sPhoneDigits))) return true;
+
+      // ID match ONLY IF name does NOT contradict
+      if (userId && (sId === userId.toLowerCase() || sAdm === userId.toLowerCase() || sRoll === userId.toLowerCase() || sStudentId === userId.toLowerCase())) {
+        if (!isNameReal || nameMatches || !sName) return true;
       }
 
-      // Check Full Name / Name
-      if (rawUserName && !['student', 'user', 'test', 'demo'].includes(rawUserName)) {
-        const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase();
-        const sName = ((s as any).name || (s as any).studentName || '').trim().toLowerCase();
-        if (sFullName === rawUserName || sName === rawUserName) return true;
-        if (s.firstName && s.lastName && rawUserName.includes(s.firstName.toLowerCase()) && rawUserName.includes(s.lastName.toLowerCase())) return true;
-      }
       return false;
     });
 
     if (matchedStudent) {
+      const studentName = isNameReal
+        ? user?.name || ''
+        : (`${matchedStudent.firstName || ''} ${matchedStudent.lastName || ''}`.trim() || (matchedStudent as any).name || (matchedStudent as any).studentName || 'Student');
       return {
         ...matchedStudent,
-        studentName: `${matchedStudent.firstName || ''} ${matchedStudent.lastName || ''}`.trim() || (matchedStudent as any).name || (user?.name || 'Student'),
+        studentName,
         className: matchedStudent.className || (matchedStudent as any).class || (matchedStudent as any).grade || (user as any)?.className || '',
         section: matchedStudent.section || (matchedStudent as any).sectionName || (user as any)?.section || '',
         admissionNo: matchedStudent.admissionNo || (matchedStudent as any).admNo || (matchedStudent as any).admissionNumber || (user as any)?.admissionNo || String(matchedStudent.id || '')
@@ -101,30 +133,40 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ onNa
     }
 
     // 2. Check in Admissions array
-    const matchedAdmission = admissions.find((a: any) => {
+    const matchedAdmission = (admissions || []).find((a: any) => {
       if (!a || a.status === 'Rejected' || a.status === 'Cancelled') return false;
       const aId = String(a.id || '').trim().toLowerCase();
+      const aAdm = String(a.admissionNo || '').trim().toLowerCase();
       const aReg = String(a.registrationNo || (a as any).applicationNo || '').trim().toLowerCase();
-      if (userId && (aId === userId.toLowerCase() || aReg === userId.toLowerCase())) return true;
-      if (userEmail && (a.email?.toLowerCase().trim() === userEmail || (a as any).studentEmail?.toLowerCase().trim() === userEmail)) return true;
-      if (userPhone && userPhone.length >= 7) {
-        const aPhone = (a.phone || (a as any).fatherMobileNo || (a as any).motherMobileNo || '').replace(/\D/g, '');
-        if (aPhone && (aPhone.endsWith(userPhone) || userPhone.endsWith(aPhone))) return true;
+      const aName = String(a.applicantName || `${a.firstName || ''} ${a.lastName || ''}`).trim().toLowerCase();
+      const aEmail = (a.email || (a as any).parentEmail || (a as any).studentEmail || '').trim().toLowerCase();
+      const aPhoneDigits = (a.phone || (a as any).fatherContact || (a as any).fatherMobileNo || '').replace(/\D/g, '');
+
+      if (userAdm && (aAdm === userAdm || aReg === userAdm)) return true;
+      if (userRoll && (aReg === userRoll || aAdm === userRoll)) return true;
+      if (identifierFromPhone && (aReg === identifierFromPhone || aAdm === identifierFromPhone)) return true;
+      if (regFromEmail && (aReg === regFromEmail || aAdm === regFromEmail)) return true;
+      if (isNameReal && (aName === rawUserName || (a.firstName && a.lastName && rawUserName.includes(a.firstName.toLowerCase()) && rawUserName.includes(a.lastName.toLowerCase())))) return true;
+      if (userEmail && !userEmail.endsWith('@school.internal') && aEmail === userEmail) return true;
+      if (userPhoneDigits && userPhoneDigits.length >= 10 && aPhoneDigits && (aPhoneDigits.endsWith(userPhoneDigits) || userPhoneDigits.endsWith(aPhoneDigits))) return true;
+      if (userId && (aId === userId.toLowerCase() || aReg === userId.toLowerCase() || aAdm === userId.toLowerCase())) {
+        if (!isNameReal || aName === rawUserName || !aName) return true;
       }
-      if (rawUserName && !['student', 'user'].includes(rawUserName) && a.applicantName?.toLowerCase().trim() === rawUserName) return true;
       return false;
     });
 
     if (matchedAdmission) {
-      const appName = matchedAdmission.applicantName || user?.name || 'Student';
+      const appName = isNameReal
+        ? user?.name || ''
+        : (matchedAdmission.applicantName || `${matchedAdmission.firstName || ''} ${matchedAdmission.lastName || ''}`.trim() || 'Student');
       return {
         id: String(matchedAdmission.id),
         studentName: appName,
         firstName: appName.split(' ')[0] || '',
         lastName: appName.split(' ').slice(1).join(' ') || '',
         className: (matchedAdmission as any).appliedClass?.className || (matchedAdmission as any).className || matchedAdmission.appliedClass || (user as any)?.className || '',
-        section: (matchedAdmission as any).section || (user as any)?.section || '',
-        admissionNo: matchedAdmission.registrationNo || (matchedAdmission as any).applicationNo || (user as any)?.admissionNo || '',
+        section: (matchedAdmission as any).section || (user as any)?.section || 'A',
+        admissionNo: matchedAdmission.admissionNo || matchedAdmission.registrationNo || (matchedAdmission as any).applicationNo || (user as any)?.admissionNo || '',
         status: 'Active'
       };
     }
@@ -132,22 +174,22 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ onNa
     // 3. Dynamic resolution from user object
     const userClass = (user as any)?.className || (user as any)?.class || (user as any)?.grade || '';
     const userSec = (user as any)?.section || (user as any)?.sectionName || '';
-    const userAdm = (user as any)?.admissionNo || (user as any)?.admNo || (user as any)?.rollNo || (user?.id && !String(user.id).startsWith('USR') ? String(user.id) : '');
+    const userAdmVal = (user as any)?.admissionNo || (user as any)?.admNo || (user as any)?.rollNo || (user?.id && !String(user.id).startsWith('USR') ? String(user.id) : '');
     const nameToUse = (user?.name && !['student', 'user'].includes(user.name.toLowerCase()))
       ? user.name
       : (userEmail ? userEmail.split('@')[0].split(/[._-]/).map((p: string) => p.charAt(0).toUpperCase() + p.slice(1)).join(' ') : 'Student');
 
     return {
-      id: (user as any)?.studentId || (user as any)?.id || userId || '',
+      id: userId || '1',
       studentName: nameToUse,
-      firstName: nameToUse.split(' ')[0] || '',
+      firstName: nameToUse.split(' ')[0] || 'Student',
       lastName: nameToUse.split(' ').slice(1).join(' ') || '',
       className: userClass,
       section: userSec,
-      admissionNo: userAdm,
+      admissionNo: userAdmVal,
       status: 'Active'
     };
-  }, [students, user, userId, userEmail, userPhone, rawUserName]);
+  }, [students, admissions, user, userId, userEmail, userPhone, rawUserName]);
 
   const studentDisplayName = (user?.name || '').trim();
 

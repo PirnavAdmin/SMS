@@ -688,7 +688,7 @@ namespace SMS.Api.Repositories.Implementations.Parent
                             SubjectCode = a.Subject?.SubjectCode ?? "",
                             Email = a.Teacher.Email ?? "",
                             Phone = a.Teacher.Phone ?? "",
-                            IsClassTeacher = a.Role == "Class Teacher"
+                            IsClassTeacher = a.Role == "Class Teacher" || a.Teacher.IsClassTeacherEligible == true
                         };
                     }
                 }

@@ -488,12 +488,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const empIdStr = response?.employeeId || response?.empId || undefined;
       const staffIdVal = response?.staffId ? Number(response.staffId) : undefined;
+      const studentIdVal = response?.studentId ? Number(response.studentId) : undefined;
+      const studentAdmNo = response?.admissionNo || (response as any)?.admissionNumber || undefined;
+      const studentRollNo = response?.rollNo || response?.employeeId || (response as any)?.rollNumber || undefined;
+      const studentClassName = response?.className || (response as any)?.class || undefined;
+      const studentSection = response?.section || (response as any)?.sectionName || undefined;
       const userBranch = response?.branch || savedProfile?.branch || selectedBranch || '';
 
       const loggedUser: User = {
-        id: userIdStr,
+        id: (mappedRole === 'Student' && studentIdVal) ? String(studentIdVal) : userIdStr,
         empId: empIdStr,
         staffId: staffIdVal,
+        studentId: studentIdVal,
+        admissionNo: studentAdmNo,
+        rollNo: studentRollNo,
+        className: studentClassName,
+        section: studentSection,
         name: userName,
         email: loginEmail || (emailOrPhone.includes('@') ? emailOrPhone : ''),
         phone: userPhone,

@@ -10,5 +10,10 @@ public record AuthResponseDto(
     string? Avatar = null,
     string? Branch = null,
     string? EmployeeId = null,
-    int? StaffId = null
+    int? StaffId = null,
+    int? StudentId = null,
+    string? AdmissionNo = null,
+    string? RollNo = null,
+    string? ClassName = null,
+    string? Section = null
 );

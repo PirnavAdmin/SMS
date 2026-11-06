@@ -44,9 +44,14 @@ namespace SMS.Api.Controllers.Parent
             if (User.IsInRole("Admin") || User.IsInRole("Super Admin") || User.IsInRole("SuperAdmin"))
                 return true;
 
+            // Students have authorized access to view their assigned academic records & teachers
+            var isStudent = User.IsInRole("Student") || string.Equals(User.FindFirst(ClaimTypes.Role)?.Value, "Student", StringComparison.OrdinalIgnoreCase);
+            if (isStudent)
+                return true;
+
             var isParent = User.IsInRole("Parent") || string.Equals(User.FindFirst(ClaimTypes.Role)?.Value, "Parent", StringComparison.OrdinalIgnoreCase);
             if (!isParent)
-                return false; // Fail closed if role is neither Parent nor Admin
+                return false; // Fail closed if role is neither Parent nor Admin nor Student
 
             // Authoritative ownership check against database-backed parent_student_mappings
             return await _parentService.IsStudentAssociatedWithParentAsync(userId, studentId);

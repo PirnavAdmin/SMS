@@ -6593,6 +6593,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       // Always fetch students (handles ward lookup for parents)
       fetchStudents();
 
+      // Academic classes, teacher assignments, staff, subjects, timetables are essential for ALL authenticated users
+      // (Used by Admin management, as well as Student/Parent portals to dynamically view assigned faculty, subjects, and schedules)
+      fetchStaff();
+      fetchAcademicClasses();
+      fetchSubjects();
+      fetchPeriods();
+      fetchTimetables();
+
       // Sync automated ID sequence settings from database
       fetchIdSequenceSettingsApi()
         .then((res: any) => {
@@ -6603,11 +6611,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         .catch(() => {});
 
       if (!isParentOrStudent) {
-        fetchStaff();
-        fetchAcademicClasses();
-        fetchSubjects();
-        fetchPeriods();
-        fetchTimetables();
         fetchDepartments();
         fetchDesignations();
         fetchPayrollConfigurations();
