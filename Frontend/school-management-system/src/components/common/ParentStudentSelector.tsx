@@ -47,6 +47,16 @@ export function useParentWards() {
 
   useEffect(() => {
     let isMounted = true;
+    const userRoleStr = (user?.role || role || '').toString().toLowerCase();
+    const isStudentUser = userRoleStr.includes('student');
+    const isParentOrAdmin = userRoleStr.includes('parent') || userRoleStr.includes('admin');
+
+    // Students have no children; avoid calling /api/parent/children
+    if (isStudentUser || !isParentOrAdmin) {
+      setApiChildren([]);
+      return;
+    }
+
     setApiChildren([]);
 
     const fetchChildren = async () => {
@@ -68,7 +78,7 @@ export function useParentWards() {
     return () => {
       isMounted = false;
     };
-  }, [user?.id, user?.email]);
+  }, [user?.id, user?.email, user?.role, role]);
 
   const wards = useMemo<ParentWard[]>(() => {
     const userRoleStr = (user?.role || role || '').toString().toLowerCase();
