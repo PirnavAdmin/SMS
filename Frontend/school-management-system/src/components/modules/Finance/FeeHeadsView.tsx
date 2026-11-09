@@ -502,15 +502,15 @@ const exportData = useMemo(() => {
           <table className="w-full text-left border-collapse text-xs">
             <thead>
               <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
-                <th className="py-3.5 px-4">Order</th>
-                <th className="py-3.5 px-4">Fee Type</th>
-                <th className="py-3.5 px-4">Code</th>
-                <th className="py-3.5 px-4">Category & Module Mapping</th>
-                <th className="py-3.5 px-4">Payment Eligibility</th>
-                <th className="py-3.5 px-4">Mandatory</th>
-                <th className="py-3.5 px-4">Classes</th>
-                <th className="py-3.5 px-4">Status</th>
-                <th className="py-3.5 px-4 text-right">Actions</th>
+                <th className="py-3.5 px-4 text-center whitespace-nowrap">#</th>
+                <th className="py-3.5 px-4 text-left whitespace-nowrap">Fee Type</th>
+                <th className="py-3.5 px-4 text-left whitespace-nowrap">Code</th>
+                <th className="py-3.5 px-4 text-left whitespace-nowrap">Category & Module Mapping</th>
+                <th className="py-3.5 px-4 text-center whitespace-nowrap">Payment Eligibility</th>
+                <th className="py-3.5 px-4 text-center whitespace-nowrap">Mandatory</th>
+                <th className="py-3.5 px-4 text-left whitespace-nowrap">Classes</th>
+                <th className="py-3.5 px-4 text-center whitespace-nowrap">Status</th>
+                <th className="py-3.5 px-4 text-right whitespace-nowrap">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
@@ -525,10 +525,10 @@ const exportData = useMemo(() => {
               ) : (
                 filteredHeads.map((h, idx) => (
                   <tr key={h.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                    <td className="py-3 px-4 text-slate-400 font-mono">{idx + 1}</td>
-                    <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{h.name}</td>
-                    <td className="py-3 px-4 font-mono text-slate-600 dark:text-slate-300">{h.code}</td>
-                    <td className="py-3 px-4">
+                    <td className="py-3 px-4 text-center text-slate-400 font-mono whitespace-nowrap align-middle">{idx + 1}</td>
+                    <td className="py-3 px-4 font-bold text-slate-900 dark:text-white align-middle">{h.name}</td>
+                    <td className="py-3 px-4 font-mono font-bold text-slate-600 dark:text-slate-300 whitespace-nowrap align-middle min-w-[90px]">{h.code}</td>
+                    <td className="py-3 px-4 align-middle">
                       <div className="space-y-1">
                         <span className="inline-block px-2 py-0.5 rounded-lg bg-sky-50 dark:bg-sky-950 text-sky-600 dark:text-sky-400 font-bold">
                           {h.category}
@@ -557,40 +557,40 @@ const exportData = useMemo(() => {
                         )}
                       </div>
                     </td>
-                    <td className="py-3 px-4">
+                    <td className="py-3 px-4 text-center whitespace-nowrap align-middle">
                       {h.paymentEligibility === 'One-Time Only' ? (
-                        <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300 font-bold text-[10px]">
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300 font-bold text-[10px] whitespace-nowrap">
                           One-Time Only
                         </span>
                       ) : h.paymentEligibility === 'Term-Wise Allowed' ? (
-                        <span className="px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 font-bold text-[10px]">
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 font-bold text-[10px] whitespace-nowrap">
                           Term-Wise ({(h.applicableTerms || []).length || 'All'} Terms)
                         </span>
                       ) : (
-                        <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-bold text-[10px]">
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-bold text-[10px] whitespace-nowrap">
                           Both (One-Time / Term)
                         </span>
                       )}
                     </td>
-                    <td className="py-3 px-4">
+                    <td className="py-3 px-4 text-center whitespace-nowrap align-middle">
                       {h.mandatory ? (
-                        <span className="text-rose-500 font-bold flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5" /> Mandatory</span>
+                        <span className="text-rose-500 font-bold inline-flex items-center justify-center gap-1 whitespace-nowrap"><CheckCircle2 className="w-3.5 h-3.5" /> Mandatory</span>
                       ) : (
-                        <span className="text-slate-400 font-medium">Optional</span>
+                        <span className="text-slate-400 font-medium whitespace-nowrap">Optional</span>
                       )}
                     </td>
-                    <td className="py-3 px-4 text-slate-500 font-medium">{formatClassListForDisplay(h.applicableClasses)}</td>
-                    <td className="py-3 px-4">
+                    <td className="py-3 px-4 text-slate-500 font-medium align-middle">{formatClassListForDisplay(h.applicableClasses)}</td>
+                    <td className="py-3 px-4 text-center whitespace-nowrap align-middle">
                       <button
                         onClick={() => toggleFeeHeadStatus(h.id)}
-                        className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold transition-all ${
+                        className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold transition-all whitespace-nowrap ${
                           h.status === 'Active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300'
                         }`}
                       >
                         {h.status}
                       </button>
                     </td>
-                    <td className="py-3 px-4 text-right">
+                    <td className="py-3 px-4 text-right whitespace-nowrap align-middle">
                       <div className="flex items-center justify-end gap-1">
                         <button onClick={() => handleOpenEdit(h)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-sky-600">
                           <Edit className="w-3.5 h-3.5" />

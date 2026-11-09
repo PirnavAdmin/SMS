@@ -2197,7 +2197,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   // Finance -> Transport Pricing Configuration Master State
   const [financeTransportConfigs, setFinanceTransportConfigs] = useState<
     FinanceTransportConfig[]
-  >([]);
+  >(() => getStored("finance_transport_configs", initialFinanceTransportConfigs));
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("finance_transport_configs", JSON.stringify(financeTransportConfigs));
+      localStorage.setItem("edu_db_finance_transport_configs", JSON.stringify(financeTransportConfigs));
+    } catch (e) {}
+  }, [financeTransportConfigs]);
 
   const MONTH_NAMES_ACADEMIC = [
     "April",
