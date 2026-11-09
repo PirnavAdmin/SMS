@@ -508,7 +508,7 @@ export const ParentAttendanceView: React.FC = () => {
   // If no registered wards linked to this parent account
   if (parentWards.length === 0) {
     return (
-      <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs text-center space-y-3 animate-in fade-in">
+      <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl border border-sky-300 dark:border-sky-800 shadow-xs text-center space-y-3 animate-in fade-in">
         <div className="w-12 h-12 bg-amber-50 dark:bg-amber-950/40 text-amber-500 rounded-2xl flex items-center justify-center mx-auto">
           <AlertCircle className="w-6 h-6 stroke-[2.2]" />
         </div>
@@ -561,7 +561,7 @@ export const ParentAttendanceView: React.FC = () => {
     <div className="space-y-2.5 sm:space-y-3 animate-in fade-in">
       
       {/* Cockpit Header with Unified Filters */}
-      <div className="bg-white dark:bg-slate-800 p-2.5 sm:px-4 sm:py-2.5 rounded-xl sm:rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs flex flex-col lg:flex-row justify-between items-start lg:items-center gap-2.5">
+      <div className="bg-white dark:bg-slate-800 p-2.5 sm:px-4 sm:py-2.5 rounded-xl sm:rounded-2xl border border-sky-300 dark:border-sky-800 shadow-xs flex flex-col lg:flex-row justify-between items-start lg:items-center gap-2.5">
         <div className="flex items-center gap-2.5 sm:gap-3">
           <div className="p-1.5 sm:p-2 bg-sky-100 dark:bg-sky-500/20 rounded-xl shrink-0">
             <CalendarCheck className="w-4 h-4 sm:w-5 sm:h-5 text-sky-600 dark:text-sky-400" />
@@ -594,7 +594,7 @@ export const ParentAttendanceView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setIsViewMenuOpen(prev => !prev)}
-                className="inline-flex items-center justify-between gap-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 rounded-lg px-2.5 py-1 text-xs text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-sky-500/50 outline-none cursor-pointer transition-all shadow-sm"
+                className="inline-flex items-center justify-between gap-2 bg-white dark:bg-slate-800 border-2 border-sky-300 dark:border-sky-600 hover:border-sky-500 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-white font-bold focus:ring-2 focus:ring-sky-500/20 outline-hidden cursor-pointer transition-all shadow-2xs"
                 aria-haspopup="listbox"
                 aria-expanded={isViewMenuOpen}
               >
@@ -642,16 +642,16 @@ export const ParentAttendanceView: React.FC = () => {
               <select 
                 value={selectedMonth} 
                 onChange={(e) => setSelectedMonth(e.target.value)}
-                className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1 text-xs text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-sky-500/50 outline-none cursor-pointer"
+                className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:border-sky-500 rounded-xl px-3 py-1.5 text-xs text-slate-700 dark:text-slate-200 font-bold focus:ring-2 focus:ring-sky-500/20 outline-hidden cursor-pointer"
               >
-                {months.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                {months.map(m => <option key={m.value} value={m.value} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">{m.label}</option>)}
               </select>
               <select 
                 value={selectedYear} 
                 onChange={(e) => setSelectedYear(e.target.value)}
-                className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1 text-xs text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-sky-500/50 outline-none cursor-pointer"
+                className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:border-sky-500 rounded-xl px-3 py-1.5 text-xs text-slate-700 dark:text-slate-200 font-bold focus:ring-2 focus:ring-sky-500/20 outline-hidden cursor-pointer"
               >
-                {years.map(year => <option key={year} value={year}>{year}</option>)}
+                {years.map(year => <option key={year} value={year} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">{year}</option>)}
               </select>
             </>
           )}
@@ -661,7 +661,7 @@ export const ParentAttendanceView: React.FC = () => {
               type="date" 
               value={selectedDate} 
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1 text-xs text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-sky-500/50 outline-none"
+              className="bg-white dark:bg-slate-800 border-2 border-sky-300 dark:border-sky-600 focus:border-sky-500 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-white font-bold focus:ring-2 focus:ring-sky-500/20 outline-hidden shadow-2xs"
             />
           )}
 
@@ -671,14 +671,14 @@ export const ParentAttendanceView: React.FC = () => {
                 type="date" 
                 value={startDate} 
                 onChange={(e) => setStartDate(e.target.value)}
-                className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-sky-500/50 outline-none"
+                className="bg-white dark:bg-slate-800 border-2 border-sky-300 dark:border-sky-600 focus:border-sky-500 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-white font-bold focus:ring-2 focus:ring-sky-500/20 outline-hidden shadow-2xs"
               />
               <span className="text-slate-400 text-xs font-bold">-</span>
               <input 
                 type="date" 
                 value={endDate} 
                 onChange={(e) => setEndDate(e.target.value)}
-                className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs text-slate-900 dark:text-white font-medium focus:ring-2 focus:ring-sky-500/50 outline-none"
+                className="bg-white dark:bg-slate-800 border-2 border-sky-300 dark:border-sky-600 focus:border-sky-500 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-white font-bold focus:ring-2 focus:ring-sky-500/20 outline-hidden shadow-2xs"
               />
             </div>
           )}
@@ -694,7 +694,7 @@ export const ParentAttendanceView: React.FC = () => {
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-2 sm:gap-2.5">
-        <div className="bg-white dark:bg-slate-800 px-3 py-2 sm:py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-2xs relative overflow-hidden group">
+        <div className="bg-white dark:bg-slate-800 px-3 py-2 sm:py-2.5 rounded-xl border border-sky-300 dark:border-sky-800 shadow-2xs hover:border-sky-400 relative overflow-hidden group">
           <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:scale-110 transition-transform">
             <CheckCircle2 className="w-7 h-7 text-sky-600" />
           </div>
@@ -702,22 +702,22 @@ export const ParentAttendanceView: React.FC = () => {
           <p className="text-lg sm:text-xl font-black text-slate-900 dark:text-white">{attendancePercentage}%</p>
         </div>
         
-        <div className="bg-white dark:bg-slate-800 px-3 py-2 sm:py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-2xs">
+        <div className="bg-white dark:bg-slate-800 px-3 py-2 sm:py-2.5 rounded-xl border border-sky-300 dark:border-sky-800 shadow-2xs hover:border-sky-400">
           <h3 className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-0.5">Present</h3>
           <p className="text-lg sm:text-xl font-black text-emerald-600 dark:text-emerald-400">{presentDays}</p>
         </div>
 
-        <div className="bg-white dark:bg-slate-800 px-3 py-2 sm:py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-2xs">
+        <div className="bg-white dark:bg-slate-800 px-3 py-2 sm:py-2.5 rounded-xl border border-sky-300 dark:border-sky-800 shadow-2xs hover:border-sky-400">
           <h3 className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-0.5">Absent</h3>
           <p className="text-lg sm:text-xl font-black text-rose-600 dark:text-rose-400">{absentDays}</p>
         </div>
 
-        <div className="bg-white dark:bg-slate-800 px-3 py-2 sm:py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-2xs">
+        <div className="bg-white dark:bg-slate-800 px-3 py-2 sm:py-2.5 rounded-xl border border-sky-300 dark:border-sky-800 shadow-2xs hover:border-sky-400">
           <h3 className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-0.5">Late</h3>
           <p className="text-lg sm:text-xl font-black text-orange-600 dark:text-orange-400">{lateDays + leaveDays}</p>
         </div>
 
-        <div className="bg-white dark:bg-slate-800 px-3 py-2 sm:py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-2xs">
+        <div className="bg-white dark:bg-slate-800 px-3 py-2 sm:py-2.5 rounded-xl border border-sky-300 dark:border-sky-800 shadow-2xs hover:border-sky-400">
           <h3 className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-0.5">Half Day</h3>
           <p className="text-lg sm:text-xl font-black text-amber-500 dark:text-amber-400">{halfDays}</p>
         </div>
@@ -755,7 +755,7 @@ export const ParentAttendanceView: React.FC = () => {
 
       {/* Monthly & Custom Day-Grid Register Matrix View (User Requested Design) */}
       {activeViewTab === 'register' && (filterType === 'Month' || filterType === 'Custom') && (
-        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs p-3.5 sm:p-4 space-y-2.5">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-sky-300 dark:border-sky-800 shadow-xs p-3.5 sm:p-4 space-y-2.5">
           {/* Header Row */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-2 flex-wrap">
@@ -777,14 +777,14 @@ export const ParentAttendanceView: React.FC = () => {
                 type="button"
                 onClick={handleExportCSV}
                 disabled={isDownloading}
-                className="px-3 py-1.5 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-800 dark:bg-sky-950/40 dark:text-sky-300 font-bold transition-colors flex items-center gap-1.5 disabled:opacity-50 cursor-pointer text-xs whitespace-nowrap"
+                className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 active:bg-sky-800 text-white font-bold transition-all shadow-sm shadow-sky-500/20 hover:shadow-md flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer text-xs whitespace-nowrap"
               >
                 {isDownloading ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin text-sky-600 dark:text-sky-400" />
+                  <Loader2 className="w-4 h-4 animate-spin text-white" />
                 ) : (
-                  <FileSpreadsheet className="w-3.5 h-3.5" />
+                  <FileSpreadsheet className="w-4 h-4 text-white" />
                 )}
-                <span>{isDownloading ? 'Downloading...' : 'Download'}</span>
+                <span>{isDownloading ? 'Downloading Excel...' : 'Download Register'}</span>
               </button>
 
               <div className="bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700/60 rounded-xl py-1.5 px-3 flex items-center gap-1.5 text-xs font-black cursor-default whitespace-nowrap select-none">
@@ -938,7 +938,7 @@ export const ParentAttendanceView: React.FC = () => {
 
       {/* Detailed Attendance List */}
       {(activeViewTab === 'records' || (filterType !== 'Month' && filterType !== 'Custom')) && (
-        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs overflow-hidden">
+        <div className="bg-white dark:bg-slate-800 rounded-2xl border border-sky-300 dark:border-sky-800 shadow-xs overflow-hidden">
           <div className="px-3.5 py-2 border-b border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 bg-slate-50/50 dark:bg-slate-900/50">
             <div className="flex items-center gap-2">
               <h3 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">

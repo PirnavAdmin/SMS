@@ -1,6 +1,6 @@
 // @ts-nocheck
 import React, { useState, useEffect } from 'react';
-import { Award, Printer, ChevronDown } from 'lucide-react';
+import { Award, Printer, ChevronDown, Loader2 } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { PrintableReportCard } from '../Examination/PrintableReportCard';
@@ -14,6 +14,15 @@ export const ParentExaminationView: React.FC = () => {
   const [selectedChildIdx, setSelectedChildIdx] = useState(0);
   const [selectedExamId, setSelectedExamId] = useState<string>('');
   const [resultsVersion, setResultsVersion] = useState(0);
+  const [isPrinting, setIsPrinting] = useState(false);
+
+  const handlePrint = () => {
+    setIsPrinting(true);
+    setTimeout(() => {
+      window.print();
+      setTimeout(() => setIsPrinting(false), 1200);
+    }, 400);
+  };
 
   useEffect(() => {
     if (refreshReleasedExamResults) {
@@ -308,33 +317,43 @@ export const ParentExaminationView: React.FC = () => {
         </h2>
 
         <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-end">
-          {/* Assessment Dropdown */}
+          {/* Assessment Dropdown with Solid Background & Sky Border */}
           {childExams.length > 0 && (
             <div className="relative min-w-[220px]">
               <select
                 value={selectedExamId}
                 onChange={(e) => setSelectedExamId(e.target.value)}
-                className="w-full appearance-none pl-4 pr-10 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm font-bold text-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all cursor-pointer shadow-xs"
+                className="w-full appearance-none pl-4 pr-10 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:border-sky-500 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-sky-500/20 outline-hidden transition-all cursor-pointer"
               >
                 {childExams.map((exam: any, idx: number) => (
-                  <option key={idx} value={exam.examName}>
+                  <option key={idx} value={exam.examName} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
                     {exam.examName} ({exam.date})
                   </option>
                 ))}
               </select>
-              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-sky-500 pointer-events-none" />
             </div>
           )}
 
-          {/* Print / Save PDF Button */}
+          {/* Print / Save PDF Button with Loading Spinner & Sky Theme */}
           {childExams.length > 0 && (
             <button
               type="button"
-              onClick={() => window.print()}
-              className="flex items-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+              disabled={isPrinting}
+              onClick={handlePrint}
+              className="flex items-center gap-2 px-4 py-2.5 bg-sky-600 hover:bg-sky-700 active:bg-sky-800 text-white rounded-xl text-xs font-bold transition-all shadow-sm shadow-sky-500/20 hover:shadow-md disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
             >
-              <Printer className="w-4 h-4" />
-              <span>Print / Save PDF</span>
+              {isPrinting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin text-white" />
+                  <span>Preparing PDF...</span>
+                </>
+              ) : (
+                <>
+                  <Printer className="w-4 h-4 text-white" />
+                  <span>Print / Save PDF</span>
+                </>
+              )}
             </button>
           )}
         </div>
@@ -349,7 +368,7 @@ export const ParentExaminationView: React.FC = () => {
 
       {/* Embedded Official Printable Report Card Component matching Admin template */}
       {childExams.length === 0 ? (
-        <div className="p-12 text-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-sm space-y-3">
+        <div className="p-12 text-center bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 rounded-3xl shadow-sm space-y-3">
           <div className="p-3 bg-sky-50 dark:bg-sky-950 text-sky-600 dark:text-sky-400 rounded-full w-max mx-auto">
             <Award className="w-8 h-8" />
           </div>
@@ -359,7 +378,7 @@ export const ParentExaminationView: React.FC = () => {
           </p>
         </div>
       ) : (
-        <div className="rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
+        <div className="rounded-3xl border border-sky-300 dark:border-sky-800 overflow-hidden shadow-sm">
           <PrintableReportCard
             student={wardStudent}
             exam={matchedExam}
