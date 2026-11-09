@@ -580,14 +580,11 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ onNa
 
             <div className="space-y-2">
               {pendingHomework.length > 0 ? pendingHomework.map((item, idx) => (
-                <div key={idx} className="p-2.5 rounded-xl border border-sky-200/80 dark:border-sky-800/80 bg-slate-50/50 dark:bg-slate-800/30 hover:border-sky-300 dark:hover:border-sky-700 transition-all flex items-start gap-2.5">
-                  <input type="checkbox" className="mt-0.5 w-3.5 h-3.5 rounded text-sky-600 focus:ring-sky-500 border-slate-300 cursor-pointer" />
-                  <div className="flex-1 min-w-0">
-                    <p className="font-bold text-xs text-slate-900 dark:text-white truncate">{item.title || (item as any).homeworkTitle || (item as any).topic || 'Homework'}</p>
-                    <div className="flex items-center justify-between mt-1 text-[10px]">
-                      <span className="font-bold text-slate-400 uppercase">{getSubjectName(item.subjectId || item.subject || (item as any).subjectName || 'General')}</span>
-                      <span className="font-semibold text-amber-600 dark:text-amber-400">Due: {item.dueDate || (item as any).assignedDate || 'Upcoming'}</span>
-                    </div>
+                <div key={idx} className="p-2.5 rounded-xl border border-sky-200/80 dark:border-sky-800/80 bg-slate-50/50 dark:bg-slate-800/30 hover:border-sky-300 dark:hover:border-sky-700 transition-all space-y-1">
+                  <p className="font-bold text-xs text-slate-900 dark:text-white truncate">{item.title || (item as any).homeworkTitle || (item as any).topic || 'Homework'}</p>
+                  <div className="flex items-center justify-between text-[10px]">
+                    <span className="font-bold text-slate-400 uppercase">{getSubjectName(item.subjectId || item.subject || (item as any).subjectName || 'General')}</span>
+                    <span className="font-semibold text-amber-600 dark:text-amber-400">Due: {item.dueDate || (item as any).assignedDate || 'Upcoming'}</span>
                   </div>
                 </div>
               )) : (
