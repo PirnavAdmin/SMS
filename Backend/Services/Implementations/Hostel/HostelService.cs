@@ -190,8 +190,7 @@ public class HostelService : IHostelService
             AlternateMobileNumber = dto.AlternateMobileNumber?.Trim(),
             Email = dto.Email?.Trim(),
             Status = string.IsNullOrWhiteSpace(dto.Status) ? "Active" : dto.Status.Trim(),
-            Address = !string.IsNullOrWhiteSpace(dto.Address) ? string.Join(", ", dto.Address.Split(new[] { '', '
-' }, StringSplitOptions.RemoveEmptyEntries).Select(s => s.Trim()).Distinct()) : null,
+            Address = !string.IsNullOrWhiteSpace(dto.Address) ? string.Join(", ", dto.Address.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).Select(s => s.Trim()).Distinct()) : null,
             CreatedAt = DateTime.UtcNow
         };
 

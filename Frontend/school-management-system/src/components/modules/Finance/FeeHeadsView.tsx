@@ -183,7 +183,7 @@ export const FeeHeadsView: React.FC = () => {
     category: '' as any,
     frequency: 'Term-wise',
     mandatory: false,
-    applicableClasses: classOptions && classOptions.length > 0 ? classOptions : ['Nursery', 'LKG', 'UKG', ...Array.from({ length: 12 }, (_, i) => `Class ${i + 1}`)],
+    applicableClasses: [],
     applicableBranches: [],
     applicableSections: [],
     paymentEligibility: '' as any,
@@ -276,7 +276,7 @@ const exportData = useMemo(() => {
       category: '' as any,
       frequency: 'Term-wise',
       mandatory: false,
-      applicableClasses: classOptions && classOptions.length > 0 ? classOptions : ['Nursery', 'LKG', 'UKG', ...Array.from({ length: 12 }, (_, i) => `Class ${i + 1}`)],
+      applicableClasses: [],
       applicableBranches: [],
       applicableSections: [],
       paymentEligibility: '' as any,
@@ -968,7 +968,7 @@ const exportData = useMemo(() => {
                 {classOptions.length === 0 && (
                   <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 text-xs flex items-center gap-2">
                     <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600" />
-                    <span>No classes are configured. Please create classes before creating a fee category. Standard grade fallback will be used.</span>
+                    <span>No classes are configured. Please create classes before creating a fee category.</span>
                   </div>
                 )}
                 <div className="flex items-center justify-between">

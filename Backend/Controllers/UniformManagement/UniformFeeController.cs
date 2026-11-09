@@ -85,10 +85,9 @@ public class UniformFeeController : ControllerBase
         }
         catch { }
 
-        var standardClasses = new List<string> { "Nursery", "LKG", "UKG" };
-        for (int i = 1; i <= 12; i++) standardClasses.Add($"Class {i}");
-        var combinedClasses = standardClasses.Concat(dbClasses).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-        var classes = new List<string> { "All Classes" }.Concat(combinedClasses).ToList();
+        var classes = dbClasses.Any()
+            ? new List<string> { "All Classes" }.Concat(dbClasses).Distinct().ToList()
+            : new List<string> { "All Classes" };
 
         var genders = new List<string>
         {

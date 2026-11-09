@@ -70,20 +70,13 @@ export const FinanceUniformConfigView: React.FC = () => {
   };
 
   const availableClasses = React.useMemo(() => {
-    const defaultHierarchy = ['Nursery', 'LKG', 'UKG', ...Array.from({ length: 12 }, (_, i) => `Class ${i + 1}`)];
-    const classSet = new Set<string>();
     if (academicClasses && academicClasses.length > 0) {
-      academicClasses.forEach((c: any) => {
-        const name = c.name || c.className;
-        if (name) classSet.add(name);
-      });
+      const list = academicClasses
+        .map((c: any) => c.name || c.className)
+        .filter(Boolean);
+      return Array.from(new Set(list)).sort((a, b) => compareClassesAscending(a, b, academicClasses));
     }
-    defaultHierarchy.forEach(cls => {
-      if (!Array.from(classSet).some(existing => matchesClassName(existing, cls))) {
-        classSet.add(cls);
-      }
-    });
-    return Array.from(classSet).sort((a, b) => compareClassesAscending(a, b, academicClasses));
+    return [];
   }, [academicClasses]);
 
   const fabricSizeOptions = React.useMemo(() => {
