@@ -256,25 +256,30 @@ export const Sidebar: React.FC<SidebarProps> = ({
       );
     });
 
+    const isHostelTypeString = (val?: string) => {
+      const clean = String(val || '').toLowerCase().trim();
+      if (!clean) return false;
+      if (clean.includes('non') || clean.includes('day scholar') || clean.includes('dayscholar') || clean.includes('day-scholar')) return false;
+      return clean === 'residential' || clean === 'hosteller' || clean === 'hostel' || clean.includes('hostel');
+    };
+
     const hasHostelStudentType = matchedStudents.some((s: any) => {
-      const sType = String(s.studentType || '').toLowerCase().trim();
       return (
-        ['hosteller', 'residential', 'hostel'].some(term => sType.includes(term)) ||
+        isHostelTypeString(s.studentType) ||
         Boolean(s.isHosteller || s.hostelBlock || s.hostelRoom || s.hostelBed)
       );
     });
 
     const hasHostelAdmission = matchedAdmissions.some((a: any) => {
-      const aType = String(a.studentType || '').toLowerCase().trim();
       return (
-        ['hosteller', 'residential', 'hostel'].some(term => aType.includes(term)) ||
+        isHostelTypeString(a.studentType) ||
         Boolean(a.isHosteller || a.hostelBlock || a.hostelRoom || a.hostelBed || a.allocatedBedId)
       );
     });
 
     const userType = String((user as any)?.studentType || '').toLowerCase().trim();
     const hasHostelUser =
-      ['hosteller', 'residential', 'hostel'].some(term => userType.includes(term)) ||
+      isHostelTypeString(userType) ||
       Boolean((user as any)?.isHosteller || (user as any)?.hostelBlock);
 
     isHosteller = hasHostelRecord || hasHostelStudentType || hasHostelAdmission || hasHostelUser;

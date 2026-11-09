@@ -1,6 +1,6 @@
 // @ts-nocheck
 import React, { useState, useEffect, useMemo } from 'react';
-import { IndianRupee, AlertCircle, CheckCircle2, Calendar, X, CreditCard } from 'lucide-react';
+import { IndianRupee, AlertCircle, CheckCircle2, Calendar, X, CreditCard, Download, Loader2 } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { getParentFeeDetails, payParentFee } from '../../../api/parent/parentApi';
@@ -23,6 +23,15 @@ export const ParentFinanceView: React.FC<ParentFinanceViewProps> = ({ activeTab,
   const [paymentMode, setPaymentMode] = useState('Online (Credit Card)');
   const [processing, setProcessing] = useState<string | null>(null);
   const [paymentSuccess, setPaymentSuccess] = useState<string | null>(null);
+  const [isDownloadingReceipts, setIsDownloadingReceipts] = useState(false);
+
+  const handleDownloadReceipts = () => {
+    setIsDownloadingReceipts(true);
+    setTimeout(() => {
+      window.print();
+      setTimeout(() => setIsDownloadingReceipts(false), 1200);
+    }, 400);
+  };
 
   const currentWard = parentWards[selectedChildIdx] || parentWards[0];
 
@@ -112,23 +121,23 @@ export const ParentFinanceView: React.FC<ParentFinanceViewProps> = ({ activeTab,
         </h2>
       </div>
 
-      <div className="flex p-1 bg-slate-100 dark:bg-slate-800/50 rounded-2xl w-max overflow-x-auto no-scrollbar">
+      <div className="flex p-1 bg-slate-100 dark:bg-slate-800/50 border border-sky-200/60 dark:border-sky-800/60 rounded-2xl w-max overflow-x-auto no-scrollbar">
         <button
           onClick={() => onTabChange && onTabChange('parent-fee-dues')}
-          className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
+          className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all cursor-pointer ${
             activeTab === 'parent-fee-dues'
-              ? 'bg-white dark:bg-slate-700 text-brand-600 dark:text-brand-400 shadow-sm'
-              : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+              ? 'bg-sky-600 text-white shadow-xs'
+              : 'text-slate-600 dark:text-slate-300 hover:text-sky-600 dark:hover:text-sky-400'
           }`}
         >
           Fee Details
         </button>
         <button
           onClick={() => onTabChange && onTabChange('parent-fee-receipts')}
-          className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all ${
+          className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all cursor-pointer ${
             activeTab === 'parent-fee-receipts'
-              ? 'bg-white dark:bg-slate-700 text-brand-600 dark:text-brand-400 shadow-sm'
-              : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+              ? 'bg-sky-600 text-white shadow-xs'
+              : 'text-slate-600 dark:text-slate-300 hover:text-sky-600 dark:hover:text-sky-400'
           }`}
         >
           Receipt Register
@@ -155,7 +164,7 @@ export const ParentFinanceView: React.FC<ParentFinanceViewProps> = ({ activeTab,
 
       {activeTab === 'parent-fee-dues' ? (
         <div className="space-y-4">
-          <div className="p-6 bg-gradient-to-r from-slate-50 to-sky-50/30 dark:from-slate-800/60 dark:to-sky-900/10 border border-slate-200/80 dark:border-slate-800 rounded-3xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="p-6 bg-gradient-to-r from-slate-50 to-sky-50/30 dark:from-slate-800/60 dark:to-sky-900/10 border border-sky-300 dark:border-sky-800 rounded-3xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <div className={`p-3 rounded-2xl ${totalDue > 0 ? 'bg-amber-100 dark:bg-amber-500/20 text-amber-600' : 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600'}`}>
                 {totalDue > 0 ? <AlertCircle className="w-6 h-6" /> : <CheckCircle2 className="w-6 h-6" />}
@@ -193,7 +202,7 @@ export const ParentFinanceView: React.FC<ParentFinanceViewProps> = ({ activeTab,
             )}
           </div>
 
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6">
+          <div className="bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 rounded-3xl p-6">
             <h3 className="text-base font-bold text-slate-900 dark:text-white mb-4">Fee Breakdown</h3>
             
             {loadingFees ? (
@@ -234,7 +243,7 @@ export const ParentFinanceView: React.FC<ParentFinanceViewProps> = ({ activeTab,
                         <button
                           onClick={() => handlePayDue(item)}
                           disabled={processing !== null}
-                          className="px-4 py-1.5 bg-brand-50 hover:bg-brand-100 dark:bg-brand-950/40 dark:hover:bg-brand-900/60 text-brand-600 dark:text-brand-400 font-bold text-xs rounded-xl transition-all"
+                          className="px-4 py-2 bg-sky-600 hover:bg-sky-700 active:bg-sky-800 text-white font-bold text-xs rounded-xl transition-all shadow-sm shadow-sky-500/20 hover:shadow-md cursor-pointer disabled:opacity-50"
                         >
                           {processing === String(item.feeId) ? 'Paying...' : 'Pay'}
                         </button>
@@ -247,8 +256,30 @@ export const ParentFinanceView: React.FC<ParentFinanceViewProps> = ({ activeTab,
           </div>
         </div>
       ) : (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6">
-          <h3 className="text-base font-bold text-slate-900 dark:text-white mb-4">Payment Receipts</h3>
+        <div className="bg-white dark:bg-slate-900 border border-sky-100 dark:border-sky-900/40 rounded-3xl p-6 shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+            <h3 className="text-base font-bold text-slate-900 dark:text-white">Payment Receipts</h3>
+            {feeItems.filter(i => (i.paidAmount || 0) > 0).length > 0 && (
+              <button
+                type="button"
+                disabled={isDownloadingReceipts}
+                onClick={handleDownloadReceipts}
+                className="flex items-center gap-2 px-4 py-2 bg-sky-600 hover:bg-sky-700 active:bg-sky-800 text-white rounded-xl text-xs font-bold transition-all shadow-sm shadow-sky-500/20 hover:shadow-md disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer w-max"
+              >
+                {isDownloadingReceipts ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin text-white" />
+                    <span>Preparing PDF...</span>
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-4 h-4 text-white" />
+                    <span>Download Statement</span>
+                  </>
+                )}
+              </button>
+            )}
+          </div>
           
           {feeItems.filter(i => (i.paidAmount || 0) > 0).length === 0 ? (
             <div className="py-12 text-center text-slate-400">

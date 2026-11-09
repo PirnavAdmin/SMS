@@ -191,7 +191,7 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ onNa
     };
   }, [students, admissions, user, userId, userEmail, userPhone, rawUserName]);
 
-  const studentDisplayName = (user?.name || '').trim();
+  const studentDisplayName = (user?.name || currentWard?.studentName || `${currentWard?.firstName || ''} ${currentWard?.lastName || ''}`).trim();
 
   // Combined Attendance
   const wardId = String(currentWard?.id || '').trim();
@@ -396,32 +396,33 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ onNa
 
   return (
     <div className="space-y-4 animate-in fade-in">
-      {/* Welcome Banner (Compact box height & padding matching Admin reference) */}
-      <div className="relative overflow-hidden rounded-2xl bg-brand-50/50 dark:bg-slate-900 p-3 sm:p-3.5 text-slate-900 dark:text-white border border-brand-200 dark:border-slate-800 shadow-xs">
-        <div className="absolute right-0 top-0 w-96 h-96 bg-brand-100/50 dark:bg-white/5 rounded-full blur-3xl pointer-events-none" />
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-3">
-          <div className="space-y-0.5">
-            <h1 className="text-lg sm:text-xl font-extrabold tracking-tight text-brand-900 dark:text-white flex items-center gap-2">
+      {/* Welcome Banner with Compact Height & Sky Accent Border */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-sky-50/70 via-white to-sky-50/40 dark:from-slate-900 dark:via-slate-900 dark:to-sky-950/20 px-4 py-2.5 sm:px-5 sm:py-3 text-slate-900 dark:text-white border-2 border-sky-200/80 dark:border-sky-800/80 shadow-xs">
+        <div className="absolute right-0 top-0 w-96 h-96 bg-sky-200/20 dark:bg-sky-500/5 rounded-full blur-3xl pointer-events-none" />
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-2.5 sm:gap-3">
+          <div className="space-y-1">
+            <h1 className="text-lg sm:text-xl font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2 leading-tight">
               <span>{greeting}{studentDisplayName ? `, ${studentDisplayName}` : ''}</span>
-              <span className="text-base inline-block hover:rotate-12 transition-transform select-none" role="img" aria-label="wave">👋</span>
+              <span className="text-lg inline-block hover:rotate-12 transition-transform select-none" role="img" aria-label="wave">👋</span>
             </h1>
-            <p className="text-xs text-slate-600 dark:text-slate-400">
-              {currentWard.className ? (
-                <strong className="text-slate-800 dark:text-slate-200">
+            <div className="flex items-center gap-2 flex-wrap text-xs font-semibold text-slate-600 dark:text-slate-400">
+              {currentWard.className && (
+                <span className="px-2 py-0.5 rounded-md bg-sky-100/80 dark:bg-sky-950/60 text-sky-800 dark:text-sky-200 border border-sky-300 dark:border-sky-700 font-bold text-[11px]">
                   {currentWard.className.toLowerCase().startsWith('class') ? currentWard.className : `Class ${currentWard.className}`}
                   {currentWard.section ? `-${currentWard.section}` : ''}
-                </strong>
-              ) : null}
-              {currentWard.className && currentWard.admissionNo ? ' • ' : ''}
-              {currentWard.admissionNo ? (
-                <>Adm No: <strong className="text-slate-800 dark:text-slate-200">{currentWard.admissionNo}</strong></>
-              ) : null}
-            </p>
+                </span>
+              )}
+              {currentWard.admissionNo && (
+                <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 font-bold text-[11px]">
+                  Adm No: {currentWard.admissionNo}
+                </span>
+              )}
+            </div>
           </div>
           
-          <div className="hidden md:flex items-center gap-2.5 bg-white/80 dark:bg-slate-800/80 backdrop-blur-xs px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xs">
-            <div className="flex items-center justify-center w-7 h-7 rounded-xl bg-sky-500/10 dark:bg-sky-500/20 text-sky-600 dark:text-sky-400 border border-sky-200/80 dark:border-sky-900/50 shrink-0">
-              <Calendar className="w-4 h-4" />
+          <div className="flex items-center gap-2.5 bg-white/90 dark:bg-slate-800/90 backdrop-blur-xs px-3 py-1.5 rounded-xl border border-sky-200 dark:border-sky-800 shadow-xs shrink-0 self-start md:self-auto">
+            <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-sky-500/10 dark:bg-sky-500/20 text-sky-600 dark:text-sky-400 border border-sky-200 dark:border-sky-700 shrink-0">
+              <Calendar className="w-3.5 h-3.5" />
             </div>
             <div className="text-left font-mono shrink-0">
               <p className="text-xs font-black text-slate-850 dark:text-slate-100 leading-none">{dateFormatted}</p>
@@ -431,62 +432,74 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ onNa
         </div>
       </div>
 
-      {/* 4 Stat Cards Grid (Identical to Admin Dashboard: left vertical colored border strip, flex icon+title, text-2xl font-black) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-        {/* Card 1: Attendance (Indigo) */}
+      {/* 4 Neat KPI Stat Cards with Sky Border & Reduced Height */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        {/* Card 1: Attendance */}
         <div
           onClick={() => onNavigate?.('attendance')}
-          className="bg-white dark:bg-slate-900 shadow-sm hover:shadow-md transition-all duration-200 border-0 border-l-4 border-l-indigo-500 p-3.5 rounded-xl flex flex-col gap-1.5 cursor-pointer group"
+          className="bg-white dark:bg-slate-900 shadow-xs hover:shadow-md transition-all duration-200 border border-sky-300 dark:border-sky-800 hover:border-sky-400 dark:hover:border-sky-600 px-3.5 py-2 sm:py-2.5 rounded-xl flex flex-col justify-between gap-1.5 cursor-pointer group"
         >
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-indigo-50 dark:bg-slate-800 group-hover:bg-indigo-100 dark:group-hover:bg-slate-700 transition-colors">
-              <Target className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">Attendance</span>
+            <div className="p-1 rounded-lg bg-indigo-50 dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 group-hover:bg-indigo-100 dark:group-hover:bg-slate-700 transition-colors">
+              <Target className="w-3.5 h-3.5" />
             </div>
-            <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 leading-tight">Attendance</span>
           </div>
-          <p className="text-2xl font-black text-slate-900 dark:text-white">{attPercentage}%</p>
+          <div>
+            <p className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight leading-none">{attPercentage}%</p>
+            <p className="text-[10px] font-medium text-slate-400 leading-tight mt-0.5">Current Term Record</p>
+          </div>
         </div>
 
-        {/* Card 2: Homework (Emerald) */}
+        {/* Card 2: Homework */}
         <div
           onClick={() => onNavigate?.('homework')}
-          className="bg-white dark:bg-slate-900 shadow-sm hover:shadow-md transition-all duration-200 border-0 border-l-4 border-l-emerald-500 p-3.5 rounded-xl flex flex-col gap-1.5 cursor-pointer group"
+          className="bg-white dark:bg-slate-900 shadow-xs hover:shadow-md transition-all duration-200 border border-sky-300 dark:border-sky-800 hover:border-sky-400 dark:hover:border-sky-600 px-3.5 py-2 sm:py-2.5 rounded-xl flex flex-col justify-between gap-1.5 cursor-pointer group"
         >
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-emerald-50 dark:bg-slate-800 group-hover:bg-emerald-100 dark:group-hover:bg-slate-700 transition-colors">
-              <BookOpen className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">Pending Homework</span>
+            <div className="p-1 rounded-lg bg-emerald-50 dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 group-hover:bg-emerald-100 dark:group-hover:bg-slate-700 transition-colors">
+              <BookOpen className="w-3.5 h-3.5" />
             </div>
-            <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 leading-tight">Pending Homework</span>
           </div>
-          <p className="text-2xl font-black text-slate-900 dark:text-white">{pendingHomework.length}</p>
+          <div>
+            <p className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight leading-none">{pendingHomework.length}</p>
+            <p className="text-[10px] font-medium text-slate-400 leading-tight mt-0.5">Due for submission</p>
+          </div>
         </div>
 
-        {/* Card 3: Fee Due (Rose) */}
+        {/* Card 3: Fee Due */}
         <div
           onClick={() => onNavigate?.('parent-fee-dues')}
-          className="bg-white dark:bg-slate-900 shadow-sm hover:shadow-md transition-all duration-200 border-0 border-l-4 border-l-rose-500 p-3.5 rounded-xl flex flex-col gap-1.5 cursor-pointer group"
+          className="bg-white dark:bg-slate-900 shadow-xs hover:shadow-md transition-all duration-200 border border-sky-300 dark:border-sky-800 hover:border-sky-400 dark:hover:border-sky-600 px-3.5 py-2 sm:py-2.5 rounded-xl flex flex-col justify-between gap-1.5 cursor-pointer group"
         >
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-rose-50 dark:bg-slate-800 group-hover:bg-rose-100 dark:group-hover:bg-slate-700 transition-colors">
-              <AlertCircle className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">Fee Due</span>
+            <div className="p-1 rounded-lg bg-rose-50 dark:bg-slate-800 text-rose-600 dark:text-rose-400 group-hover:bg-rose-100 dark:group-hover:bg-slate-700 transition-colors">
+              <AlertCircle className="w-3.5 h-3.5" />
             </div>
-            <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 leading-tight">Fee Due</span>
           </div>
-          <p className="text-2xl font-black text-slate-900 dark:text-white">₹{dueBalance.toLocaleString()}</p>
+          <div>
+            <p className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight leading-none">₹{dueBalance.toLocaleString()}</p>
+            <p className="text-[10px] font-medium text-slate-400 leading-tight mt-0.5">{dueBalance === 0 ? 'All fees settled' : 'Pending balance'}</p>
+          </div>
         </div>
 
-        {/* Card 4: Today's Classes (Amber) */}
+        {/* Card 4: Today's Classes */}
         <div
           onClick={() => onNavigate?.('timetable')}
-          className="bg-white dark:bg-slate-900 shadow-sm hover:shadow-md transition-all duration-200 border-0 border-l-4 border-l-amber-500 p-3.5 rounded-xl flex flex-col gap-1.5 cursor-pointer group"
+          className="bg-white dark:bg-slate-900 shadow-xs hover:shadow-md transition-all duration-200 border border-sky-300 dark:border-sky-800 hover:border-sky-400 dark:hover:border-sky-600 px-3.5 py-2 sm:py-2.5 rounded-xl flex flex-col justify-between gap-1.5 cursor-pointer group"
         >
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-amber-50 dark:bg-slate-800 group-hover:bg-amber-100 dark:group-hover:bg-slate-700 transition-colors">
-              <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">Today's Classes</span>
+            <div className="p-1 rounded-lg bg-amber-50 dark:bg-slate-800 text-amber-600 dark:text-amber-400 group-hover:bg-amber-100 dark:group-hover:bg-slate-700 transition-colors">
+              <Clock className="w-3.5 h-3.5" />
             </div>
-            <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 leading-tight">Today's Classes</span>
           </div>
-          <p className="text-2xl font-black text-slate-900 dark:text-white">{todaysSchedule.length}</p>
+          <div>
+            <p className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight leading-none">{todaysSchedule.length}</p>
+            <p className="text-[10px] font-medium text-slate-400 leading-tight mt-0.5">Active class periods</p>
+          </div>
         </div>
       </div>
 
@@ -494,7 +507,7 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ onNa
       {wardHostel && hostelDetails && roomDetails && (
         <div
           onClick={() => onNavigate?.('parent-hostel-details')}
-          className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-xl p-3.5 shadow-sm flex items-center justify-between cursor-pointer hover:shadow-md transition-all group"
+          className="bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 hover:border-sky-400 dark:hover:border-sky-600 rounded-xl p-3.5 shadow-sm flex items-center justify-between cursor-pointer hover:shadow-md transition-all group"
         >
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-indigo-50 dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 group-hover:scale-105 transition-transform">
@@ -516,19 +529,22 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ onNa
       {/* Main Content Containers Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
         {/* Circulars & Events (Takes 2 Columns) */}
-        <div className="lg:col-span-2 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-4 rounded-xl shadow-sm space-y-3">
-          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2.5">
-            <h3 className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white flex items-center gap-2">
+        <div className="lg:col-span-2 bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 hover:border-sky-400 dark:hover:border-sky-600 transition-all p-5 rounded-2xl shadow-xs space-y-3.5">
+          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+            <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
               <Megaphone className="w-4 h-4 text-sky-500" /> Circulars & Events
             </h3>
-            <button onClick={() => onNavigate?.('events')} className="text-[11px] font-bold text-sky-600 dark:text-sky-400 hover:underline">
+            <button 
+              onClick={() => onNavigate?.('events')} 
+              className="px-3 py-1 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-700 dark:bg-sky-950/60 dark:hover:bg-sky-900 dark:text-sky-300 border border-sky-200 dark:border-sky-800 font-bold text-xs transition-all shadow-2xs cursor-pointer"
+            >
               View All
             </button>
           </div>
 
           <div className="space-y-2.5">
             {recentNotices.length > 0 ? recentNotices.map((item, i) => (
-              <div key={i} className="p-2.5 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors flex items-start gap-3">
+              <div key={i} className="p-2.5 rounded-xl border border-sky-200/80 dark:border-sky-800/80 bg-slate-50/60 dark:bg-slate-800/40 hover:border-sky-300 dark:hover:border-sky-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-start gap-3">
                 <div className={`p-1.5 rounded-lg shrink-0 mt-0.5 ${item.type === 'notice' ? 'bg-sky-50 text-sky-600 dark:bg-sky-950 dark:text-sky-400' : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400'}`}>
                   {item.type === 'notice' ? <Megaphone className="w-3.5 h-3.5" /> : <Calendar className="w-3.5 h-3.5" />}
                 </div>
@@ -549,19 +565,22 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ onNa
         {/* Right Side Column: To-Do List & Scheduled Meetings */}
         <div className="space-y-4">
           {/* To-Do List */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-4 rounded-xl shadow-sm space-y-3">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2.5">
-              <h3 className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white flex items-center gap-2">
+          <div className="bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 hover:border-sky-400 dark:hover:border-sky-600 transition-all p-5 rounded-2xl shadow-xs space-y-3.5">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
                 <BookOpen className="w-4 h-4 text-amber-500" /> To-Do List
               </h3>
-              <button onClick={() => onNavigate?.('homework')} className="text-[11px] font-bold text-sky-600 dark:text-sky-400 hover:underline">
+              <button 
+                onClick={() => onNavigate?.('homework')} 
+                className="px-3 py-1 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-700 dark:bg-sky-950/60 dark:hover:bg-sky-900 dark:text-sky-300 border border-sky-200 dark:border-sky-800 font-bold text-xs transition-all shadow-2xs cursor-pointer"
+              >
                 View Homework
               </button>
             </div>
 
             <div className="space-y-2">
               {pendingHomework.length > 0 ? pendingHomework.map((item, idx) => (
-                <div key={idx} className="p-2.5 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 flex items-start gap-2.5">
+                <div key={idx} className="p-2.5 rounded-xl border border-sky-200/80 dark:border-sky-800/80 bg-slate-50/50 dark:bg-slate-800/30 hover:border-sky-300 dark:hover:border-sky-700 transition-all flex items-start gap-2.5">
                   <input type="checkbox" className="mt-0.5 w-3.5 h-3.5 rounded text-sky-600 focus:ring-sky-500 border-slate-300 cursor-pointer" />
                   <div className="flex-1 min-w-0">
                     <p className="font-bold text-xs text-slate-900 dark:text-white truncate">{item.title || (item as any).homeworkTitle || (item as any).topic || 'Homework'}</p>
@@ -587,7 +606,7 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ onNa
             if (studentMeetings.length === 0) return null;
 
             return (
-              <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-4 rounded-xl shadow-sm space-y-3">
+              <div className="bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 hover:border-sky-400 dark:hover:border-sky-600 p-4 rounded-xl shadow-sm space-y-3">
                 <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-2.5">
                   <Users className="w-4 h-4 text-sky-500" />
                   <h3 className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white">Scheduled Meetings</h3>
@@ -595,7 +614,7 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ onNa
 
                 <div className="space-y-2">
                   {studentMeetings.map(m => (
-                    <div key={m.id} className="p-2.5 rounded-xl border border-sky-100 dark:border-sky-900/40 bg-sky-50/30 dark:bg-sky-950/30 space-y-1.5 text-xs">
+                    <div key={m.id} className="p-2.5 rounded-xl border border-sky-200 dark:border-sky-800 bg-sky-50/30 dark:bg-sky-950/30 hover:border-sky-300 space-y-1.5 text-xs transition-all">
                       <div className="flex items-center justify-between">
                         <span className="px-2 py-0.5 rounded-md text-[9px] font-extrabold uppercase bg-sky-100 text-sky-700 dark:bg-sky-900/50 dark:text-sky-300">
                           {m.meetingMode}

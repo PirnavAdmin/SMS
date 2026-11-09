@@ -424,27 +424,27 @@ export const ParentTeacherInfoView: React.FC = () => {
 
         <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
           <div className="relative w-full sm:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-sky-500" />
             <input 
               type="text" 
               placeholder="Search teachers..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 rounded-xl text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-sky-500/40 outline-none transition-all shadow-2xs"
+              className="w-full pl-9 pr-4 py-2.5 bg-white dark:bg-slate-800 border-2 border-sky-300 dark:border-sky-600 rounded-xl text-xs font-bold text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-hidden transition-all shadow-2xs"
             />
           </div>
           <div className="relative w-full sm:w-64">
-            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-sky-500 pointer-events-none" />
             <select
               value={subjectFilter}
               onChange={(e) => setSubjectFilter(e.target.value)}
-              className="w-full pl-9 pr-10 py-2 bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 rounded-xl text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500/40 outline-none transition-all appearance-none shadow-2xs cursor-pointer font-medium"
+              className="w-full pl-9 pr-10 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-hidden transition-all appearance-none cursor-pointer"
             >
               {subjects.map(sub => (
-                <option key={sub} value={sub}>{sub === 'All' ? 'All Subjects' : sub}</option>
+                <option key={sub} value={sub} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">{sub === 'All' ? 'All Subjects' : sub}</option>
               ))}
             </select>
-            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-sky-500 pointer-events-none" />
           </div>
         </div>
       </div>
@@ -483,7 +483,7 @@ export const ParentTeacherInfoView: React.FC = () => {
               return (
                 <div 
                   key={teacher.id} 
-                  className="col-span-full rounded-2xl p-5 sm:p-6 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 hover:border-sky-300 dark:hover:border-sky-700 shadow-xs hover:shadow-md transition-all duration-300 group"
+                  className="col-span-full rounded-2xl p-5 sm:p-6 bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 hover:border-sky-400 dark:hover:border-sky-600 shadow-xs hover:shadow-md transition-all duration-300 group"
                 >
                   <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 sm:gap-6">
                     {/* Left: Avatar & Profile */}
@@ -567,7 +567,7 @@ export const ParentTeacherInfoView: React.FC = () => {
             return (
               <div 
                 key={teacher.id} 
-                className="rounded-2xl p-4 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 hover:border-sky-300 dark:hover:border-sky-700 shadow-xs hover:shadow-md transition-all duration-300 group flex items-center gap-3.5 text-left"
+                className="rounded-2xl p-4 bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 hover:border-sky-400 dark:hover:border-sky-600 shadow-xs hover:shadow-md transition-all duration-300 group flex items-center gap-3.5 text-left"
               >
                 <div className="w-11 h-11 rounded-full bg-sky-50 dark:bg-sky-950/50 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800 flex items-center justify-center text-sm font-extrabold shrink-0 shadow-2xs group-hover:scale-105 transition-transform duration-300">
                   {teacher.firstName.charAt(0)}{teacher.lastName.charAt(0) || teacher.firstName.charAt(1) || 'T'}

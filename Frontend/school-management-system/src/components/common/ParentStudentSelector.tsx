@@ -504,10 +504,10 @@ export const ParentStudentSelector: React.FC<ParentStudentSelectorProps> = ({
             key={ward.id || ward.studentId || idx}
             type="button"
             onClick={() => onSelect(idx)}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer whitespace-nowrap flex items-center gap-2 ${
+            className={`px-4 py-2 rounded-xl text-xs font-bold border-2 transition-all cursor-pointer whitespace-nowrap flex items-center gap-2 ${
               isSelected
-                ? 'bg-sky-600 text-white border-sky-600 shadow-sm shadow-sky-600/30'
-                : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700'
+                ? 'bg-sky-600 text-white border-sky-600 shadow-sm shadow-sky-600/20'
+                : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-sky-200/80 dark:border-sky-800/80 hover:border-sky-400 hover:text-sky-600 dark:hover:border-sky-600'
             }`}
           >
             <span>{displayName}</span>
