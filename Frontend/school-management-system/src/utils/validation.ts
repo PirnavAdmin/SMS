@@ -2402,13 +2402,39 @@ export function installGlobalInputValidation(): () => void {
   window.addEventListener('input', handleInput, true);
   window.addEventListener('focusout', handleBlur, true);
   window.addEventListener('submit', handleSubmit, true);
+  
+  const handleSelectInteraction = (e: Event) => {
+    const target = e.target as HTMLElement | null;
+    if (target instanceof HTMLSelectElement || target?.getAttribute('role') === 'combobox' || target?.tagName === 'SELECT') {
+      const parentWrap = target.closest('.glass-card, [role="search"], .grid, form');
+      if (parentWrap) {
+        const searchInputs = parentWrap.querySelectorAll('input[type="text"], input[type="search"], [data-search-input]');
+        searchInputs.forEach(inp => {
+          if (inp instanceof HTMLInputElement) {
+            setGlobalInputError(inp, undefined);
+            inp.removeAttribute('data-global-invalid');
+            inp.style.borderColor = '';
+          }
+        });
+        parentWrap.querySelectorAll('[data-global-validation-error="true"]').forEach(el => el.remove());
+        if (parentWrap.parentElement) {
+          parentWrap.parentElement.querySelectorAll('[data-global-validation-error="true"]').forEach(el => el.remove());
+        }
+      }
+    }
+  };
+
   window.addEventListener('click', handleClick, true);
+  window.addEventListener('change', handleSelectInteraction, true);
+  window.addEventListener('focusin', handleSelectInteraction, true);
 
   const cleanup = () => {
     window.removeEventListener('input', handleInput, true);
     window.removeEventListener('focusout', handleBlur, true);
     window.removeEventListener('submit', handleSubmit, true);
     window.removeEventListener('click', handleClick, true);
+    window.removeEventListener('change', handleSelectInteraction, true);
+    window.removeEventListener('focusin', handleSelectInteraction, true);
   };
 
   (window as any).__globalValidationCleanup = cleanup;

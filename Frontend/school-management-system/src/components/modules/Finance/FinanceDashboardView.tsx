@@ -486,7 +486,7 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
         {/* Total Expected Collection */}
         <div
           onClick={() => handleCardClick("due-fees")}
-          className="glass-card p-5 rounded-3xl space-y-2 border-l-4 border-l-sky-500 cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-xl group"
+          className="glass-card p-5 rounded-3xl flex flex-col justify-between h-full space-y-2 border-l-4 border-l-sky-500 cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-xl group"
         >
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-500 uppercase">
@@ -499,7 +499,7 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
           <h3 className="text-2xl font-black text-slate-900 dark:text-white">
             {formatCurrency(totalExpected)}
           </h3>
-          <div className="flex items-center justify-end pt-1">
+          <div className="flex items-center justify-end mt-auto pt-2">
             <span className="text-[11px] font-bold text-sky-600 dark:text-sky-400 flex items-center gap-0.5 group-hover:underline">
               View Dues <ArrowUpRight className="w-3.5 h-3.5" />
             </span>
@@ -509,7 +509,7 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
         {/* Total Collected */}
         <div
           onClick={() => handleCardClick("fee-collection")}
-          className="glass-card p-5 rounded-3xl space-y-2 border-l-4 border-l-emerald-500 cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-xl group"
+          className="glass-card p-5 rounded-3xl flex flex-col justify-between h-full space-y-2 border-l-4 border-l-emerald-500 cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-xl group"
         >
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-500 uppercase">
@@ -522,7 +522,7 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
           <h3 className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
             {formatCurrency(totalCollected)}
           </h3>
-          <div className="flex items-center justify-end pt-1">
+          <div className="flex items-center justify-end mt-auto pt-2">
             <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5 group-hover:underline">
               Collect Fees <ArrowUpRight className="w-3.5 h-3.5" />
             </span>
@@ -532,7 +532,7 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
         {/* Total Pending Dues */}
         <div
           onClick={() => handleCardClick("student-fees")}
-          className="glass-card p-5 rounded-3xl space-y-2 border-l-4 border-l-rose-500 cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-xl group"
+          className="glass-card p-5 rounded-3xl flex flex-col justify-between h-full space-y-2 border-l-4 border-l-rose-500 cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-xl group"
         >
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-500 uppercase">
@@ -545,7 +545,7 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
           <h3 className="text-2xl font-black text-rose-600 dark:text-rose-400">
             {formatCurrency(totalPending)}
           </h3>
-          <div className="flex items-center justify-end pt-1">
+          <div className="flex items-center justify-end mt-auto pt-2">
             <span className="text-[11px] font-bold text-rose-600 dark:text-rose-400 flex items-center gap-0.5 group-hover:underline">
               View Dues <ArrowUpRight className="w-3.5 h-3.5" />
             </span>
@@ -555,7 +555,7 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
         {/* Today's Collection */}
         <div
           onClick={() => handleCardClick("fee-collection")}
-          className="glass-card p-5 rounded-3xl space-y-2 border-l-4 border-l-sky-500 cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-xl group"
+          className="glass-card p-5 rounded-3xl flex flex-col justify-between h-full space-y-2 border-l-4 border-l-sky-500 cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-xl group"
         >
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-500 uppercase">
@@ -568,7 +568,7 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
           <h3 className="text-2xl font-black text-sky-600 dark:text-sky-400">
             {formatCurrency(todaysCollection)}
           </h3>
-          <div className="flex items-center justify-end pt-1">
+          <div className="flex items-center justify-end mt-auto pt-2">
             <span className="text-[11px] font-bold text-sky-600 dark:text-sky-400 flex items-center gap-0.5 group-hover:underline">
               Receipts <ArrowUpRight className="w-3.5 h-3.5" />
             </span>
@@ -578,7 +578,7 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
         {/* Liquidity Accounts & Vaults KPI Card */}
         <div
           onClick={() => handleCardClick("accounts")}
-          className="glass-card p-5 rounded-3xl space-y-2 border-l-4 border-l-indigo-500 cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-xl group"
+          className="glass-card p-5 rounded-3xl flex flex-col justify-between h-full space-y-2 border-l-4 border-l-indigo-500 cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-xl group"
         >
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-500 uppercase">
@@ -595,7 +595,7 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
             <span>Bank: <strong className="text-sky-600 dark:text-sky-400">{formatCurrency(bankBalance)}</strong></span>
             <span>Cash: <strong className="text-emerald-600 dark:text-emerald-400">{formatCurrency(cashBalance)}</strong></span>
           </div>
-          <div className="flex items-center justify-end pt-1">
+          <div className="flex items-center justify-end mt-auto pt-2">
             <span className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-0.5 group-hover:underline">
               View Vaults <ArrowUpRight className="w-3.5 h-3.5" />
             </span>

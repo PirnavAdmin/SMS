@@ -562,12 +562,12 @@ export const HostelMasterView: React.FC<HostelMasterViewProps> = ({
                     value={form.hostelType || ''}
                     onChange={e => setForm({ ...form, hostelType: e.target.value })}
                     className={`w-full px-3 py-2 rounded-xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 font-bold cursor-pointer transition-all hover:border-sky-400 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 ${
-                      !form.hostelType ? 'text-sky-600/70 dark:text-sky-400/70 font-sans font-medium' : 'text-sky-950 dark:text-sky-100'
+                      !form.hostelType ? 'text-slate-700 dark:text-slate-200 font-sans font-semibold' : 'text-sky-950 dark:text-sky-100'
                     }`}
                     disabled={isSubmitting}
                     required
                   >
-                    <option value="" className="text-slate-600 dark:text-slate-300 font-sans font-medium bg-white dark:bg-slate-900">Select Category</option>
+                    <option value="" className="text-slate-700 dark:text-slate-200 font-sans font-semibold bg-white dark:bg-slate-900">Select Category</option>
                     <option value="Boys Hostel" className="text-slate-900 dark:text-white bg-white dark:bg-slate-900 font-medium">Boys Hostel</option>
                     <option value="Girls Hostel" className="text-slate-900 dark:text-white bg-white dark:bg-slate-900 font-medium">Girls Hostel</option>
                   </select>
@@ -578,14 +578,12 @@ export const HostelMasterView: React.FC<HostelMasterViewProps> = ({
                     value={(form as any).totalFloors || ''}
                     onChange={e => setForm({ ...form, totalFloors: parseInt(e.target.value) || 1 } as any)}
                     className={`w-full px-3 py-2 rounded-xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 font-bold cursor-pointer transition-all hover:border-sky-400 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 ${
-                      !(form as any).totalFloors
-                        ? 'text-sky-600/70 dark:text-sky-400/70 font-sans font-medium'
-                        : 'font-mono text-sky-950 dark:text-sky-100'
+                      !(form as any).totalFloors ? 'text-slate-700 dark:text-slate-200 font-sans font-semibold' : 'font-mono text-sky-950 dark:text-sky-100'
                     }`}
                     disabled={isSubmitting}
                     required
                   >
-                    <option value="" className="text-slate-600 dark:text-slate-300 font-sans font-medium bg-white dark:bg-slate-900">Select Floors...</option>
+                    <option value="" className="text-slate-700 dark:text-slate-200 font-sans font-semibold bg-white dark:bg-slate-900">Select Floors...</option>
                     {Array.from({ length: 30 }, (_, i) => (
                       <option key={i + 1} value={i + 1} className="font-mono text-slate-900 dark:text-white bg-white dark:bg-slate-900">{i + 1} Floor{i > 0 ? 's' : ''}</option>
                     ))}

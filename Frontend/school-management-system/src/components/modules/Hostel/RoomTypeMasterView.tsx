@@ -37,6 +37,24 @@ interface FloorSharingConfig {
 const getStoredFloorConfigs = (_hostelId: string): FloorSharingConfig[] | null => null;
 const saveStoredFloorConfigs = (_hostelId: string, _configs: FloorSharingConfig[]) => {};
 
+
+const formatHostelLocation = (val?: string) => {
+  if (!val) return '-';
+  const parts = val.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+  const uniqueParts = Array.from(new Set(parts));
+  let joined = uniqueParts.join(', ');
+  const tokens = joined.split(/\s+/);
+  if (tokens.length >= 2 && tokens.length % 2 === 0) {
+    const half = tokens.length / 2;
+    const firstPart = tokens.slice(0, half).join(' ');
+    const secondPart = tokens.slice(half).join(' ');
+    if (firstPart.toLowerCase() === secondPart.toLowerCase()) {
+      return firstPart;
+    }
+  }
+  return joined || '-';
+};
+
 export const RoomTypeMasterView: React.FC = () => {
   const { addToast } = useToast();
   const { user, role } = useAuth();
@@ -1229,7 +1247,7 @@ export const RoomTypeMasterView: React.FC = () => {
                           </div>
                           <div>
                             <span className="text-[10px] text-slate-400 font-bold block uppercase">Location</span>
-                            <span className="font-semibold text-slate-800 dark:text-slate-200 truncate block">{selectedBlock.address || '-'}</span>
+                            <span className="font-semibold text-slate-800 dark:text-slate-200 truncate block">{formatHostelLocation(selectedBlock.address)}</span>
                           </div>
                         </div>
                       </div>

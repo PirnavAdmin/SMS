@@ -1,6 +1,8 @@
 // @ts-nocheck
 import React, { useState } from 'react';
 import { formatCurrency } from '../../../utils/currency';
+import { validateSearchQuery } from '../../../utils/validation';
+import { compareClassesAscending, matchesClassName } from '../../../utils/classSorter';
 import { Shirt, Plus, Search, Edit, Trash2, CheckCircle2, XCircle, ShieldAlert } from 'lucide-react';
 import { FinanceUniformConfig } from '../../../types';
 import { useData } from '../../../context/DataContext';
@@ -54,11 +56,34 @@ export const FinanceUniformConfigView: React.FC = () => {
     status: 'Active'
   });
 
-  const availableClasses = React.useMemo(() => {
-    if (academicClasses && academicClasses.length > 0) {
-      return academicClasses.map(c => c.name);
+  const [searchError, setSearchError] = useState<string | undefined>(undefined);
+
+  const handleQueryChange = (val: string) => {
+    setQuery(val);
+    setCurrentPage(1);
+    if (!val.trim()) {
+      setSearchError(undefined);
+    } else {
+      const res = validateSearchQuery(val, 50);
+      setSearchError(res.isValid ? undefined : (res.error || 'Enter a valid search term.'));
     }
-    return ['Nursery', 'LKG', 'UKG', ...Array.from({ length: 12 }, (_, i) => `Class ${i + 1}`)];
+  };
+
+  const availableClasses = React.useMemo(() => {
+    const defaultHierarchy = ['Nursery', 'LKG', 'UKG', ...Array.from({ length: 12 }, (_, i) => `Class ${i + 1}`)];
+    const classSet = new Set<string>();
+    if (academicClasses && academicClasses.length > 0) {
+      academicClasses.forEach((c: any) => {
+        const name = c.name || c.className;
+        if (name) classSet.add(name);
+      });
+    }
+    defaultHierarchy.forEach(cls => {
+      if (!Array.from(classSet).some(existing => matchesClassName(existing, cls))) {
+        classSet.add(cls);
+      }
+    });
+    return Array.from(classSet).sort((a, b) => compareClassesAscending(a, b, academicClasses));
   }, [academicClasses]);
 
   const fabricSizeOptions = React.useMemo(() => {
@@ -72,6 +97,7 @@ export const FinanceUniformConfigView: React.FC = () => {
 
   const filteredConfigs = financeUniformConfigs.filter(c => {
     if (!c) return false;
+    if (searchError) return false;
 
     // Filter by navbar selected Academic Year
     if (selectedAcademicYear) {
@@ -253,6 +279,16 @@ export const FinanceUniformConfigView: React.FC = () => {
       return;
     }
 
+    const amount = Number(form.feeAmount);
+    if (isNaN(amount) || amount <= 0) {
+      addToast('warning', 'Invalid Amount', 'Please enter a valid positive fee amount.');
+      return;
+    }
+    if (amount > 500000) {
+      addToast('warning', 'Amount Limit Exceeded', 'Uniform fee amount cannot exceed ₹5,00,000.');
+      return;
+    }
+
     const payload = {
       ...form,
       academicYear: selectedAcademicYear || form.academicYear || financeSettings.academicYear || '',
@@ -329,12 +365,12 @@ export const FinanceUniformConfigView: React.FC = () => {
           <table className="w-full text-left text-xs text-slate-700 dark:text-slate-300">
             <thead className="bg-slate-50 dark:bg-slate-800/80 uppercase font-extrabold text-[10px] tracking-wider text-slate-500 border-b border-slate-200 dark:border-slate-800">
               <tr>
-                <th className="py-3 px-4">Class / Grade</th>
-                <th className="py-3 px-4">Uniform Package / Item</th>
-                <th className="py-3 px-4">Gender</th>
-                <th className="py-3 px-4 text-right">Fee Amount</th>
-                <th className="py-3 px-4">Status</th>
-                <th className="py-3 px-4 text-right">Actions</th>
+                <th className="py-3 px-4 w-[18%]">Class / Grade</th>
+                <th className="py-3 px-4 w-[34%]">Uniform Package / Item</th>
+                <th className="py-3 px-4 w-[14%]">Gender</th>
+                <th className="py-3 px-4 w-[16%] text-right">Fee Amount</th>
+                <th className="py-3 px-4 w-[10%]">Status</th>
+                <th className="py-3 px-4 w-[8%] text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
@@ -350,7 +386,7 @@ export const FinanceUniformConfigView: React.FC = () => {
                     <td className="py-3.5 px-4 font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
                       <Shirt className="w-4 h-4 text-sky-500 shrink-0" /> {c.className}
                     </td>
-                    <td className="py-3.5 px-4 font-bold text-slate-800 dark:text-slate-200">
+                    <td className="py-3.5 px-4 font-bold text-slate-800 dark:text-slate-200 truncate">
                       {(() => {
                         let pkgStr = (c.uniformPackage || '').trim();
                         const lower = pkgStr.toLowerCase();
@@ -371,7 +407,7 @@ export const FinanceUniformConfigView: React.FC = () => {
                       })()}
                     </td>
                     <td className="py-3.5 px-4 text-slate-600 dark:text-slate-400">{c.gender}</td>
-                    <td className="py-3.5 px-4 text-right font-black text-emerald-600 dark:text-emerald-400 text-sm">
+                    <td className="py-3.5 px-4 text-right font-black text-emerald-600 dark:text-emerald-400 text-sm truncate">
                       {formatCurrency(c.feeAmount || 0)}
                     </td>
                     <td className="py-3.5 px-4">

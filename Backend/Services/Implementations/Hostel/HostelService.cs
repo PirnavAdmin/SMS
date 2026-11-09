@@ -190,7 +190,8 @@ public class HostelService : IHostelService
             AlternateMobileNumber = dto.AlternateMobileNumber?.Trim(),
             Email = dto.Email?.Trim(),
             Status = string.IsNullOrWhiteSpace(dto.Status) ? "Active" : dto.Status.Trim(),
-            Address = dto.Address?.Trim(),
+            Address = !string.IsNullOrWhiteSpace(dto.Address) ? string.Join(", ", dto.Address.Split(new[] { '', '
+' }, StringSplitOptions.RemoveEmptyEntries).Select(s => s.Trim()).Distinct()) : null,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -1491,9 +1492,21 @@ public class HostelService : IHostelService
             if (activeAlloc == null) activeAlloc = allAlloc.FirstOrDefault();
         }
 
+        var targetStudentId = activeAlloc?.StudentId ?? dto.StudentId;
+        var existingOutpasses = await _hostelRepo.GetAllOutpassesAsync(null, null);
+        var activePendingOutpass = existingOutpasses.FirstOrDefault(o =>
+            (o.StudentId == targetStudentId || (!string.IsNullOrWhiteSpace(dto.StudentName) && string.Equals(o.StudentName, dto.StudentName.Trim(), StringComparison.OrdinalIgnoreCase))) &&
+            (o.Status.Contains("Pending", StringComparison.OrdinalIgnoreCase) || o.Status.Contains("Approved", StringComparison.OrdinalIgnoreCase))
+        );
+
+        if (activePendingOutpass != null)
+        {
+            throw new InvalidOperationException("An active Outpass request already exists for this student.");
+        }
+
         var outpass = new HostelOutpass
         {
-            StudentId = activeAlloc?.StudentId ?? dto.StudentId,
+            StudentId = targetStudentId,
             StudentName = !string.IsNullOrWhiteSpace(dto.StudentName) ? dto.StudentName.Trim() : (activeAlloc?.StudentName ?? "Hostel Student"),
             AdmissionNo = activeAlloc?.RegistrationNo ?? "",
             HostelName = activeAlloc?.Hostel?.HostelName ?? "",

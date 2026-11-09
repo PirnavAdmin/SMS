@@ -180,16 +180,16 @@ export const FeeHeadsView: React.FC = () => {
   const [formData, setFormData] = useState<Partial<FeeHead>>({
     name: '',
     code: '',
-    category: 'Tuition',
+    category: '' as any,
     frequency: 'Term-wise',
-    mandatory: true,
-    applicableClasses: classOptions,
-    applicableBranches: ['All Branches'],
-    applicableSections: ['All Sections'],
-    paymentEligibility: 'Both One-Time and Term-Wise',
-    applicableTerms: [...availableAcademicTerms],
+    mandatory: false,
+    applicableClasses: classOptions && classOptions.length > 0 ? classOptions : ['Nursery', 'LKG', 'UKG', ...Array.from({ length: 12 }, (_, i) => `Class ${i + 1}`)],
+    applicableBranches: [],
+    applicableSections: [],
+    paymentEligibility: '' as any,
+    applicableTerms: [],
     taxPercentage: 0,
-    displayOrder: 1,
+    displayOrder: '' as any,
     status: 'Active',
     hostelBlockId: '',
     hostelBlockName: 'All',
@@ -232,6 +232,7 @@ export const FeeHeadsView: React.FC = () => {
     return (uniformSizes || []).map((s: any) => s.sizeName || s.size || s.name).filter(Boolean);
   }, [uniforms, uniformSizes, formData.uniformItemId]);
 
+
   const filteredHeads = feeHeads.filter(h => {
     const matchesQuery = h.name.toLowerCase().includes(query.toLowerCase()) || h.code.toLowerCase().includes(query.toLowerCase());
     const matchesCategory = selectedCategory === 'All' || h.category === selectedCategory;
@@ -248,21 +249,40 @@ export const FeeHeadsView: React.FC = () => {
     return (a.displayOrder || 0) - (b.displayOrder || 0);
   });
 
+const exportData = useMemo(() => {
+    return filteredHeads.map((h, idx) => ({
+      "S.No": idx + 1,
+      "Fee Type Name": h.name,
+      "Fee Code": h.code,
+      "Category": h.category,
+      "Payment Eligibility Mode": h.paymentEligibility || 'Both One-Time and Term-Wise',
+      "Frequency": h.frequency,
+      "Applicable Classes": (h.applicableClasses && h.applicableClasses.length > 0) ? h.applicableClasses.join(', ') : 'All Classes',
+      "Applicable Sections": (h.applicableSections && h.applicableSections.length > 0) ? h.applicableSections.join(', ') : 'All Sections',
+      "Applicable Branches": (h.applicableBranches && h.applicableBranches.length > 0) ? h.applicableBranches.join(', ') : 'All Branches',
+      "Academic Terms": (h.applicableTerms && h.applicableTerms.length > 0) ? h.applicableTerms.join(', ') : 'All Terms',
+      "Tax (%)": h.taxPercentage ?? 0,
+      "Display Order": h.displayOrder ?? idx + 1,
+      "Mandatory": h.mandatory ? 'Yes' : 'No',
+      "Status": h.status || 'Active'
+    }));
+  }, [filteredHeads]);
+
   const handleOpenAdd = () => {
     setEditingHead(null);
     setFormData({
       name: '',
-      code: 'FH-' + Math.floor(100 + Math.random() * 900),
-      category: 'Tuition Fee',
+      code: '',
+      category: '' as any,
       frequency: 'Term-wise',
-      mandatory: true,
-      applicableClasses: classOptions,
-      applicableBranches: ['All Branches'],
-      applicableSections: ['All Sections'],
-      paymentEligibility: 'Both One-Time and Term-Wise',
-      applicableTerms: [...availableAcademicTerms],
+      mandatory: false,
+      applicableClasses: classOptions && classOptions.length > 0 ? classOptions : ['Nursery', 'LKG', 'UKG', ...Array.from({ length: 12 }, (_, i) => `Class ${i + 1}`)],
+      applicableBranches: [],
+      applicableSections: [],
+      paymentEligibility: '' as any,
+      applicableTerms: [],
       taxPercentage: 0,
-      displayOrder: feeHeads.length + 1,
+      displayOrder: '' as any,
       status: 'Active',
       hostelBlockId: '',
       hostelBlockName: 'All',
@@ -309,6 +329,12 @@ export const FeeHeadsView: React.FC = () => {
   const handleSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     try {
+      if (!formData.category) {
+        throw new Error('Please select a Category.');
+      }
+      if (!formData.paymentEligibility) {
+        throw new Error('Please select a Payment Eligibility Mode.');
+      }
       if (!formData.name || !formData.name.trim()) {
         throw new Error('Fee type name is required.');
       }
@@ -424,7 +450,7 @@ export const FeeHeadsView: React.FC = () => {
           >
             <Plus className="w-4 h-4" /> Add Fee Category
           </button>
-          <ExportButton data={filteredHeads} filename="fee_heads" />
+          <ExportButton data={exportData} filename="fee_categories" />
         </div>
       </div>
 
@@ -595,15 +621,15 @@ export const FeeHeadsView: React.FC = () => {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4 text-xs">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block font-semibold mb-1">Fee Type Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input
                     type="text"
                     required
-                    value={formData.name}
+                    value={formData.name || ''}
                     onChange={e => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="e.g. Tuition Fee"
+                    placeholder="Enter Fee Type Name"
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none"
                   />
                 </div>
@@ -612,29 +638,32 @@ export const FeeHeadsView: React.FC = () => {
                   <input
                     type="text"
                     required
-                    value={formData.code}
+                    value={formData.code || ''}
                     onChange={e => setFormData({ ...formData, code: e.target.value })}
-                    placeholder="e.g. TUIT-101"
+                    placeholder="Enter Fee Code"
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono outline-none"
                   />
                 </div>
-              </div>
-
-              <div>
-                <label className="block font-semibold mb-1">Category <span className="text-rose-500 font-bold">*</span></label>
-                <select
-                  value={formData.category}
-                  onChange={e => {
-                    const newCategory = e.target.value as FeeHeadCategory;
-                    setFormData({
-                      ...formData,
-                      category: newCategory
-                    });
-                  }}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none font-bold text-xs"
-                >
-                  {categoryOptions.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
+                <div>
+                  <label className="block font-semibold mb-1">Category <span className="text-rose-500 font-bold">*</span></label>
+                  <select
+                    value={formData.category || ''}
+                    required
+                    onChange={e => {
+                      const newCategory = e.target.value as FeeHeadCategory;
+                      setFormData({
+                        ...formData,
+                        category: newCategory
+                      });
+                    }}
+                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none text-xs ${
+                      !formData.category ? 'text-slate-400 font-normal' : 'font-bold text-slate-900 dark:text-white'
+                    }`}
+                  >
+                    <option value="" disabled hidden>Select Category</option>
+                    {categoryOptions.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
               </div>
 
               {/* DYNAMIC MODULE ARCHITECTURE NOTICES */}
@@ -800,7 +829,8 @@ export const FeeHeadsView: React.FC = () => {
                     Payment Eligibility Mode <span className="text-rose-500 font-bold">*</span>
                   </label>
                   <select
-                    value={formData.paymentEligibility || 'Both One-Time and Term-Wise'}
+                    value={formData.paymentEligibility || ''}
+                    required
                     onChange={(e) => {
                       const val = e.target.value as FeePaymentEligibility;
                       setFormData({
@@ -810,8 +840,11 @@ export const FeeHeadsView: React.FC = () => {
                         applicableTerms: val === 'One-Time Only' ? [] : (formData.applicableTerms && formData.applicableTerms.length > 0 ? formData.applicableTerms : [...availableAcademicTerms])
                       });
                     }}
-                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 font-bold text-slate-900 dark:text-white text-xs outline-none"
+                    className={`w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 text-xs outline-none ${
+                      !formData.paymentEligibility ? 'text-slate-400 font-normal' : 'font-bold text-slate-900 dark:text-white'
+                    }`}
                   >
+                    <option value="" disabled hidden>Select Payment Eligibility Mode</option>
                     <option value="One-Time Only">One-Time Only (Single Payment / Installment for Academic Year)</option>
                     <option value="Term-Wise Allowed">Term-Wise Allowed Only (Installments derived from Academic Terms)</option>
                     <option value="Both One-Time and Term-Wise">Both One-Time and Term-Wise (Flexible Payment Mode)</option>
@@ -904,7 +937,7 @@ export const FeeHeadsView: React.FC = () => {
                   <input
                     type="number"
                     min="1"
-                    value={(formData.displayOrder as any) === '' ? '' : (formData.displayOrder ?? 1)}
+                    placeholder="Enter Display Order" value={(formData.displayOrder as any) === '' || formData.displayOrder === undefined ? '' : formData.displayOrder}
                     onChange={e => {
                       const val = e.target.value;
                       setFormData({ ...formData, displayOrder: val === '' ? '' as any : Number(val) });
@@ -932,6 +965,12 @@ export const FeeHeadsView: React.FC = () => {
 
               {/* Applicable Classes Configuration */}
               <div className="space-y-2 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700">
+                {classOptions.length === 0 && (
+                  <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 text-xs flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600" />
+                    <span>No classes are configured. Please create classes before creating a fee category. Standard grade fallback will be used.</span>
+                  </div>
+                )}
                 <div className="flex items-center justify-between">
                   <label className="font-extrabold text-slate-800 dark:text-slate-200">
                     Applicable Classes ({(formData.applicableClasses || []).length}/{classOptions.length}) <span className="text-rose-500 font-bold ml-0.5">*</span>
@@ -944,14 +983,18 @@ export const FeeHeadsView: React.FC = () => {
                     >
                       Select All
                     </button>
-                    <span className="text-slate-300">|</span>
-                    <button
-                      type="button"
-                      onClick={() => setFormData({ ...formData, applicableClasses: [] })}
-                      className="text-slate-400 hover:text-slate-600 font-bold hover:underline cursor-pointer"
-                    >
-                      Deselect All
-                    </button>
+                    {(formData.applicableClasses || []).length > 0 && (
+                      <>
+                        <span className="text-slate-300">|</span>
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, applicableClasses: [] })}
+                          className="text-slate-400 hover:text-slate-600 font-bold hover:underline cursor-pointer"
+                        >
+                          Deselect All
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -1036,7 +1079,7 @@ export const FeeHeadsView: React.FC = () => {
               <div className="space-y-2 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700">
                 <div className="flex items-center justify-between">
                   <label className="font-extrabold text-slate-800 dark:text-slate-200">
-                    Applicable Branches ({(formData.applicableBranches || []).includes('All Branches') ? 'All' : (formData.applicableBranches || []).length})
+                    Applicable Branches ({(formData.applicableBranches || []).length} Selected)
                   </label>
                 </div>
 
