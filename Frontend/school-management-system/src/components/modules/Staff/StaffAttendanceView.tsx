@@ -488,6 +488,10 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
   useEffect(() => {
     let isMounted = true;
     const loadCorrections = async () => {
+      if (!isPersonalView && !dbTeacher) {
+        if (isMounted) setRequests([]);
+        return;
+      }
       try {
         const res: any = await fetchAttendanceCorrectionsApi();
         if (isMounted && res) {
@@ -500,7 +504,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     };
     loadCorrections();
     return () => { isMounted = false; };
-  }, [activeTeacherId]);
+  }, [activeTeacherId, isPersonalView, dbTeacher]);
 
   const formatDisplayTime = (timeStr: string | null | undefined): string => {
     if (!timeStr) return "--:--";

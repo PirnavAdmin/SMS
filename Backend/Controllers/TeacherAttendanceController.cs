@@ -56,13 +56,32 @@ public class TeacherAttendanceController : ControllerBase
     public async Task<IActionResult> GetHistory(
         [FromQuery] TeacherAttendanceFilterDto filter)
     {
-        var email = GetTeacherEmail();
+        try
+        {
+            var email = GetTeacherEmail();
+            if (string.IsNullOrWhiteSpace(email))
+            {
+                return Ok(new TeacherAttendancePagedResultDto());
+            }
 
-        var result = await _service.GetHistoryAsync(
-            email,
-            filter);
+            var result = await _service.GetHistoryAsync(
+                email,
+                filter);
 
-        return Ok(result);
+            return Ok(result ?? new TeacherAttendancePagedResultDto());
+        }
+        catch (KeyNotFoundException)
+        {
+            return Ok(new TeacherAttendancePagedResultDto());
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Ok(new TeacherAttendancePagedResultDto());
+        }
+        catch (Exception)
+        {
+            return Ok(new TeacherAttendancePagedResultDto());
+        }
     }
 
     // POST: api/teacher/attendance/check-in
@@ -70,17 +89,32 @@ public class TeacherAttendanceController : ControllerBase
     public async Task<IActionResult> CheckIn(
         [FromBody] TeacherCheckInDto dto)
     {
-        var email = GetTeacherEmail();
-
-        var result = await _service.CheckInAsync(
-            email,
-            dto);
-
-        return Ok(new
+        try
         {
-            message = "Check-in completed successfully.",
-            attendance = result
-        });
+            var email = GetTeacherEmail();
+
+            var result = await _service.CheckInAsync(
+                email,
+                dto);
+
+            return Ok(new
+            {
+                message = "Check-in completed successfully.",
+                attendance = result
+            });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, new { message = ex.Message });
+        }
     }
 
     // POST: api/teacher/attendance/check-out
@@ -88,17 +122,32 @@ public class TeacherAttendanceController : ControllerBase
     public async Task<IActionResult> CheckOut(
         [FromBody] TeacherCheckOutDto dto)
     {
-        var email = GetTeacherEmail();
-
-        var result = await _service.CheckOutAsync(
-            email,
-            dto);
-
-        return Ok(new
+        try
         {
-            message = "Check-out completed successfully.",
-            attendance = result
-        });
+            var email = GetTeacherEmail();
+
+            var result = await _service.CheckOutAsync(
+                email,
+                dto);
+
+            return Ok(new
+            {
+                message = "Check-out completed successfully.",
+                attendance = result
+            });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, new { message = ex.Message });
+        }
     }
 
     // POST: api/teacher/attendance/corrections
@@ -106,33 +155,71 @@ public class TeacherAttendanceController : ControllerBase
     public async Task<IActionResult> CreateCorrection(
         [FromBody] CreateAttendanceCorrectionDto dto)
     {
-        var email = GetTeacherEmail();
+        try
+        {
+            var email = GetTeacherEmail();
 
-        var result =
-            await _service.CreateCorrectionAsync(
-                email,
-                dto);
+            var result =
+                await _service.CreateCorrectionAsync(
+                    email,
+                    dto);
 
-        return StatusCode(
-            StatusCodes.Status201Created,
-            new
-            {
-                message =
-                    "Attendance correction request submitted successfully.",
-                correction = result
-            });
+            return StatusCode(
+                StatusCodes.Status201Created,
+                new
+                {
+                    message =
+                        "Attendance correction request submitted successfully.",
+                    correction = result
+                });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, new { message = ex.Message });
+        }
     }
 
     // GET: api/teacher/attendance/corrections
     [HttpGet("corrections")]
     public async Task<IActionResult> GetCorrections()
     {
-        var email = GetTeacherEmail();
+        try
+        {
+            var email = GetTeacherEmail();
+            if (string.IsNullOrWhiteSpace(email))
+            {
+                return Ok(new List<AttendanceCorrectionDto>());
+            }
 
-        var result =
-            await _service.GetCorrectionsAsync(email);
+            var result =
+                await _service.GetCorrectionsAsync(email);
 
-        return Ok(result);
+            return Ok(result ?? new List<AttendanceCorrectionDto>());
+        }
+        catch (KeyNotFoundException)
+        {
+            return Ok(new List<AttendanceCorrectionDto>());
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Ok(new List<AttendanceCorrectionDto>());
+        }
+        catch (Exception)
+        {
+            return Ok(new List<AttendanceCorrectionDto>());
+        }
     }
 
     private string GetTeacherEmail()

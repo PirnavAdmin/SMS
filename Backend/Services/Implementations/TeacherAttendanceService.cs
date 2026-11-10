@@ -47,7 +47,17 @@ public class TeacherAttendanceService : ITeacherAttendanceService
     {
         ArgumentNullException.ThrowIfNull(filter);
 
-        var teacher = await GetTeacherAsync(teacherEmail);
+        if (string.IsNullOrWhiteSpace(teacherEmail))
+        {
+            return new TeacherAttendancePagedResultDto();
+        }
+
+        var normalizedEmail = teacherEmail.Trim();
+        var teacher = await _repository.GetTeacherByEmailAsync(normalizedEmail);
+        if (teacher == null)
+        {
+            return new TeacherAttendancePagedResultDto();
+        }
 
         filter.PageNumber = filter.PageNumber <= 0
             ? 1
@@ -270,7 +280,17 @@ public class TeacherAttendanceService : ITeacherAttendanceService
     public async Task<List<AttendanceCorrectionDto>>
         GetCorrectionsAsync(string teacherEmail)
     {
-        var teacher = await GetTeacherAsync(teacherEmail);
+        if (string.IsNullOrWhiteSpace(teacherEmail))
+        {
+            return new List<AttendanceCorrectionDto>();
+        }
+
+        var normalizedEmail = teacherEmail.Trim();
+        var teacher = await _repository.GetTeacherByEmailAsync(normalizedEmail);
+        if (teacher == null)
+        {
+            return new List<AttendanceCorrectionDto>();
+        }
 
         return await _repository.GetCorrectionsAsync(
             teacher.StaffId);
