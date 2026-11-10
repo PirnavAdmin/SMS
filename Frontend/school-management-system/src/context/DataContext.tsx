@@ -2197,7 +2197,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   // Finance -> Transport Pricing Configuration Master State
   const [financeTransportConfigs, setFinanceTransportConfigs] = useState<
     FinanceTransportConfig[]
-  >([]);
+  >(() => getStored("finance_transport_configs", initialFinanceTransportConfigs));
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("finance_transport_configs", JSON.stringify(financeTransportConfigs));
+      localStorage.setItem("edu_db_finance_transport_configs", JSON.stringify(financeTransportConfigs));
+    } catch (e) {}
+  }, [financeTransportConfigs]);
 
   const MONTH_NAMES_ACADEMIC = [
     "April",
@@ -2294,11 +2301,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     StudentFeeLedger[]
   >(() => {
     const version = localStorage.getItem(
-      "edu_db_full_ledgers_v116_no_hardcoded_dues",
+      "edu_db_full_ledgers_v120_clean_real_db_records",
     );
     if (!version) {
       localStorage.setItem(
-        "edu_db_full_ledgers_v116_no_hardcoded_dues",
+        "edu_db_full_ledgers_v120_clean_real_db_records",
         "true",
       );
       localStorage.removeItem("student_fee_ledgers");
@@ -2307,6 +2314,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       localStorage.removeItem("edu_db_student_fee_installments");
       localStorage.removeItem("edu_db_fee_payments");
       localStorage.removeItem("fee_payments");
+      localStorage.removeItem("edu_db_full_ledgers_v116_no_hardcoded_dues");
       localStorage.removeItem("edu_db_full_ledgers_v112_exact_classes");
       localStorage.removeItem("edu_db_full_ledgers_v110_dynamic_only");
       localStorage.removeItem("edu_db_full_ledgers_v105_realmysql");
@@ -7688,11 +7696,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         }))
         .sort((a, b) => b.num - a.num);
 
-      if (sorted[0] && sorted[0].num >= 10) {
+      if (sorted[0]) {
         return sorted[0].name;
       }
     }
-    return "Class 12";
+    return "";
   };
 
   const addAlumniRecord = (
@@ -9243,18 +9251,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           "",
         firstName: createdApp.applicantName
           ? createdApp.applicantName.split(" ")[0]
-          : "Student",
+          : "",
         lastName: createdApp.applicantName
           ? createdApp.applicantName.split(" ").slice(1).join(" ")
           : "",
-        className: createdApp.appliedClass || "Nursery",
-        section: (createdApp as any).section || "A",
-        gender: (createdApp.gender as any) || "Male",
+        className: createdApp.appliedClass || (academicClasses && academicClasses[0] ? academicClasses[0].name : ""),
+        section: (createdApp as any).section || "",
+        gender: (createdApp.gender as any) || "",
         dob: createdApp.dob || "",
-        bloodGroup: createdApp.bloodGroup || "O+",
-        religion: createdApp.religion || "General",
-        casteCategory: createdApp.casteCategory || "General",
-        category: createdApp.casteCategory || "General",
+        bloodGroup: createdApp.bloodGroup || "",
+        religion: createdApp.religion || "",
+        casteCategory: createdApp.casteCategory || "",
+        category: createdApp.casteCategory || "",
         parentName: createdApp.parentName || "",
         fatherName: createdApp.parentName || "",
         motherName: createdApp.motherName || "",
@@ -9685,8 +9693,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             registrationNo: matchedSt.admissionNo || String(matchedSt.id),
             applicantName:
               `${matchedSt.firstName || ""} ${matchedSt.lastName || ""}`.trim(),
-            appliedClass: matchedSt.className || "Class 1",
-            gender: matchedSt.gender || "Male",
+            appliedClass: matchedSt.className || (academicClasses && academicClasses[0] ? academicClasses[0].name : ""),
+            gender: matchedSt.gender || "",
             status: matchedSt.status === "Inactive" ? "Rejected" : "Enrolled",
             phone: matchedSt.phone || (matchedSt as any).fatherPhone || "",
             parentName: matchedSt.parentName || matchedSt.fatherName || "",
@@ -15744,7 +15752,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       student?.className ||
       (optStudent as any)?.appliedClass ||
       (optStudent as any)?.className ||
-      "Nursery";
+      (academicClasses && academicClasses[0] ? academicClasses[0].name : "");
     const secName =
       admApp?.section || student?.section || (optStudent as any)?.section || "";
     const admNo =
@@ -17087,9 +17095,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 (matchedAdm as any).appliedClassGrade ||
                 matchedAdm.targetClass ||
                 matchedAdm.className ||
-                "Class 1",
+                (academicClasses && academicClasses[0] ? academicClasses[0].name : ""),
               section: matchedAdm.section || "",
-              gender: matchedAdm.gender || "Male",
+              gender: matchedAdm.gender || "",
               studentType:
                 matchedAdm.residentialStatus === "Residential" ||
                 matchedAdm.studentType === "Residential"
@@ -17840,7 +17848,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           student?.className ||
           (admApp as any)?.appliedClass ||
           (admApp as any)?.className ||
-          "Nursery";
+          (academicClasses && academicClasses[0] ? academicClasses[0].name : "");
 
         const candidateConfigs = (financeHostelConfigs || []).filter((c) => {
           if (c.status !== "Active") return false;
@@ -18356,9 +18364,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             (adm as any).appliedClassGrade ||
             adm.targetClass ||
             adm.className ||
-            "Nursery",
+            (academicClasses && academicClasses[0] ? academicClasses[0].name : ""),
           section: adm.section || "",
-          gender: adm.gender || "Male",
+          gender: adm.gender || "",
           studentType:
             adm.residentialStatus === "Residential" ||
             adm.studentType === "Residential"
@@ -21094,9 +21102,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             (adm as any).appliedClassGrade ||
             adm.targetClass ||
             adm.className ||
-            "Nursery",
+            (academicClasses && academicClasses[0] ? academicClasses[0].name : ""),
           section: adm.section || "",
-          gender: adm.gender || "Male",
+          gender: adm.gender || "",
           studentType:
             adm.residentialStatus === "Residential" ||
             adm.studentType === "Residential"
@@ -27467,11 +27475,11 @@ export const useData = () => {
             num: parseInt(String(c.name).replace(/[^0-9]/g, "")) || 0,
           }))
           .sort((a: any, b: any) => b.num - a.num);
-        if (sorted[0] && sorted[0].num >= 10) {
+        if (sorted[0]) {
           return sorted[0].name;
         }
       }
-      return "Class 12";
+      return "";
     };
   }
 

@@ -65,7 +65,14 @@ namespace SMS.Api.Controllers
                 return BadRequest(new { success = false, message = "Please select a Current Class to load results." });
             }
 
-            string nextClass = GetNextClassName(currentClass);
+            var dbClasses = await _context.Classes.AsNoTracking()
+                .Where(c => c.Status == "Active" || string.IsNullOrEmpty(c.Status))
+                .OrderBy(c => c.DisplayOrder).ThenBy(c => c.ClassId)
+                .ToListAsync();
+            int cIdx = dbClasses.FindIndex(c => c.ClassName.Equals(currentClass, StringComparison.OrdinalIgnoreCase));
+            string nextClass = (cIdx >= 0 && cIdx + 1 < dbClasses.Count) 
+                ? dbClasses[cIdx + 1].ClassName 
+                : GetNextClassName(currentClass);
 
             // Query active students matching class
             var rawStudents = await _context.Students
@@ -401,17 +408,14 @@ namespace SMS.Api.Controllers
 
         private static string GetNextClassName(string currClass)
         {
-            if (string.IsNullOrWhiteSpace(currClass)) return "Class 11";
+            if (string.IsNullOrWhiteSpace(currClass)) return string.Empty;
             var match = System.Text.RegularExpressions.Regex.Match(currClass, @"\d+");
             if (match.Success)
             {
                 int nextNum = int.Parse(match.Value) + 1;
                 return currClass.Replace(match.Value, nextNum.ToString());
             }
-            if (currClass.Equals("Nursery", StringComparison.OrdinalIgnoreCase)) return "LKG";
-            if (currClass.Equals("LKG", StringComparison.OrdinalIgnoreCase)) return "UKG";
-            if (currClass.Equals("UKG", StringComparison.OrdinalIgnoreCase)) return "Class 1";
-            return "Class 11";
+            return string.Empty;
         }
 
         private static string CalculateGrade(int pct)

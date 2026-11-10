@@ -210,19 +210,19 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
       return formatted;
     }).filter(c => !c.includes('undefined'));
 
-    return cleaned.length > 0 ? Array.from(new Set(cleaned)).filter(c => !c.toLowerCase().includes('nursery') && !c.toLowerCase().includes('lkg') && !c.toLowerCase().includes('ukg')) : ['Class 10-A', 'Class 9-B', 'Class 8-A'];
+    return cleaned.length > 0 ? Array.from(new Set(cleaned)).filter(c => !c.toLowerCase().includes('nursery') && !c.toLowerCase().includes('lkg') && !c.toLowerCase().includes('ukg')) : [];
   }, [teacher, teacherAssignments, timetable]);
 
   // Formatted string listing all assigned classes (e.g. Class 10-A, Class 9-B & Class 6-A)
   const assignedClassesFormatted = useMemo(() => {
-    if (!assignedClasses || assignedClasses.length === 0) return 'Class 10-A';
+    if (!assignedClasses || assignedClasses.length === 0) return '';
     if (assignedClasses.length === 1) return assignedClasses[0];
     if (assignedClasses.length === 2) return `${assignedClasses[0]} & ${assignedClasses[1]}`;
     return `${assignedClasses.slice(0, -1).join(', ')} & ${assignedClasses[assignedClasses.length - 1]}`;
   }, [assignedClasses]);
 
   // Primary Main Class for Class Teacher summary
-  const mainClass = assignedClasses[0] || 'Class 10-A';
+  const mainClass = assignedClasses[0] || '';
 
   const isStudentInAssignedClass = (s: any, classKey: string) => {
     if (!s || !s.className) return false;

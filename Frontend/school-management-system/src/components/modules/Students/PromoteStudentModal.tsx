@@ -33,8 +33,8 @@ export const PromoteStudentModal: React.FC<PromoteStudentModalProps> = ({
   }, [branches, selectedBranch]);
 
   const [targetYear, setTargetYear] = useState(selectedAcademicYear || ((academicYears?.[0] as any)?.academicYear || (academicYears?.[0] as any)?.year || ''));
-  const [targetClass, setTargetClass] = useState(academicClasses?.[0]?.name || 'Class 11');
-  const [targetSection, setTargetSection] = useState('A');
+  const [targetClass, setTargetClass] = useState(academicClasses?.[0]?.name || '');
+  const [targetSection, setTargetSection] = useState(academicClasses?.[0]?.sections?.[0] || '');
   const [enableBranchTransfer, setEnableBranchTransfer] = useState(false);
   const [targetBranch, setTargetBranch] = useState<string>(
     student?.branch || (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' && dynamicCampuses.includes(selectedBranch) ? selectedBranch : (dynamicCampuses?.[0] || ''))
@@ -42,7 +42,7 @@ export const PromoteStudentModal: React.FC<PromoteStudentModalProps> = ({
 
   if (!isOpen || !student) return null;
 
-  const highestClass = typeof getHighestClass === 'function' ? getHighestClass() : 'Class 12';
+  const highestClass = typeof getHighestClass === 'function' ? getHighestClass() : '';
   const isHighestClass = student.className === highestClass;
 
   const targetClassModel = (academicClasses || []).find(c => c.name === targetClass);

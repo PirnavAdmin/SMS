@@ -3190,7 +3190,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                                   key={s.id}
                                   onClick={() => {
                                     setForm({ ...form, studentId: s.id, itemId: '' });
-                                    setStudentSearchTerm(`${s.firstName} ${s.lastName} (${s.admissionNo || s.id} - ${s.className || 'Nursery'})`);
+                                    setStudentSearchTerm(`${s.firstName} ${s.lastName} (${s.admissionNo || s.id}${s.className ? ` - ${s.className}` : ''})`);
                                     setIsStudentDropdownOpen(false);
                                   }}
                                   className={`px-3.5 py-2.5 cursor-pointer transition-all flex items-center justify-between text-xs ${
@@ -3538,7 +3538,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
 
                               const displayBannerAmount = selStudentFeeStatus.amount
                                 ? selStudentFeeStatus.amount
-                                : (getPackageFeeForStudent(selStudentForFee?.className || 'Class 8', undefined, selStudentForFee?.gender) || 0);
+                                : (getPackageFeeForStudent(selStudentForFee?.className || '', undefined, selStudentForFee?.gender) || 0);
 
                               if (selStudentFeeStatus.isPaid) {
                                 return (

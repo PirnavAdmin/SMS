@@ -435,8 +435,8 @@ export const ExaminationProvider: React.FC<{
 
                 const key =
                     `${m.examId}_` +
-                    `${m.className || 'Class 1'}_` +
-                    `${m.section || 'Section A'}_` +
+                    `${m.className || ''}_` +
+                    `${m.section || ''}_` +
                     `${m.subject}`;
 
 
@@ -471,11 +471,11 @@ export const ExaminationProvider: React.FC<{
 
                     className:
                         first.className ||
-                        'Class 1',
+                        '',
 
                     sectionName:
                         first.section ||
-                        'Section A',
+                        '',
 
                     subjectCode:
                         first.subject,
@@ -647,7 +647,7 @@ export const ExaminationProvider: React.FC<{
 
                     sectionName:
                         scheduleData.section ||
-                        'Section A',
+                        '',
 
                     timetable: [
 

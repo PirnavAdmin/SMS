@@ -2077,7 +2077,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                         }}
                         className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 dark:bg-slate-800 dark:hover:bg-rose-950/40 text-xs font-bold transition-all cursor-pointer border border-slate-200 dark:border-slate-700"
                       >
-                        Reset / Clear Overrides
+                        Reset
                       </button>
                     )}
                     <button

@@ -86,6 +86,13 @@ namespace SMS.Api.Controllers.Parent
                 return Ok(new { success = true, data = children });
             }
 
+            var isStudent = User.IsInRole("Student") || string.Equals(User.FindFirst(ClaimTypes.Role)?.Value, "Student", StringComparison.OrdinalIgnoreCase);
+            if (isStudent)
+            {
+                // Students have no children wards; return empty array rather than 403 Forbidden
+                return Ok(new { success = true, data = Array.Empty<object>() });
+            }
+
             return StatusCode(403, new { success = false, message = "Access denied: insufficient permissions." });
         }
 

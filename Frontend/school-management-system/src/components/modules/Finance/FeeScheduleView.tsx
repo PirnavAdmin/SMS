@@ -100,7 +100,7 @@ export const FeeScheduleView: React.FC = () => {
   // Current editing schedule or a default one
   const [schedule, setSchedule] = useState<Partial<AcademicYearFeeSchedule>>({
     academicYear: '',
-    numberOfTerms: 4,
+    numberOfTerms: undefined,
     dueDateOffsetDays: 0,
     terms: []
   });
@@ -115,10 +115,6 @@ export const FeeScheduleView: React.FC = () => {
     setIsLoadingSchedule(true);
     setApiLoadError(null);
     setIsPersistedInDb(false);
-
-    const numTerms = schedule.numberOfTerms || 4;
-    const offset = typeof dueDateOffsetDays === 'number' && !isNaN(dueDateOffsetDays) ? dueDateOffsetDays : 0;
-    const computedTerms = hasConfiguredDates ? generateTermsFromAcademicYear(ayDates, numTerms, offset) : [];
 
     const existing = academicYearFeeSchedules.find(s => s.academicYear === activeAY);
     if (existing) {
@@ -139,10 +135,10 @@ export const FeeScheduleView: React.FC = () => {
       setSchedule({
         id: `SCH-${activeAY}`,
         academicYear: activeAY,
-        numberOfTerms: 4,
-        dueDateOffsetDays: offset,
+        numberOfTerms: undefined,
+        dueDateOffsetDays: 0,
         status: 'Active',
-        terms: computedTerms
+        terms: []
       });
       setOneTimeDueDate(ayDates.startDate);
     }
@@ -199,6 +195,14 @@ export const FeeScheduleView: React.FC = () => {
   }, [activeAY, currentAYMaster?.startDate, currentAYMaster?.endDate]);
 
   const handleNumTermsChange = (num: number) => {
+    if (!num) {
+      setSchedule(prev => ({
+        ...prev,
+        numberOfTerms: undefined,
+        terms: []
+      }));
+      return;
+    }
     const offset = typeof dueDateOffsetDays === 'number' ? dueDateOffsetDays : 0;
     const freshTerms = generateTermsFromAcademicYear(ayDates, num, offset, schedule.terms);
 
@@ -300,7 +304,12 @@ export const FeeScheduleView: React.FC = () => {
 
   const validateSchedule = (): boolean => {
     if (!activeAY) {
-      addToast('error', 'Validation Error', 'Academic Year is mandatory.');
+      addToast('error', 'Validation Error', 'Academic Year is mandatory. Please select an Academic Year.');
+      return false;
+    }
+
+    if (!schedule.numberOfTerms) {
+      addToast('error', 'Validation Error', 'Please select the Number of Installment Terms.');
       return false;
     }
 
@@ -422,12 +431,13 @@ export const FeeScheduleView: React.FC = () => {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <label className="text-xs font-bold text-slate-600 dark:text-slate-400">Academic Year:</label>
+            <label className="text-xs font-bold text-slate-600 dark:text-slate-400 whitespace-nowrap shrink-0">Academic Year:</label>
             <select
               value={activeAY}
               onChange={e => setActiveAY(e.target.value)}
-              className="px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 font-black text-xs text-slate-900 dark:text-white outline-none focus:border-brand-500"
+              className="px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 font-black text-xs text-slate-900 dark:text-white outline-none focus:border-brand-500 cursor-pointer"
             >
+              <option value="">Select Academic Year</option>
               {academicYears.map(ay => (
                 <option key={ay.id} value={ay.academicYear}>{ay.academicYear}</option>
               ))}
@@ -472,10 +482,14 @@ export const FeeScheduleView: React.FC = () => {
             <div className="space-y-1">
               <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400">Number of Installment Terms <span className="text-rose-500 font-bold ml-0.5">*</span></label>
               <select
-                value={schedule.numberOfTerms}
-                onChange={e => handleNumTermsChange(Number(e.target.value))}
-                className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 font-extrabold text-xs text-slate-900 dark:text-white"
+                value={schedule.numberOfTerms || ''}
+                onChange={e => {
+                  const val = e.target.value;
+                  handleNumTermsChange(val ? Number(val) : ('' as any));
+                }}
+                className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 font-extrabold text-xs text-slate-900 dark:text-white cursor-pointer"
               >
+                <option value="">Select Number of Terms</option>
                 <option value="1">1 Term (Annual)</option>
                 <option value="2">2 Terms (Semester-wise)</option>
                 <option value="3">3 Terms (Tri-semester)</option>
@@ -529,7 +543,9 @@ export const FeeScheduleView: React.FC = () => {
           <div className="md:col-span-2 space-y-4">
             <div className="flex justify-between items-center">
               <h4 className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider">
-                {schedule.numberOfTerms === 1
+                {!schedule.numberOfTerms
+                  ? 'Configure Term Due Dates'
+                  : schedule.numberOfTerms === 1
                   ? 'Configure Annual Term Due Date (1 Term)'
                   : schedule.numberOfTerms === 12
                   ? 'Configure Monthly Billing Due Dates (12 Terms)'
@@ -540,113 +556,122 @@ export const FeeScheduleView: React.FC = () => {
               </span>
             </div>
 
-            <div className="space-y-3.5 max-h-[50vh] overflow-y-auto pr-1.5">
-              {(schedule.terms || []).map((term, index) => (
-                <div key={term.id} className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800/80 shadow-xs space-y-3 hover:border-slate-300 transition-colors">
-                  <div className="flex items-center justify-between flex-wrap gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="px-2.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-black text-[10px]">
-                        {schedule.numberOfTerms === 1 ? 'Annual Term (Full Year)' : `Installment #${index + 1}`}
-                      </span>
-                      {term.dueDateMode === 'MANUAL' ? (
-                        <span className="px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 font-extrabold text-[10px] border border-amber-300 dark:border-amber-800">
-                          Manual Override
+            {(!schedule.numberOfTerms || (schedule.terms || []).length === 0) ? (
+              <div className="bg-white dark:bg-slate-900 p-8 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 text-center space-y-2">
+                <Calendar className="w-8 h-8 text-slate-300 dark:text-slate-600 mx-auto" />
+                <p className="text-xs font-bold text-slate-700 dark:text-slate-300">No Installment Terms Selected</p>
+                <p className="text-[11px] text-slate-400">Please select the Number of Installment Terms on the left to configure due dates.</p>
+              </div>
+            ) : (
+              <div className="space-y-3.5 max-h-[50vh] overflow-y-auto pr-1.5">
+                {(schedule.terms || []).map((term, index) => (
+                  <div key={term.id} className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800/80 shadow-xs space-y-3 hover:border-slate-300 transition-colors">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="px-2.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-black text-[10px]">
+                          {schedule.numberOfTerms === 1 ? 'Annual Term (Full Year)' : `Installment #${index + 1}`}
                         </span>
-                      ) : (
-                        <span className="text-[10px] text-slate-400 font-medium">
-                          Automatically calculated: Start + {typeof dueDateOffsetDays === 'number' ? dueDateOffsetDays : 0} days
-                        </span>
-                      )}
+                        {term.dueDateMode === 'MANUAL' ? (
+                          <span className="px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 font-extrabold text-[10px] border border-amber-300 dark:border-amber-800">
+                            Manual Override
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-slate-400 font-medium">
+                            Automatically calculated: Start + {typeof dueDateOffsetDays === 'number' ? dueDateOffsetDays : 0} days
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        {term.dueDateMode === 'MANUAL' && (
+                          <button
+                            type="button"
+                            onClick={() => handleResetTermToAuto(index)}
+                            className="text-[11px] font-black text-sky-600 hover:text-sky-700 dark:text-sky-400 flex items-center gap-1 cursor-pointer transition-colors"
+                            title="Reset to automatic calculation (Start + offset days)"
+                          >
+                            <RotateCcw className="w-3 h-3" /> Reset to Automatic
+                          </button>
+                        )}
+                        <input
+                          type="text"
+                          value={term.termName}
+                          onChange={e => handleTermFieldChange(index, 'termName', e.target.value)}
+                          placeholder="e.g. Term 1"
+                          className="border-b border-dashed border-slate-300 dark:border-slate-700 bg-transparent text-xs font-black text-slate-900 dark:text-white text-right outline-none focus:border-brand-500 pb-0.5 min-w-[170px] max-w-[280px] w-auto whitespace-nowrap"
+                        />
+                      </div>
                     </div>
 
-                    <div className="flex items-center gap-3">
-                      {term.dueDateMode === 'MANUAL' && (
-                        <button
-                          type="button"
-                          onClick={() => handleResetTermToAuto(index)}
-                          className="text-[11px] font-black text-sky-600 hover:text-sky-700 dark:text-sky-400 flex items-center gap-1 cursor-pointer transition-colors"
-                          title="Reset to automatic calculation (Start + offset days)"
-                        >
-                          <RotateCcw className="w-3 h-3" /> Reset to Automatic
-                        </button>
-                      )}
-                      <input
-                        type="text"
-                        value={term.termName}
-                        onChange={e => handleTermFieldChange(index, 'termName', e.target.value)}
-                        placeholder="e.g. Term 1"
-                        className="border-b border-dashed border-slate-300 dark:border-slate-700 bg-transparent text-xs font-black text-slate-900 dark:text-white text-right outline-none focus:border-brand-500 pb-0.5 w-28"
-                      />
+                    <div className="grid grid-cols-3 gap-2.5">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-1">
+                          <label className="text-[10px] font-bold text-slate-500">Start Date</label>
+                          <span title="System-generated from Academic Year Configuration">
+                            <Lock className="w-3 h-3 text-slate-400" />
+                          </span>
+                        </div>
+                        <input
+                          type="text"
+                          value={formatDateForDisplay(term.startDate)}
+                          readOnly
+                          disabled
+                          className="w-full px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-[11px] text-slate-500 dark:text-slate-400 cursor-not-allowed text-center whitespace-nowrap"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-1">
+                          <label className="text-[10px] font-bold text-slate-500">End Date</label>
+                          <span title="System-generated from Academic Year Configuration">
+                            <Lock className="w-3 h-3 text-slate-400" />
+                          </span>
+                        </div>
+                        <input
+                          type="text"
+                          value={formatDateForDisplay(term.endDate)}
+                          readOnly
+                          disabled
+                          className="w-full px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-[11px] text-slate-500 dark:text-slate-400 cursor-not-allowed text-center whitespace-nowrap"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-brand-600 flex items-center justify-between">
+                          <span className="whitespace-nowrap">{schedule.numberOfTerms === 1 ? 'Annual Term Due Date' : 'Due Date'}</span>
+                          {term.dueDateMode === 'MANUAL' && <span className="text-[9px] text-amber-600 font-black whitespace-nowrap">✏️ Manual</span>}
+                        </label>
+                        <DateInput
+                          value={term.dueDate}
+                          onChange={e => handleTermFieldChange(index, 'dueDate', e.target.value)}
+                          className={`w-full px-2.5 py-1.5 rounded-lg font-black text-[11px] text-slate-900 dark:text-white text-center whitespace-nowrap ${
+                            term.dueDateMode === 'MANUAL'
+                              ? 'bg-amber-50/50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800'
+                              : 'bg-white dark:bg-slate-950 border border-brand-200 dark:border-brand-900/60'
+                          }`}
+                        />
+                      </div>
                     </div>
                   </div>
-
-                  <div className="grid grid-cols-3 gap-2.5">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-1">
-                        <label className="text-[10px] font-bold text-slate-500">Start Date</label>
-                        <span title="System-generated from Academic Year Configuration">
-                          <Lock className="w-3 h-3 text-slate-400" />
-                        </span>
-                      </div>
-                      <input
-                        type="text"
-                        value={formatDateForDisplay(term.startDate)}
-                        readOnly
-                        disabled
-                        className="w-full px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-[11px] text-slate-500 dark:text-slate-400 cursor-not-allowed"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-1">
-                        <label className="text-[10px] font-bold text-slate-500">End Date</label>
-                        <span title="System-generated from Academic Year Configuration">
-                          <Lock className="w-3 h-3 text-slate-400" />
-                        </span>
-                      </div>
-                      <input
-                        type="text"
-                        value={formatDateForDisplay(term.endDate)}
-                        readOnly
-                        disabled
-                        className="w-full px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-[11px] text-slate-500 dark:text-slate-400 cursor-not-allowed"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-brand-600 flex items-center justify-between">
-                        <span>{schedule.numberOfTerms === 1 ? 'Annual Term Due Date' : 'Due Date'}</span>
-                        {term.dueDateMode === 'MANUAL' && <span className="text-[9px] text-amber-600 font-black">✏️ Manual</span>}
-                      </label>
-                      <DateInput
-                        value={term.dueDate}
-                        onChange={e => handleTermFieldChange(index, 'dueDate', e.target.value)}
-                        className={`w-full px-2.5 py-1.5 rounded-lg font-black text-[11px] text-slate-900 dark:text-white ${
-                          term.dueDateMode === 'MANUAL'
-                            ? 'bg-amber-50/50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800'
-                            : 'bg-white dark:bg-slate-950 border border-brand-200 dark:border-brand-900/60'
-                        }`}
-                      />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
-
-
         {/* Section 3: One-Time / Admission Fee Due Date */}
         <div className="bg-slate-50 dark:bg-slate-950/40 p-5 rounded-2xl border border-slate-200/60 dark:border-slate-800/80">
-          <div className="space-y-2 bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800/80">
-            <h4 className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-              <Clock className="w-4 h-4 text-purple-500" /> One-Time / Admission Fee Due Date
-            </h4>
-            <div className="flex items-center gap-3 pt-2">
-              <label className="text-xs font-bold text-slate-600 dark:text-slate-400">Due Date:</label>
+          <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800/80 space-y-3">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <h4 className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                <Clock className="w-4 h-4 text-purple-500" /> One-Time / Admission Fee Due Date
+              </h4>
+              <span className="text-[11px] text-slate-400 font-medium">Applied to one-time non-recurring fee heads</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <label className="text-xs font-bold text-slate-600 dark:text-slate-400 whitespace-nowrap shrink-0">Due Date: <span className="text-rose-500 font-bold ml-0.5">*</span></label>
               <DateInput
                 value={oneTimeDueDate}
                 onChange={e => setOneTimeDueDate(e.target.value)}
-                className="w-36 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 font-black text-xs text-slate-900 dark:text-white outline-none focus:border-brand-500"
+                className="w-48 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 font-black text-xs text-slate-900 dark:text-white outline-none focus:border-brand-500 shadow-xs"
               />
             </div>
           </div>
