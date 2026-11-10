@@ -1497,6 +1497,80 @@ using (var scope = app.Services.CreateScope())
                 `MasterTermsJson` longtext NULL,
                 `UpdatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (`Id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+
+            @"CREATE TABLE IF NOT EXISTS `uniform_fee_configs` (
+                `Id` int NOT NULL AUTO_INCREMENT,
+                `ClassName` varchar(100) NOT NULL,
+                `PackageOrItemName` varchar(200) NOT NULL,
+                `Gender` varchar(50) NULL DEFAULT 'Unisex',
+                `AcademicYear` varchar(50) NULL DEFAULT '2026-2027',
+                `Branch` varchar(100) NULL,
+                `UniformItemId` varchar(50) NULL,
+                `FeePlan` varchar(50) NULL DEFAULT 'Annual',
+                `FeeAmount` decimal(18,2) NOT NULL DEFAULT 0.00,
+                `EffectiveFrom` varchar(50) NULL,
+                `Status` varchar(50) NULL DEFAULT 'Active',
+                `CreatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                `UpdatedAt` datetime NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                PRIMARY KEY (`Id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+
+            @"CREATE TABLE IF NOT EXISTS `ConcessionRules` (
+                `Id` int NOT NULL AUTO_INCREMENT,
+                `Name` varchar(150) NOT NULL,
+                `Code` varchar(50) NOT NULL,
+                `Type` varchar(50) NOT NULL DEFAULT 'Discount',
+                `DiscountType` varchar(50) NOT NULL DEFAULT 'Percentage',
+                `Value` decimal(18,2) NOT NULL DEFAULT 0.00,
+                `ApplicableFeeHeadId` int NULL,
+                `Status` varchar(50) NOT NULL DEFAULT 'Active',
+                `CreatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (`Id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+
+            @"CREATE TABLE IF NOT EXISTS `StudentConcessions` (
+                `Id` int NOT NULL AUTO_INCREMENT,
+                `StudentId` int NOT NULL,
+                `AdmissionNo` varchar(100) NOT NULL DEFAULT '',
+                `ConcessionRuleId` int NOT NULL,
+                `AcademicYearId` int NOT NULL DEFAULT 1,
+                `ApprovedAmount` decimal(18,2) NOT NULL DEFAULT 0.00,
+                `Status` varchar(50) NOT NULL DEFAULT 'Active',
+                `AppliedDate` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                `Remarks` text NULL,
+                PRIMARY KEY (`Id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+
+            @"CREATE TABLE IF NOT EXISTS `FeeCharges` (
+                `Id` int NOT NULL AUTO_INCREMENT,
+                `StudentId` int NOT NULL,
+                `AdmissionNo` varchar(100) NOT NULL DEFAULT '',
+                `AcademicYearId` int NOT NULL DEFAULT 1,
+                `BranchId` int NOT NULL DEFAULT 1,
+                `FeeHeadId` int NOT NULL,
+                `FeeStructureId` int NULL,
+                `TermName` varchar(100) NOT NULL DEFAULT '',
+                `DueDate` datetime NOT NULL,
+                `OriginalAmount` decimal(18,2) NOT NULL DEFAULT 0.00,
+                `DiscountAmount` decimal(18,2) NOT NULL DEFAULT 0.00,
+                `ScholarshipAmount` decimal(18,2) NOT NULL DEFAULT 0.00,
+                `FineAmount` decimal(18,2) NOT NULL DEFAULT 0.00,
+                `NetAmount` decimal(18,2) NOT NULL DEFAULT 0.00,
+                `PaidAmount` decimal(18,2) NOT NULL DEFAULT 0.00,
+                `OutstandingAmount` decimal(18,2) NOT NULL DEFAULT 0.00,
+                `Status` varchar(50) NOT NULL DEFAULT 'Pending',
+                `CreatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (`Id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+
+            @"CREATE TABLE IF NOT EXISTS `PaymentAllocations` (
+                `Id` int NOT NULL AUTO_INCREMENT,
+                `PaymentId` int NOT NULL,
+                `FeeChargeId` int NOT NULL,
+                `AllocatedAmount` decimal(18,2) NOT NULL DEFAULT 0.00,
+                `AllocatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (`Id`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;"
         };
 
@@ -1710,6 +1784,13 @@ using (var scope = app.Services.CreateScope())
         EnsureColumnExists("admission_applications", "HostelSecurityDepositPaid", "tinyint(1) NOT NULL DEFAULT 0");
         EnsureColumnExists("admission_applications", "SecurityDepositAmount", "decimal(18,2) NOT NULL DEFAULT 0.00");
         EnsureColumnExists("admission_applications", "SecurityDepositReceiptNo", "varchar(100) NULL");
+        EnsureColumnExists("admission_applications", "AcademicYear", "varchar(100) NULL");
+        EnsureColumnExists("admission_applications", "BranchName", "varchar(100) NULL");
+        EnsureColumnExists("uniform_fee_configs", "Branch", "varchar(100) NULL");
+        EnsureColumnExists("uniform_fee_configs", "UniformItemId", "varchar(50) NULL");
+        EnsureColumnExists("uniform_fee_configs", "FeePlan", "varchar(50) NULL DEFAULT 'Annual'");
+        EnsureColumnExists("uniform_fee_configs", "EffectiveFrom", "varchar(50) NULL");
+        EnsureColumnExists("uniform_fee_configs", "UpdatedAt", "datetime NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
         EnsureColumnExists("student_bed_allocations", "RegistrationNo", "varchar(100) NULL");
         EnsureColumnExists("student_bed_allocations", "StudentName", "varchar(150) NULL");
         EnsureColumnExists("student_bed_allocations", "StudentId", "int NULL");

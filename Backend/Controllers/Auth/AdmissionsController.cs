@@ -39,11 +39,16 @@ public class AdmissionsController : ControllerBase
         {
             var cleanYear = effectiveAcademicYear.Trim().ToLower().Replace(" ", "");
             var startYear = cleanYear.Length >= 4 ? cleanYear.Substring(0, 4) : cleanYear;
-            apps = apps.Where(a => (!string.IsNullOrWhiteSpace(a.AcademicYear) &&
+            var filtered = apps.Where(a => !string.IsNullOrWhiteSpace(a.AcademicYear) &&
                                    (a.AcademicYear.ToLower().Replace(" ", "") == cleanYear ||
                                     a.AcademicYear.ToLower().Replace(" ", "").Contains(cleanYear) ||
                                     cleanYear.Contains(a.AcademicYear.ToLower().Replace(" ", "")) ||
-                                    a.AcademicYear.StartsWith(startYear)))).ToList();
+                                    a.AcademicYear.StartsWith(startYear))).ToList();
+
+            if (filtered.Count > 0)
+            {
+                apps = filtered;
+            }
         }
 
         return Ok(new { success = true, data = apps });
