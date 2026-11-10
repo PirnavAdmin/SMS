@@ -34,22 +34,22 @@ public class TeacherAttendanceRepository
             if (staffById != null) return staffById;
         }
 
-        // 2. Exact Email match
+        // 2. Exact Email match (trim & case-insensitive)
         var staffByEmail = await _context.Staff
             .AsNoTracking()
             .FirstOrDefaultAsync(x =>
                 x.Email != null &&
-                x.Email.ToLower() == normalizedEmail &&
+                x.Email.Trim().ToLower() == normalizedEmail &&
                 (x.IsActive == null || x.IsActive == true));
 
         if (staffByEmail != null) return staffByEmail;
 
-        // 3. Exact EmployeeId match
+        // 3. Exact EmployeeId match (trim & case-insensitive)
         var staffByEmpId = await _context.Staff
             .AsNoTracking()
             .FirstOrDefaultAsync(x =>
                 x.EmployeeId != null &&
-                x.EmployeeId.ToLower() == normalizedEmail &&
+                x.EmployeeId.Trim().ToLower() == normalizedEmail &&
                 (x.IsActive == null || x.IsActive == true));
 
         if (staffByEmpId != null) return staffByEmpId;
@@ -58,16 +58,29 @@ public class TeacherAttendanceRepository
         var user = await _context.Users
             .AsNoTracking()
             .FirstOrDefaultAsync(u =>
-                u.Email != null && u.Email.ToLower() == normalizedEmail);
+                u.Email != null && u.Email.Trim().ToLower() == normalizedEmail);
 
-        if (user != null && !string.IsNullOrEmpty(user.Email))
+        if (user != null)
         {
-            var uEmail = user.Email.Trim().ToLower();
-            var s = await _context.Staff
-                .AsNoTracking()
-                .FirstOrDefaultAsync(x =>
-                    x.Email != null && x.Email.ToLower() == uEmail && (x.IsActive == null || x.IsActive == true));
-            if (s != null) return s;
+            if (!string.IsNullOrEmpty(user.Email))
+            {
+                var uEmail = user.Email.Trim().ToLower();
+                var s = await _context.Staff
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(x =>
+                        x.Email != null && x.Email.Trim().ToLower() == uEmail && (x.IsActive == null || x.IsActive == true));
+                if (s != null) return s;
+            }
+
+            if (!string.IsNullOrWhiteSpace(user.FullName))
+            {
+                var uName = user.FullName.Trim().ToLower();
+                var sByName = await _context.Staff
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(x =>
+                        (x.FirstName + " " + (x.LastName ?? "")).Trim().ToLower() == uName && (x.IsActive == null || x.IsActive == true));
+                if (sByName != null) return sByName;
+            }
         }
 
         return null;

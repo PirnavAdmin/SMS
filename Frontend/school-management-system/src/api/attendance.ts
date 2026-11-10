@@ -313,9 +313,9 @@ export const fetchAttendanceCorrectionsApi = async () => {
       method: 'GET'
     });
   } catch (err: any) {
-    if (err?.status === 403 || err?.status === 401 || err?.status === 404) {
+    if (err?.status === 403 || err?.status === 401 || err?.status === 404 || err?.status === 500) {
       return [];
     }
-    throw err;
+    return [];
   }
 };
