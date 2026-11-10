@@ -13,11 +13,20 @@ interface FeeSetupViewProps {
 }
 
 export const FeeSetupView: React.FC<FeeSetupViewProps> = ({ initialTab = 'heads' }) => {
-  const [activeTab, setActiveTab] = useState<string>(initialTab);
+  const normalizeTab = (t?: string) => {
+    if (!t || t === 'fee-setup' || t === 'heads' || t === 'fee-heads' || t === 'setup') return 'heads';
+    if (t === 'structures' || t === 'fee-structures' || t === 'fee-structure') return 'structures';
+    if (t === 'schedule' || t === 'fee-schedule') return 'schedule';
+    if (t === 'transport-fee' || t === 'transport' || t === 'finance-transport-config') return 'transport-fee';
+    if (t === 'hostel-fee' || t === 'hostel' || t === 'finance-hostel-config') return 'hostel-fee';
+    if (t === 'uniform-fee' || t === 'uniform' || t === 'finance-uniform-config') return 'uniform-fee';
+    return t;
+  };
+  const [activeTab, setActiveTab] = useState<string>(normalizeTab(initialTab));
 
   useEffect(() => {
     if (initialTab) {
-      setActiveTab(initialTab);
+      setActiveTab(normalizeTab(initialTab));
     }
   }, [initialTab]);
 

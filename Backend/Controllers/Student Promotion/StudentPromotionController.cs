@@ -69,10 +69,10 @@ namespace SMS.Api.Controllers
                 .Where(c => c.Status == "Active" || string.IsNullOrEmpty(c.Status))
                 .OrderBy(c => c.DisplayOrder).ThenBy(c => c.ClassId)
                 .ToListAsync();
-            int cIdx = dbClasses.FindIndex(c => c.ClassName.Equals(currentClass, StringComparison.OrdinalIgnoreCase));
-            string nextClass = (cIdx >= 0 && cIdx + 1 < dbClasses.Count) 
-                ? dbClasses[cIdx + 1].ClassName 
-                : GetNextClassName(currentClass);
+            int cIdx = dbClasses.FindIndex(c => string.Equals(c.ClassName, currentClass, StringComparison.OrdinalIgnoreCase));
+            string nextClass = (cIdx >= 0 && cIdx + 1 < dbClasses.Count && !string.IsNullOrEmpty(dbClasses[cIdx + 1].ClassName)) 
+                ? dbClasses[cIdx + 1].ClassName! 
+                : GetNextClassName(currentClass!);
 
             // Query active students matching class
             var rawStudents = await _context.Students
@@ -120,13 +120,13 @@ namespace SMS.Api.Controllers
                         LastName = s.StudentName.Split(' ').Length > 1 ? s.StudentName.Substring(s.StudentName.IndexOf(' ') + 1) : "",
                         Avatar = "",
                         Branch = !string.IsNullOrWhiteSpace(branch) ? branch : (s.Branch?.BranchName ?? s.ClassGrade?.CampusLocation ?? string.Empty),
-                        CurrentClass = s.ClassGrade?.ClassName ?? currentClass,
+                        CurrentClass = s.ClassGrade?.ClassName ?? currentClass ?? string.Empty,
                         CurrentSection = s.ClassSection?.SectionName ?? "A",
                         OverallPct = basePct,
                         Grade = grade,
                         FinalResult = isPass ? "PASS" : "FAIL",
                         PromotionStatus = isPass ? "Promote" : "Retain",
-                        NewClass = isPass ? nextClass : currentClass,
+                        NewClass = isPass ? nextClass : (currentClass ?? string.Empty),
                         NewSection = "",
                         Remarks = isPass ? "Pending section assignment" : "Retained - Minimum Passing Criteria Not Met",
                         IsAlreadyPromoted = isAlreadyPromoted

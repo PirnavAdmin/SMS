@@ -57,6 +57,8 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({
     studentHostels,
     schoolProfile,
     fetchFinanceData,
+    fetchAcademicClasses,
+    fetchStudents,
   } = useData();
 
   const { selectedAcademicYear, selectedBranch } = useAuth();
@@ -78,6 +80,12 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({
   useEffect(() => {
     if (fetchFinanceData) {
       fetchFinanceData().catch(() => {});
+    }
+    if ((!academicClasses || academicClasses.length === 0) && fetchAcademicClasses) {
+      fetchAcademicClasses().catch(() => {});
+    }
+    if ((!students || students.length === 0) && fetchStudents) {
+      fetchStudents().catch(() => {});
     }
 
     const handleUpdate = () => {

@@ -2029,7 +2029,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                 if (branchMatches)
                 {
                     string appliedClassName = adm.AppliedClass?.ClassName 
-                        ?? (adm.AppliedClassId.HasValue && classIdToNameDict.TryGetValue(adm.AppliedClassId.Value, out var cName) ? cName : string.Empty);
+                        ?? (adm.AppliedClassId.HasValue && classIdToNameDict.TryGetValue(adm.AppliedClassId.Value, out var cName) ? (cName ?? string.Empty) : string.Empty);
 
                     activeStudents.Add(new SMS.Api.Models.Student
                     {

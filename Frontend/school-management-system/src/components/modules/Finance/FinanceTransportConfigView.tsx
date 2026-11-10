@@ -53,11 +53,18 @@ export const FinanceTransportConfigView: React.FC = () => {
     updateFinanceTransportConfig,
     deleteFinanceTransportConfig,
     deleteRouteMaster,
-    deletePickupPoint
+    deletePickupPoint,
+    fetchFinanceData,
   } = useData();
 
   const { selectedAcademicYear } = useAuth();
   const { addToast } = useToast();
+
+  React.useEffect(() => {
+    if ((!financeTransportConfigs || financeTransportConfigs.length === 0) && fetchFinanceData) {
+      fetchFinanceData().catch(() => {});
+    }
+  }, [financeTransportConfigs, fetchFinanceData]);
 
   const activeAY = selectedAcademicYear || financeSettings?.academicYear || '2026-2027';
 

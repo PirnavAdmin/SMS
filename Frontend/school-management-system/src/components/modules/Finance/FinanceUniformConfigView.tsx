@@ -25,6 +25,7 @@ export const FinanceUniformConfigView: React.FC = () => {
     uniformInventory,
     uniformSizes,
     fetchUniformData,
+    fetchFinanceData,
   } = useData();
 
   const { selectedBranch, selectedAcademicYear } = useAuth();
@@ -33,6 +34,9 @@ export const FinanceUniformConfigView: React.FC = () => {
   React.useEffect(() => {
     if (fetchUniformData) {
       fetchUniformData();
+    }
+    if (fetchFinanceData) {
+      fetchFinanceData().catch(() => {});
     }
   }, [fetchUniformData]);
 

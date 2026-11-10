@@ -53,7 +53,8 @@ export const FeeScheduleView: React.FC = () => {
     academicYearFeeSchedules,
     setAcademicYearFeeSchedules,
     academicYears,
-    financeSettings
+    financeSettings,
+    fetchFinanceData,
   } = useData();
   const { selectedAcademicYear } = useAuth();
   const { addToast } = useToast();
@@ -63,6 +64,12 @@ export const FeeScheduleView: React.FC = () => {
   useEffect(() => {
     setActiveAY(selectedAcademicYear || financeSettings?.academicYear || '');
   }, [selectedAcademicYear, financeSettings]);
+
+  useEffect(() => {
+    if ((!academicYearFeeSchedules || academicYearFeeSchedules.length === 0) && fetchFinanceData) {
+      fetchFinanceData().catch(() => {});
+    }
+  }, [academicYearFeeSchedules, fetchFinanceData]);
 
   // Find source-of-truth Academic Year configuration
   const currentAYMaster = academicYears.find(

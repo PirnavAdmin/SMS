@@ -70,10 +70,21 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
     academicClasses = [],
     academicYears = [],
     branches = [],
+    fetchAcademicClasses,
+    fetchFinanceData,
   } = useData();
 
   const { selectedBranch, selectedAcademicYear } = useAuth();
   const { addToast } = useToast();
+
+  useEffect(() => {
+    if ((!academicClasses || academicClasses.length === 0) && fetchAcademicClasses) {
+      fetchAcademicClasses().catch(() => {});
+    }
+    if ((!feeHeads || feeHeads.length === 0 || !dynamicFeeStructures || dynamicFeeStructures.length === 0) && fetchFinanceData) {
+      fetchFinanceData().catch(() => {});
+    }
+  }, [academicClasses, feeHeads, dynamicFeeStructures, fetchAcademicClasses, fetchFinanceData]);
 
   const [query, setQuery] = useState("");
   const [selectedClassFilter, setSelectedClassFilter] = useState<string>("All");

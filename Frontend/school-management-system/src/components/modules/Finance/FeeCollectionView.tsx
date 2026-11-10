@@ -100,6 +100,9 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     hostelRooms = [],
     hostelBeds = [],
     financeHostelConfigs = [],
+    fetchAcademicClasses,
+    fetchStudents,
+    fetchAdmissions,
   } = useData();
   const { selectedAcademicYear, selectedBranch } = useAuth();
   const { addToast } = useToast();
@@ -156,6 +159,18 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
   const [refundPaymentMode, setRefundPaymentMode] = useState<string>("Bank Transfer");
   const [refundRemarks, setRefundRemarks] = useState<string>("");
   const [isSubmittingRefund, setIsSubmittingRefund] = useState<boolean>(false);
+
+  useEffect(() => {
+    if ((!students || students.length === 0) && fetchStudents) {
+      fetchStudents().catch(() => {});
+    }
+    if ((!academicClasses || academicClasses.length === 0) && fetchAcademicClasses) {
+      fetchAcademicClasses().catch(() => {});
+    }
+    if ((!feeHeads || feeHeads.length === 0) && fetchFinanceData) {
+      fetchFinanceData().catch(() => {});
+    }
+  }, [students, academicClasses, feeHeads, fetchStudents, fetchAcademicClasses, fetchFinanceData]);
 
   // Fetch dynamic backend fee profile whenever selectedStudent changes
   useEffect(() => {

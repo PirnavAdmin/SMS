@@ -60,7 +60,8 @@ export const FinanceReportsView: React.FC = () => {
     getStudentFeeOutstandingSummary,
     getStudentFeeLedger,
     financeSettings,
-    schoolProfile
+    schoolProfile,
+    fetchFinanceData,
   } = useData();
 
   const { selectedAcademicYear } = useAuth();
@@ -73,6 +74,10 @@ export const FinanceReportsView: React.FC = () => {
   const [apiSummary, setApiSummary] = useState<any>(null);
 
   useEffect(() => {
+
+    if ((!feePayments || feePayments.length === 0) && fetchFinanceData) {
+      fetchFinanceData().catch(() => {});
+    }
     FinanceAPI.fetchFinanceReportsSummaryApi(selectedAcademicYear || '2025-2026')
       .then(res => {
         if (res?.data) {
@@ -114,6 +119,7 @@ export const FinanceReportsView: React.FC = () => {
 
   // Reset pagination on report type or query change
   useEffect(() => {
+
     setCurrentPage(1);
   }, [selectedReport, searchQuery]);
 

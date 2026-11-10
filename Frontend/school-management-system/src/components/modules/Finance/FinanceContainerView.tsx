@@ -17,11 +17,21 @@ interface FinanceContainerViewProps {
 }
 
 export const FinanceContainerView: React.FC<FinanceContainerViewProps> = ({ initialTab = 'fee-collection', onTabChange }) => {
-  const { fetchFinanceData } = useData();
+  const {
+    fetchFinanceData,
+    fetchAcademicClasses,
+    fetchBranches,
+    fetchStudents,
+    fetchAdmissions,
+  } = useData();
 
   useEffect(() => {
     if (fetchFinanceData) {
-      fetchFinanceData();
+      fetchFinanceData().catch(() => {});
+      if (fetchAcademicClasses) fetchAcademicClasses().catch(() => {});
+      if (fetchBranches) fetchBranches().catch(() => {});
+      if (fetchStudents) fetchStudents().catch(() => {});
+      if (fetchAdmissions) fetchAdmissions().catch(() => {});
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

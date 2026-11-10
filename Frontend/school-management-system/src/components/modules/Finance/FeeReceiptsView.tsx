@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { formatCurrency } from '../../../utils/currency';
 import { formatDateForDisplay } from '../../../utils/dateValidation';
 import { Receipt, Search, Printer, CheckCircle, Eye, Download, Mail } from 'lucide-react';
@@ -11,7 +11,26 @@ import { Pagination } from '../../common/Pagination';
 import { SchoolPrintHeader } from '../../common/SchoolPrintHeader';
 
 export const FeeReceiptsView: React.FC = () => {
-  const { feePayments, academicClasses, students } = useData();
+  const {
+    feePayments,
+    academicClasses,
+    students,
+    fetchFinanceData,
+    fetchAcademicClasses,
+    fetchStudents,
+  } = useData();
+
+  useEffect(() => {
+    if ((!academicClasses || academicClasses.length === 0) && fetchAcademicClasses) {
+      fetchAcademicClasses().catch(() => {});
+    }
+    if ((!feePayments || feePayments.length === 0) && fetchFinanceData) {
+      fetchFinanceData().catch(() => {});
+    }
+    if ((!students || students.length === 0) && fetchStudents) {
+      fetchStudents().catch(() => {});
+    }
+  }, [academicClasses, feePayments, students, fetchAcademicClasses, fetchFinanceData, fetchStudents]);
   const [query, setQuery] = useState('');
   const [filterClass, setFilterClass] = useState('All');
   const [filterSection, setFilterSection] = useState('All');

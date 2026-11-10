@@ -18,7 +18,21 @@ export const StudentFeesView: React.FC<StudentFeesViewProps> = ({
   initialFeeHead = 'All',
   onNavigateToCollect,
 }) => {
-  const [activeTab, setActiveTab] = useState<string>(initialTab);
+  const [activeTab, setActiveTab] = useState<string>(
+    initialTab === 'student-fees' || initialTab === 'student-assignment' ? 'assign' : initialTab
+  );
+
+  React.useEffect(() => {
+    if (initialTab) {
+      const clean =
+        initialTab === 'student-fees' || initialTab === 'assign' || initialTab === 'student-assignment'
+          ? 'assign'
+          : initialTab === 'due-fees' || initialTab === 'dues'
+          ? 'dues'
+          : initialTab;
+      setActiveTab(clean);
+    }
+  }, [initialTab]);
 
   const tabs = [
     { id: 'assign', label: 'Assign Fees', icon: UserPlus },
