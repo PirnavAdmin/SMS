@@ -14,6 +14,7 @@ import { PromotedStudentsDuesView } from './PromotedStudentsDuesView';
 export const FeeManagementView: React.FC = () => {
   const {
     students,
+    academicClasses,
     feeStructures,
     feePayments,
     addFeeStructure,

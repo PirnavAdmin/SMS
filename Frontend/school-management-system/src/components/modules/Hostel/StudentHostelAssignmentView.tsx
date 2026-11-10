@@ -377,12 +377,12 @@ export const StudentHostelAssignmentView: React.FC = () => {
 
       const studentObj = {
         id: sId || sAdm,
-name:
+        name:
           `${s.firstName || ""}`.trim() + (s.lastName ? ` ${s.lastName}` : "") ||
           s.name ||
           `Student #${sId}`,
         className: s.className || s.class || "",
-        section: s.section || ""
+        section: s.section || "",
         admissionNo: s.admissionNo || s.registrationNumber || sId,
         isResidential: Boolean(isRes),
         studentType: isRes ? "Residential" : "Non-Residential",
@@ -480,14 +480,14 @@ name:
 
       const admissionObj = {
         id: aId || aAdm,
-name:
+        name:
           a.applicantName ||
           `${a.firstName || ""}`.trim() + (a.lastName ? ` ${a.lastName}` : "") ||
           `Applicant #${aId}`,
         className: a.appliedClass || a.className || "",
         section: a.section || "",
         admissionNo:
-          a.admissionNo || a.applicationNo || a.registrationNo || aId
+          a.admissionNo || a.applicationNo || a.registrationNo || aId,
         isResidential: Boolean(isRes),
         studentType: isRes ? "Residential" : "Non-Residential",
         hostelSecurityDepositPaid: Boolean(

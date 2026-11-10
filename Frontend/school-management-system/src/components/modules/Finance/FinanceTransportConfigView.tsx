@@ -1334,7 +1334,6 @@ export const FinanceTransportConfigView: React.FC = () => {
                           </button>
                         )}
                       </td>
-                      </td>
                     </tr>
                   );
                 })
