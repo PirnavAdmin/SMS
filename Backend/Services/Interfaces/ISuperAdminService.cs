@@ -7,10 +7,12 @@ namespace SMS.Api.Services.Interfaces;
 
 public interface ISuperAdminService
 {
-    // Authentication
+    // Authentication & Account Management
     Task<AuthResponseDto> SuperAdminLoginAsync(LoginRequestDto dto);
     Task<AuthResponseDto> RefreshTokenAsync(string token);
     Task LogoutAsync(int userId);
+    Task<int> GetSuperAdminCountAsync();
+    Task<SuperAdminResponseDto> CreateSuperAdminAsync(SuperAdminCreateDto dto, int? requestedByUserId = null);
 
     // Dashboard
     Task<SuperAdminDashboardSummaryDto> GetDashboardSummaryAsync();

@@ -1337,12 +1337,13 @@ export function parseDrivingLicense(license: string): ParsedDrivingLicense {
   };
 
   // 1. Check Standard Sarathi Parivahan / Slash- or Hyphen-Separated Format:
-  // SS + optional sep + RR[A-Z]? + optional sep + YYYY + optional sep + NNNNNNN (6-7 digits)
+  // SS + optional sep + RR/RRR[A-Z]? (supports 2-3 digit RTO / unit office codes, e.g. AP33120150002643) + optional sep + YYYY + optional sep + NNNNNNN (6-7 digits)
   const sarathiMatch = normalized.match(
-    /^([A-Z]{2})[\-\/\s]?(\d{2}[A-Z]?)[\-\/\s]?(\d{4})[\-\/\s]?(\d{6,7})$/
+    /^([A-Z]{2})[\-\/\s]?(\d{2,3}[A-Z]?|\d{2}[\-\/\s]\d)[\-\/\s]?(19\d{2}|20\d{2})[\-\/\s]?(\d{6,7})$/
   );
   if (sarathiMatch) {
-    const [, stateCode, rtoCode, yearStr, serialStr] = sarathiMatch;
+    const [, stateCode, rawRtoCode, yearStr, serialStr] = sarathiMatch;
+    const rtoCode = rawRtoCode.replace(/[\-\/\s]/g, "");
     const yr = isValidIssueYear(yearStr);
     if (
       VALID_INDIAN_DL_STATE_CODES.has(stateCode) &&
@@ -1572,6 +1573,20 @@ function shouldSkipGlobalValidation(input: HTMLInputElement | HTMLTextAreaElemen
     return true;
   }
   const meta = `${input.name || ''} ${input.id || ''} ${input.placeholder || ''} ${input.autocomplete || ''}`.toLowerCase();
+  const label = inferInputFieldLabel(input);
+
+  // Search filter inputs should NEVER be subjected to global form-submission error validation
+  const isSearch =
+    (input instanceof HTMLInputElement && input.type === 'search') ||
+    input.hasAttribute('data-search-input') ||
+    input.getAttribute('role') === 'searchbox' ||
+    label.includes('search') ||
+    meta.includes('search') ||
+    (input.placeholder || '').toLowerCase().includes('search');
+
+  if (isSearch) {
+    return true;
+  }
   if (
     meta.includes('password') ||
     meta.includes('pass') ||
@@ -1590,7 +1605,6 @@ function shouldSkipGlobalValidation(input: HTMLInputElement | HTMLTextAreaElemen
   ) {
     return true;
   }
-  const label = inferInputFieldLabel(input);
   if (
     label.includes('email') ||
     label.includes('phone') ||
@@ -1725,11 +1739,10 @@ function setGlobalInputError(input: HTMLInputElement | HTMLTextAreaElement, erro
       anchor.style.position = 'relative';
     }
 
-    anchor.style.marginBottom = '26px';
-    anchor.style.alignSelf = 'flex-start';
+    // Kept zero margin on absolute anchors to prevent layout shift (Bug 19)
 
     errEl.style.position = 'absolute';
-    errEl.style.left = '0';
+    errEl.style.left = '4px';
     errEl.style.top = '100%';
     errEl.style.marginTop = '4px';
     errEl.style.fontSize = '11px';
@@ -1739,7 +1752,7 @@ function setGlobalInputError(input: HTMLInputElement | HTMLTextAreaElement, erro
     errEl.style.zIndex = '30';
     errEl.style.pointerEvents = 'none';
     errEl.style.whiteSpace = 'normal';
-    errEl.style.maxWidth = '180px';
+    errEl.style.maxWidth = '280px';
     errEl.style.wordBreak = 'break-word';
 
     if (errEl.parentElement !== anchor) {
@@ -2389,13 +2402,39 @@ export function installGlobalInputValidation(): () => void {
   window.addEventListener('input', handleInput, true);
   window.addEventListener('focusout', handleBlur, true);
   window.addEventListener('submit', handleSubmit, true);
+  
+  const handleSelectInteraction = (e: Event) => {
+    const target = e.target as HTMLElement | null;
+    if (target instanceof HTMLSelectElement || target?.getAttribute('role') === 'combobox' || target?.tagName === 'SELECT') {
+      const parentWrap = target.closest('.glass-card, [role="search"], .grid, form');
+      if (parentWrap) {
+        const searchInputs = parentWrap.querySelectorAll('input[type="text"], input[type="search"], [data-search-input]');
+        searchInputs.forEach(inp => {
+          if (inp instanceof HTMLInputElement) {
+            setGlobalInputError(inp, undefined);
+            inp.removeAttribute('data-global-invalid');
+            inp.style.borderColor = '';
+          }
+        });
+        parentWrap.querySelectorAll('[data-global-validation-error="true"]').forEach(el => el.remove());
+        if (parentWrap.parentElement) {
+          parentWrap.parentElement.querySelectorAll('[data-global-validation-error="true"]').forEach(el => el.remove());
+        }
+      }
+    }
+  };
+
   window.addEventListener('click', handleClick, true);
+  window.addEventListener('change', handleSelectInteraction, true);
+  window.addEventListener('focusin', handleSelectInteraction, true);
 
   const cleanup = () => {
     window.removeEventListener('input', handleInput, true);
     window.removeEventListener('focusout', handleBlur, true);
     window.removeEventListener('submit', handleSubmit, true);
     window.removeEventListener('click', handleClick, true);
+    window.removeEventListener('change', handleSelectInteraction, true);
+    window.removeEventListener('focusin', handleSelectInteraction, true);
   };
 
   (window as any).__globalValidationCleanup = cleanup;

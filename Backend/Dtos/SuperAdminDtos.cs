@@ -194,3 +194,36 @@ public class SystemNotificationResponseDto
     public int? SchoolId { get; set; }
     public string? SchoolName { get; set; }
 }
+
+
+// --- Super Admin Account DTOs ---
+
+public class SuperAdminCreateDto
+{
+    [Required]
+    [MaxLength(100)]
+    public string FullName { get; set; } = string.Empty;
+
+    [Required]
+    [EmailAddress]
+    [MaxLength(150)]
+    public string Email { get; set; } = string.Empty;
+
+    [Required]
+    [MaxLength(20)]
+    public string MobileNumber { get; set; } = string.Empty;
+
+    [Required]
+    [MinLength(6)]
+    public string Password { get; set; } = string.Empty;
+}
+
+public class SuperAdminResponseDto
+{
+    public int UserId { get; set; }
+    public string FullName { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public string MobileNumber { get; set; } = string.Empty;
+    public string Role { get; set; } = "SuperAdmin";
+    public DateTime CreatedAt { get; set; }
+}

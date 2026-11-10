@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Layers, Plus, Edit, Trash2, Search, ChevronDown, Building2, AlertTriangle } from 'lucide-react';
+import { Layers, Plus, Edit, Trash2, Search, ChevronDown, Building2, AlertTriangle, Eye, X, AlertCircle } from 'lucide-react';
+import { validateSearchQuery } from '../../../utils/validation';
 import { useToast } from '../../../context/ToastContext';
 import { useAuth } from '../../../context/AuthContext';
 import { ConfirmModal } from '../../common/ConfirmModal';
@@ -33,22 +34,25 @@ interface FloorSharingConfig {
   customAllocations?: CustomAllocation[];
 }
 
-const getStoredFloorConfigs = (hostelId: string): FloorSharingConfig[] | null => {
-  if (typeof window === 'undefined' || !hostelId) return null;
-  const stored = localStorage.getItem(`edu_db_floor_sharing_config_${hostelId}`);
-  if (stored) {
-    try {
-      const parsed = JSON.parse(stored);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-    } catch (e) {}
-  }
-  return null;
-};
+const getStoredFloorConfigs = (_hostelId: string): FloorSharingConfig[] | null => null;
+const saveStoredFloorConfigs = (_hostelId: string, _configs: FloorSharingConfig[]) => {};
 
-const saveStoredFloorConfigs = (hostelId: string, configs: FloorSharingConfig[]) => {
-  if (typeof window !== 'undefined' && hostelId && configs && configs.length > 0) {
-    localStorage.setItem(`edu_db_floor_sharing_config_${hostelId}`, JSON.stringify(configs));
+
+const formatHostelLocation = (val?: string) => {
+  if (!val) return '-';
+  const parts = val.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+  const uniqueParts = Array.from(new Set(parts));
+  let joined = uniqueParts.join(', ');
+  const tokens = joined.split(/\s+/);
+  if (tokens.length >= 2 && tokens.length % 2 === 0) {
+    const half = tokens.length / 2;
+    const firstPart = tokens.slice(0, half).join(' ');
+    const secondPart = tokens.slice(half).join(' ');
+    if (firstPart.toLowerCase() === secondPart.toLowerCase()) {
+      return firstPart;
+    }
   }
+  return joined || '-';
 };
 
 export const RoomTypeMasterView: React.FC = () => {
@@ -62,7 +66,32 @@ export const RoomTypeMasterView: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterAcType, setFilterAcType] = useState('');
+  const [searchError, setSearchError] = useState<string | undefined>(undefined);
+
+  const handleSearchQueryChange = (val: string) => {
+    setSearchQuery(val);
+    if (!val.trim()) {
+      setSearchError(undefined);
+    } else {
+      const res = validateSearchQuery(val, 30);
+      setSearchError(res.isValid ? undefined : (res.error || 'Enter a valid search term.'));
+    }
+  };
+  const [filterAcType, setFilterAcType] = useState(() => {
+    try {
+      return localStorage.getItem('hostel_room_categories_filter') || '';
+    } catch {
+      return '';
+    }
+  });
+
+  const handleFilterAcChange = (val: string) => {
+    setFilterAcType(val);
+    try {
+      localStorage.setItem('hostel_room_categories_filter', val);
+    } catch {}
+    if (val !== 'Custom') setManualFilterInput('');
+  };
   const [manualFilterInput, setManualFilterInput] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -79,7 +108,7 @@ export const RoomTypeMasterView: React.FC = () => {
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 8;
+  const itemsPerPage = 10;
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -528,6 +557,7 @@ export const RoomTypeMasterView: React.FC = () => {
   );
 
   const filtered = uniqueRoomTypes.filter(rt => {
+    if (searchError) return false;
     const q = searchQuery.toLowerCase().trim();
     const matchesSearch = !q ||
       rt.roomTypeSpecification?.toLowerCase().includes(q) ||
@@ -558,12 +588,12 @@ export const RoomTypeMasterView: React.FC = () => {
   );
 
   return (
-    <div className="space-y-6 animate-in fade-in">
+    <div className="space-y-3.5 animate-in fade-in">
       {!isWarden && (
         <div className="flex justify-end">
           <button
             onClick={handleOpenAdd}
-            className="px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-lg shadow-sky-500/20 flex items-center gap-2 transition-all"
+            className="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-sm flex items-center gap-1.5 transition-all"
           >
             <Plus className="w-4 h-4" /> Add Room Type
           </button>
@@ -571,26 +601,50 @@ export const RoomTypeMasterView: React.FC = () => {
       )}
 
       {/* Filter Bar */}
-      <div className="glass-card p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 border border-slate-200 dark:border-slate-800 shadow-sm">
-        <div className="relative w-full sm:w-80">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
-          <input
-            type="text"
-            placeholder="Search by category or specification..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-900 dark:text-white outline-none"
-          />
+      <div className="glass-card p-3 rounded-xl flex flex-col sm:flex-row items-start justify-between gap-2.5 border border-slate-200/80 dark:border-slate-800 shadow-xs">
+        <div className="flex flex-col w-full sm:w-80">
+          <div className="relative w-full h-[36px]">
+            <Search className={`w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none transition-colors ${searchError ? "text-rose-500" : "text-slate-400"}`} />
+            <input
+              type="text"
+              data-skip-global-validation="true"
+              data-search-input="true"
+              placeholder="Search by category or specification..."
+              value={searchQuery}
+              onChange={e => handleSearchQueryChange(e.target.value)}
+              className={`w-full h-[36px] pl-10 ${searchQuery ? "pr-8" : "pr-4"} rounded-lg bg-slate-50 dark:bg-slate-800 border text-xs font-semibold text-slate-900 dark:text-white outline-none transition-all ${
+                searchError
+                  ? "border-rose-500 focus:border-rose-500 ring-1 ring-rose-500/20"
+                  : "border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500"
+              }`}
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery('');
+                  setSearchError(undefined);
+                }}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                title="Clear search"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+          {searchError && (
+            <p className="text-[11px] font-bold text-rose-500 flex items-center gap-1.5 mt-1.5 animate-in fade-in">
+              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+              <span>{searchError}</span>
+            </p>
+          )}
         </div>
 
         <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto justify-end">
           <div className="min-w-[220px] w-full sm:w-auto">
             <SearchableSelect
               value={filterAcType}
-              onChange={val => {
-                setFilterAcType(val);
-                if (val !== 'Custom') setManualFilterInput('');
-              }}
+              onChange={handleFilterAcChange}
               placeholder="-- Select AC / Non-AC Option --"
               searchPlaceholder="Search option..."
               options={[
@@ -609,7 +663,7 @@ export const RoomTypeMasterView: React.FC = () => {
               placeholder="Type category (e.g. Deluxe)..."
               value={manualFilterInput}
               onChange={e => setManualFilterInput(e.target.value)}
-              className="px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-900 dark:text-white outline-none w-full sm:w-56"
+              className="px-3.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-900 dark:text-white outline-none w-full sm:w-56"
               autoFocus
             />
           )}
@@ -628,19 +682,29 @@ export const RoomTypeMasterView: React.FC = () => {
               Please select an option from the dropdown above to view room categories.
             </p>
           </div>
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={() => handleFilterAcChange('All')}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-md shadow-sky-500/20 transition-all cursor-pointer hover:shadow-lg active:scale-95"
+            >
+              <Eye className="w-4 h-4" />
+              <span>View All Room Categories</span>
+            </button>
+          </div>
         </div>
       ) : (
         <div className="glass-card rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 overflow-hidden shadow-md">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-700 dark:text-slate-300">
+            <table className="w-full text-center text-xs text-slate-700 dark:text-slate-300">
               <thead className="bg-slate-50 dark:bg-slate-800/80 uppercase font-extrabold text-[10px] tracking-wider text-slate-500 border-b border-slate-200 dark:border-slate-800">
                 <tr>
-                  <th className="py-3.5 px-5">Room Category</th>
-                  <th className="py-3.5 px-5 text-center">Bed Capacity</th>
-                  <th className="py-3.5 px-5 text-center">AC / NON AC</th>
-                  <th className="py-3.5 px-5">Description</th>
-                  <th className="py-3.5 px-5 text-center">Status</th>
-                  {!isWarden && <th className="py-3.5 px-5 text-right">Actions</th>}
+                  <th className="py-2 px-3 text-center">Room Category</th>
+                  <th className="py-2 px-3 text-center">Bed Capacity</th>
+                  <th className="py-2 px-3 text-center">AC / NON AC</th>
+                  <th className="py-2 px-3 text-center">Description</th>
+                  <th className="py-2 px-3 text-center">Status</th>
+                  {!isWarden && <th className="py-2 px-3 text-center">Actions</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
@@ -655,26 +719,26 @@ export const RoomTypeMasterView: React.FC = () => {
                 ) : (
                   paginated.map((rt, idx) => (
                     <tr key={`rt-row-${rt.roomTypeId || idx}-${idx}`} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
-                      <td className="py-3.5 px-5 font-bold text-slate-900 dark:text-white">{rt.roomTypeSpecification}</td>
-                      <td className="py-3.5 px-5 text-center">
+                      <td className="py-2 px-3 text-center font-bold text-slate-900 dark:text-white">{rt.roomTypeSpecification}</td>
+                      <td className="py-2 px-3 text-center">
                         <span className="px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300">
                           {rt.bedCapacity} Beds
                         </span>
                       </td>
-                      <td className="py-3.5 px-5 text-center">
+                      <td className="py-2 px-3 text-center">
                         <span className={`px-2.5 py-1 rounded-full text-[11px] font-extrabold ${rt.acType === 'AC' ? 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'}`}>
                           {rt.acType}
                         </span>
                       </td>
-                      <td className="py-3.5 px-5 text-slate-500 max-w-xs truncate">{rt.description || 'No description provided'}</td>
-                      <td className="py-3.5 px-5 text-center">
+                      <td className="py-2 px-3 text-center text-slate-500 max-w-xs truncate">{rt.description || 'No description provided'}</td>
+                      <td className="py-2 px-3 text-center">
                         <span className={`px-2.5 py-1 rounded-full text-[11px] font-extrabold ${rt.status === 'Active' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'}`}>
                           {rt.status}
                         </span>
                       </td>
                       {!isWarden && (
-                        <td className="py-3.5 px-5 text-right">
-                          <div className="flex items-center justify-end gap-2">
+                        <td className="py-2 px-3 text-center">
+                          <div className="flex items-center justify-center gap-2 mx-auto">
                             <button onClick={() => handleOpenEdit(rt)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-sky-600"><Edit className="w-4 h-4" /></button>
                             <button onClick={() => setDeletingRt(rt)} className="p-1.5 rounded-lg hover:bg-rose-50 text-rose-600"><Trash2 className="w-4 h-4" /></button>
                           </div>
@@ -686,15 +750,22 @@ export const RoomTypeMasterView: React.FC = () => {
               </tbody>
             </table>
           </div>
+
+          {/* Neat Table Footer with Integrated Pagination */}
+          {filtered.length > 0 && (
+            <div className="px-5 py-3.5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40 rounded-b-3xl">
+              <Pagination
+                currentPage={currentPage}
+                totalItems={filtered.length}
+                itemsPerPage={itemsPerPage}
+                onPageChange={setCurrentPage}
+                showBorder={false}
+                className="pt-0 pb-0"
+              />
+            </div>
+          )}
         </div>
       )}
-
-      <Pagination
-        currentPage={currentPage}
-        totalItems={filtered.length}
-        itemsPerPage={itemsPerPage}
-        onPageChange={setCurrentPage}
-      />
 
       {/* CREATE / EDIT ROOM SHARING MODAL */}
       {isModalOpen && (
@@ -819,7 +890,7 @@ export const RoomTypeMasterView: React.FC = () => {
                       <select
                         value={selectedFloorLevel}
                         onChange={e => setSelectedFloorLevel(e.target.value)}
-                        className="w-full appearance-none pl-3.5 pr-9 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-sky-500 outline-none transition-all"
+                        className="w-full appearance-none pl-3.5 pr-9 py-2.5 rounded-xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 text-xs font-bold text-sky-900 dark:text-sky-100 hover:border-sky-400 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all cursor-pointer"
                         disabled={!selectedBlock || isSubmitting}
                       >
                         {(() => {
@@ -1176,7 +1247,7 @@ export const RoomTypeMasterView: React.FC = () => {
                           </div>
                           <div>
                             <span className="text-[10px] text-slate-400 font-bold block uppercase">Location</span>
-                            <span className="font-semibold text-slate-800 dark:text-slate-200 truncate block">{selectedBlock.address || '-'}</span>
+                            <span className="font-semibold text-slate-800 dark:text-slate-200 truncate block">{formatHostelLocation(selectedBlock.address)}</span>
                           </div>
                         </div>
                       </div>
@@ -1320,7 +1391,7 @@ export const RoomTypeMasterView: React.FC = () => {
                                 <select
                                   value={formStatus}
                                   onChange={e => setFormStatus(e.target.value)}
-                                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-800 dark:text-slate-200 outline-none"
+                                  className="w-full px-3 py-1.5 rounded-lg bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 text-xs font-bold text-sky-900 dark:text-sky-100 outline-none hover:border-sky-400 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 cursor-pointer"
                                 >
                                   <option value="Active">Active</option>
                                   <option value="Inactive">Inactive</option>
@@ -1333,7 +1404,7 @@ export const RoomTypeMasterView: React.FC = () => {
                                   placeholder="Standard features, layout descriptions..."
                                   value={formDescription}
                                   onChange={e => setFormDescription(e.target.value)}
-                                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-medium text-slate-800 dark:text-slate-200 outline-none"
+                                  className="w-full px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border text-xs font-medium text-slate-800 dark:text-slate-200 outline-none"
                                 />
                               </div>
                             </div>

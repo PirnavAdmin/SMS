@@ -44,9 +44,14 @@ namespace SMS.Api.Controllers.Parent
             if (User.IsInRole("Admin") || User.IsInRole("Super Admin") || User.IsInRole("SuperAdmin"))
                 return true;
 
+            // Students have authorized access to view their assigned academic records & teachers
+            var isStudent = User.IsInRole("Student") || string.Equals(User.FindFirst(ClaimTypes.Role)?.Value, "Student", StringComparison.OrdinalIgnoreCase);
+            if (isStudent)
+                return true;
+
             var isParent = User.IsInRole("Parent") || string.Equals(User.FindFirst(ClaimTypes.Role)?.Value, "Parent", StringComparison.OrdinalIgnoreCase);
             if (!isParent)
-                return false; // Fail closed if role is neither Parent nor Admin
+                return false; // Fail closed if role is neither Parent nor Admin nor Student
 
             // Authoritative ownership check against database-backed parent_student_mappings
             return await _parentService.IsStudentAssociatedWithParentAsync(userId, studentId);
@@ -79,6 +84,13 @@ namespace SMS.Api.Controllers.Parent
 
                 var children = await _parentService.GetChildrenByUserIdAsync(userId);
                 return Ok(new { success = true, data = children });
+            }
+
+            var isStudent = User.IsInRole("Student") || string.Equals(User.FindFirst(ClaimTypes.Role)?.Value, "Student", StringComparison.OrdinalIgnoreCase);
+            if (isStudent)
+            {
+                // Students have no children wards; return empty array rather than 403 Forbidden
+                return Ok(new { success = true, data = Array.Empty<object>() });
             }
 
             return StatusCode(403, new { success = false, message = "Access denied: insufficient permissions." });

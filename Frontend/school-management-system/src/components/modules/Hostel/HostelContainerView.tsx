@@ -22,16 +22,15 @@ export const HostelContainerView: React.FC<HostelContainerViewProps> = ({ initia
     if (clean === 'room-allocation' || clean === 'room-allocations' || clean === 'allocation' || clean === 'allocations' || clean === 'student-room-allocation') {
       return 'student-hostel';
     }
-    if (isWarden && (clean === 'dashboard' || !clean)) {
-      return 'masters';
-    }
     return clean || 'dashboard';
   };
 
   const [activeTab, setActiveTab] = useState(() => getCleanTab(initialTab));
 
   useEffect(() => {
-    setActiveTab(getCleanTab(initialTab));
+    const clean = getCleanTab(initialTab);
+    setActiveTab(clean);
+    // Tab synced
   }, [initialTab, isWarden]);
 
   const handleNavigate = (tab: string) => {
@@ -42,7 +41,7 @@ export const HostelContainerView: React.FC<HostelContainerViewProps> = ({ initia
   };
 
   const navTabs = [
-    ...(!isWarden ? [{ id: 'dashboard', label: 'Hostel Dashboard', icon: LayoutDashboard }] : []),
+    { id: 'dashboard', label: 'Hostel Dashboard', icon: LayoutDashboard },
     { id: 'masters', label: 'Hostel Masters Setup', icon: Building2 },
     { id: 'student-hostel', label: 'Student Management', icon: Users },
     { id: 'reports', label: 'Hostel Reports', icon: BarChart3 }
@@ -56,9 +55,6 @@ export const HostelContainerView: React.FC<HostelContainerViewProps> = ({ initia
   };
 
   const renderTabContent = () => {
-    if (isWarden && activeTab === 'dashboard') {
-      return <HostelMastersView />;
-    }
 
     switch (activeTab) {
       case 'dashboard':
@@ -70,7 +66,19 @@ export const HostelContainerView: React.FC<HostelContainerViewProps> = ({ initia
       case 'room-master':
       case 'rooms':
       case 'wardens':
-        return <HostelMastersView />;
+        return (
+          <HostelMastersView
+            initialSubTab={
+              ['rooms', 'room-master'].includes(activeTab)
+                ? 'rooms'
+                : ['room-type', 'room-types'].includes(activeTab)
+                ? 'room-types'
+                : activeTab === 'wardens'
+                ? 'wardens'
+                : 'blocks'
+            }
+          />
+        );
       case 'student-hostel':
       case 'student-assignment':
       case 'beds':
@@ -101,9 +109,9 @@ export const HostelContainerView: React.FC<HostelContainerViewProps> = ({ initia
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in">
+    <div className="space-y-3.5 animate-in fade-in">
       {/* Top Module Sub-tab Navigation */}
-      <div className="glass-card p-2 rounded-2xl flex items-center gap-1 overflow-x-auto no-scrollbar border border-slate-200/80 dark:border-slate-800">
+      <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm p-1 rounded-xl flex items-center gap-1 overflow-x-auto no-scrollbar border border-slate-200/80 dark:border-slate-800 shadow-xs no-print print:hidden">
         {navTabs.map(tab => {
           const Icon = tab.icon;
           const active = isTabActive(tab.id);
@@ -111,13 +119,13 @@ export const HostelContainerView: React.FC<HostelContainerViewProps> = ({ initia
             <button
               key={tab.id}
               onClick={() => handleNavigate(tab.id)}
-              className={`px-4.5 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap flex items-center gap-1.5 transition-all ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap flex items-center gap-1.5 transition-all ${
                 active
-                  ? 'bg-sky-600 text-white shadow-md shadow-sky-500/20'
-                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
+                  ? 'bg-sky-600 text-white shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white font-medium'
               }`}
             >
-              <Icon className="w-4 h-4" />
+              <Icon className="w-3.5 h-3.5" />
               <span>{tab.label}</span>
             </button>
           );

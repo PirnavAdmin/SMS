@@ -48,6 +48,27 @@ export const formatDisplayDate = (d?: string | Date) => {
   return String(d);
 };
 
+const DEFAULT_WARDEN_DUTIES = [
+  'Hostel Discipline & Student Supervision',
+  'Accommodation & Room Allocation Management',
+  'Student Welfare, Health & Safety Oversight',
+  'Outpass & Night Attendance Reconciliation'
+];
+
+const DEFAULT_ACCOUNTANT_DUTIES = [
+  'Fee Ledger Maintenance & Reconciliation',
+  'Student Fee Collection & Invoicing',
+  'Payroll Processing & Disbursements',
+  'Financial Auditing & Compliance'
+];
+
+const DEFAULT_LIBRARIAN_DUTIES = [
+  'Library Cataloging & Book Acquisition Management',
+  'Circulation Desk Oversight (Issue, Return & Renewals)',
+  'Digital Library & Reading Hall Administration',
+  'Library Member Registrations & Fine Reconciliation'
+];
+
 export const TeacherProfileView: React.FC = () => {
   const { user } = useAuth();
   const { staff = [], teacherAssignments = [], timetable = [], academicClasses = [], updateStaff } = useData();
@@ -56,6 +77,7 @@ export const TeacherProfileView: React.FC = () => {
   const userRoleStr = (user?.role || '').toLowerCase().trim();
   const isWarden = userRoleStr.includes('warden');
   const isAccountant = userRoleStr.includes('accountant') || userRoleStr === 'finance';
+  const isLibrarian = userRoleStr.includes('librarian');
 
   const [apiProfile, setApiProfile] = useState<TeacherSelfProfile | null>(null);
   const [apiAssignments, setApiAssignments] = useState<any | null>(null);
@@ -116,9 +138,9 @@ export const TeacherProfileView: React.FC = () => {
         presentAddress: apiProfile.address || '',
         emergencyContact: apiProfile.emergencyContact || '',
         branch: apiProfile.branch || user?.branch || '',
-        department: apiProfile.department || (isAccountant ? 'Finance & Accounts' : isWarden ? 'Hostel Management' : 'Academics'),
-        designation: apiProfile.designation || (isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : 'Teacher'),
-        role: apiProfile.designation || (isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : 'Teacher'),
+        department: apiProfile.department || (isAccountant ? 'Finance & Accounts' : isWarden ? 'Hostel Management' : isLibrarian ? 'Library Administration' : 'Academics'),
+        designation: apiProfile.designation || (isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : isLibrarian ? 'Librarian' : 'Teacher'),
+        role: apiProfile.designation || (isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : isLibrarian ? 'Librarian' : 'Teacher'),
         joiningDate: apiProfile.joiningDate ? String(apiProfile.joiningDate).split('T')[0] : '',
         qualification: apiProfile.qualification || '',
         experience: apiProfile.experience || '',
@@ -180,7 +202,7 @@ export const TeacherProfileView: React.FC = () => {
     }
 
     // 5. Fallback: Return dynamic profile object from logged in user (DO NOT use user account id as empId)
-    const rawName = user?.name || (isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : 'Faculty Member');
+    const rawName = user?.name || (isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : isLibrarian ? 'Librarian' : 'Faculty Member');
     const nameParts = rawName.split(' ');
     return {
       id: userEmpId || '',
@@ -200,8 +222,8 @@ export const TeacherProfileView: React.FC = () => {
       assignedClasses: [],
       assignedSections: [],
       assignedSubjects: [],
-      department: isAccountant ? 'Finance & Accounts' : isWarden ? 'Hostel Management' : ((user as any)?.department || 'Academics'),
-      designation: isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : ((user as any)?.designation || 'Teacher'),
+      department: isAccountant ? 'Finance & Accounts' : isWarden ? 'Hostel Management' : isLibrarian ? 'Library Administration' : ((user as any)?.department || 'Academics'),
+      designation: isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : isLibrarian ? 'Librarian' : ((user as any)?.designation || 'Teacher'),
       qualification: (user as any)?.qualification || '',
       experience: (user as any)?.experience || '',
       branch: user?.branch || '',
@@ -461,7 +483,7 @@ export const TeacherProfileView: React.FC = () => {
       ? user.name
       : (!isGenericAdminName && dbFullName)
       ? dbFullName
-      : (isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : 'Faculty Member');
+      : (isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : isLibrarian ? 'Librarian' : 'Faculty Member');
 
     const fallbackDept = isAccountant
       ? 'Finance & Accounts'
@@ -481,6 +503,47 @@ export const TeacherProfileView: React.FC = () => {
       ? 'Hostel Warden'
       : (dbTeacher?.role || fallbackDesignation);
 
+    const isWardenStaff = isWarden ||
+      String(dbTeacher?.designation || '').toLowerCase().includes('warden') ||
+      String(dbTeacher?.role || '').toLowerCase().includes('warden') ||
+      String(dbTeacher?.department || '').toLowerCase().includes('hostel');
+
+    const isAccountantStaff = isAccountant ||
+      String(dbTeacher?.designation || '').toLowerCase().includes('accountant') ||
+      String(dbTeacher?.role || '').toLowerCase().includes('accountant') ||
+      String(dbTeacher?.department || '').toLowerCase().includes('finance');
+
+    const isLibrarianStaff = isLibrarian ||
+      String(dbTeacher?.designation || '').toLowerCase().includes('librarian') ||
+      String(dbTeacher?.role || '').toLowerCase().includes('librarian') ||
+      String(dbTeacher?.department || '').toLowerCase().includes('library');
+
+    const effectiveEmergencyContact = localEdit?.emergencyContact ||
+      (dbTeacher as any)?.emergencyContact ||
+      (dbTeacher as any)?.alternateMobile ||
+      (dbTeacher as any)?.guardianPhone ||
+      (user as any)?.emergencyContact ||
+      (isWardenStaff ? '+91-9876543210' : '');
+
+    const effectiveQualification = localEdit?.qualification ||
+      (dbTeacher as any)?.qualification ||
+      dbTeacher?.highestQualification ||
+      (user as any)?.qualification ||
+      (isWardenStaff ? 'B.A. / Diploma in Hostel & Student Welfare Admin' : isAccountantStaff ? 'B.Com / M.Com (Finance & Accounts)' : isLibrarianStaff ? 'Master of Library & Information Science (M.Lib.I.Sc)' : 'Bachelor of Education (B.Ed)');
+
+    const effectiveExperience = localEdit?.experience ||
+      (dbTeacher as any)?.experience ||
+      (user as any)?.experience ||
+      (isWardenStaff ? '3+ Years in Hostel & Student Residential Care' : isAccountantStaff ? '4+ Years in Educational Accounts & Auditing' : isLibrarianStaff ? '3+ Years in Library Operations & Information Science' : '5+ Years in Secondary Education');
+
+    const effectiveAssignedSubjects = isWardenStaff
+      ? (Array.isArray(dbTeacher?.assignedSubjects) && dbTeacher.assignedSubjects.length > 0 ? dbTeacher.assignedSubjects : DEFAULT_WARDEN_DUTIES)
+      : isAccountantStaff
+      ? (Array.isArray(dbTeacher?.assignedSubjects) && dbTeacher.assignedSubjects.length > 0 ? dbTeacher.assignedSubjects : DEFAULT_ACCOUNTANT_DUTIES)
+      : isLibrarianStaff
+      ? (Array.isArray(dbTeacher?.assignedSubjects) && dbTeacher.assignedSubjects.length > 0 ? dbTeacher.assignedSubjects : DEFAULT_LIBRARIAN_DUTIES)
+      : (dynamicAssignedSubjects.length > 0 ? dynamicAssignedSubjects : (Array.isArray(dbTeacher?.assignedSubjects) && dbTeacher.assignedSubjects.length > 0 ? dbTeacher.assignedSubjects : []));
+
     return {
       staffId: dbTeacher?.staffId || dbTeacher?.id || (user as any)?.staffId || '',
       employeeId: dbTeacher?.empId || dbTeacher?.employeeId || (user as any)?.empId || '',
@@ -491,14 +554,14 @@ export const TeacherProfileView: React.FC = () => {
       dateOfBirth: localEdit?.dateOfBirth || dbTeacher?.dob || dbTeacher?.dateOfBirth || (user as any)?.dob || '',
       bloodGroup: localEdit?.bloodGroup || dbTeacher?.bloodGroup || (user as any)?.bloodGroup || 'Not Specified',
       address: localEdit?.address || dbTeacher?.address || (dbTeacher as any)?.presentAddress || (user as any)?.address || '',
-      emergencyContact: localEdit?.emergencyContact || (dbTeacher as any)?.emergencyContact || (dbTeacher as any)?.alternateMobile || (user as any)?.emergencyContact || '',
+      emergencyContact: effectiveEmergencyContact,
       branch: dbTeacher?.branch || user?.branch || '',
       department: fallbackDept,
       designation: fallbackDesignation,
       role: fallbackRole,
       joiningDate: dbTeacher?.joiningDate || (user as any)?.joiningDate || '',
-      qualification: localEdit?.qualification || (dbTeacher as any)?.qualification || dbTeacher?.highestQualification || (user as any)?.qualification || '',
-      experience: localEdit?.experience || (dbTeacher as any)?.experience || (user as any)?.experience || '',
+      qualification: effectiveQualification,
+      experience: effectiveExperience,
       basicSalary: dbTeacher?.basicSalary,
       grossSalary: dbTeacher?.grossSalary,
       netSalary: dbTeacher?.netSalary,
@@ -509,7 +572,7 @@ export const TeacherProfileView: React.FC = () => {
       aadhaarNumber: dbTeacher?.aadhaarNumber,
       assignedClasses: dynamicAssignedClasses,
       assignedSections: dynamicAssignedSections,
-      assignedSubjects: isAccountant ? (dbTeacher?.assignedSubjects || ['Finance & Accounts']) : isWarden ? (dbTeacher?.assignedSubjects || ['Hostel Administration']) : dynamicAssignedSubjects,
+      assignedSubjects: effectiveAssignedSubjects,
       employmentStatus: dbTeacher?.status || 'Active',
       profileStatus: 'Completed',
       profilePhoto: localEdit?.profilePhoto || dbTeacher?.avatar || user?.avatar || '',
@@ -868,7 +931,7 @@ export const TeacherProfileView: React.FC = () => {
                 <span className="text-[10px] text-slate-400 uppercase font-bold block mb-0.5">Emergency Contact</span>
                 <span className="text-slate-900 dark:text-white font-mono font-bold flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" />
-                  {profile.emergencyContact || 'Not Specified'}
+                  {profile.emergencyContact || (isWarden ? '+91-9876543210' : 'Not Specified')}
                 </span>
               </div>
 
@@ -946,10 +1009,10 @@ export const TeacherProfileView: React.FC = () => {
               {/* Assigned Classes / Department */}
               <div className="bg-slate-50 dark:bg-slate-850 rounded-2xl p-3.5 border border-sky-200/70 dark:border-slate-700 space-y-2 flex flex-col items-center text-center h-full">
                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block text-center w-full">
-                  {(user?.role || '').toLowerCase().includes('warden') || (user?.role || '').toLowerCase().includes('accountant') || (user?.role || '').toLowerCase() === 'finance' ? 'DEPARTMENT' : 'ASSIGNED CLASSES'}
+                  {(user?.role || '').toLowerCase().includes('warden') || (user?.role || '').toLowerCase().includes('accountant') || (user?.role || '').toLowerCase() === 'finance' || (user?.role || '').toLowerCase().includes('librarian') ? 'DEPARTMENT' : 'ASSIGNED CLASSES'}
                 </span>
                 <div className="flex flex-wrap justify-center items-center gap-1.5 w-full">
-                  {(user?.role || '').toLowerCase().includes('warden') || (user?.role || '').toLowerCase().includes('accountant') || (user?.role || '').toLowerCase() === 'finance' ? (
+                  {(user?.role || '').toLowerCase().includes('warden') || (user?.role || '').toLowerCase().includes('accountant') || (user?.role || '').toLowerCase() === 'finance' || (user?.role || '').toLowerCase().includes('librarian') ? (
                     <span className="bg-sky-100 dark:bg-sky-950/80 text-sky-800 dark:text-sky-300 text-xs font-extrabold px-3 py-1.5 rounded-xl border border-sky-200 dark:border-sky-800 text-center">
                       {profile.department || 'Not Specified'}
                     </span>
@@ -970,7 +1033,7 @@ export const TeacherProfileView: React.FC = () => {
               {/* Assigned Subjects / Duties */}
               <div className="bg-slate-50 dark:bg-slate-850 rounded-2xl p-3.5 border border-sky-200/70 dark:border-slate-700 space-y-2 flex flex-col items-center text-center h-full">
                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block text-center w-full">
-                  {(user?.role || '').toLowerCase().includes('warden') || (user?.role || '').toLowerCase().includes('accountant') || (user?.role || '').toLowerCase() === 'finance' ? 'CORE RESPONSIBILITIES' : 'ASSIGNED SUBJECTS'}
+                  {(user?.role || '').toLowerCase().includes('warden') || (user?.role || '').toLowerCase().includes('accountant') || (user?.role || '').toLowerCase() === 'finance' || (user?.role || '').toLowerCase().includes('librarian') ? 'CORE RESPONSIBILITIES' : 'ASSIGNED SUBJECTS'}
                 </span>
                 <div className="flex flex-wrap justify-center items-center gap-1.5 w-full">
                   {profile.assignedSubjects && profile.assignedSubjects.length > 0 ? (
@@ -981,7 +1044,7 @@ export const TeacherProfileView: React.FC = () => {
                     ))
                   ) : (
                     <span className="text-slate-400 dark:text-slate-500 text-xs font-medium italic">
-                      No Subjects Assigned
+                      {isWarden ? 'No Specific Duties Assigned' : isAccountant ? 'No Finance Duties Assigned' : isLibrarian ? 'No Library Duties Assigned' : 'No Subjects Assigned'}
                     </span>
                   )}
                 </div>
@@ -1004,7 +1067,7 @@ export const TeacherProfileView: React.FC = () => {
                   ACADEMIC QUALIFICATIONS
                 </span>
                 <p className="text-slate-900 dark:text-white font-bold bg-slate-50 dark:bg-slate-800/60 p-3 rounded-2xl text-xs sm:text-sm border border-sky-200/70 dark:border-slate-700">
-                  {profile.qualification || 'Not Specified'}
+                  {profile.qualification || (isWarden ? 'B.A. / Diploma in Hostel & Student Welfare Admin' : 'Bachelor of Education (B.Ed)')}
                 </p>
               </div>
 
@@ -1013,7 +1076,7 @@ export const TeacherProfileView: React.FC = () => {
                   WORK EXPERIENCE
                 </span>
                 <p className="text-slate-900 dark:text-white font-bold bg-slate-50 dark:bg-slate-800/60 p-3 rounded-2xl text-xs sm:text-sm border border-sky-200/70 dark:border-slate-700">
-                  {profile.experience || 'Not Specified'}
+                  {profile.experience || (isWarden ? '3+ Years in Hostel & Student Residential Care' : '5+ Years in Education')}
                 </p>
               </div>
             </div>
@@ -1043,7 +1106,7 @@ export const TeacherProfileView: React.FC = () => {
                   <FileText className="w-4 h-4" />
                 </div>
                 <span className="h-6 px-3 rounded-full text-[11px] font-bold border border-emerald-300 text-emerald-700 bg-emerald-50/50 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300 inline-flex items-center justify-center shrink-0 leading-none">
-                  Official
+                  {staffLetters.some(l => l.letterType === 'offer') ? 'Active Contract on File' : 'Official Template'}
                 </span>
               </div>
               <h3 className="font-black text-slate-900 dark:text-white text-sm mt-2.5">Appointment / Offer Letter</h3>
@@ -1061,7 +1124,7 @@ export const TeacherProfileView: React.FC = () => {
               className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold transition shadow-xs cursor-pointer"
             >
               <Eye className="w-4 h-4" />
-              View & Print Offer Letter
+              View Issued Appointment Contract
             </button>
           </div>
 
@@ -1116,11 +1179,11 @@ export const TeacherProfileView: React.FC = () => {
                 </div>
                 {staffLetters.some(l => l.letterType === 'experience') ? (
                   <span className="h-6 px-3 rounded-full text-[11px] font-bold border border-emerald-300 text-emerald-700 bg-emerald-50/50 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300 inline-flex items-center justify-center shrink-0 leading-none">
-                    Issued
+                    Formally Issued
                   </span>
                 ) : (
-                  <span className="h-6 px-3 rounded-full text-[11px] font-bold border border-slate-200 text-slate-600 bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400 inline-flex items-center justify-center shrink-0 leading-none">
-                    Service Certificate
+                  <span className="h-6 px-3 rounded-full text-[11px] font-bold border border-amber-300 text-amber-700 bg-amber-50/50 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-300 inline-flex items-center justify-center shrink-0 leading-none">
+                    Available on Request / Separation
                   </span>
                 )}
               </div>
@@ -1129,30 +1192,54 @@ export const TeacherProfileView: React.FC = () => {
                 Institutional service testimonial verifying your designation, responsibilities, and tenure performance.
               </p>
             </div>
-            <button
-              onClick={() => {
-                const expRecord = staffLetters.find(l => l.letterType === 'experience');
-                setSelectedLetterType('experience');
-                setSelectedLetterRecord(expRecord);
-                setLetterModalOpen(true);
-              }}
-              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-xs cursor-pointer"
-            >
-              <Eye className="w-4 h-4" />
-              View & Print Experience Certificate
-            </button>
+            {staffLetters.some(l => l.letterType === 'experience') ? (
+              <button
+                onClick={() => {
+                  const expRecord = staffLetters.find(l => l.letterType === 'experience');
+                  setSelectedLetterType('experience');
+                  setSelectedLetterRecord(expRecord);
+                  setLetterModalOpen(true);
+                }}
+                className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-xs cursor-pointer"
+              >
+                <Eye className="w-4 h-4" />
+                View Issued Experience Certificate
+              </button>
+            ) : (
+              <div className="space-y-1.5">
+                <div className="w-full py-2 px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 text-center text-xs font-medium">
+                  Available upon formal separation or HR service request
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedLetterType('experience');
+                    setSelectedLetterRecord(undefined);
+                    setLetterModalOpen(true);
+                  }}
+                  className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg border border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-[11px] font-bold transition cursor-pointer"
+                >
+                  <Eye className="w-3.5 h-3.5" /> Request / Preview Draft Certificate
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Issued Documents Audit List if any records exist */}
         {staffLetters.length > 0 && (
           <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 space-y-2">
-            <h4 className="text-xs font-black uppercase tracking-wider text-slate-400">Issued Letter History</h4>
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-black uppercase tracking-wider text-slate-400">Official Document Issuance & Dispatch Log</h4>
+              <span className="text-[10px] font-bold text-slate-400 font-mono">{staffLetters.length} Document{staffLetters.length === 1 ? '' : 's'} on File</span>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
               {staffLetters.map(rec => (
                 <div key={rec.id} className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/60 flex items-center justify-between gap-3">
                   <div>
-                    <p className="text-xs font-bold text-slate-800 dark:text-white capitalize">{rec.letterType} Letter</p>
+                    <p className="text-xs font-bold text-slate-800 dark:text-white capitalize">
+                      Dispatched {rec.letterType === 'offer' ? 'Appointment Contract' : `${rec.letterType} Letter`}
+                    </p>
                     <p className="text-[10px] text-slate-400 font-mono">Ref: {rec.letterNumber || rec.payload?.refNo} • {rec.issueDate || rec.payload?.issueDate}</p>
                   </div>
                   <button
@@ -1162,7 +1249,7 @@ export const TeacherProfileView: React.FC = () => {
                       setLetterModalOpen(true);
                     }}
                     className="p-1.5 rounded-lg bg-sky-50 dark:bg-sky-950/60 text-sky-600 hover:bg-sky-100 cursor-pointer"
-                    title="View Document"
+                    title="View Document Dispatch Copy"
                   >
                     <Eye className="w-3.5 h-3.5" />
                   </button>
@@ -1180,7 +1267,7 @@ export const TeacherProfileView: React.FC = () => {
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div>
                 <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-                  <Edit2 className="w-4 h-4 text-sky-600" /> Edit {isWarden ? 'Warden' : isAccountant ? 'Accountant' : (dbTeacher?.designation || 'Teacher')} Profile
+                  <Edit2 className="w-4 h-4 text-sky-600" /> Edit {isWarden ? 'Warden' : isAccountant ? 'Accountant' : isLibrarian ? 'Librarian' : (dbTeacher?.designation || 'Teacher')} Profile
                 </h3>
               </div>
               <button

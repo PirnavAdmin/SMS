@@ -33,7 +33,68 @@ public class SuperAdminService : ISuperAdminService
         _config = config;
     }
 
-    // --- Authentication ---
+    // --- Authentication & Super Admin Account Management ---
+
+    public async Task<int> GetSuperAdminCountAsync()
+    {
+        return await _saRepository.GetSuperAdminCountAsync();
+    }
+
+    public async Task<SuperAdminResponseDto> CreateSuperAdminAsync(SuperAdminCreateDto dto, int? requestedByUserId = null)
+    {
+        var cleanEmail = dto.Email.Trim().ToLower();
+        var cleanMobile = dto.MobileNumber.Trim();
+
+        if (await _saRepository.UserExistsAsync(cleanEmail, cleanMobile))
+            throw new AppException($"User with email '{dto.Email}' or mobile number '{dto.MobileNumber}' already exists.", HttpStatusCode.Conflict);
+
+        var superAdminRole = await _saRepository.GetRoleByNameAsync("SuperAdmin")
+            ?? await _saRepository.GetRoleByNameAsync("Super Admin");
+
+        var superAdminRoleSpace = await _saRepository.GetRoleByNameAsync("Super Admin");
+
+        var user = new User
+        {
+            FullName = dto.FullName.Trim(),
+            Email = cleanEmail,
+            MobileNumber = cleanMobile,
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
+            Role = "SuperAdmin",
+            IsEmailVerified = true,
+            IsMobileVerified = true,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        if (superAdminRole != null)
+        {
+            user.Roles.Add(superAdminRole);
+        }
+        if (superAdminRoleSpace != null && superAdminRoleSpace.RoleId != superAdminRole?.RoleId)
+        {
+            user.Roles.Add(superAdminRoleSpace);
+        }
+
+        await _saRepository.AddUserAsync(user);
+        await _saRepository.SaveChangesAsync();
+
+        var requester = requestedByUserId.HasValue ? await _userRepository.GetByIdAsync(requestedByUserId.Value) : null;
+        await LogActivityAsync(
+            requestedByUserId ?? user.UserId,
+            requester?.FullName ?? user.FullName,
+            "SuperAdmin",
+            "Create SuperAdmin",
+            $"Created new Super Admin: {user.FullName} ({user.Email})");
+
+        return new SuperAdminResponseDto
+        {
+            UserId = user.UserId,
+            FullName = user.FullName,
+            Email = user.Email ?? string.Empty,
+            MobileNumber = user.MobileNumber,
+            Role = user.Role,
+            CreatedAt = user.CreatedAt
+        };
+    }
 
     public async Task<AuthResponseDto> SuperAdminLoginAsync(LoginRequestDto dto)
     {
@@ -52,15 +113,21 @@ public class SuperAdminService : ISuperAdminService
         if (!string.IsNullOrEmpty(user.Role)) roles.Add(user.Role);
         roles = roles.Distinct().ToList();
 
-        if (!roles.Contains("SuperAdmin"))
+        bool isSuperAdmin = roles.Any(r => r.Equals("SuperAdmin", StringComparison.OrdinalIgnoreCase) ||
+                                           r.Equals("Super Admin", StringComparison.OrdinalIgnoreCase));
+
+        if (!isSuperAdmin)
             throw new AppException("Access denied. Authorized for Super Admin only.", HttpStatusCode.Forbidden);
+
+        if (!roles.Contains("SuperAdmin")) roles.Add("SuperAdmin");
+        if (!roles.Contains("Super Admin")) roles.Add("Super Admin");
 
         var token = GenerateJwtToken(user, roles);
 
         // Log login action
         await LogActivityAsync(user.UserId, user.FullName, "SuperAdmin", "Login", "Super Admin logged in successfully.");
 
-        return new AuthResponseDto(user.UserId, user.FullName, token, roles);
+        return new AuthResponseDto(user.UserId, user.FullName, token, roles, user.Email, user.MobileNumber, user.Avatar, string.Empty);
     }
 
     public async Task<AuthResponseDto> RefreshTokenAsync(string token)
@@ -91,8 +158,11 @@ public class SuperAdminService : ISuperAdminService
             if (!string.IsNullOrEmpty(user.Role)) roles.Add(user.Role);
             roles = roles.Distinct().ToList();
 
+            if (!roles.Contains("SuperAdmin")) roles.Add("SuperAdmin");
+            if (!roles.Contains("Super Admin")) roles.Add("Super Admin");
+
             var newToken = GenerateJwtToken(user, roles);
-            return new AuthResponseDto(user.UserId, user.FullName, newToken, roles);
+            return new AuthResponseDto(user.UserId, user.FullName, newToken, roles, user.Email, user.MobileNumber, user.Avatar, string.Empty);
         }
         catch (Exception ex)
         {
@@ -523,7 +593,6 @@ public class SuperAdminService : ISuperAdminService
             Status = school.Status,
             CreatedAt = school.CreatedAt,
             AdminsCount = adminsCount,
-            // Lazy evaluations for other module components to prevent N+1 queries during aggregate stats loads
             TeachersCount = school.Users?.Count(u => u.Role == "Teacher" || u.Roles.Any(r => r.RoleName == "Teacher")) ?? 0,
             StudentsCount = school.Users?.Count(u => u.Role == "Student" || u.Roles.Any(r => r.RoleName == "Student")) ?? 0,
             ParentsCount = school.Users?.Count(u => u.Role == "Parent" || u.Roles.Any(r => r.RoleName == "Parent")) ?? 0,
@@ -572,7 +641,7 @@ public class SuperAdminService : ISuperAdminService
             issuer: _config["Jwt:Issuer"],
             audience: _config["Jwt:Audience"],
             claims: claims,
-            expires: DateTime.UtcNow.AddHours(8),
+            expires: DateTime.UtcNow.AddDays(7),
             signingCredentials: creds
         );
 

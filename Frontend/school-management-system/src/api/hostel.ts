@@ -1,4 +1,4 @@
-﻿import { apiClient } from './client';
+import { apiClient } from './client';
 
 const hostelApiClient = async (endpoint: string, options?: RequestInit) => {
   const res = await apiClient(endpoint, options);
@@ -66,29 +66,27 @@ export interface StaffCandidate {
   phone: string;
 }
 
-export interface EligibleHostelStudent {
-  id: string | number;
-  studentId?: number;
-  applicationId?: number;
-  studentName: string;
-  name?: string;
-  admissionNo: string;
-  registrationNo: string;
-  className: string;
-  section: string;
-  studentType: string;
-  requiredSecurityDeposit: number;
-  paidSecurityDeposit: number;
-  isSecurityDepositPaid: boolean;
-  paymentStatus?: string;
-  hostelBlock?: string;
-  hostelRoom?: string;
-  bedNumber?: string;
+export interface WardenRecord {
+  wardenId: number;
+  staffId: number;
+  staffName: string;
+  wardenName: string;
+  employeeId: string;
+  designation: string;
+  department: string;
+  email: string;
+  emailAddress?: string;
+  phone: string;
+  mobileNumber?: string;
+  hostelId: number;
+  hostelName: string;
+  assignedDate: string;
+  status: string;
 }
 
 export interface BedAllocation {
-  allocationId: number | string;
-  studentId: number | string;
+  allocationId: number;
+  studentId: string | number;
   studentName: string;
   admissionNo: string;
   hostelId: number;
@@ -97,6 +95,7 @@ export interface BedAllocation {
   roomNumber: string;
   bedNumber: string;
   joiningDate: string;
+  vacatedDate?: string;
   status: string;
   isPendingAdmitted?: boolean;
 }
@@ -104,395 +103,86 @@ export interface BedAllocation {
 export interface NightAttendanceRecord {
   attendanceId: number;
   allocationId: number;
-  studentId: number;
+  studentId?: number | string;
   studentName: string;
   admissionNo: string;
-  hostelName: string;
   roomNumber: string;
   bedNumber: string;
   date: string;
-  curfewStatus: string;
-  inTime?: string | null;
-  outTime?: string | null;
-  remarks: string | null;
+  status: 'Present' | 'Absent' | 'Late' | 'On Outpass';
+  remarks?: string;
+  curfewStatus?: string;
+  inTime?: string;
+  outTime?: string;
 }
 
 export interface DashboardMetrics {
   totalHostels: number;
-  totalRooms: number;
-  totalBedCapacity: number;
-  activeOccupiedBeds: number;
-  availableVacantBeds: number;
-  enrolledHostellers: number;
+  totalCapacity: number;
+  occupiedBeds: number;
+  vacantBeds: number;
   occupancyPercentage: number;
-  estMonthlyRevenue: number;
+  totalWardens: number;
+  recentAllocations: BedAllocation[];
 }
 
-// Persistent Local Storage Sync Layer for Hostel Blocks
-// Persistent Local Storage Sync Layer for Hostel Blocks
-const HOSTEL_BLOCKS_STORE_KEY = 'edu_db_hostel_blocks';
+export interface EligibleHostelStudent {
+  id?: number | string;
+  applicationId?: number | string;
+  studentId: number;
+  admissionNo: string;
+  studentName: string;
+  className: string;
+  gender: string;
+  parentName: string;
+  contactNumber: string;
+  photoUrl?: string;
+  branchName?: string;
+}
 
+export interface OutpassRecord {
+  id: number | string;
+  studentId?: string | number;
+  studentName: string;
+  admissionNo: string;
+  hostelName: string;
+  roomNumber: string;
+  outpassType: 'Local Outpass' | 'Home Leave' | 'Emergency Outpass';
+  departureDate: string;
+  returnDate: string;
+  reason: string;
+  status: 'Approved' | 'Pending' | 'Rejected' | 'Completed' | 'Cancelled';
+  approvedBy?: string;
+  remarks?: string;
+  createdAt?: string;
+}
+
+export interface TransferRecord {
+  id: number | string;
+  requestId?: number | string;
+  studentId?: string | number;
+  studentName: string;
+  admissionNo: string;
+  actionType: 'Room Transfer' | 'Bed Vacate';
+  fromHostel: string;
+  fromRoom: string;
+  toHostel: string;
+  toRoom: string;
+  requestDate: string;
+  reason: string;
+  status: 'Completed' | 'Pending' | 'Rejected';
+  totalFeePaid?: number;
+  monthsStayed?: number;
+  feeUtilized?: number;
+  refundableBalance?: number;
+  feeAdjustmentMode?: string;
+  createdAt?: string;
+}
+
+// Backwards-compatible legacy exports
 export const defaultHostelBlocks: HostelBlock[] = [];
-
-const DELETED_BLOCKS_STORE_KEY = 'edu_db_deleted_hostel_ids';
-
-const getDeletedHostelKeys = (): Set<string> => {
-  if (typeof window === 'undefined') return new Set();
-  try {
-    const stored = localStorage.getItem(DELETED_BLOCKS_STORE_KEY);
-    if (stored) {
-      const arr = JSON.parse(stored);
-      if (Array.isArray(arr)) return new Set(arr.map(x => String(x).toLowerCase().trim()));
-    }
-  } catch {}
-  return new Set();
-};
-
-export const addDeletedHostelKey = (key: string) => {
-  if (typeof window === 'undefined' || !key) return;
-  const current = getDeletedHostelKeys();
-  current.add(key.toLowerCase().trim());
-  localStorage.setItem(DELETED_BLOCKS_STORE_KEY, JSON.stringify(Array.from(current)));
-};
-
-const getStoredHostelBlocks = (): HostelBlock[] => {
-  if (typeof window === 'undefined') return defaultHostelBlocks;
-  const stored = localStorage.getItem(HOSTEL_BLOCKS_STORE_KEY);
-  if (stored !== null) {
-    try {
-      const parsed = JSON.parse(stored);
-      if (Array.isArray(parsed)) return parsed;
-    } catch (e) {
-      // Ignored
-    }
-  }
-  localStorage.setItem(HOSTEL_BLOCKS_STORE_KEY, JSON.stringify(defaultHostelBlocks));
-  return defaultHostelBlocks;
-};
-
-const saveStoredHostelBlocks = (blocks: HostelBlock[]) => {
-  if (typeof window !== 'undefined') {
-    localStorage.setItem(HOSTEL_BLOCKS_STORE_KEY, JSON.stringify(blocks));
-  }
-};
-
-// 1. Hostel Blocks Master API
-export const getHostelBlocks = async (search?: string, type?: string, signal?: AbortSignal): Promise<HostelBlock[]> => {
-  let serverBlocks: HostelBlock[] = [];
-  let isServerConnected = false;
-  const params = new URLSearchParams();
-  if (search) params.append('search', search);
-  if (type) params.append('type', type);
-  const query = params.toString();
-  try {
-    const res = await hostelApiClient(`/api/hostel/blocks${query ? `?${query}` : ''}`, { signal });
-    const arrayData = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : (res && Array.isArray(res.blocks) ? res.blocks : null));
-    if (arrayData) {
-      serverBlocks = arrayData;
-      isServerConnected = true;
-    }
-  } catch (err) {
-    // Try fallback endpoint /api/hostels/blocks
-    try {
-      const resFallback = await hostelApiClient(`/api/hostels/blocks${query ? `?${query}` : ''}`, { signal });
-      const arrayDataFallback = Array.isArray(resFallback) ? resFallback : (resFallback && Array.isArray(resFallback.data) ? resFallback.data : null);
-      if (arrayDataFallback) {
-        serverBlocks = arrayDataFallback;
-        isServerConnected = true;
-      }
-    } catch {}
-  }
-
-  const sanitizeBlock = (b: any, fallbackIndex: number): HostelBlock => {
-    const rawId = b?.hostelId !== undefined && b?.hostelId !== null 
-      ? b.hostelId 
-      : (b?.id !== undefined ? b.id : (b?.blockId !== undefined ? b.blockId : fallbackIndex + 1));
-    const hostelId = Number(rawId) || (fallbackIndex + 1);
-
-    let hostelName = String(b?.hostelName || b?.name || b?.blockName || '').trim();
-    if (!hostelName || !isNaN(Number(hostelName)) || hostelName.includes('undefined') || hostelName.includes('Block A - Boys') || hostelName === 'Block A (Boys)') {
-      hostelName = `Hostel Block #${hostelId}`;
-    }
-
-    let hostelType = String(b?.hostelType || b?.type || b?.genderType || '').trim();
-    if (!hostelType || hostelType.includes('undefined')) {
-      hostelType = hostelName.toLowerCase().includes('girls') ? 'Girls Hostel' : 'Boys Hostel';
-    }
-
-    const hCode = String(b?.hostelCode || `HST-00${hostelId}`).trim();
-
-    return {
-      hostelId,
-      hostelName,
-      hostelCode: hCode,
-      hostelType,
-      wardenName: b?.wardenName || 'Unassigned',
-      primaryMobileNumber: b?.primaryMobileNumber || b?.phone || '',
-      alternateMobileNumber: b?.alternateMobileNumber || '',
-      email: b?.email || '',
-      status: b?.status || 'Active',
-      address: b?.address || '',
-      createdAt: b?.createdAt || new Date().toISOString(),
-      totalRooms: Number(b?.totalRooms) || 0,
-      occupiedBeds: Number(b?.occupiedBeds) || 0,
-      totalCapacity: Number(b?.totalCapacity) || 0,
-      totalFloors: Number(b?.totalFloors) || 4
-    };
-  };
-
-  let result: HostelBlock[] = [];
-
-  if (isServerConnected) {
-    result = serverBlocks.map((b, idx) => sanitizeBlock(b, idx));
-  } else {
-    const localBlocks = getStoredHostelBlocks();
-    result = localBlocks.map((b, idx) => sanitizeBlock(b, idx));
-  }
-
-  // Filter out any deleted blocks (e.g., Luxury hostel if deleted)
-  const deletedKeys = getDeletedHostelKeys();
-  result = result.filter(b => {
-    const idStr = String(b.hostelId).toLowerCase().trim();
-    const codeStr = String(b.hostelCode || '').toLowerCase().trim();
-    const nameStr = String(b.hostelName || '').toLowerCase().trim();
-    if (deletedKeys.has(idStr) || deletedKeys.has(codeStr) || deletedKeys.has(nameStr)) return false;
-    if (nameStr.includes('luxury') || codeStr.includes('lux-102')) return false;
-    return true;
-  });
-
-  saveStoredHostelBlocks(result);
-
-  if (search && search.trim()) {
-    const q = search.toLowerCase().trim();
-    result = result.filter(b => 
-      (b.hostelName || '').toLowerCase().includes(q) || 
-      (b.hostelCode || '').toLowerCase().includes(q)
-    );
-  }
-
-  if (type && type.trim() && type !== 'All') {
-    result = result.filter(b => (b.hostelType || '').toLowerCase() === type.toLowerCase());
-  }
-
-  return result;
-};
-
-export const createHostelBlock = async (data: Partial<HostelBlock>) => {
-  const current = getStoredHostelBlocks();
-
-  // Check if a block with matching code or name already exists
-  const reqCode = (data.hostelCode || '').toLowerCase().trim();
-  const reqName = (data.hostelName || '').toLowerCase().trim();
-
-  const existingIndex = current.findIndex(b => 
-    (reqCode && (b.hostelCode || '').toLowerCase().trim() === reqCode) ||
-    (reqName && (b.hostelName || '').toLowerCase().trim() === reqName)
-  );
-
-  if (existingIndex !== -1) {
-    const updatedBlock = {
-      ...current[existingIndex],
-      ...data,
-      hostelName: data.hostelName || current[existingIndex].hostelName,
-      hostelCode: data.hostelCode || current[existingIndex].hostelCode,
-    };
-    current[existingIndex] = updatedBlock;
-    saveStoredHostelBlocks(current);
-    return updatedBlock;
-  }
-
-  const nextId = current.length > 0 ? Math.max(100, ...current.map(b => Number(b.hostelId) || 0)) + 1 : 101;
-  const newBlock: HostelBlock = {
-    hostelId: nextId,
-    hostelName: data.hostelName || 'New Hostel Block',
-    hostelCode: data.hostelCode || `HST-${nextId}`,
-    hostelType: data.hostelType || 'Boys Hostel',
-    wardenName: data.wardenName || 'Unassigned',
-    primaryMobileNumber: data.primaryMobileNumber || 'N/A',
-    alternateMobileNumber: '',
-    email: '',
-    status: data.status || 'Active',
-    address: data.address || '',
-    createdAt: new Date().toISOString(),
-    totalRooms: 0,
-    occupiedBeds: 0,
-    totalCapacity: 0,
-    totalFloors: data.totalFloors || 4
-  };
-
-  const updated = [newBlock, ...current];
-  saveStoredHostelBlocks(updated);
-
-  try {
-    const res = await hostelApiClient('/api/hostels/blocks', {
-      method: 'POST',
-      body: JSON.stringify(data)
-    });
-    if (res && res.hostelId) return res;
-  } catch (e) {
-    // API offline fallback
-  }
-
-  return newBlock;
-};
-
-export const updateHostelBlock = async (id: number, data: Partial<HostelBlock>) => {
-  const current = getStoredHostelBlocks();
-  const updated = current.map(b => b.hostelId === id ? { ...b, ...data } : b);
-  saveStoredHostelBlocks(updated);
-
-  try {
-    return await hostelApiClient(`/api/hostels/blocks/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data)
-    });
-  } catch (e) {
-    return updated.find(b => b.hostelId === id) || data;
-  }
-};
-
-export const deleteHostelBlock = async (id: number | string, code?: string, name?: string) => {
-  const current = getStoredHostelBlocks();
-  const targetId = String(id || '').trim().toLowerCase();
-  const targetCode = String(code || '').trim().toLowerCase();
-  const targetName = String(name || '').trim().toLowerCase();
-
-  const updated = current.filter(b => {
-    const bId = String(b.hostelId !== undefined ? b.hostelId : (b as any).id || '').trim().toLowerCase();
-    const bCode = String(b.hostelCode || '').trim().toLowerCase();
-    const bName = String(b.hostelName || '').trim().toLowerCase();
-
-    if (targetId && bId === targetId) return false;
-    if (targetCode && bCode === targetCode) return false;
-    if (targetName && bName === targetName) return false;
-    return true;
-  });
-
-  saveStoredHostelBlocks(updated);
-
-  try {
-    return await hostelApiClient(`/api/hostels/blocks/${id}`, {
-      method: 'DELETE'
-    });
-  } catch (e) {
-    return { success: true };
-  }
-};
-
-// Persistent Local Storage Sync Layer for Room Types
-const ROOM_TYPES_STORE_KEY = 'edu_db_room_types';
-
-const DEFAULT_INITIAL_ROOM_TYPES: RoomType[] = [
-  { roomTypeId: 1, roomTypeSpecification: 'Single Sharing (AC)', bedCapacity: 1, acType: 'AC', status: 'Active', description: 'Single bed air-conditioned room with study desk', createdAt: '2026-01-01' },
-  { roomTypeId: 2, roomTypeSpecification: 'Double Sharing (AC)', bedCapacity: 2, acType: 'AC', status: 'Active', description: 'Two bed sharing air-conditioned room', createdAt: '2026-01-01' },
-  { roomTypeId: 3, roomTypeSpecification: 'Triple Sharing (AC)', bedCapacity: 3, acType: 'AC', status: 'Active', description: 'Three bed air-conditioned room', createdAt: '2026-01-01' },
-  { roomTypeId: 4, roomTypeSpecification: 'Four Sharing (AC)', bedCapacity: 4, acType: 'AC', status: 'Active', description: 'Four bed air-conditioned room', createdAt: '2026-01-01' },
-  { roomTypeId: 5, roomTypeSpecification: 'Single Sharing (Non-AC)', bedCapacity: 1, acType: 'Non-AC', status: 'Active', description: 'Single bed standard ventilated room', createdAt: '2026-01-01' },
-  { roomTypeId: 6, roomTypeSpecification: 'Double Sharing (Non-AC)', bedCapacity: 2, acType: 'Non-AC', status: 'Active', description: 'Two bed sharing ventilated room', createdAt: '2026-01-01' },
-  { roomTypeId: 7, roomTypeSpecification: 'Deluxe Executive Suite (Non-AC)', bedCapacity: 2, acType: 'Non-AC', status: 'Active', description: 'Two bed deluxe suite room', createdAt: '2026-01-01' },
-  { roomTypeId: 8, roomTypeSpecification: 'Four Sharing (Non-AC)', bedCapacity: 4, acType: 'Non-AC', status: 'Active', description: 'Four bed standard ventilated room', createdAt: '2026-01-01' }
-];
-
-const getStoredRoomTypes = (): RoomType[] => {
-  if (typeof window === 'undefined') return DEFAULT_INITIAL_ROOM_TYPES;
-  const stored = localStorage.getItem(ROOM_TYPES_STORE_KEY);
-  if (stored !== null) {
-    try {
-      const parsed = JSON.parse(stored);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-    } catch (e) {}
-  }
-  localStorage.setItem(ROOM_TYPES_STORE_KEY, JSON.stringify(DEFAULT_INITIAL_ROOM_TYPES));
-  return DEFAULT_INITIAL_ROOM_TYPES;
-};
-
-const saveStoredRoomTypes = (data: RoomType[]) => {
-  if (typeof window !== 'undefined') {
-    localStorage.setItem(ROOM_TYPES_STORE_KEY, JSON.stringify(data));
-    window.dispatchEvent(new Event('room_types_updated'));
-  }
-};
-
-// 2. Room Type Configurations API
-export const getRoomTypes = async (): Promise<RoomType[]> => {
-  let serverTypes: RoomType[] = [];
-  try {
-    const res = await hostelApiClient('/api/hostels/room-types');
-    if (Array.isArray(res) && res.length > 0) {
-      serverTypes = res;
-      saveStoredRoomTypes(serverTypes);
-    }
-  } catch (e) {}
-
-  const localTypes = getStoredRoomTypes();
-  const typeMap = new Map<number, RoomType>();
-
-  localTypes.forEach(rt => typeMap.set(Number(rt.roomTypeId), rt));
-  serverTypes.forEach(rt => typeMap.set(Number(rt.roomTypeId), rt));
-
-  return Array.from(typeMap.values());
-};
-
-export const createRoomType = async (data: Partial<RoomType>) => {
-  const current = getStoredRoomTypes();
-  const nextId = current.length > 0 ? Math.max(...current.map(rt => Number(rt.roomTypeId) || 0)) + 1 : 1;
-  const newType: RoomType = {
-    roomTypeId: nextId,
-    roomTypeSpecification: data.roomTypeSpecification || `Room Type #${nextId}`,
-    bedCapacity: Number(data.bedCapacity) || 2,
-    acType: data.acType || 'Non-AC',
-    status: data.status || 'Active',
-    description: data.description || '',
-    createdAt: new Date().toISOString()
-  };
-
-  const updated = [newType, ...current];
-  saveStoredRoomTypes(updated);
-
-  try {
-    const res = await hostelApiClient('/api/hostels/room-types', {
-      method: 'POST',
-      body: JSON.stringify(data)
-    });
-    if (res && res.roomTypeId) return res;
-  } catch (e) {}
-
-  return newType;
-};
-
-export const updateRoomType = async (id: number, data: Partial<RoomType>) => {
-  const current = getStoredRoomTypes();
-  const updated = current.map(rt => Number(rt.roomTypeId) === Number(id) ? { ...rt, ...data } : rt);
-  saveStoredRoomTypes(updated);
-
-  try {
-    return await hostelApiClient(`/api/hostels/room-types/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data)
-    });
-  } catch (e) {
-    return updated.find(rt => Number(rt.roomTypeId) === Number(id)) || data;
-  }
-};
-
-export const deleteRoomType = async (id: number) => {
-  const current = getStoredRoomTypes();
-  const updated = current.filter(rt => Number(rt.roomTypeId) !== Number(id));
-  saveStoredRoomTypes(updated);
-
-  try {
-    return await hostelApiClient(`/api/hostels/room-types/${id}`, {
-      method: 'DELETE'
-    });
-  } catch (e) {
-    return { success: true };
-  }
-};
-
-// Persistent Local Storage Sync Layer for Rooms
-const ROOMS_STORE_KEY = 'edu_db_hostel_rooms';
-
-const DEFAULT_INITIAL_ROOMS: HostelRoom[] = [];
+export const addDeletedHostelKey = (_key: string) => {};
+export const saveStoredAllocations = (_allocs: BedAllocation[]) => {};
 
 export const formatRoomNumber = (roomNumber?: string | number | null): string => {
   if (roomNumber === undefined || roomNumber === null || String(roomNumber).trim() === '') {
@@ -509,494 +199,346 @@ export const formatRoomNumber = (roomNumber?: string | number | null): string =>
   return `Room No - ${stripped}`;
 };
 
-const getStoredRooms = (): HostelRoom[] => {
-  if (typeof window === 'undefined') return DEFAULT_INITIAL_ROOMS;
-  const stored = localStorage.getItem(ROOMS_STORE_KEY);
-  if (stored !== null) {
+// 1. Hostel Blocks Master API
+export const getHostelBlocks = async (search?: string, type?: string, signal?: AbortSignal): Promise<HostelBlock[]> => {
+  const params = new URLSearchParams();
+  if (search) params.append('search', search);
+  if (type && type !== 'All') params.append('type', type);
+  const query = params.toString();
+
+  const sanitizeBlock = (b: any, idx: number): HostelBlock => ({
+    hostelId: Number(b?.hostelId ?? b?.id ?? idx + 1),
+    hostelName: String(b?.hostelName || b?.name || `Hostel Block #${idx + 1}`).trim(),
+    hostelCode: String(b?.hostelCode || `HST-${b?.hostelId || idx + 1}`).trim(),
+    hostelType: String(b?.hostelType || b?.type || 'Boys Hostel').trim(),
+    wardenName: b?.wardenName || 'Unassigned',
+    primaryMobileNumber: b?.primaryMobileNumber || b?.phone || '',
+    alternateMobileNumber: b?.alternateMobileNumber || '',
+    email: b?.email || '',
+    status: b?.status || 'Active',
+    address: b?.address || '',
+    createdAt: b?.createdAt || new Date().toISOString(),
+    totalRooms: Number(b?.totalRooms) || 0,
+    occupiedBeds: Number(b?.occupiedBeds) || 0,
+    totalCapacity: Number(b?.totalCapacity) || 0,
+    totalFloors: Number(b?.totalFloors) || 4
+  });
+
+  try {
+    const res = await hostelApiClient(`/api/hostel/blocks${query ? `?${query}` : ''}`, { signal });
+    const arrayData = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : (res && Array.isArray(res.blocks) ? res.blocks : null));
+    if (arrayData) return (arrayData as any[]).map((b: any, idx: number) => sanitizeBlock(b, idx));
+  } catch (err) {
     try {
-      const parsed = JSON.parse(stored);
-      if (Array.isArray(parsed)) {
-        const blocks = getStoredHostelBlocks();
-        const validRooms: HostelRoom[] = [];
-        parsed.forEach((r: any) => {
-          const rId = Number(r.roomId ?? r.id);
-          const rNum = String(r.roomNumber ?? r.roomNo ?? '').trim();
-          if (!rId || isNaN(rId) || !rNum) return;
-          if (r.hostelId) {
-            const matchBlk = blocks.find(b => String(b.hostelId) === String(r.hostelId));
-            if (matchBlk && matchBlk.hostelName) {
-              r.hostelName = matchBlk.hostelName;
-            }
-          }
-          validRooms.push({
-            ...r,
-            roomId: rId,
-            roomNumber: rNum
-          });
-        });
-        return validRooms;
-      }
-    } catch (e) {}
+      const resFallback = await hostelApiClient(`/api/hostels/blocks${query ? `?${query}` : ''}`, { signal });
+      const arrayDataFallback = Array.isArray(resFallback) ? resFallback : (resFallback && Array.isArray(resFallback.data) ? resFallback.data : null);
+      if (arrayDataFallback) return (arrayDataFallback as any[]).map((b: any, idx: number) => sanitizeBlock(b, idx));
+    } catch {}
   }
-  localStorage.setItem(ROOMS_STORE_KEY, JSON.stringify(DEFAULT_INITIAL_ROOMS));
-  return DEFAULT_INITIAL_ROOMS;
+
+  return [];
 };
 
-const saveStoredRooms = (rooms: HostelRoom[]) => {
-  if (typeof window !== 'undefined') {
-    const cleaned = (rooms || []).filter(r => {
-      const rId = Number(r.roomId ?? (r as any).id);
-      const rNum = String(r.roomNumber ?? (r as any).roomNo ?? '').trim();
-      return rId && !isNaN(rId) && rNum !== '';
+export const createHostelBlock = async (data: Partial<HostelBlock>) => {
+  try {
+    const res = await hostelApiClient('/api/hostel/blocks', {
+      method: 'POST',
+      body: JSON.stringify(data)
     });
-    localStorage.setItem(ROOMS_STORE_KEY, JSON.stringify(cleaned));
+    return res?.data || res;
+  } catch (e) {
+    return await hostelApiClient('/api/hostels/blocks', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
+};
+
+export const updateHostelBlock = async (id: number, data: Partial<HostelBlock>) => {
+  try {
+    const res = await hostelApiClient(`/api/hostel/blocks/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+    return res?.data || res;
+  } catch (e) {
+    return await hostelApiClient(`/api/hostels/blocks/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+  }
+};
+
+export const deleteHostelBlock = async (id: number | string, _code?: string, _name?: string) => {
+  try {
+    return await hostelApiClient(`/api/hostel/blocks/${id}`, {
+      method: 'DELETE'
+    });
+  } catch (e) {
+    return await hostelApiClient(`/api/hostels/blocks/${id}`, {
+      method: 'DELETE'
+    });
+  }
+};
+
+// 2. Room Type Configurations API
+export const getRoomTypes = async (): Promise<RoomType[]> => {
+  try {
+    const res = await hostelApiClient('/api/hostel/room-types');
+    const arrayData = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : null);
+    if (arrayData) return arrayData;
+  } catch (e) {}
+
+  try {
+    const res = await hostelApiClient('/api/hostels/room-types');
+    const arrayData = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : null);
+    if (arrayData) return arrayData;
+  } catch (e) {}
+
+  return [];
+};
+
+export const createRoomType = async (data: Partial<RoomType>) => {
+  try {
+    const res = await hostelApiClient('/api/hostel/room-types', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+    return res?.data || res;
+  } catch (e) {
+    return await hostelApiClient('/api/hostels/room-types', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
+};
+
+export const updateRoomType = async (id: number, data: Partial<RoomType>) => {
+  try {
+    const res = await hostelApiClient(`/api/hostel/room-types/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+    return res?.data || res;
+  } catch (e) {
+    return await hostelApiClient(`/api/hostels/room-types/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+  }
+};
+
+export const deleteRoomType = async (id: number) => {
+  try {
+    return await hostelApiClient(`/api/hostel/room-types/${id}`, {
+      method: 'DELETE'
+    });
+  } catch (e) {
+    return await hostelApiClient(`/api/hostels/room-types/${id}`, {
+      method: 'DELETE'
+    });
   }
 };
 
 // 3. Room Masters API
 export const getRooms = async (hostelId?: number, floor?: string, roomTypeId?: number): Promise<HostelRoom[]> => {
-  let serverRooms: HostelRoom[] = [];
-  let fetchSucceeded = false;
+  const params = new URLSearchParams();
+  if (hostelId) params.append('hostelId', hostelId.toString());
+  if (floor) params.append('floor', floor);
+  if (roomTypeId) params.append('roomTypeId', roomTypeId.toString());
+  const query = params.toString();
+
   try {
-    const params = new URLSearchParams();
-    if (hostelId) params.append('hostelId', hostelId.toString());
-    if (floor) params.append('floor', floor);
-    if (roomTypeId) params.append('roomTypeId', roomTypeId.toString());
-    const query = params.toString();
+    const res = await hostelApiClient(`/api/hostel/rooms${query ? `?${query}` : ''}`);
+    const arrayData = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : null);
+    if (arrayData) return arrayData;
+  } catch (e) {}
+
+  try {
     const res = await hostelApiClient(`/api/hostels/rooms${query ? `?${query}` : ''}`);
-    if (Array.isArray(res)) {
-      serverRooms = res.filter(r => r && (r.roomId || (r as any).id) && (r.roomNumber || (r as any).roomNo));
-      fetchSucceeded = true;
-    }
-  } catch (e) {
-    console.warn('Failed to fetch rooms from server', e);
-  }
+    const arrayData = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : null);
+    if (arrayData) return arrayData;
+  } catch (e) {}
 
-  const roomTypes = await getRoomTypes();
-  const allocations = getStoredAllocations();
-  const blocks = getStoredHostelBlocks();
-
-  let sourceRooms: HostelRoom[] = [];
-  if (fetchSucceeded) {
-    sourceRooms = serverRooms;
-    saveStoredRooms(serverRooms);
-  } else {
-    sourceRooms = getStoredRooms();
-  }
-
-  let roomsList = sourceRooms
-    .filter(r => {
-      const rId = Number(r.roomId ?? (r as any).id);
-      const rNum = String(r.roomNumber ?? (r as any).roomNo ?? '').trim();
-      return rId && !isNaN(rId) && rNum !== '';
-    })
-    .map(rm => {
-      const rawHid = rm.hostelId ?? (rm as any).hostel_id ?? (rm as any).hostelBlockId;
-      const matchingBlock = blocks.find(b => Number(b.hostelId) === Number(rawHid));
-      const finalHostelId = Number(rawHid) || (matchingBlock ? Number(matchingBlock.hostelId) : 1);
-      const matchingRt = roomTypes.find(rt => Number(rt.roomTypeId) === Number(rm.roomTypeId ?? (rm as any).room_type_id));
-      const cap = Number(rm.bedCapacity) || Number(rm.capacity) || Number(matchingRt?.bedCapacity) || 1;
-
-      const occCount = allocations.filter(a =>
-        a && a.status === 'Active' &&
-        (Number(a.roomId) === Number(rm.roomId) || (String(a.roomNumber) === String(rm.roomNumber) && Number(a.hostelId ?? (a as any).hostel_id) === finalHostelId))
-      ).length;
-      const finalOcc = occCount > 0 ? occCount : (Number(rm.occupiedBeds) || 0);
-
-      const rawHostelName = String(rm.hostelName || '').trim();
-      const isInvalidHostelName = !rawHostelName || !isNaN(Number(rawHostelName)) || rawHostelName === String(finalHostelId);
-      const resolvedHostelName = isInvalidHostelName
-        ? (matchingBlock?.hostelName || `Hostel Block #${finalHostelId}`)
-        : rawHostelName;
-
-      return {
-        ...rm,
-        roomId: Number(rm.roomId ?? (rm as any).id),
-        roomNumber: String(rm.roomNumber ?? (rm as any).roomNo ?? '').trim(),
-        hostelId: finalHostelId,
-        hostelName: resolvedHostelName,
-        roomTypeId: Number(rm.roomTypeId ?? (rm as any).room_type_id) || Number(matchingRt?.roomTypeId) || 1,
-        roomTypeSpecification: rm.roomTypeSpecification || matchingRt?.roomTypeSpecification || 'Standard Room',
-        bedCapacity: cap,
-        capacity: cap,
-        occupiedBeds: finalOcc,
-        vacantBeds: Math.max(0, cap - finalOcc)
-      };
-    });
-
-  if (hostelId) {
-    roomsList = roomsList.filter(r => Number(r.hostelId) === Number(hostelId));
-  }
-  if (floor) {
-    roomsList = roomsList.filter(r => (r.floorLevel || '').toLowerCase() === floor.toLowerCase());
-  }
-  if (roomTypeId) {
-    roomsList = roomsList.filter(r => Number(r.roomTypeId) === Number(roomTypeId));
-  }
-
-  return roomsList;
+  return [];
 };
 
 export const createRoom = async (data: Partial<HostelRoom>) => {
-  const current = getStoredRooms();
-  const MAX_TOTAL_SYSTEM_ROOMS = 1000;
-  if (current.length >= MAX_TOTAL_SYSTEM_ROOMS) {
-    throw new Error(`Maximum hostel room capacity limit reached (${MAX_TOTAL_SYSTEM_ROOMS} rooms). Please clean up or delete unused rooms before adding more.`);
-  }
-  const nextId = current.length > 0 ? Math.max(...current.map(r => Number(r.roomId) || 0)) + 1 : 201;
-
-  const roomTypes = getStoredRoomTypes();
-  const matchingRt = roomTypes.find(rt => Number(rt.roomTypeId) === Number(data.roomTypeId));
-  const cap = Number(data.bedCapacity) || Number(data.capacity) || Number(matchingRt?.bedCapacity) || 1;
-  const spec = data.roomTypeSpecification || matchingRt?.roomTypeSpecification || 'Standard Room';
-
-  const blocks = getStoredHostelBlocks();
-  const matchingBlock = blocks.find(b => Number(b.hostelId) === Number(data.hostelId));
-
-  const rawDataHostelName = String(data.hostelName || '').trim();
-  const isInvalidHostelName = !rawDataHostelName || !isNaN(Number(rawDataHostelName)) || rawDataHostelName === String(data.hostelId);
-  const resolvedHostelName = !isInvalidHostelName
-    ? rawDataHostelName
-    : (matchingBlock?.hostelName || `Hostel Block #${data.hostelId || 1}`);
-
-  const newRoom: HostelRoom = {
-    roomId: nextId,
-    hostelId: Number(data.hostelId) || 1,
-    hostelName: resolvedHostelName,
-    hostelCode: matchingBlock?.hostelCode || `HST-00${data.hostelId || 1}`,
-    roomTypeId: Number(data.roomTypeId) || Number(matchingRt?.roomTypeId) || 1,
-    roomTypeSpecification: spec,
-    bedCapacity: cap,
-    capacity: cap,
-    monthlyFee: Number(data.monthlyFee) || 5000,
-    floorLevel: data.floorLevel || '1st Floor',
-    roomNumber: data.roomNumber || `${nextId}`,
-    status: data.status || 'Active',
-    occupiedBeds: 0,
-    vacantBeds: cap,
-    createdAt: new Date().toISOString()
-  };
-
-  const updated = [newRoom, ...current];
-  saveStoredRooms(updated);
-
   try {
-    const res = await hostelApiClient('/api/hostels/rooms', {
-      method: 'POST',
-      body: JSON.stringify({
-        ...data,
-        roomTypeSpecification: spec,
-        bedCapacity: cap,
-        capacity: cap
-      })
-    });
-    if (res && res.roomId) return res;
-  } catch (e) {}
-
-  return newRoom;
-};
-
-export const updateRoom = async (id: number, data: Partial<HostelRoom>) => {
-  const current = getStoredRooms();
-  const blocks = getStoredHostelBlocks();
-  const roomTypes = getStoredRoomTypes();
-
-  const matchingRt = data.roomTypeId ? roomTypes.find(rt => Number(rt.roomTypeId) === Number(data.roomTypeId)) : undefined;
-
-  let updatedTarget: HostelRoom | undefined;
-  const updated = current.map(r => {
-    if (Number(r.roomId) === Number(id)) {
-      const mergedHostelId = data.hostelId ? Number(data.hostelId) : r.hostelId;
-      const b = blocks.find(blk => Number(blk.hostelId) === Number(mergedHostelId));
-      const rawName = String(data.hostelName || '').trim();
-      const isInvalid = !rawName || !isNaN(Number(rawName)) || rawName === String(mergedHostelId);
-      const hName = !isInvalid ? rawName : (b?.hostelName || (r.hostelName && isNaN(Number(r.hostelName)) ? r.hostelName : `Hostel Block #${mergedHostelId}`));
-      const rTypeId = data.roomTypeId ? Number(data.roomTypeId) : r.roomTypeId;
-      const rt = roomTypes.find(t => Number(t.roomTypeId) === Number(rTypeId));
-      const cap = Number(data.bedCapacity) || Number(data.capacity) || Number(rt?.bedCapacity) || Number(r.bedCapacity) || 1;
-      const spec = data.roomTypeSpecification || rt?.roomTypeSpecification || r.roomTypeSpecification || 'Standard Room';
-      
-      updatedTarget = {
-        ...r,
-        ...data,
-        hostelId: mergedHostelId,
-        hostelName: hName,
-        roomTypeId: rTypeId,
-        roomTypeSpecification: spec,
-        bedCapacity: cap,
-        capacity: cap
-      };
-      return updatedTarget;
-    }
-    return r;
-  });
-  saveStoredRooms(updated);
-
-  try {
-    const sendData = {
-      ...data,
-      roomTypeId: updatedTarget?.roomTypeId ?? data.roomTypeId,
-      roomTypeSpecification: updatedTarget?.roomTypeSpecification ?? data.roomTypeSpecification,
-      bedCapacity: updatedTarget?.bedCapacity ?? data.bedCapacity,
-      capacity: updatedTarget?.bedCapacity ?? data.capacity
-    };
-    return await hostelApiClient(`/api/hostels/rooms/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(sendData)
-    });
-  } catch (e) {
-    return updatedTarget || updated.find(r => Number(r.roomId) === Number(id)) || data;
-  }
-};
-
-export const deleteRoom = async (id: number | string) => {
-  const numId = Number(id);
-  const current = getStoredRooms();
-  const updated = current.filter(r => {
-    const rId = Number(r.roomId ?? (r as any).id);
-    return rId !== numId && !isNaN(rId) && r.roomNumber && String(r.roomNumber).trim() !== '';
-  });
-  saveStoredRooms(updated);
-
-  if (!numId || isNaN(numId)) {
-    return { success: true };
-  }
-
-  try {
-    await hostelApiClient(`/api/hostels/rooms/${numId}`, {
-      method: 'DELETE'
-    });
-    return { success: true };
-  } catch (e: any) {
-    if (e && (e.status === 404 || e.message?.includes('404') || e.message?.includes('not found'))) {
-      return { success: true };
-    }
-    throw e;
-  }
-};
-
-// 4. Warden & Staff Integration API
-export interface WardenRecord {
-  wardenId: number;
-  staffId: number;
-  staffName: string;
-  wardenName?: string;
-  employeeId: string;
-  designation?: string;
-  department?: string;
-  email: string;
-  emailAddress?: string;
-  phone: string;
-  mobileNumber?: string;
-  hostelId: number;
-  hostelName: string;
-  assignedDate?: string;
-  createdAt?: string;
-  status?: string;
-}
-
-const WARDENS_STORE_KEY = 'edu_db_hostel_wardens_v2';
-
-const DEFAULT_INITIAL_WARDENS: WardenRecord[] = [
-  { wardenId: 1, staffId: 1001, staffName: 'Dr. Eleanor Vance', wardenName: 'Dr. Eleanor Vance', employeeId: 'EMP-1001', designation: 'Senior Warden', department: 'Administration', email: 'eleanor.vance@school.edu', emailAddress: 'eleanor.vance@school.edu', phone: '+91 98765 43210', mobileNumber: '+91 98765 43210', hostelId: 1, hostelName: 'Ramachandra Bhavan Block', assignedDate: '2026-01-10', status: 'Active' },
-  { wardenId: 2, staffId: 1002, staffName: 'Prof. Ramesh Sharma', wardenName: 'Prof. Ramesh Sharma', employeeId: 'EMP-1002', designation: 'Assistant Warden', department: 'Science', email: 'ramesh.sharma@school.edu', emailAddress: 'ramesh.sharma@school.edu', phone: '+91 98765 43211', mobileNumber: '+91 98765 43211', hostelId: 2, hostelName: 'Bhanu Block', assignedDate: '2026-01-15', status: 'Active' },
-  { wardenId: 3, staffId: 1003, staffName: 'Mrs. Sunita Patel', wardenName: 'Mrs. Sunita Patel', employeeId: 'EMP-1003', designation: 'Resident Warden', department: 'Humanities', email: 'sunita.patel@school.edu', emailAddress: 'sunita.patel@school.edu', phone: '+91 98765 43212', mobileNumber: '+91 98765 43212', hostelId: 6, hostelName: 'Girls Block A', assignedDate: '2026-02-01', status: 'Active' }
-];
-
-const getStoredWardens = (): WardenRecord[] => {
-  if (typeof window === 'undefined') return DEFAULT_INITIAL_WARDENS;
-  const stored = localStorage.getItem(WARDENS_STORE_KEY);
-  if (stored !== null) {
-    try {
-      const parsed = JSON.parse(stored);
-      if (Array.isArray(parsed)) return parsed;
-    } catch (e) {}
-  }
-  localStorage.setItem(WARDENS_STORE_KEY, JSON.stringify(DEFAULT_INITIAL_WARDENS));
-  return DEFAULT_INITIAL_WARDENS;
-};
-
-const saveStoredWardens = (data: WardenRecord[]) => {
-  if (typeof window !== 'undefined') {
-    localStorage.setItem(WARDENS_STORE_KEY, JSON.stringify(data));
-  }
-};
-
-export const getStaffCandidates = async (): Promise<StaffCandidate[]> => {
-  try {
-    const res = await hostelApiClient('/api/hostels/staff-candidates');
-    if (Array.isArray(res) && res.length > 0) return res;
-  } catch (e) {}
-
-  return [
-    { staffId: 1001, employeeId: 'EMP-1001', staffName: 'Dr. Eleanor Vance', designation: 'Senior Warden', department: 'Administration', email: 'eleanor.vance@school.edu', phone: '+91 98765 43210' },
-    { staffId: 1002, employeeId: 'EMP-1002', staffName: 'Prof. Ramesh Sharma', designation: 'Assistant Warden', department: 'Science', email: 'ramesh.sharma@school.edu', phone: '+91 98765 43211' },
-    { staffId: 1003, employeeId: 'EMP-1003', staffName: 'Mrs. Sunita Patel', designation: 'Resident Warden', department: 'Humanities', email: 'sunita.patel@school.edu', phone: '+91 98765 43212' },
-    { staffId: 1004, employeeId: 'EMP-1004', staffName: 'Mr. Arvind Swamy', designation: 'Hostel Executive', department: 'Physical Ed', email: 'arvind.s@school.edu', phone: '+91 98765 43213' }
-  ];
-};
-
-export const getWardens = async (): Promise<WardenRecord[]> => {
-  let serverWardens: WardenRecord[] = [];
-  try {
-    const res = await hostelApiClient('/api/hostels/wardens');
-    if (Array.isArray(res) && res.length > 0) serverWardens = res;
-  } catch (e) {}
-
-  const localWardens = getStoredWardens();
-  const wardenMap = new Map<string, WardenRecord>();
-
-  const normalizeWarden = (w: any): WardenRecord => {
-    const wName = w.wardenName || w.staffName || w.name || 'Assigned Warden';
-    const mobile = w.mobileNumber || w.phone || w.primaryMobileNumber || 'N/A';
-    const mail = w.emailAddress || w.email || 'N/A';
-
-    return {
-      ...w,
-      wardenId: Number(w.wardenId || w.id || 1),
-      staffId: Number(w.staffId || w.employeeId || 1001),
-      employeeId: w.employeeId || `EMP-${w.staffId || 1001}`,
-      staffName: wName,
-      wardenName: wName,
-      phone: mobile,
-      mobileNumber: mobile,
-      email: mail,
-      emailAddress: mail,
-      hostelId: Number(w.hostelId || 1),
-      hostelName: w.hostelName || 'Hostel Block'
-    };
-  };
-
-  serverWardens.forEach(w => {
-    const norm = normalizeWarden(w);
-    wardenMap.set(norm.wardenId.toString(), norm);
-  });
-
-  localWardens.forEach(w => {
-    const norm = normalizeWarden(w);
-    wardenMap.set(norm.wardenId.toString(), norm);
-  });
-
-  return Array.from(wardenMap.values());
-};
-
-export const assignWarden = async (data: any) => {
-  const current = getStoredWardens();
-  const nextId = current.length > 0 ? Math.max(...current.map(w => Number(w.wardenId) || 0)) + 1 : 1;
-
-  const blocks = getStoredHostelBlocks();
-  const matchingBlock = blocks.find(b => Number(b.hostelId) === Number(data.hostelId));
-
-  const newWarden: WardenRecord = {
-    wardenId: nextId,
-    staffId: Number(data.staffId) || 1001,
-    staffName: data.staffName || 'Dr. Eleanor Vance',
-    employeeId: data.employeeId || 'EMP-1001',
-    designation: data.designation || 'Warden',
-    department: data.department || 'Administration',
-    email: data.email || 'warden@school.edu',
-    phone: data.phone || '+91 98765 43210',
-    hostelId: Number(data.hostelId) || 1,
-    hostelName: data.hostelName || matchingBlock?.hostelName || 'Ramachandra Bhavan Block',
-    assignedDate: data.assignedDate || new Date().toISOString().split('T')[0],
-    status: 'Active'
-  };
-
-  const updated = [newWarden, ...current.filter(w => Number(w.hostelId) !== Number(newWarden.hostelId))];
-  saveStoredWardens(updated);
-
-  // Update block wardenName
-  if (matchingBlock) {
-    updateHostelBlock(matchingBlock.hostelId, { wardenName: newWarden.staffName });
-  }
-
-  try {
-    const res = await hostelApiClient('/api/hostels/wardens', {
+    const res = await hostelApiClient('/api/hostel/rooms', {
       method: 'POST',
       body: JSON.stringify(data)
     });
-    if (res && res.wardenId) return res;
-  } catch (e) {}
-
-  return newWarden;
+    return res?.data || res;
+  } catch (e) {
+    return await hostelApiClient('/api/hostels/rooms', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
 };
 
-export const deleteWarden = async (id: number) => {
-  const current = getStoredWardens();
-  const updated = current.filter(w => Number(w.wardenId) !== Number(id));
-  saveStoredWardens(updated);
-
+export const updateRoom = async (id: number, data: Partial<HostelRoom>) => {
   try {
-    return await hostelApiClient(`/api/hostels/wardens/${id}`, {
+    const res = await hostelApiClient(`/api/hostel/rooms/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+    return res?.data || res;
+  } catch (e) {
+    return await hostelApiClient(`/api/hostels/rooms/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+  }
+};
+
+export const deleteRoom = async (id: number) => {
+  try {
+    return await hostelApiClient(`/api/hostel/rooms/${id}`, {
       method: 'DELETE'
     });
   } catch (e) {
-    return { success: true };
+    return await hostelApiClient(`/api/hostels/rooms/${id}`, {
+      method: 'DELETE'
+    });
   }
 };
 
-// Persistent Local Storage Sync Layer for Hostel Allocations
-const HOSTEL_ALLOCATIONS_STORE_KEY = 'edu_db_hostel_allocations';
+// 4. Staff Candidates & Wardens API
+export const getStaffCandidates = async (search?: string): Promise<StaffCandidate[]> => {
+  const query = search ? `?search=${encodeURIComponent(search)}` : '';
+  try {
+    const res = await hostelApiClient(`/api/hostel/wardens/candidates${query}`);
+    const arrayData = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : null);
+    if (arrayData && arrayData.length > 0) return arrayData;
+  } catch (e) {}
 
-const DEFAULT_INITIAL_ALLOCATIONS: BedAllocation[] = [];
+  try {
+    const res = await hostelApiClient(`/api/hostels/staff-candidates${query}`);
+    const arrayData = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : null);
+    if (arrayData && arrayData.length > 0) return arrayData;
+  } catch (e) {}
 
-const getStoredAllocations = (): BedAllocation[] => {
-  if (typeof window === 'undefined') return DEFAULT_INITIAL_ALLOCATIONS;
-  const stored = localStorage.getItem(HOSTEL_ALLOCATIONS_STORE_KEY);
-  if (stored !== null) {
+  return [];
+};
+
+export const getWardens = async (hostelId?: number, search?: string): Promise<WardenRecord[]> => {
+  const params = new URLSearchParams();
+  if (hostelId) params.append('hostelId', hostelId.toString());
+  if (search) params.append('search', search);
+  const query = params.toString();
+
+  try {
+    const res = await hostelApiClient(`/api/hostel/wardens${query ? `?${query}` : ''}`);
+    const arrayData = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : null);
+    if (arrayData) return arrayData;
+  } catch (e) {}
+
+  try {
+    const res = await hostelApiClient(`/api/hostels/wardens${query ? `?${query}` : ''}`);
+    const arrayData = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : null);
+    if (arrayData) return arrayData;
+  } catch (e) {}
+
+  return [];
+};
+
+export const assignWarden = async (data: Partial<WardenRecord>) => {
+  try {
+    const res = await hostelApiClient('/api/hostel/wardens', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+    return res?.data || res;
+  } catch (e) {
+    return await hostelApiClient('/api/hostels/wardens', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
+};
+
+export const deleteWarden = async (id: number) => {
+  try {
+    return await hostelApiClient(`/api/hostel/wardens/${id}`, {
+      method: 'DELETE'
+    });
+  } catch (e) {
+    return await hostelApiClient(`/api/hostels/wardens/${id}`, {
+      method: 'DELETE'
+    });
+  }
+};
+
+// 5. Eligible Students & Bed Allocations API
+export const getEligibleStudentsForAllocation = async (search?: string): Promise<EligibleHostelStudent[]> => {
+  try {
+    const query = search ? `?search=${encodeURIComponent(search)}` : '';
+    const res = await hostelApiClient(`/api/hostel/eligible-students${query}`);
+    const arrayData = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : null);
+    if (arrayData) return arrayData;
+  } catch (e) {
     try {
-      const parsed = JSON.parse(stored);
-      if (Array.isArray(parsed)) {
-        const blocks = getStoredHostelBlocks();
-        const rooms = getStoredRooms();
-        
-        const deduplicated: BedAllocation[] = [];
-        const seen = new Set<string>();
-
-        // Process in reverse (newest allocations first) to keep the latest allocation
-        const reversed = [...parsed].reverse();
-        reversed.forEach((a: BedAllocation) => {
-          if (!a || a.status === 'Vacated' || a.status === 'Inactive') return;
-
-          if (a.hostelId) {
-            const matchBlk = blocks.find(b => String(b.hostelId) === String(a.hostelId));
-            if (matchBlk && matchBlk.hostelName) {
-              a.hostelName = matchBlk.hostelName;
-            }
-          }
-          if (a.roomId) {
-            const matchRm = rooms.find(r => String(r.roomId) === String(a.roomId));
-            if (matchRm && matchRm.roomNumber) {
-              a.roomNumber = matchRm.roomNumber;
-            }
-          }
-
-          const sName = String(a.studentName || '').toLowerCase().trim();
-          const sAdm = String(a.admissionNo || '').toLowerCase().trim();
-          const sId = String(a.studentId || '').toLowerCase().trim();
-
-          const key = sName || sAdm || sId;
-          if (key && !seen.has(key)) {
-            if (sName) seen.add(sName);
-            if (sAdm) seen.add(sAdm);
-            if (sId) seen.add(sId);
-            deduplicated.push(a);
-          }
-        });
-
-        return deduplicated.reverse();
-      }
-    } catch (e) {
-      // Ignored
-    }
+      const query = search ? `?search=${encodeURIComponent(search)}` : '';
+      const res = await hostelApiClient(`/api/hostels/eligible-students${query}`);
+      const arrayData = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : null);
+      if (arrayData) return arrayData;
+    } catch {}
   }
-  localStorage.setItem(HOSTEL_ALLOCATIONS_STORE_KEY, JSON.stringify(DEFAULT_INITIAL_ALLOCATIONS));
-  return DEFAULT_INITIAL_ALLOCATIONS;
+  return [];
 };
 
-export const saveStoredAllocations = (allocs: BedAllocation[]) => {
-  if (typeof window !== 'undefined') {
-    localStorage.setItem(HOSTEL_ALLOCATIONS_STORE_KEY, JSON.stringify(allocs));
+export const getAllocations = async (hostelId?: number, roomId?: number, search?: string): Promise<BedAllocation[]> => {
+  const params = new URLSearchParams();
+  if (hostelId) params.append('hostelId', hostelId.toString());
+  if (roomId) params.append('roomId', roomId.toString());
+  if (search) params.append('search', search);
+  const query = params.toString();
+
+  try {
+    const res = await hostelApiClient(`/api/hostel/allocations${query ? `?${query}` : ''}`);
+    const arrayData = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : null);
+    if (arrayData) {
+      return (arrayData as any[]).filter((a: any) => a && a.status !== 'Vacated' && a.status !== 'Inactive');
+    }
+  } catch (e) {}
+
+  try {
+    const res = await hostelApiClient(`/api/hostels/allocations${query ? `?${query}` : ''}`);
+    const arrayData = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : null);
+    if (arrayData) {
+      return (arrayData as any[]).filter((a: any) => a && a.status !== 'Vacated' && a.status !== 'Inactive');
+    }
+  } catch (e) {}
+
+  return [];
+};
+
+export const createAllocation = async (data: Partial<BedAllocation>) => {
+  try {
+    const res = await hostelApiClient('/api/hostel/allocations', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+    return res?.data || res;
+  } catch (e) {
+    return await hostelApiClient('/api/hostels/allocations', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
+};
+
+export const vacateAllocation = async (id: number | string) => {
+  try {
+    return await hostelApiClient(`/api/hostel/allocations/${id}`, {
+      method: 'DELETE'
+    });
+  } catch (e) {
+    return await hostelApiClient(`/api/hostels/allocations/${id}/vacate`, {
+      method: 'PUT'
+    });
   }
 };
 
@@ -1006,284 +548,212 @@ export const updateStudentAllocationBlock = async (
   targetBlockName: string,
   targetRoomNumber: string,
   targetBlockId?: number,
-  studentName?: string
+  studentName?: string,
+  targetBedNumber?: string
 ) => {
-  const current = getStoredAllocations();
-  const matchIdx = current.findIndex(a => 
-    String(a.studentId) === String(studentId) ||
-    (a.admissionNo && a.admissionNo.toLowerCase() === (admissionNo || '').toLowerCase())
-  );
-
-  if (matchIdx >= 0) {
-    current[matchIdx] = {
-      ...current[matchIdx],
-      hostelName: targetBlockName,
-      roomNumber: targetRoomNumber,
-      hostelId: targetBlockId || current[matchIdx].hostelId || 2,
-      status: 'Active'
-    };
-  } else {
-    current.push({
-      allocationId: Date.now(),
-      studentId: studentId || `STF-2026-${Date.now()}`,
-      studentName: studentName || 'Student',
-      admissionNo: admissionNo || `ADM-${studentId}`,
-      hostelId: targetBlockId || 2,
-      hostelName: targetBlockName,
-      roomId: 201,
-      roomNumber: targetRoomNumber,
-      bedNumber: 'BED-1',
-      joiningDate: new Date().toISOString().split('T')[0],
-      status: 'Active'
+  try {
+    await createTransferVacateRequest({
+      studentId,
+      studentName,
+      admissionNo,
+      actionType: 'Room Transfer',
+      destinationHostelId: targetBlockId,
+      destinationHostelName: targetBlockName,
+      destinationRoomNumber: targetRoomNumber,
+      destinationBedNumber: targetBedNumber,
+      reason: 'Room and block transfer'
     });
-  }
-
-  saveStoredAllocations(current);
-
-  // Sync students store in localStorage
-  if (typeof window !== 'undefined') {
-    try {
-      const storedSt = localStorage.getItem('edu_db_students');
-      if (storedSt) {
-        const parsedSt = JSON.parse(storedSt);
-        if (Array.isArray(parsedSt)) {
-          const updatedSt = parsedSt.map((s: any) => {
-            if (String(s.id) === String(studentId) || (s.admissionNo && s.admissionNo.toLowerCase() === (admissionNo || '').toLowerCase())) {
-              return {
-                ...s,
-                hostelBlock: targetBlockName,
-                hostelName: targetBlockName,
-                roomNumber: targetRoomNumber,
-                studentType: 'Hosteller',
-                isHostelRequired: true
-              };
-            }
-            return s;
-          });
-          localStorage.setItem('edu_db_students', JSON.stringify(updatedSt));
-        }
-      }
-    } catch (e) {}
-
-    window.dispatchEvent(new Event('hostel_allocations_updated'));
-    window.dispatchEvent(new Event('hostel_students_updated'));
-    window.dispatchEvent(new Event('residential_students_updated'));
-    window.dispatchEvent(new Event('students_updated'));
-  }
+  } catch (e) {}
+  window.dispatchEvent(new Event('hostel_allocations_updated'));
+  window.dispatchEvent(new Event('residential_students_updated'));
 };
 
-export const vacateStudentAllocation = async (studentId: string | number, admissionNo: string, allocationId?: number | string) => {
-  const current = getStoredAllocations();
-  const updated = current.filter(a => {
-    const isTarget = (allocationId && String(a.allocationId) === String(allocationId)) ||
-      (studentId && String(a.studentId) === String(studentId)) ||
-      (admissionNo && a.admissionNo && a.admissionNo.toLowerCase() === (admissionNo || '').toLowerCase());
-    return !isTarget;
-  });
-
-  saveStoredAllocations(updated);
-
-  if (allocationId) {
-    try {
-      await vacateAllocation(allocationId);
-    } catch (e) {}
-  }
-
-  // Update students store in localStorage
-  if (typeof window !== 'undefined') {
-    try {
-      const storedSt = localStorage.getItem('edu_db_students');
-      if (storedSt) {
-        const parsedSt = JSON.parse(storedSt);
-        if (Array.isArray(parsedSt)) {
-          const updatedSt = parsedSt.map((s: any) => {
-            if (String(s.id) === String(studentId) || (s.admissionNo && s.admissionNo.toLowerCase() === (admissionNo || '').toLowerCase())) {
-              return {
-                ...s,
-                hostelBlock: null,
-                hostelName: null,
-                roomNumber: null,
-                studentType: 'Day Scholar',
-                isHostelRequired: false,
-                isHosteller: false
-              };
-            }
-            return s;
-          });
-          localStorage.setItem('edu_db_students', JSON.stringify(updatedSt));
-        }
-      }
-    } catch (e) {}
-
-    window.dispatchEvent(new Event('hostel_allocations_updated'));
-    window.dispatchEvent(new Event('hostel_students_updated'));
-    window.dispatchEvent(new Event('residential_students_updated'));
-    window.dispatchEvent(new Event('students_updated'));
-  }
-};
-
-// 5. Student Bed Allocation API
-export const getEligibleStudentsForAllocation = async (search?: string): Promise<EligibleHostelStudent[]> => {
+export const vacateStudentAllocation = async (
+  studentId: string | number,
+  _admissionNo?: string,
+  _reason?: string
+) => {
   try {
-    const query = search ? `?search=${encodeURIComponent(search)}` : '';
-    const res = await hostelApiClient(`/api/hostels/eligible-students${query}`);
-    if (Array.isArray(res)) return res;
-    if (res && Array.isArray(res.data)) return res.data;
-  } catch (e) {
-    console.error('Failed to fetch eligible students for hostel allocation', e);
-  }
-  return [];
-};
-export const getAllocations = async (): Promise<BedAllocation[]> => {
-  let serverAllocs: BedAllocation[] = [];
-  try {
-    const res = await hostelApiClient('/api/hostels/allocations');
-    if (Array.isArray(res)) serverAllocs = res;
-  } catch (e) {
-    // API offline fallback
-  }
-
-  const localAllocs = getStoredAllocations();
-  const allocMap = new Map<string, BedAllocation>();
-
-  // Add server allocations first
-  serverAllocs.forEach(a => {
-    if (a && a.status !== 'Vacated' && a.status !== 'Inactive') {
-      const key = String(a.allocationId || `${a.studentId}_${a.hostelId}`);
-      allocMap.set(key, a);
-    }
-  });
-
-  // Add local allocations (local blocks take priority)
-  localAllocs.forEach(a => {
-    if (a && a.status !== 'Vacated' && a.status !== 'Inactive') {
-      const key = String(a.allocationId || `${a.studentId}_${a.hostelId}`);
-      allocMap.set(key, a);
-    }
-  });
-
-  return Array.from(allocMap.values());
-};
-
-export const createAllocation = async (data: Partial<BedAllocation>) => {
-  const current = getStoredAllocations();
-  const nextId = current.length > 0 ? Math.max(...current.map(a => Number(a.allocationId) || 0)) + 1 : 101;
-  
-  let resolvedHostelName = data.hostelName;
-  if (!resolvedHostelName || resolvedHostelName === 'Ramachandra Bhavan Block') {
-    const blocks = getStoredHostelBlocks();
-    const matchBlk = blocks.find(b => String(b.hostelId) === String(data.hostelId));
-    if (matchBlk && matchBlk.hostelName) {
-      resolvedHostelName = matchBlk.hostelName;
-    }
-  }
-
-  let resolvedRoomNumber = data.roomNumber;
-  if (!resolvedRoomNumber || resolvedRoomNumber === '101') {
-    const rooms = getStoredRooms();
-    const matchRm = rooms.find(r => String(r.roomId) === String(data.roomId));
-    if (matchRm && matchRm.roomNumber) {
-      resolvedRoomNumber = matchRm.roomNumber;
-    }
-  }
-
-  let resolvedStudentName = data.studentName;
-  let resolvedAdmissionNo = data.admissionNo;
-  if (!resolvedStudentName || resolvedStudentName === 'Student') {
-    try {
-      const storedSt = localStorage.getItem('edu_db_students');
-      if (storedSt) {
-        const parsedSt = JSON.parse(storedSt);
-        if (Array.isArray(parsedSt)) {
-          const matchSt = parsedSt.find((s: any) => String(s.id || s.studentId) === String(data.studentId));
-          if (matchSt) {
-            resolvedStudentName = `${matchSt.firstName || ''} ${matchSt.lastName || ''}`.trim() || matchSt.name;
-            resolvedAdmissionNo = matchSt.admissionNo || matchSt.registrationNumber || resolvedAdmissionNo;
-          }
-        }
-      }
-    } catch (e) {}
-  }
-
-  const newAlloc: BedAllocation = {
-    allocationId: nextId,
-    studentId: data.studentId || `STF-2026-000${nextId}`,
-    studentName: resolvedStudentName || 'Student',
-    admissionNo: resolvedAdmissionNo || `ADM-2026-${nextId}`,
-    hostelId: Number(data.hostelId) || 1,
-    hostelName: resolvedHostelName || 'Hostel Block',
-    roomId: Number(data.roomId) || 201,
-    roomNumber: resolvedRoomNumber || '101',
-    bedNumber: data.bedNumber || 'BED-1',
-    joiningDate: data.joiningDate || new Date().toISOString().split('T')[0],
-    status: data.status || 'Active'
-  };
-
-  const newName = String(newAlloc.studentName || '').toLowerCase().trim();
-  const newAdm = String(newAlloc.admissionNo || '').toLowerCase().trim();
-  const newId = String(newAlloc.studentId || '').toLowerCase().trim();
-
-  const updated = [
-    newAlloc,
-    ...current.filter(a => {
-      if (!a) return false;
-      const sName = String(a.studentName || '').toLowerCase().trim();
-      const sAdm = String(a.admissionNo || '').toLowerCase().trim();
-      const sId = String(a.studentId || '').toLowerCase().trim();
-
-      const sameName = newName && sName && newName === sName;
-      const sameAdm = newAdm && sAdm && newAdm === sAdm;
-      const sameId = newId && sId && newId === sId;
-
-      return !sameName && !sameAdm && !sameId;
-    })
-  ];
-  saveStoredAllocations(updated);
-
-  try {
-    const res = await hostelApiClient('/api/hostels/allocations', {
-      method: 'POST',
-      body: JSON.stringify(data)
-    });
-    if (res && res.allocationId) return res;
-  } catch (e) {
-    // API offline fallback
-  }
-
-  return newAlloc;
-};
-
-export const vacateAllocation = async (id: number | string) => {
-  const current = getStoredAllocations();
-  const updated = current.filter(a => String(a.allocationId) !== String(id));
-  saveStoredAllocations(updated);
-
-  try {
-    return await hostelApiClient(`/api/hostels/allocations/${id}/vacate`, {
-      method: 'PUT'
-    });
-  } catch (e) {
-    return { success: true };
-  }
+    await vacateAllocation(studentId);
+  } catch (e) {}
+  window.dispatchEvent(new Event('hostel_allocations_updated'));
+  window.dispatchEvent(new Event('residential_students_updated'));
 };
 
 // 6. Night Attendance Roll-Call API
-export const getNightAttendance = async (date: string, hostelId: number): Promise<NightAttendanceRecord[]> => {
+export const getNightAttendance = async (date: string, hostelId: number, floor?: string, roomId?: number): Promise<NightAttendanceRecord[]> => {
   const params = new URLSearchParams();
   params.append('date', date);
   params.append('hostelId', hostelId.toString());
+  if (floor) params.append('floor', floor);
+  if (roomId) params.append('roomId', roomId.toString());
   const query = params.toString();
-  return hostelApiClient(`/api/hostels/attendance?${query}`);
+
+  try {
+    const res = await hostelApiClient(`/api/hostel/attendance?${query}`);
+    const arrayData = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : null);
+    if (arrayData) return arrayData;
+  } catch (e) {}
+
+  try {
+    const res = await hostelApiClient(`/api/hostels/attendance?${query}`);
+    const arrayData = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : null);
+    if (arrayData) return arrayData;
+  } catch (e) {}
+
+  return [];
 };
 
-export const saveNightAttendance = async (data: { date: string; hostelId: number; floorLevel: string; records: any[] }) => {
-  return hostelApiClient('/api/hostels/attendance', {
-    method: 'POST',
-    body: JSON.stringify(data)
-  });
+export const saveNightAttendance = async (data: { date: string; hostelId: number; floorLevel?: string; records: any[] }) => {
+  try {
+    return await hostelApiClient('/api/hostel/attendance', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  } catch (e) {
+    return await hostelApiClient('/api/hostels/attendance', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
 };
 
 // 7. Executive Dashboard Metrics API
 export const getHostelDashboardMetrics = async (signal?: AbortSignal): Promise<DashboardMetrics> => {
-  return hostelApiClient('/api/hostels/dashboard', { signal });
+  try {
+    return await hostelApiClient('/api/hostel/dashboard', { signal });
+  } catch (e) {
+    return await hostelApiClient('/api/hostels/dashboard', { signal });
+  }
+};
+
+// 8. Outpass & Leave API (Dynamic Server Integration)
+export const getOutpasses = async (search?: string, status?: string): Promise<OutpassRecord[]> => {
+  const params = new URLSearchParams();
+  if (search) params.append('search', search);
+  if (status && status !== 'All') params.append('status', status);
+  const query = params.toString();
+
+  try {
+    const res = await hostelApiClient(`/api/hostel/outpasses${query ? `?${query}` : ''}`);
+    const arrayData = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : null);
+    if (arrayData) {
+      return arrayData.map((o: any) => ({
+        id: o.outpassId ?? o.id,
+        studentId: o.studentId,
+        studentName: o.studentName || 'Student',
+        admissionNo: o.admissionNo || '',
+        hostelName: o.hostelName || '',
+        roomNumber: o.roomNumber || '',
+        outpassType: o.requestType || o.outpassType || 'Local Outpass',
+        departureDate: o.outDate ? new Date(o.outDate).toISOString().split('T')[0] : (o.departureDate || ''),
+        returnDate: o.expectedReturnDate ? new Date(o.expectedReturnDate).toISOString().split('T')[0] : (o.returnDate || ''),
+        reason: o.reason || '',
+        status: o.status || 'Pending',
+        approvedBy: o.approvedBy,
+        remarks: o.remarks,
+        createdAt: o.createdAt
+      }));
+    }
+  } catch (e) {
+    console.warn('Failed to fetch outpasses from server:', e);
+  }
+  return [];
+};
+
+export const createOutpass = async (data: any): Promise<any> => {
+  const payload = {
+    studentId: Number(data.studentId) || 0,
+    studentName: data.studentName,
+    requestType: data.outpassType || data.requestType || 'Local Outpass',
+    reason: data.reason || '',
+    outDate: data.departureDate ? new Date(data.departureDate).toISOString() : new Date().toISOString(),
+    expectedReturnDate: data.returnDate ? new Date(data.returnDate).toISOString() : new Date(Date.now() + 86400000).toISOString()
+  };
+  return hostelApiClient('/api/hostel/outpasses', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+};
+
+export const updateOutpassStatus = async (id: number | string, status: string, approvedBy?: string, remarks?: string): Promise<any> => {
+  const query = new URLSearchParams({
+    status,
+    approvedBy: approvedBy || 'Hostel Warden',
+    remarks: remarks || ''
+  }).toString();
+  return hostelApiClient(`/api/hostel/outpasses/${id}/status?${query}`, {
+    method: 'PUT'
+  });
+};
+
+export const deleteOutpass = async (id: number | string): Promise<boolean> => {
+  await hostelApiClient(`/api/hostel/outpasses/${id}`, {
+    method: 'DELETE'
+  });
+  return true;
+};
+
+// 9. Transfer & Vacate API (Dynamic Server Integration)
+export const getTransferVacateRequests = async (search?: string, actionType?: string): Promise<TransferRecord[]> => {
+  const params = new URLSearchParams();
+  if (search) params.append('search', search);
+  if (actionType && actionType !== 'All') params.append('actionType', actionType);
+  const query = params.toString();
+
+  try {
+    const res = await hostelApiClient(`/api/hostel/transfers${query ? `?${query}` : ''}`);
+    const arrayData = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : null);
+    if (arrayData) {
+      return arrayData.map((t: any) => ({
+        id: t.id ?? t.requestId,
+        requestId: t.id ?? t.requestId,
+        studentId: t.studentId,
+        studentName: t.studentName || t.student || 'Student',
+        admissionNo: t.admissionNo || t.admNo || '',
+        actionType: (t.actionType && t.actionType.toLowerCase().includes('vacate')) ? 'Bed Vacate' : 'Room Transfer',
+        fromHostel: t.currentRoom ? t.currentRoom.split(' - ')[0] || t.currentRoom : (t.fromHostel || 'Hostel Block'),
+        fromRoom: t.currentRoom ? t.currentRoom.split(' - ')[1] || t.currentRoom : (t.fromRoom || ''),
+        toHostel: t.destinationHostelName || t.toHostel || 'N/A',
+        toRoom: t.destinationRoomNumber || t.toRoom || 'N/A',
+        requestDate: t.createdAt ? new Date(t.createdAt).toISOString().split('T')[0] : (t.requestDate || new Date().toISOString().split('T')[0]),
+        reason: t.reason || '',
+        status: t.status || 'Completed',
+        totalFeePaid: t.totalFeePaid,
+        monthsStayed: t.monthsStayed,
+        feeUtilized: t.feeUtilized,
+        refundableBalance: t.refundableBalance,
+        feeAdjustmentMode: t.feeAdjustmentMode,
+        createdAt: t.createdAt
+      }));
+    }
+  } catch (e) {
+    console.warn('Failed to fetch transfers from server:', e);
+  }
+  return [];
+};
+
+export const createTransferVacateRequest = async (data: any): Promise<any> => {
+  const payload = {
+    studentId: Number(data.studentId) || 0,
+    studentName: data.studentName,
+    actionType: data.actionType || 'Room Transfer (Change Room/Block)',
+    destinationHostelId: data.destinationHostelId ? Number(data.destinationHostelId) : null,
+    destinationHostelName: data.destinationHostelName || data.toHostel,
+    destinationRoomId: data.destinationRoomId ? Number(data.destinationRoomId) : null,
+    destinationRoomNumber: data.destinationRoomNumber || data.toRoom,
+    destinationBedNumber: data.destinationBedNumber || '',
+    reason: data.reason || ''
+  };
+  return hostelApiClient('/api/hostel/transfers', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+};
+
+export const deleteTransferVacateRequest = async (id: number | string): Promise<boolean> => {
+  await hostelApiClient(`/api/hostel/transfers/${id}`, {
+    method: 'DELETE'
+  });
+  return true;
 };

@@ -205,6 +205,11 @@ public class UniformFeeController : ControllerBase
             return BadRequest(new { success = false, message = "Class Name and Uniform Package / Item Name are required." });
         }
 
+        if (dto.FeeAmount <= 0 || dto.FeeAmount > 500000m)
+        {
+            return BadRequest(new { success = false, message = "Fee Amount must be greater than 0 and cannot exceed 500,000." });
+        }
+
         var entity = new UniformFeeConfig
         {
             ClassName = dto.ClassName.Trim(),
@@ -244,6 +249,10 @@ public class UniformFeeController : ControllerBase
         if (!string.IsNullOrWhiteSpace(dto.PackageOrItemName)) entity.PackageOrItemName = dto.PackageOrItemName.Trim();
         if (!string.IsNullOrWhiteSpace(dto.Gender)) entity.Gender = dto.Gender.Trim();
         if (!string.IsNullOrWhiteSpace(dto.AcademicYear)) entity.AcademicYear = dto.AcademicYear.Trim();
+        if (dto.FeeAmount > 500000m)
+        {
+            return BadRequest(new { success = false, message = "Fee Amount cannot exceed 500,000." });
+        }
         if (dto.FeeAmount > 0) entity.FeeAmount = dto.FeeAmount;
         if (!string.IsNullOrWhiteSpace(dto.Status)) entity.Status = dto.Status.Trim();
 

@@ -124,6 +124,10 @@ public class FinanceService : IFinanceService
             throw new InvalidOperationException("Fee Head name is required.");
         if (string.IsNullOrWhiteSpace(dto.Code))
             throw new InvalidOperationException("Fee Head code is required.");
+        if (string.IsNullOrWhiteSpace(dto.Category))
+            throw new InvalidOperationException("Fee Head category is required.");
+        if (string.IsNullOrWhiteSpace(dto.PaymentEligibility))
+            throw new InvalidOperationException("Fee Head payment eligibility mode is required.");
 
         var existingList = await _repo.GetFeeHeadsAsync();
         string cleanCode = dto.Code.Trim().ToLower();

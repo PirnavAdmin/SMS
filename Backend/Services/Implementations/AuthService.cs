@@ -157,6 +157,8 @@ namespace SMS.Api.Services.Implementations
                 var student = await _dbContext.Students
                     .AsNoTracking()
                     .Include(s => s.Branch)
+                    .Include(s => s.ClassGrade)
+                    .Include(s => s.ClassSection)
                     .FirstOrDefaultAsync(s => 
                         s.AdmissionNumber.ToLower() == lower ||
                         s.RollNumber.ToLower() == lower ||
@@ -247,7 +249,14 @@ namespace SMS.Api.Services.Implementations
                             linkedUser.Email ?? student.Email,
                             linkedUser.MobileNumber ?? student.MobileNumber ?? student.FatherMobile,
                             linkedUser.Avatar,
-                            student.Branch?.BranchName ?? string.Empty);
+                            student.Branch?.BranchName ?? string.Empty,
+                            EmployeeId: student.RollNumber,
+                            StaffId: null,
+                            StudentId: student.StudentId,
+                            AdmissionNo: student.AdmissionNumber,
+                            RollNo: student.RollNumber,
+                            ClassName: student.ClassGrade?.ClassName,
+                            Section: student.ClassSection?.SectionName);
                     }
                 }
                 return null;
@@ -748,6 +757,74 @@ namespace SMS.Api.Services.Implementations
                             directUser.Avatar,
                             string.Empty
                         );
+                    }
+
+                    if (string.Equals(directUser.Role, "Student", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var studentRoles = new List<string> { "Student" };
+                        var studentEntity = await _dbContext.Students
+                            .AsNoTracking()
+                            .Include(s => s.Branch)
+                            .Include(s => s.ClassGrade)
+                            .Include(s => s.ClassSection)
+                            .FirstOrDefaultAsync(s =>
+                                (!string.IsNullOrEmpty(directUser.MobileNumber) && (s.RollNumber == directUser.MobileNumber || s.AdmissionNumber == directUser.MobileNumber || s.MobileNumber == directUser.MobileNumber)) ||
+                                (!string.IsNullOrEmpty(directUser.Email) && (s.Email == directUser.Email || (s.RollNumber != null && directUser.Email.ToLower().StartsWith(s.RollNumber.ToLower() + "@")) || (s.AdmissionNumber != null && directUser.Email.ToLower().StartsWith(s.AdmissionNumber.ToLower() + "@")))) ||
+                                (s.StudentName.ToLower() == directUser.FullName.ToLower())
+                            );
+
+                        if (studentEntity != null)
+                        {
+                            var sToken = GenerateJwtToken(directUser, studentRoles);
+                            return new AuthResponseDto(
+                                studentEntity.StudentId,
+                                studentEntity.StudentName,
+                                sToken,
+                                studentRoles,
+                                directUser.Email ?? studentEntity.Email,
+                                directUser.MobileNumber ?? studentEntity.RollNumber ?? studentEntity.MobileNumber,
+                                directUser.Avatar,
+                                studentEntity.Branch?.BranchName ?? string.Empty,
+                                EmployeeId: studentEntity.RollNumber,
+                                StaffId: null,
+                                StudentId: studentEntity.StudentId,
+                                AdmissionNo: studentEntity.AdmissionNumber,
+                                RollNo: studentEntity.RollNumber,
+                                ClassName: studentEntity.ClassGrade?.ClassName,
+                                Section: studentEntity.ClassSection?.SectionName
+                            );
+                        }
+
+                        var admissionApp = await _dbContext.AdmissionApplications
+                            .AsNoTracking()
+                            .Include(a => a.AppliedClass)
+                            .FirstOrDefaultAsync(a =>
+                                (!string.IsNullOrEmpty(directUser.MobileNumber) && (a.RegistrationNo == directUser.MobileNumber || a.AdmissionNo == directUser.MobileNumber)) ||
+                                (!string.IsNullOrEmpty(directUser.Email) && (a.ParentEmail == directUser.Email || (a.RegistrationNo != null && directUser.Email.ToLower().StartsWith(a.RegistrationNo.ToLower() + "@")))) ||
+                                ((a.FirstName + " " + a.LastName).Trim().ToLower() == directUser.FullName.ToLower())
+                            );
+
+                        if (admissionApp != null)
+                        {
+                            var sToken = GenerateJwtToken(directUser, studentRoles);
+                            return new AuthResponseDto(
+                                admissionApp.Id,
+                                $"{admissionApp.FirstName} {admissionApp.LastName}".Trim(),
+                                sToken,
+                                studentRoles,
+                                directUser.Email ?? admissionApp.ParentEmail,
+                                directUser.MobileNumber ?? admissionApp.RegistrationNo ?? admissionApp.FatherContact,
+                                directUser.Avatar,
+                                admissionApp.BranchName ?? string.Empty,
+                                EmployeeId: admissionApp.RegistrationNo,
+                                StaffId: null,
+                                StudentId: admissionApp.Id,
+                                AdmissionNo: admissionApp.AdmissionNo,
+                                RollNo: admissionApp.RegistrationNo,
+                                ClassName: admissionApp.AppliedClass?.ClassName,
+                                Section: "A"
+                            );
+                        }
                     }
 
                     var userRolesList = GetUserRolesList(directUser);

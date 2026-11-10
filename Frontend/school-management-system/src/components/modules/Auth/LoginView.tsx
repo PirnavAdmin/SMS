@@ -9,11 +9,15 @@ import {
   Eye,
   EyeOff,
   ArrowLeft,
-  Sparkles
+  Sparkles,
+  ShieldCheck,
+  User as UserIcon,
+  Phone
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { fetchSchoolSettingsApi } from '../../../api/settings';
+import { getSuperAdminSetupStatusApi, setupInitialSuperAdminApi } from '../../../api/superadmin';
 import pirnavLogo from '../../../assets/pirnav-school-logo.png';
 
 interface LoginViewProps {
@@ -133,8 +137,36 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Modes: 'login' | 'forgot' | 'verify-otp' | 'reset-password'
-  const [mode, setMode] = useState<'login' | 'forgot' | 'verify-otp' | 'reset-password'>('login');
+  // Modes: 'login' | 'forgot' | 'verify-otp' | 'reset-password' | 'setup-superadmin'
+  const [mode, setMode] = useState<'login' | 'forgot' | 'verify-otp' | 'reset-password' | 'setup-superadmin'>('login');
+  const [isSetupRequired, setIsSetupRequired] = useState(false);
+
+  // Setup form state
+  const [saSetupForm, setSaSetupForm] = useState({
+    fullName: '',
+    email: '',
+    mobileNumber: '',
+    password: '',
+    confirmPassword: ''
+  });
+  const [showSaPassword, setShowSaPassword] = useState(false);
+  const [showSaConfirmPassword, setShowSaConfirmPassword] = useState(false);
+
+  // Check setup status on load
+  useEffect(() => {
+    let isMounted = true;
+    getSuperAdminSetupStatusApi()
+      .then(res => {
+        if (!isMounted) return;
+        if (!res.isConfigured || res.superAdminCount === 0) {
+          setIsSetupRequired(true);
+          setMode('setup-superadmin');
+        }
+      })
+      .catch(() => {});
+
+    return () => { isMounted = false; };
+  }, []);
 
   const [forgotIdentifier, setForgotIdentifier] = useState('');
   const [forgotIdentifierTouched, setForgotIdentifierTouched] = useState(false);
@@ -299,6 +331,40 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
     }
   };
 
+  const handleSetupSuperAdminSubmit = async (e: React.SyntheticEvent) => {
+    e.preventDefault();
+    if (!saSetupForm.fullName.trim() || !saSetupForm.email.trim() || !saSetupForm.mobileNumber.trim() || !saSetupForm.password) {
+      setError('All fields are required to create the Super Admin account.');
+      return;
+    }
+    if (saSetupForm.password.length < 6) {
+      setError('Password must be at least 6 characters.');
+      return;
+    }
+    if (saSetupForm.password !== saSetupForm.confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+
+    setError('');
+    setLoading(true);
+    try {
+      await setupInitialSuperAdminApi({
+        fullName: saSetupForm.fullName.trim(),
+        email: saSetupForm.email.trim(),
+        mobileNumber: saSetupForm.mobileNumber.trim(),
+        password: saSetupForm.password
+      });
+
+      addToast('success', 'Super Admin Configured', `Account created for ${saSetupForm.fullName}!`);
+      await login(saSetupForm.email.trim(), saSetupForm.password, 'Super Admin' as any);
+      setIsSetupRequired(false);
+    } catch (err: any) {
+      setError(err?.message || 'Failed to setup Super Admin account.');
+      setLoading(false);
+    }
+  };
+
   const handleForgotSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     setForgotSubmitted(true);
@@ -438,7 +504,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
       {/* Main Centered Login Portal Card */}
       <main className="flex-1 w-full max-w-7xl mx-auto flex items-center justify-center px-4 py-3 sm:py-5 z-20">
         
-        <div className="w-full max-w-[23.5rem] mx-auto">
+        <div className="w-full max-w-[24.5rem] mx-auto">
           
           {/* Card in School Theme */}
           <div className="relative rounded-2xl sm:rounded-3xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border border-sky-100 dark:border-slate-800 shadow-[0_20px_50px_-15px_rgba(14,165,233,0.2)] dark:shadow-[0_20px_50px_-15px_rgba(2,132,199,0.25)] overflow-hidden animate-in fade-in zoom-in-95 duration-500">
@@ -476,6 +542,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
                   </h1>
                   {mode !== 'login' && (
                     <p className="text-xs text-slate-600 dark:text-slate-400 font-medium mt-1">
+                      {mode === 'setup-superadmin' && 'Initial System Setup'}
                       {mode === 'forgot' && 'Reset Your Password'}
                       {mode === 'verify-otp' && 'Enter Verification Code'}
                       {mode === 'reset-password' && 'Create New Password'}
@@ -486,8 +553,8 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
 
               {/* Error Alert Banner */}
               {error && (
-                <div className="mb-5 flex items-start gap-2.5 p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-500/15 border border-rose-300/80 dark:border-rose-500/30 text-rose-700 dark:text-rose-300 text-xs font-semibold animate-in slide-in-from-top-2">
-                  <AlertCircle className="w-4.5 h-4.5 shrink-0 mt-0.5 text-rose-500" />
+                <div className="mb-4 flex items-start gap-2.5 p-3 rounded-2xl bg-rose-50 dark:bg-rose-500/15 border border-rose-300/80 dark:border-rose-500/30 text-rose-700 dark:text-rose-300 text-xs font-semibold animate-in slide-in-from-top-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-500" />
                   <span className="leading-relaxed">{error}</span>
                 </div>
               )}
@@ -496,6 +563,12 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
               {mode === 'login' && (
                 <form onSubmit={handleLoginSubmit} noValidate className="space-y-3">
                   
+                  {initialRole === 'Super Admin' && (
+                    <div className="flex items-center justify-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 text-xs font-semibold mb-2">
+                      <ShieldCheck className="w-3.5 h-3.5 text-amber-500" /> Super Administrator Portal
+                    </div>
+                  )}
+
                   {/* Email / Phone Field */}
                   <div className="space-y-1 text-left">
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
@@ -610,6 +683,193 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
                     </button>
                   </div>
 
+                  {isSetupRequired && (
+                    <div className="pt-2 text-center border-t border-slate-100 dark:border-slate-800">
+                      <button
+                        type="button"
+                        onClick={() => { setError(''); setMode('setup-superadmin'); }}
+                        className="text-xs text-amber-600 dark:text-amber-400 hover:text-amber-700 font-bold flex items-center justify-center gap-1 mx-auto"
+                      >
+                        <ShieldCheck className="w-3.5 h-3.5" /> Initial Setup: Create Super Admin
+                      </button>
+                    </div>
+                  )}
+
+                </form>
+              )}
+
+              {/* MODE: INITIAL SUPER ADMIN SETUP */}
+              {mode === 'setup-superadmin' && (
+                <form onSubmit={handleSetupSuperAdminSubmit} noValidate className="space-y-3 animate-in fade-in duration-300">
+                  <div className="p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-left">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-amber-800 dark:text-amber-300 mb-0.5">
+                      <ShieldCheck className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                      <span>Create Super Admin Account</span>
+                    </div>
+                    <p className="text-[11px] text-amber-700/80 dark:text-amber-400/80 leading-relaxed">
+                      No Super Administrator exists yet. Register your root account to initialize the system.
+                    </p>
+                  </div>
+
+                  {/* Full Name */}
+                  <div className="space-y-1 text-left">
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                      Full Name <span className="text-rose-500 ml-0.5">*</span>
+                    </label>
+                    <div className="relative group">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-amber-500 transition-colors">
+                        <UserIcon className="w-4 h-4" />
+                      </div>
+                      <input
+                        type="text"
+                        required
+                        value={saSetupForm.fullName}
+                        onChange={e => {
+                          setSaSetupForm({ ...saSetupForm, fullName: e.target.value });
+                          if (error) setError('');
+                        }}
+                        placeholder="e.g. System Administrator"
+                        className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-slate-50/70 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white text-xs sm:text-sm placeholder-slate-400 focus:outline-none focus:ring-3 focus:ring-amber-500/20 focus:border-amber-500 transition-all font-medium"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Email Address */}
+                  <div className="space-y-1 text-left">
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                      Email Address <span className="text-rose-500 ml-0.5">*</span>
+                    </label>
+                    <div className="relative group">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-amber-500 transition-colors">
+                        <Mail className="w-4 h-4" />
+                      </div>
+                      <input
+                        type="email"
+                        required
+                        value={saSetupForm.email}
+                        onChange={e => {
+                          setSaSetupForm({ ...saSetupForm, email: e.target.value });
+                          if (error) setError('');
+                        }}
+                        placeholder="admin@yourschool.com"
+                        className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-slate-50/70 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white text-xs sm:text-sm placeholder-slate-400 focus:outline-none focus:ring-3 focus:ring-amber-500/20 focus:border-amber-500 transition-all font-medium"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Mobile Number */}
+                  <div className="space-y-1 text-left">
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                      Mobile Number <span className="text-rose-500 ml-0.5">*</span>
+                    </label>
+                    <div className="relative group">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-amber-500 transition-colors">
+                        <Phone className="w-4 h-4" />
+                      </div>
+                      <input
+                        type="tel"
+                        required
+                        value={saSetupForm.mobileNumber}
+                        onChange={e => {
+                          setSaSetupForm({ ...saSetupForm, mobileNumber: e.target.value });
+                          if (error) setError('');
+                        }}
+                        placeholder="e.g. 9876543210"
+                        className="w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-slate-50/70 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white text-xs sm:text-sm placeholder-slate-400 focus:outline-none focus:ring-3 focus:ring-amber-500/20 focus:border-amber-500 transition-all font-medium"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Password */}
+                  <div className="space-y-1 text-left">
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                      Password (min 6 characters) <span className="text-rose-500 ml-0.5">*</span>
+                    </label>
+                    <div className="relative group">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-amber-500 transition-colors">
+                        <Lock className="w-4 h-4" />
+                      </div>
+                      <input
+                        type={showSaPassword ? 'text' : 'password'}
+                        required
+                        minLength={6}
+                        value={saSetupForm.password}
+                        onChange={e => {
+                          setSaSetupForm({ ...saSetupForm, password: e.target.value });
+                          if (error) setError('');
+                        }}
+                        placeholder="••••••••"
+                        className="w-full pl-9 pr-9 py-2.5 rounded-xl bg-slate-50/70 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white text-xs sm:text-sm placeholder-slate-400 focus:outline-none focus:ring-3 focus:ring-amber-500/20 focus:border-amber-500 transition-all font-medium"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowSaPassword(!showSaPassword)}
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                        tabIndex={-1}
+                      >
+                        {showSaPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Confirm Password */}
+                  <div className="space-y-1 text-left">
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                      Confirm Password <span className="text-rose-500 ml-0.5">*</span>
+                    </label>
+                    <div className="relative group">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-amber-500 transition-colors">
+                        <Lock className="w-4 h-4" />
+                      </div>
+                      <input
+                        type={showSaConfirmPassword ? 'text' : 'password'}
+                        required
+                        value={saSetupForm.confirmPassword}
+                        onChange={e => {
+                          setSaSetupForm({ ...saSetupForm, confirmPassword: e.target.value });
+                          if (error) setError('');
+                        }}
+                        placeholder="Re-enter password"
+                        className="w-full pl-9 pr-9 py-2.5 rounded-xl bg-slate-50/70 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white text-xs sm:text-sm placeholder-slate-400 focus:outline-none focus:ring-3 focus:ring-amber-500/20 focus:border-amber-500 transition-all font-medium"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowSaConfirmPassword(!showSaConfirmPassword)}
+                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                        tabIndex={-1}
+                      >
+                        {showSaConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Submit Button */}
+                  <div className="pt-2">
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="w-full py-2.5 sm:py-3 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-400 hover:via-orange-400 hover:to-amber-500 text-white font-bold rounded-xl text-xs sm:text-sm shadow-lg shadow-amber-500/25 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-70 cursor-pointer"
+                    >
+                      {loading ? (
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      ) : (
+                        <>
+                          <span>Create Super Admin & Launch Portal</span>
+                          <ArrowRight className="w-4 h-4" />
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  <div className="pt-1 text-center">
+                    <button
+                      type="button"
+                      onClick={() => { setError(''); setMode('login'); }}
+                      className="text-xs text-slate-500 hover:text-sky-600 dark:hover:text-sky-400 font-semibold"
+                    >
+                      Already have an account? Sign In
+                    </button>
+                  </div>
                 </form>
               )}
 

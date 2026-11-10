@@ -9,7 +9,7 @@ export const setActiveAcademicYearHeader = (ay: string) => {
   activeAcademicYearHeader = ay || '';
 };
 
-export const apiClient = async (endpoint: string, options: RequestInit = {}) => {
+export const apiClient = async <T = any>(endpoint: string, options: RequestInit = {}): Promise<T> => {
   const token = localStorage.getItem('auth_token');
   const branch = activeBranchHeader;
   const academicYear = activeAcademicYearHeader;
@@ -163,5 +163,5 @@ export const apiClient = async (endpoint: string, options: RequestInit = {}) => 
 
   // Handle empty responses
   const text = await response.text();
-  return text ? JSON.parse(text) : null;
+  return (text ? JSON.parse(text) : null) as T;
 };

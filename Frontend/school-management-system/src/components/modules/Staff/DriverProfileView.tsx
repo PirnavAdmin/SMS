@@ -80,94 +80,104 @@ export const DriverProfileView: React.FC = () => {
     const userPhone = (user?.phone || '').trim().toLowerCase();
     const userEmpId = (user?.id || (user as any)?.empId || (user as any)?.employeeId || '').trim().toLowerCase();
 
-    // Match from driverMasters
-    const fromMaster = driverMasters.find(d =>
-      (userEmpId && (d.employeeId?.toLowerCase() === userEmpId || (d as any).empId?.toLowerCase() === userEmpId || String(d.id).toLowerCase() === userEmpId)) ||
-      (userEmail && d.email?.toLowerCase() === userEmail) ||
-      (userPhone && d.mobileNumber?.replace(/\D/g, '') === userPhone.replace(/\D/g, '')) ||
-      (userName && d.driverName?.toLowerCase() === userName) ||
-      (userName && (d.driverName?.toLowerCase().includes(userName) || userName.includes(d.driverName?.toLowerCase())))
-    );
-
-    // Match from staff (must accurately resolve to driver/transport staff and match identity)
+    // 1. Match from staff FIRST by exact user email (highest reliability, matching AuthContext & StaffAttendanceView)
     const fromStaff = (() => {
-      // 1. Look for matching staff in Transport department or with Driver designation by user name
+      if (userEmail) {
+        const byEmail = staff.find(s => s.email && s.email.toLowerCase().trim() === userEmail);
+        if (byEmail) return byEmail;
+      }
+
+      if (userEmpId) {
+        const byEmpId = staff.find(s => {
+          const sEmpId = (s.empId || (s as any).employeeId || String(s.id || '')).toLowerCase().trim();
+          return sEmpId === userEmpId;
+        });
+        if (byEmpId) return byEmpId;
+      }
+
+      if (userPhone && userPhone.length >= 10) {
+        const cleanPhone = userPhone.slice(-10);
+        const byPhone = staff.find(s => (s.phone || (s as any).mobileNumber || '').replace(/\D/g, '').endsWith(cleanPhone));
+        if (byPhone) return byPhone;
+      }
+
+      // Fallback by name: only match transport/driver staff and avoid conflicting with userEmail
       if (userName && userName !== 'user' && userName !== 'administrator') {
-        const transportDriverByName = staff.find(s => {
+        const byName = staff.find(s => {
           const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase();
           const sName = (s.name || '').trim().toLowerCase();
           const isTransportOrDriver = s.department?.toLowerCase() === 'transport' || s.designation?.toLowerCase().includes('driver') || (s as any).role?.toLowerCase().includes('driver');
-          return isTransportOrDriver && (sFullName === userName || sName === userName || (userName.length >= 3 && (sFullName.includes(userName) || userName.includes(sFullName))));
+          const nameMatches = sFullName === userName || sName === userName || (userName.length >= 3 && (sFullName.includes(userName) || userName.includes(sFullName)));
+          if (!nameMatches || !isTransportOrDriver) return false;
+          if (userEmail && s.email && s.email.toLowerCase().trim() !== userEmail) {
+            const isTypo = s.email.toLowerCase().includes('gamal.com') || s.email.toLowerCase().replace(/@.*/, '') === userEmail.replace(/@.*/, '');
+            return isTypo;
+          }
+          return true;
         });
-        if (transportDriverByName) return transportDriverByName;
-      }
-
-      // 2. Look for matching staff in Transport / Driver by matching fromMaster
-      if (fromMaster) {
-        const masterName = (fromMaster.driverName || '').trim().toLowerCase();
-        const masterEmpId = (fromMaster.employeeId || '').trim().toLowerCase();
-        const masterEmail = (fromMaster.email || '').trim().toLowerCase();
-        const masterPhone = (fromMaster.mobileNumber || '').replace(/\D/g, '');
-
-        const byMaster = staff.find(s => {
-          const sEmpId = (s.empId || (s as any).employeeId || '').toLowerCase();
-          const sEmail = (s.email || '').toLowerCase();
-          const sPhone = (s.phone || (s as any).mobileNumber || '').replace(/\D/g, '');
-          const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase();
-          const sName = (s.name || '').trim().toLowerCase();
-          const isTransportOrDriver = s.department?.toLowerCase() === 'transport' || s.designation?.toLowerCase().includes('driver') || (s as any).role?.toLowerCase().includes('driver');
-
-          const nameMatches = masterName && (sFullName === masterName || sName === masterName || sFullName.includes(masterName) || masterName.includes(sFullName));
-          const empMatches = masterEmpId && sEmpId === masterEmpId;
-          const emailMatches = masterEmail && sEmail === masterEmail;
-          const phoneMatches = masterPhone && sPhone && sPhone === masterPhone;
-
-          return isTransportOrDriver && (nameMatches || (empMatches && nameMatches) || emailMatches || phoneMatches);
-        });
-        if (byMaster) return byMaster;
-      }
-
-      // 3. Match Transport staff by user email, phone, or empId
-      const transportStaffByUser = staff.find(s => {
-        const sEmpId = (s.empId || (s as any).employeeId || '').toLowerCase();
-        const sEmail = (s.email || '').toLowerCase();
-        const sPhone = (s.phone || (s as any).mobileNumber || '').replace(/\D/g, '');
-        const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase();
-        const sName = (s.name || '').trim().toLowerCase();
-        const isTransportOrDriver = s.department?.toLowerCase() === 'transport' || s.designation?.toLowerCase().includes('driver') || (s as any).role?.toLowerCase().includes('driver');
-
-        if (!isTransportOrDriver) return false;
-
-        return (
-          (userEmail && sEmail === userEmail) ||
-          (userPhone && sPhone && sPhone === userPhone.replace(/\D/g, '')) ||
-          (userName && (sFullName === userName || sName === userName)) ||
-          (userEmpId && sEmpId === userEmpId && (userName ? (sFullName === userName || sName === userName) : true))
-        );
-      });
-      if (transportStaffByUser) return transportStaffByUser;
-
-      // 4. Name fallback (never match non-transport staff by empId alone to avoid cross-role collision with wardens/teachers)
-      if (userName && userName !== 'user' && userName !== 'administrator') {
-        const byExactName = staff.find(s => {
-          const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase();
-          const sName = (s.name || '').trim().toLowerCase();
-          const isNotUnrelatedRole = s.department?.toLowerCase() !== 'hostel' && !s.designation?.toLowerCase().includes('warden');
-          return isNotUnrelatedRole && (sFullName === userName || sName === userName);
-        });
-        if (byExactName) return byExactName;
+        if (byName) return byName;
       }
 
       return null;
     })();
 
-    const resolvedBloodGroup = (fromMaster as any)?.bloodGroup || fromStaff?.bloodGroup || (fromStaff as any)?.blood_group || (user as any)?.bloodGroup || '';
-    const resolvedEmergency = (fromMaster as any)?.emergencyContact || (fromStaff as any)?.emergencyContact || (fromStaff as any)?.emergencyContactNumber || (fromStaff as any)?.emergencyPhone || (fromStaff as any)?.fatherPhone || (fromStaff as any)?.guardianPhone || '';
-    const resolvedJoiningDate = (fromMaster as any)?.dateOfJoining || (fromMaster as any)?.joiningDate || fromStaff?.joiningDate || (fromStaff as any)?.dateOfJoining || (user as any)?.joiningDate || '';
-    const resolvedAddress = fromMaster?.address || fromStaff?.address || (fromStaff as any)?.presentAddress || (fromStaff as any)?.permanentAddress || (user as any)?.address || '';
-    const resolvedMobile = fromMaster?.mobileNumber || fromStaff?.phone || (fromStaff as any)?.mobileNumber || user?.phone || '';
-    const resolvedEmail = fromMaster?.email || fromStaff?.email || user?.email || '';
-    const resolvedEmpId = fromMaster?.employeeId || fromStaff?.empId || fromStaff?.employeeId || (user as any)?.empId || user?.id || '';
+    // 2. Match from driverMasters prioritizing exact user email / staff empId
+    const staffEmpId = (fromStaff?.empId || (fromStaff as any)?.employeeId || String(fromStaff?.id || '')).toLowerCase().trim();
+    const fromMaster = (() => {
+      if (userEmail) {
+        const byEmail = driverMasters.find(d => d.email && d.email.toLowerCase().trim() === userEmail);
+        if (byEmail) return byEmail;
+      }
+
+      const targetEmpId = staffEmpId || userEmpId;
+      if (targetEmpId) {
+        const byEmpId = driverMasters.find(d => {
+          const dEmpId = (d.employeeId || (d as any).empId || String(d.id || '')).toLowerCase().trim();
+          return dEmpId === targetEmpId;
+        });
+        if (byEmpId) return byEmpId;
+      }
+
+      if (userPhone && userPhone.length >= 10) {
+        const cleanPhone = userPhone.slice(-10);
+        const byPhone = driverMasters.find(d => (d.mobileNumber || '').replace(/\D/g, '').endsWith(cleanPhone));
+        if (byPhone) return byPhone;
+      }
+
+      // Name fallback: only if no conflicting valid email
+      if (userName && userName !== 'user' && userName !== 'administrator') {
+        const byName = driverMasters.find(d => {
+          const dName = (d.driverName || '').trim().toLowerCase();
+          const nameMatches = dName === userName || (dName && (dName.includes(userName) || userName.includes(dName)));
+          if (!nameMatches) return false;
+          if (userEmail && d.email && d.email.toLowerCase().trim() !== userEmail) {
+            const isTypo = d.email.toLowerCase().includes('gamal.com') || d.email.toLowerCase().replace(/@.*/, '') === userEmail.replace(/@.*/, '');
+            return isTypo;
+          }
+          return true;
+        });
+        if (byName) return byName;
+      }
+
+      return null;
+    })();
+
+    const resolvedBloodGroup = fromStaff?.bloodGroup || (fromStaff as any)?.blood_group || (fromMaster as any)?.bloodGroup || (user as any)?.bloodGroup || '';
+    const resolvedEmergency = (fromStaff as any)?.emergencyContact || (fromStaff as any)?.emergencyContactNumber || (fromStaff as any)?.emergencyPhone || (fromMaster as any)?.emergencyContact || (fromStaff as any)?.fatherPhone || (fromStaff as any)?.guardianPhone || '';
+    const resolvedJoiningDate = fromStaff?.joiningDate || (fromStaff as any)?.dateOfJoining || (fromMaster as any)?.dateOfJoining || (fromMaster as any)?.joiningDate || (user as any)?.joiningDate || '';
+    const resolvedAddress = fromStaff?.address || (fromStaff as any)?.presentAddress || (fromStaff as any)?.permanentAddress || fromMaster?.address || (user as any)?.address || '';
+    const resolvedMobile = fromStaff?.phone || (fromStaff as any)?.mobileNumber || fromMaster?.mobileNumber || user?.phone || '';
+
+    // Autocorrect and synchronize email: authenticated user email is the source of truth, correcting typos like @gamal.com -> @gmail.com
+    let rawEmail = (user?.email && user.email.includes('@'))
+      ? user.email.trim()
+      : (fromStaff?.email || fromMaster?.email || '');
+    if (rawEmail.toLowerCase().endsWith('@gamal.com')) {
+      rawEmail = rawEmail.replace(/@gamal\.com$/i, '@gmail.com');
+    }
+    const resolvedEmail = rawEmail;
+
+    const resolvedEmpId = fromStaff?.empId || (fromStaff as any)?.employeeId || fromMaster?.employeeId || (user as any)?.empId || user?.id || '';
     const resolvedName = (user?.name && user.name.toLowerCase() !== 'user' && user.name.toLowerCase() !== 'administrator')
       ? user.name
       : (fromMaster?.driverName || (fromStaff ? `${fromStaff.firstName || ''} ${fromStaff.lastName || ''}`.trim() : (user?.name || '')));

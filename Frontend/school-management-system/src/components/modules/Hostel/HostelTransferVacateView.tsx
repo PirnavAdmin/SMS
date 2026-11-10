@@ -1,14 +1,16 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ArrowRightLeft, Plus, Search, CheckCircle2, Trash2, ChevronDown } from 'lucide-react';
+import { ArrowRightLeft, Plus, Search, CheckCircle2, Trash2, ChevronDown, X, AlertCircle } from 'lucide-react';
+import { validateSearchQuery } from '../../../utils/validation';
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
-import { getHostelBlocks, getAllocations, vacateAllocation, createAllocation, updateStudentAllocationBlock, vacateStudentAllocation } from '../../../api/hostel';
+import { getHostelBlocks, getRooms, getAllocations, vacateAllocation, createAllocation, updateStudentAllocationBlock, vacateStudentAllocation, getTransferVacateRequests, createTransferVacateRequest, deleteTransferVacateRequest } from '../../../api/hostel';
 import { SearchableSelect } from '../../common/SearchableSelect';
 import { ConfirmModal } from '../../common/ConfirmModal';
+import { Pagination } from '../../common/Pagination';
 
 interface TransferRecord {
-  id: number;
+  id: number | string;
   studentId?: string | number;
   studentName: string;
   admissionNo: string;
@@ -27,8 +29,6 @@ interface TransferRecord {
   feeAdjustmentMode?: string;
 }
 
-const TRANSFERS_STORE_KEY = 'edu_db_hostel_transfers';
-
 const DEFAULT_INITIAL_TRANSFERS: TransferRecord[] = [];
 
 export const HostelTransferVacateView: React.FC = () => {
@@ -40,18 +40,21 @@ export const HostelTransferVacateView: React.FC = () => {
 
   const [blocks, setBlocks] = useState<any[]>([]);
   const [allocations, setAllocations] = useState<any[]>([]);
+  const [rooms, setRooms] = useState<any[]>([]);
 
   useEffect(() => {
     let isMounted = true;
     const loadHostelData = async () => {
       try {
-        const [bData, aData] = await Promise.all([
+        const [bData, aData, rData] = await Promise.all([
           getHostelBlocks().catch(() => []),
-          getAllocations().catch(() => [])
+          getAllocations().catch(() => []),
+          getRooms().catch(() => [])
         ]);
         if (isMounted) {
           setBlocks(Array.isArray(bData) ? bData : []);
           setAllocations(Array.isArray(aData) ? aData : []);
+          setRooms(Array.isArray(rData) ? rData : []);
         }
       } catch (e) {
         console.warn('Failed to load hostel data for transfer view', e);
@@ -100,30 +103,24 @@ export const HostelTransferVacateView: React.FC = () => {
       });
 
       if (matched.length > 0) return matched;
+      return blocks.length > 0 ? [blocks[0]] : [];
     }
 
-    // Default warden block fallback matching StudentList.tsx
-    const defaultBlock = blocks.find(b =>
-      (b.hostelName || (b as any).name || '').toLowerCase().includes('ramachandra') ||
-      (b.hostelName || (b as any).name || '').toLowerCase().includes('bhanu') ||
-      (b.hostelName || (b as any).name || '').toLowerCase().includes('boys')
-    );
-
-    return defaultBlock ? [defaultBlock] : (blocks.length > 0 ? [blocks[0]] : []);
+    return blocks;
   }, [blocks, allocations, isWarden, user]);
 
-  // Strictly filter residential hostellers allocated to assigned block
+  // Dynamically load all residential hostellers allocated to assigned block(s) or all blocks for admin
   const displayStudentsList = useMemo(() => {
-    const targetBlocks = (wardenAssignedBlocks && wardenAssignedBlocks.length > 0)
-      ? wardenAssignedBlocks
-      : (blocks.length > 0 ? [blocks[0]] : []);
-
+    const targetBlocks = isWarden && wardenAssignedBlocks.length > 0 ? wardenAssignedBlocks : blocks;
     const targetBlockIds = new Set(targetBlocks.map(b => String(b.hostelId || b.id)));
     const targetBlockNames = targetBlocks.map(b => (b.hostelName || b.name || '').toLowerCase().trim()).filter(Boolean);
 
-    // Active allocations specifically for target block(s)
+    // Active allocations specifically for target block(s) (or all blocks if not warden)
     const blockAllocations = (allocations || []).filter(a => {
-      if (!a || a.status === 'Vacated' || a.status === 'Inactive') return false;
+      if (!a) return false;
+      const st = (a.status || '').toLowerCase().trim();
+      if (st === 'vacated' || st === 'inactive' || st === 'cancelled') return false;
+      if (!isWarden) return true;
       const aName = (a.hostelName || '').toLowerCase().trim();
       const aId = String(a.hostelId || '');
       const matchId = targetBlockIds.has(aId);
@@ -131,103 +128,127 @@ export const HostelTransferVacateView: React.FC = () => {
       return matchId || matchName;
     });
 
-    const allocatedStudentIds = new Set(blockAllocations.map(a => String(a.studentId).toLowerCase().trim()));
-    const allocatedAdmNos = new Set(blockAllocations.map(a => (a.admissionNo || '').toLowerCase().trim()).filter(Boolean));
-    const allocatedNames = new Set(blockAllocations.map(a => (a.studentName || '').toLowerCase().trim()).filter(Boolean));
+    const list: Array<{
+      id: string;
+      studentId: string | number;
+      studentName: string;
+      firstName: string;
+      lastName: string;
+      admissionNo: string;
+      hostelName: string;
+      roomNumber: string;
+      bedNumber: string;
+    }> = [];
 
-    const otherBlockOrVacatedKeys = new Set<string>();
-    (allocations || []).forEach(a => {
-      if (!a) return;
-      const aName = (a.hostelName || '').toLowerCase().trim();
-      const aId = String(a.hostelId || '');
-      const matchId = targetBlockIds.has(aId);
-      const matchName = targetBlockNames.some(tn => tn && (aName.includes(tn) || tn.includes(aName)));
-      const isTarget = matchId || matchName;
-      if (!isTarget || a.status === 'Vacated' || a.status === 'Inactive') {
-        if (a.studentId) otherBlockOrVacatedKeys.add(String(a.studentId).toLowerCase().trim());
-        if (a.admissionNo) otherBlockOrVacatedKeys.add(String(a.admissionNo).toLowerCase().trim());
-        if (a.studentName) otherBlockOrVacatedKeys.add(String(a.studentName).toLowerCase().trim());
-      }
+    const seenKeys = new Set<string>();
+
+    blockAllocations.forEach(a => {
+      const key = String(a.studentId || a.admissionNo || a.allocationId).toLowerCase().trim();
+      if (!key || seenKeys.has(key)) return;
+      seenKeys.add(key);
+
+      const matchedStudent = (students || []).find(s =>
+        (s.id && a.studentId && String(s.id).toLowerCase() === String(a.studentId).toLowerCase()) ||
+        (s.admissionNo && a.admissionNo && s.admissionNo.toLowerCase().trim() === a.admissionNo.toLowerCase().trim())
+      );
+
+      const sName = a.studentName || (matchedStudent ? `${matchedStudent.firstName || ''} ${matchedStudent.lastName || ''}`.trim() : 'Resident Student');
+      const parts = sName.split(' ');
+
+      list.push({
+        id: String(a.studentId || a.admissionNo || a.allocationId),
+        studentId: a.studentId,
+        studentName: sName,
+        firstName: matchedStudent?.firstName || parts[0] || sName,
+        lastName: matchedStudent?.lastName || parts.slice(1).join(' ') || '',
+        admissionNo: a.admissionNo || matchedStudent?.admissionNo || '',
+        hostelName: a.hostelName || (matchedStudent as any)?.hostelBlock || '',
+        roomNumber: a.roomNumber || '',
+        bedNumber: a.bedNumber || ''
+      });
     });
 
-    // Match context students against target block allocations OR direct student hostelBlock assignment
-    const matchedStudents = (students || []).filter(s => {
-      if (!s) return false;
+    // Also include any students context marked as Hosteller not yet in list
+    (students || []).forEach(s => {
+      if (!s || s.status === 'Completed' || s.status === 'Alumni') return;
       const sId = String(s.id || '').toLowerCase().trim();
       const sAdm = String(s.admissionNo || '').toLowerCase().trim();
-      const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase().trim();
-      const sHostel = String((s as any).hostelBlock || (s as any).hostelName || (s as any).hostel || '').toLowerCase().trim();
+      if ((sId && seenKeys.has(sId)) || (sAdm && seenKeys.has(sAdm))) return;
 
-      const matchesAlloc = (sId && allocatedStudentIds.has(sId)) ||
-                           (sAdm && allocatedAdmNos.has(sAdm)) ||
-                           (sFullName && allocatedNames.has(sFullName));
+      const isHosteller = Boolean((s as any).isHosteller) || s.studentType === 'Hosteller' || s.studentType === 'Residential' || Boolean((s as any).hostelBlock);
+      if (!isHosteller) return;
 
-      const isAllocatedElsewhereOrVacated = (sId && otherBlockOrVacatedKeys.has(sId)) || (sAdm && otherBlockOrVacatedKeys.has(sAdm)) || (sFullName && otherBlockOrVacatedKeys.has(sFullName));
-
-      if (isAllocatedElsewhereOrVacated && !matchesAlloc) {
-        return false;
+      const hBlock = String((s as any).hostelBlock || (s as any).hostelName || '').toLowerCase().trim();
+      if (isWarden && targetBlockNames.length > 0 && !targetBlockNames.some(tn => tn && hBlock.includes(tn))) {
+        return;
       }
 
-      const matchesDirectHostelBlock = targetBlockNames.length > 0 && sHostel && targetBlockNames.some(tn => tn && (sHostel.includes(tn) || tn.includes(sHostel)));
+      const sName = `${s.firstName || ''} ${s.lastName || ''}`.trim() || s.name || 'Resident Student';
+      if (sId) seenKeys.add(sId);
+      if (sAdm) seenKeys.add(sAdm);
 
-      return matchesAlloc || matchesDirectHostelBlock;
+      list.push({
+        id: String(s.id),
+        studentId: s.id,
+        studentName: sName,
+        firstName: s.firstName || sName,
+        lastName: s.lastName || '',
+        admissionNo: s.admissionNo || '',
+        hostelName: (s as any).hostelBlock || (s as any).hostelName || 'Hostel Block',
+        roomNumber: (s as any).roomNumber || '',
+        bedNumber: (s as any).bedNumber || ''
+      });
     });
 
-    // Synthetic records for any blockAllocations not present in matchedStudents
-    const existingAdmNos = new Set(matchedStudents.map(s => String(s.admissionNo || '').toLowerCase().trim()));
-    const existingIds = new Set(matchedStudents.map(s => String(s.id || '').toLowerCase().trim()));
-    const existingNames = new Set(matchedStudents.map(s => `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase().trim()));
-
-    const syntheticFromAllocations = blockAllocations
-      .filter(a => {
-        const aId = String(a.studentId || '').toLowerCase().trim();
-        const aAdm = String(a.admissionNo || '').toLowerCase().trim();
-        const aName = String(a.studentName || '').toLowerCase().trim();
-        return !existingIds.has(aId) && (!aAdm || !existingAdmNos.has(aAdm)) && (!aName || !existingNames.has(aName));
-      })
-      .map(a => ({
-        id: a.studentId || a.allocationId || `alloc_${a.admissionNo}`,
-        firstName: a.studentName || 'Student',
-        lastName: '',
-        admissionNo: a.admissionNo || `ADM-${a.studentId}`,
-        studentType: 'Hosteller',
-        hostelName: a.hostelName,
-        roomNumber: a.roomNumber
-      }));
-
-    const merged = [...matchedStudents, ...syntheticFromAllocations];
-
-    return merged;
-  }, [students, wardenAssignedBlocks, blocks, allocations]);
+    return list;
+  }, [students, wardenAssignedBlocks, blocks, allocations, isWarden]);
 
   const availableBlockNames = useMemo(() => {
-    const dynamicNames = (blocks || []).map(b => b.hostelName || b.name).filter(Boolean);
-    const fallbackNames = ['Boys Residence - Block A', 'Bhanu Block', 'Girls Hostel - Block B'];
-    return Array.from(new Set([...dynamicNames, ...fallbackNames]));
+    return (blocks || []).map(b => b.hostelName || b.name).filter(Boolean);
   }, [blocks]);
 
-  const [records, setRecords] = useState<TransferRecord[]>(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem(TRANSFERS_STORE_KEY);
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-        } catch (e) {}
-      }
-    }
-    return DEFAULT_INITIAL_TRANSFERS;
-  });
+  const [records, setRecords] = useState<TransferRecord[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const saveRecords = (newRecords: TransferRecord[]) => {
-    setRecords(newRecords);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(TRANSFERS_STORE_KEY, JSON.stringify(newRecords));
+  const loadTransfers = async () => {
+    try {
+      setIsLoading(true);
+      const data = await getTransferVacateRequests();
+      setRecords(data || []);
+    } catch (err) {
+      console.warn("Failed to load transfers from server:", err);
+    } finally {
+      setIsLoading(false);
     }
   };
 
+  useEffect(() => {
+    loadTransfers();
+  }, []);
+
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchError, setSearchError] = useState<string | undefined>(undefined);
+
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  const handleSearchQueryChange = (val: string) => {
+    setCurrentPage(1);
+    setSearchQuery(val);
+    if (!val.trim()) {
+      setSearchError(undefined);
+    } else {
+      const res = validateSearchQuery(val, 30);
+      setSearchError(res.isValid ? undefined : (res.error || 'Enter a valid search term.'));
+    }
+  };
   const [filterAction, setFilterAction] = useState('');
+
+  const handleFilterActionChange = (val: string) => {
+    setCurrentPage(1);
+    setFilterAction(val);
+  };
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -242,10 +263,46 @@ export const HostelTransferVacateView: React.FC = () => {
   const [targetBed, setTargetBed] = useState('');
   const [reason, setReason] = useState('');
 
+  const destinationRooms = useMemo(() => {
+    if (!targetBlock) return [];
+    const selName = String(targetBlock).toLowerCase().trim();
+    return (rooms || []).filter(r => {
+      const hName = String(r.hostelName || '').toLowerCase().trim();
+      const matchBlock = blocks.find(b => String(b.hostelId) === String(r.hostelId));
+      const bName = matchBlock ? (matchBlock.hostelName || '').toLowerCase().trim() : '';
+      return hName === selName || bName === selName;
+    });
+  }, [rooms, targetBlock, blocks]);
+
+  const selectedDestinationRoomObj = useMemo(() => {
+    return destinationRooms.find(r => String(r.roomId) === String(targetRoom) || String(r.roomNumber) === String(targetRoom));
+  }, [destinationRooms, targetRoom]);
+
+  const destinationBedOptions = useMemo(() => {
+    if (!selectedDestinationRoomObj) return [];
+    const cap = Number(selectedDestinationRoomObj.bedCapacity) || Number(selectedDestinationRoomObj.capacity) || 2;
+    const roomNumber = selectedDestinationRoomObj.roomNumber;
+    const roomId = selectedDestinationRoomObj.roomId;
+
+    return Array.from({ length: Math.max(1, cap) }, (_, i) => {
+      const bedVal = `BED-${i + 1}`;
+      const isOccupied = (allocations || []).some(a =>
+        a && a.status !== 'Vacated' && a.status !== 'Inactive' &&
+        (String(a.roomId) === String(roomId) || String(a.roomNumber) === String(roomNumber)) &&
+        String(a.bedNumber || '').toLowerCase().trim() === bedVal.toLowerCase()
+      );
+      return {
+        value: bedVal,
+        label: `Bed #${i + 1}`,
+        isOccupied
+      };
+    });
+  }, [selectedDestinationRoomObj, allocations]);
+
   // Fee Settlement fields
-  const [totalFeePaid, setTotalFeePaid] = useState<number>(60000);
-  const [monthsStayed, setMonthsStayed] = useState<number>(3);
-  const [feeAdjustmentMode, setFeeAdjustmentMode] = useState<'Credit to Tuition Fee' | 'Refund Cash/Bank' | 'Non-Refundable'>('Credit to Tuition Fee');
+  const [totalFeePaid, setTotalFeePaid] = useState<number>(0);
+  const [monthsStayed, setMonthsStayed] = useState<number>(1);
+  const [feeAdjustmentMode, setFeeAdjustmentMode] = useState<string>('');
 
   const hostellers = (students || []).filter(s => s && (s.studentType === 'Hosteller' || s.studentType === 'Residential' || (s as any).isHostelRequired));
 
@@ -260,9 +317,9 @@ export const HostelTransferVacateView: React.FC = () => {
     setTargetRoom('');
     setTargetBed('');
     setReason('');
-    setTotalFeePaid(60000);
-    setMonthsStayed(3);
-    setFeeAdjustmentMode('Credit to Tuition Fee');
+    setTotalFeePaid(0);
+    setMonthsStayed(1);
+    setFeeAdjustmentMode('');
     setIsModalOpen(true);
   };
 
@@ -278,12 +335,21 @@ export const HostelTransferVacateView: React.FC = () => {
       return;
     }
 
+    if (actionType === 'Bed Vacate' && !feeAdjustmentMode) {
+      addToast('Please select a Fee Settlement & Adjustment Mode.', 'warning');
+      return;
+    }
+
     setIsSubmitting(true);
     const selectedSt = displayStudentsList.find(s => String(s.id) === String(selectedStudentId)) || students.find(s => String(s.id) === String(selectedStudentId));
     const stName = selectedSt ? `${selectedSt.firstName || ''} ${selectedSt.lastName || ''}`.trim() : 'Student';
     const admNo = selectedSt?.admissionNo || `ADM-2026-${selectedStudentId}`;
-    const fromHostel = (selectedSt as any)?.hostelName || (selectedSt as any)?.hostelBlock || (wardenAssignedBlocks[0]?.hostelName || 'Hostel Block');
-    const fromRoom = (selectedSt as any)?.roomNumber || '101';
+    const activeStudentAlloc = (allocations || []).find(a =>
+      a && a.status !== 'Vacated' && a.status !== 'Inactive' &&
+      (String(a.studentId) === String(selectedStudentId) || (a.admissionNo && a.admissionNo === selectedSt?.admissionNo))
+    );
+    const fromHostel = activeStudentAlloc?.hostelName || (selectedSt as any)?.hostelName || (selectedSt as any)?.hostelBlock || (wardenAssignedBlocks[0]?.hostelName || '');
+    const fromRoom = activeStudentAlloc?.roomNumber || (selectedSt as any)?.roomNumber || '';
 
     if (actionType === 'Room Transfer') {
       if (!targetBlock) {
@@ -304,7 +370,7 @@ export const HostelTransferVacateView: React.FC = () => {
       try {
         const matchBlock = blocks.find(b => (b.hostelName || b.name || '').toLowerCase() === targetBlock.toLowerCase());
         const targetBlockId = matchBlock?.hostelId || matchBlock?.id;
-        await updateStudentAllocationBlock(selectedStudentId, admNo, targetBlock, targetRoom, targetBlockId, stName);
+        await updateStudentAllocationBlock(selectedStudentId, admNo, targetBlock, targetRoom, targetBlockId, stName, targetBed);
       } catch (err) {
         console.error('Failed to update student allocation block:', err);
       }
@@ -312,7 +378,7 @@ export const HostelTransferVacateView: React.FC = () => {
       try {
         const allocs = await getAllocations();
         const matchAlloc = allocs.find(a => String(a.studentId) === String(selectedStudentId) || a.admissionNo === admNo);
-        await vacateStudentAllocation(selectedStudentId, admNo, matchAlloc?.allocationId);
+        await vacateStudentAllocation(selectedStudentId, admNo, matchAlloc?.allocationId ? String(matchAlloc.allocationId) : undefined);
       } catch (err) {
         console.error('Failed to vacate student allocation:', err);
       }
@@ -340,7 +406,19 @@ export const HostelTransferVacateView: React.FC = () => {
       } : {})
     };
 
-    saveRecords([newRecord, ...records]);
+    try {
+      await createTransferVacateRequest({
+        studentId: selectedStudentId,
+        studentName: stName,
+        actionType,
+        destinationHostelName: targetBlock,
+        destinationRoomNumber: targetRoom,
+        reason: reason || (actionType === 'Bed Vacate' ? 'Opted out to Non-Residential' : 'Personal request')
+      });
+      await loadTransfers();
+    } catch (e) {
+      setRecords(prev => [newRecord, ...prev]);
+    }
 
     try {
       const freshAllocs = await getAllocations();
@@ -353,21 +431,23 @@ export const HostelTransferVacateView: React.FC = () => {
     setActionType('');
   };
 
-  const handleApprove = (id: number) => {
-    const updated = records.map(r => r.id === id ? { ...r, status: 'Completed' as const } : r);
-    saveRecords(updated);
+  const handleApprove = (id: number | string) => {
+    setRecords(prev => prev.map(r => r.id === id ? { ...r, status: 'Completed' as const } : r));
     addToast('Transfer/Vacate request completed successfully. Bed released to available status.', 'success');
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!deletingRecord) return;
-    const updated = records.filter(r => r.id !== deletingRecord.id);
-    saveRecords(updated);
+    try {
+      await deleteTransferVacateRequest(deletingRecord.id);
+    } catch (e) {}
+    setRecords(prev => prev.filter(r => r.id !== deletingRecord.id));
     addToast('Record removed.', 'success');
     setDeletingRecord(null);
   };
 
   const filtered = records.filter(r => {
+    if (searchError) return false;
     const matchesSearch =
       r.studentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       r.admissionNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -376,35 +456,67 @@ export const HostelTransferVacateView: React.FC = () => {
     return matchesSearch && matchesAction;
   });
 
+  const paginated = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filtered.slice(startIndex, startIndex + itemsPerPage);
+  }, [filtered, currentPage, itemsPerPage]);
+
   return (
-    <div className="space-y-6 animate-in fade-in">
+    <div className="space-y-3.5 animate-in fade-in">
       <div className="flex justify-end">
         <button
           onClick={handleOpenAdd}
-          className="px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-lg shadow-sky-500/20 flex items-center gap-2 transition-all"
+          className="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-sm flex items-center gap-1.5 transition-all"
         >
           <Plus className="w-4 h-4" /> Request Transfer / Vacate
         </button>
       </div>
 
       {/* Filter Bar */}
-      <div className="glass-card p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 border border-slate-200 dark:border-slate-800 shadow-sm">
-        <div className="relative w-full sm:w-80">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
-          <input
-            type="text"
-            placeholder="Search student, student ID, room..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all"
-          />
+      <div className="glass-card p-3 rounded-xl flex flex-col sm:flex-row items-start justify-between gap-2.5 border border-slate-200/80 dark:border-slate-800 shadow-xs">
+        <div className="flex flex-col w-full sm:w-80">
+          <div className="relative w-full h-[36px]">
+            <Search className={`w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none transition-colors ${searchError ? "text-rose-500" : "text-slate-400"}`} />
+            <input
+              type="text"
+              data-skip-global-validation="true"
+              data-search-input="true"
+              placeholder="Search student, student ID, room..."
+              value={searchQuery}
+              onChange={e => handleSearchQueryChange(e.target.value)}
+              className={`w-full h-[36px] pl-10 ${searchQuery ? "pr-8" : "pr-4"} rounded-lg bg-sky-50/50 dark:bg-sky-950/20 border text-xs font-semibold text-slate-900 dark:text-white outline-none transition-all ${
+                searchError
+                  ? "border-rose-500 focus:border-rose-500 ring-1 ring-rose-500/20"
+                  : "border-sky-200/80 dark:border-sky-800 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500"
+              }`}
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery('');
+                  setSearchError(undefined);
+                }}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                title="Clear search"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+          {searchError && (
+            <p className="text-[11px] font-bold text-rose-500 flex items-center gap-1.5 mt-1.5 animate-in fade-in">
+              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+              <span>{searchError}</span>
+            </p>
+          )}
         </div>
 
         <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
           <div className="min-w-[180px] w-full sm:w-auto">
             <SearchableSelect
               value={filterAction}
-              onChange={setFilterAction}
+              onChange={handleFilterActionChange}
               placeholder="Select"
               searchPlaceholder="Search type..."
               options={[
@@ -431,19 +543,19 @@ export const HostelTransferVacateView: React.FC = () => {
           </div>
         </div>
       ) : (
-        <div className="glass-card rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 overflow-hidden shadow-md">
+        <div className="glass-card rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 overflow-hidden shadow-xs">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-700 dark:text-slate-300">
+            <table className="w-full text-center text-xs text-slate-700 dark:text-slate-300">
               <thead className="bg-slate-50 dark:bg-slate-800/80 uppercase font-extrabold text-[10px] tracking-wider text-slate-500 border-b border-slate-200 dark:border-slate-800">
                 <tr>
-                  <th className="py-3.5 px-5">Student</th>
-                  <th className="py-3.5 px-5">Student ID</th>
-                  <th className="py-3.5 px-5">Action Type</th>
-                  <th className="py-3.5 px-5">Current Room</th>
-                  <th className="py-3.5 px-5">Target Room / Fee Adjustment</th>
-                  <th className="py-3.5 px-5">Date</th>
-                  <th className="py-3.5 px-5 text-center">Status</th>
-                  <th className="py-3.5 px-5 text-right">Actions</th>
+                  <th className="py-2 px-3 text-center">Student</th>
+                  <th className="py-2 px-3 text-center">Student ID</th>
+                  <th className="py-2 px-3 text-center">Action Type</th>
+                  <th className="py-2 px-3 text-center">Current Room</th>
+                  <th className="py-2 px-3 text-center">Target Room / Fee Adjustment</th>
+                  <th className="py-2 px-3 text-center">Date</th>
+                  <th className="py-2 px-3 text-center">Status</th>
+                  <th className="py-2 px-3 text-center">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
@@ -452,13 +564,13 @@ export const HostelTransferVacateView: React.FC = () => {
                     <td colSpan={8} className="py-10 text-center text-slate-400 italic font-semibold">No transfer/vacate records found matching filter.</td>
                   </tr>
                 ) : (
-                  filtered.map(r => (
+                  paginated.map(r => (
                     <tr key={r.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
-                      <td className="py-3.5 px-5 font-bold text-slate-900 dark:text-white">{r.studentName}</td>
-                      <td className="py-3.5 px-5 font-mono text-slate-500">{r.studentId || r.admissionNo}</td>
-                      <td className="py-3.5 px-5 font-bold text-sky-600 dark:text-sky-400">{r.actionType}</td>
-                      <td className="py-3.5 px-5 text-slate-600 font-semibold">{r.fromHostel} (#{r.fromRoom})</td>
-                      <td className="py-3.5 px-5">
+                      <td className="py-2 px-3 text-center font-bold text-slate-900 dark:text-white">{r.studentName}</td>
+                      <td className="py-2 px-3 text-center font-mono text-slate-500">{r.admissionNo || r.studentId}</td>
+                      <td className="py-2 px-3 text-center font-bold text-sky-600 dark:text-sky-400">{r.actionType}</td>
+                      <td className="py-2 px-3 text-center text-slate-600 font-semibold">{r.fromHostel} (#{r.fromRoom})</td>
+                      <td className="py-2 px-3 text-center">
                         {r.actionType === 'Bed Vacate' ? (
                           <div className="space-y-1">
                             <span className="text-emerald-600 font-bold block">✓ Old Bed Released to Available</span>
@@ -478,8 +590,8 @@ export const HostelTransferVacateView: React.FC = () => {
                           </div>
                         )}
                       </td>
-                      <td className="py-3.5 px-5 text-slate-500 font-mono text-[11px]">{r.requestDate}</td>
-                      <td className="py-3.5 px-5 text-center">
+                      <td className="py-2 px-3 text-center text-slate-500 font-mono text-[11px]">{r.requestDate}</td>
+                      <td className="py-2 px-3 text-center">
                         <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold ${
                           r.status === 'Completed' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' :
                           'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
@@ -487,12 +599,12 @@ export const HostelTransferVacateView: React.FC = () => {
                           {r.status}
                         </span>
                       </td>
-                      <td className="py-3.5 px-5 text-right">
-                        <div className="flex items-center justify-end gap-2">
+                      <td className="py-2 px-3 text-center align-middle">
+                        <div className="flex items-center justify-center gap-2 min-h-[32px]">
                           {r.status === 'Pending' && (
-                            <button onClick={() => handleApprove(r.id)} className="p-1 rounded-lg text-emerald-600 hover:bg-emerald-50" title="Approve & Release Bed"><CheckCircle2 className="w-4 h-4" /></button>
+                            <button onClick={() => handleApprove(r.id)} className="w-8 h-8 rounded-lg flex items-center justify-center text-emerald-600 hover:bg-emerald-50 transition-colors cursor-pointer" title="Approve & Release Bed"><CheckCircle2 className="w-4 h-4" /></button>
                           )}
-                          <button onClick={() => setDeletingRecord(r)} className="p-1 rounded-lg text-slate-400 hover:text-rose-600"><Trash2 className="w-4 h-4" /></button>
+                          <button onClick={() => setDeletingRecord(r)} className="w-8 h-8 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer flex items-center justify-center" title="Delete Record"><Trash2 className="w-4 h-4" /></button>
                         </div>
                       </td>
                     </tr>
@@ -501,6 +613,20 @@ export const HostelTransferVacateView: React.FC = () => {
               </tbody>
             </table>
           </div>
+
+          {/* Neat Table Footer with Integrated Pagination */}
+          {filtered.length > 0 && (
+            <div className="px-5 py-3.5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40 rounded-b-xl">
+              <Pagination
+                currentPage={currentPage}
+                totalItems={filtered.length}
+                itemsPerPage={itemsPerPage}
+                onPageChange={setCurrentPage}
+                showBorder={false}
+                className="pt-0 pb-0"
+              />
+            </div>
+          )}
         </div>
       )}
 
@@ -519,17 +645,32 @@ export const HostelTransferVacateView: React.FC = () => {
                 <select
                   value={selectedStudentId}
                   onChange={e => setSelectedStudentId(e.target.value)}
-                  className={`w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold focus:outline-none focus:ring-2 focus:ring-sky-500 cursor-pointer transition-all ${
-                    !selectedStudentId ? 'text-slate-400 dark:text-slate-500 font-sans font-medium' : 'text-slate-900 dark:text-white'
+                  className={`w-full px-3 py-2 rounded-lg bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 font-bold focus:outline-none focus:ring-2 focus:ring-sky-500 cursor-pointer transition-all hover:border-sky-400 ${
+                    !selectedStudentId ? 'text-sky-600/70 dark:text-sky-400/70 font-sans font-medium' : 'text-sky-950 dark:text-sky-100'
                   }`}
                   disabled={isSubmitting}
                   required
                 >
                   <option value="" disabled className="text-slate-400 dark:text-slate-500 font-sans italic bg-white dark:bg-slate-900">Select Resident Student...</option>
                   {displayStudentsList.map(st => (
-                    <option key={st.id} value={String(st.id ?? '')}>{st.firstName} {st.lastName} (ID: {st.id})</option>
+                    <option key={st.id} value={String(st.id ?? '')} className="bg-white text-slate-800 dark:bg-slate-900 dark:text-slate-100">
+                      {st.studentName} ({st.admissionNo ? `ADM: ${st.admissionNo}` : `ID: ${st.id}`}) - {st.hostelName} (Room #{st.roomNumber || 'N/A'})
+                    </option>
                   ))}
                 </select>
+
+                {selectedStudentId && (() => {
+                  const st = displayStudentsList.find(s => String(s.id) === String(selectedStudentId));
+                  if (!st) return null;
+                  return (
+                    <div className="mt-2 p-2.5 rounded-xl bg-sky-50/70 dark:bg-sky-950/40 border border-sky-200/80 dark:border-sky-800 text-xs flex items-center justify-between animate-in fade-in">
+                      <span className="text-slate-700 dark:text-slate-200 font-semibold">
+                        Current: <strong className="text-sky-600 dark:text-sky-400">{st.hostelName}</strong> • Room #{st.roomNumber} ({st.bedNumber || 'BED-1'})
+                      </span>
+                      <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">Active Resident</span>
+                    </div>
+                  );
+                })()}
               </div>
 
               <div>
@@ -538,25 +679,25 @@ export const HostelTransferVacateView: React.FC = () => {
                 </label>
                 <select
                   value={actionType}
-                  onChange={e => setActionType(e.target.value as any)}
+                  onChange={e => { setActionType(e.target.value as any); setFeeAdjustmentMode(''); }}
                   required
-                  className={`w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold focus:outline-none focus:ring-2 focus:ring-sky-500 cursor-pointer transition-all ${
+                  className={`w-full px-3 py-2 rounded-lg bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 font-bold focus:outline-none focus:ring-2 focus:ring-sky-500 cursor-pointer transition-all hover:border-sky-400 ${
                     !actionType
-                      ? 'text-slate-400 dark:text-slate-500 font-normal'
-                      : 'text-sky-600 dark:text-sky-400'
+                      ? 'text-sky-600/70 dark:text-sky-400/70 font-normal'
+                      : 'text-sky-900 dark:text-sky-100'
                   }`}
                   disabled={isSubmitting}
                 >
-                  <option value="" disabled hidden className="text-slate-400 dark:text-slate-500 font-normal">
+                  <option value="" disabled hidden className="text-slate-400 dark:text-slate-500 font-normal bg-white dark:bg-slate-900">
                     Select Action Type
                   </option>
-                  <option value="" className="text-slate-400 dark:text-slate-500 font-normal">
+                  <option value="" className="text-slate-400 dark:text-slate-500 font-normal bg-white dark:bg-slate-900">
                     Select Action Type
                   </option>
-                  <option value="Room Transfer" className="text-slate-900 dark:text-white font-medium">
+                  <option value="Room Transfer" className="text-slate-900 dark:text-white font-medium bg-white dark:bg-slate-900">
                     Room Transfer (Change Room/Block)
                   </option>
-                  <option value="Bed Vacate" className="text-slate-900 dark:text-white font-medium">
+                  <option value="Bed Vacate" className="text-slate-900 dark:text-white font-medium bg-white dark:bg-slate-900">
                     Bed Vacate (Checkout & Switch to Day Scholar)
                   </option>
                 </select>
@@ -569,14 +710,14 @@ export const HostelTransferVacateView: React.FC = () => {
                     <select
                       value={targetBlock}
                       onChange={e => { setTargetBlock(e.target.value); setTargetRoom(''); setTargetBed(''); }}
-                      className={`w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold cursor-pointer transition-all ${
-                        !targetBlock ? 'text-slate-400 dark:text-slate-500 font-medium' : 'text-slate-900 dark:text-white'
+                      className={`w-full px-3 py-2 rounded-lg bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 font-bold cursor-pointer transition-all hover:border-sky-400 ${
+                        !targetBlock ? 'text-sky-600/70 dark:text-sky-400/70 font-medium' : 'text-sky-950 dark:text-sky-100'
                       }`}
                       required
                     >
-                      <option value="" disabled className="text-slate-400">Select Destination Hostel Block</option>
+                      <option value="" disabled className="text-slate-400 bg-white dark:bg-slate-900">Select Destination Hostel Block</option>
                       {availableBlockNames.map(bName => (
-                        <option key={bName} value={bName} className="text-slate-900 dark:text-white">
+                        <option key={bName} value={bName} className="text-slate-900 dark:text-white bg-white dark:bg-slate-900">
                           {bName}
                         </option>
                       ))}
@@ -589,16 +730,19 @@ export const HostelTransferVacateView: React.FC = () => {
                       <select
                         value={targetRoom}
                         onChange={e => { setTargetRoom(e.target.value); setTargetBed(''); }}
-                        className={`w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold cursor-pointer transition-all ${
-                          !targetRoom ? 'text-slate-400 dark:text-slate-500 font-sans font-medium' : 'font-mono text-slate-900 dark:text-white'
+                        className={`w-full px-3 py-2 rounded-lg bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 font-bold cursor-pointer transition-all hover:border-sky-400 ${
+                          !targetRoom ? 'text-sky-600/70 dark:text-sky-400/70 font-sans font-medium' : 'font-mono text-sky-950 dark:text-sky-100'
                         }`}
                         required
                       >
-                        <option value="" disabled className="text-slate-400 font-sans">Select Destination Room</option>
-                        <option value="101" className="text-slate-900 dark:text-white font-mono">Room 101</option>
-                        <option value="102" className="text-slate-900 dark:text-white font-mono">Room 102</option>
-                        <option value="201" className="text-slate-900 dark:text-white font-mono">Room 201</option>
-                        <option value="202" className="text-slate-900 dark:text-white font-mono">Room 202</option>
+                        <option value="" disabled className="text-slate-400 font-sans bg-white dark:bg-slate-900">
+                          {destinationRooms.length === 0 ? 'No rooms configured in this block' : 'Select Destination Room'}
+                        </option>
+                        {destinationRooms.map(r => (
+                          <option key={r.roomId || r.roomNumber} value={r.roomNumber || r.roomId} className="text-slate-900 dark:text-white font-mono bg-white dark:bg-slate-900">
+                            Room #{r.roomNumber} ({r.roomTypeSpecification || `${r.bedCapacity || 2} Beds`})
+                          </option>
+                        ))}
                       </select>
                     </div>
                     <div>
@@ -606,16 +750,20 @@ export const HostelTransferVacateView: React.FC = () => {
                       <select
                         value={targetBed}
                         onChange={e => setTargetBed(e.target.value)}
-                        className={`w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold cursor-pointer transition-all ${
-                          !targetBed ? 'text-slate-400 dark:text-slate-500 font-sans font-medium' : 'font-mono text-slate-900 dark:text-white'
+                        className={`w-full px-3 py-2 rounded-lg bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 font-bold cursor-pointer transition-all hover:border-sky-400 ${
+                          !targetBed ? 'text-sky-600/70 dark:text-sky-400/70 font-sans font-medium' : 'font-mono text-sky-950 dark:text-sky-100'
                         }`}
                         required
+                        disabled={!targetRoom || destinationBedOptions.length === 0}
                       >
-                        <option value="" disabled className="text-slate-400 font-sans">Select Destination Bed Number</option>
-                        <option value="Bed #1" className="text-slate-900 dark:text-white font-mono">Bed #1</option>
-                        <option value="Bed #2" className="text-slate-900 dark:text-white font-mono">Bed #2</option>
-                        <option value="Bed #3" className="text-slate-900 dark:text-white font-mono">Bed #3</option>
-                        <option value="Bed #4" className="text-slate-900 dark:text-white font-mono">Bed #4</option>
+                        <option value="" disabled className="text-slate-400 font-sans bg-white dark:bg-slate-900">
+                          {!targetRoom ? 'Select room first' : destinationBedOptions.length === 0 ? 'No beds available' : 'Select Destination Bed Number'}
+                        </option>
+                        {destinationBedOptions.map(b => (
+                          <option key={b.value} value={b.value} disabled={b.isOccupied} className="text-slate-900 dark:text-white font-mono bg-white dark:bg-slate-900">
+                            {b.label} {b.isOccupied ? '(Occupied)' : '(Available)'}
+                          </option>
+                        ))}
                       </select>
                     </div>
                   </div>
@@ -675,9 +823,11 @@ export const HostelTransferVacateView: React.FC = () => {
                     <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Fee Settlement & Adjustment Mode <span className="text-rose-500">*</span></label>
                     <select
                       value={feeAdjustmentMode}
-                      onChange={e => setFeeAdjustmentMode(e.target.value as any)}
-                      className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-800 border font-bold text-sky-600 outline-none"
+                      onChange={e => setFeeAdjustmentMode(e.target.value)}
+                      required
+                      className="w-full px-3 py-2 rounded-xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 font-bold text-sky-900 dark:text-sky-100 outline-none cursor-pointer hover:border-sky-400 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500"
                     >
+                      <option value="">Select Fee Settlement & Adjustment Mode</option>
                       <option value="Credit to Tuition Fee">Credit Balance to Student Tuition Dues (Recommended)</option>
                       <option value="Refund Cash/Bank">Direct Cash / Bank Refund Voucher to Parent</option>
                       <option value="Non-Refundable">Non-Refundable (As per School Policy)</option>
@@ -693,7 +843,7 @@ export const HostelTransferVacateView: React.FC = () => {
                   placeholder="e.g. Switched to Non-Residential / Day Scholar after 3 months"
                   value={reason}
                   onChange={e => setReason(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-medium text-slate-900 dark:text-white outline-none"
+                  className="w-full px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border font-medium text-slate-900 dark:text-white outline-none"
                 />
               </div>
 

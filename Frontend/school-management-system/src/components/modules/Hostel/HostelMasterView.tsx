@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Building2, Plus, Edit, Trash2, Search, CheckCircle2, XCircle, FileText, Download } from 'lucide-react';
+import { Building2, Plus, Edit, Trash2, Search, CheckCircle2, XCircle, FileText, Download, Eye, X, AlertCircle } from 'lucide-react';
+import { validateSearchQuery } from '../../../utils/validation';
 import { useToast } from '../../../context/ToastContext';
 import { useAuth } from '../../../context/AuthContext';
 import { ConfirmModal } from '../../common/ConfirmModal';
+import { Pagination } from '../../common/Pagination';
 import { getHostelBlocks, createHostelBlock, updateHostelBlock, deleteHostelBlock, getRooms, getAllocations, HostelBlock, HostelRoom, BedAllocation } from '../../../api/hostel';
 
 interface FloorAlloc {
@@ -17,7 +19,15 @@ interface FloorAlloc {
   isEditing?: boolean;
 }
 
-export const HostelMasterView: React.FC = () => {
+interface HostelMasterViewProps {
+  selectedHostelFilter?: string;
+  onHostelFilterChange?: (filter: string) => void;
+}
+
+export const HostelMasterView: React.FC<HostelMasterViewProps> = ({
+  selectedHostelFilter,
+  onHostelFilterChange
+}) => {
   const { addToast } = useToast();
   const { user, role } = useAuth();
   const userRole = (role || user?.role || '').toLowerCase();
@@ -29,7 +39,43 @@ export const HostelMasterView: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterType, setFilterType] = useState('');
+  const [searchError, setSearchError] = useState<string | undefined>(undefined);
+
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 6;
+
+  const handleSearchQueryChange = (val: string) => {
+    setCurrentPage(1);
+    setSearchQuery(val);
+    if (!val.trim()) {
+      setSearchError(undefined);
+    } else {
+      const res = validateSearchQuery(val, 30);
+      setSearchError(res.isValid ? undefined : (res.error || 'Enter a valid search term.'));
+    }
+  };
+
+  const [localFilterType, setLocalFilterType] = useState(() => {
+    try {
+      return localStorage.getItem('hostel_master_selected_filter') || '';
+    } catch {
+      return '';
+    }
+  });
+
+  const filterType = selectedHostelFilter !== undefined ? selectedHostelFilter : localFilterType;
+
+  const handleFilterChange = (val: string) => {
+    setCurrentPage(1);
+    setLocalFilterType(val);
+    try {
+      localStorage.setItem('hostel_master_selected_filter', val);
+    } catch {}
+    if (onHostelFilterChange) {
+      onHostelFilterChange(val);
+    }
+  };
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -240,18 +286,13 @@ export const HostelMasterView: React.FC = () => {
 
     if (matched.length > 0) return matched;
 
-    const defaultWardenBlock = hostelMasters.find(h =>
-      (h.hostelName || '').toLowerCase().includes('ramachandra') ||
-      (h.hostelName || '').toLowerCase().includes('bhanu') ||
-      (h.hostelName || '').toLowerCase().includes('boys')
-    );
-
-    return defaultWardenBlock ? [defaultWardenBlock] : (hostelMasters.length > 0 ? [hostelMasters[0]] : []);
+    return hostelMasters.length > 0 ? [hostelMasters[0]] : [];
   }, [hostelMasters, isWarden, user]);
 
   const targetHostels = isWarden ? wardenAssignedHostels : hostelMasters;
 
   const filteredHostels = targetHostels.filter(h => {
+    if (searchError) return false;
     const displayTitle = h.hostelName || (h as any).name || (h as any).blockName || `Block #${h.hostelId}`;
 
     const matchesSearch = displayTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -266,19 +307,24 @@ export const HostelMasterView: React.FC = () => {
     return matchesSearch && matchesType;
   });
 
+  const paginatedHostels = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredHostels.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredHostels, currentPage, itemsPerPage]);
+
   return (
-    <div className="space-y-6 animate-in fade-in">
+    <div className="space-y-3.5 animate-in fade-in">
       {/* Header Action Bar */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <Building2 className="w-6 h-6 text-sky-500" /> Hostels
+          <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
+            <Building2 className="w-5 h-5 text-sky-500" /> Hostels
           </h2>
         </div>
         {!isWarden && (
           <button
             onClick={handleOpenAdd}
-            className="px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-lg shadow-sky-500/20 flex items-center gap-2 transition-all"
+            className="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-sm flex items-center gap-1.5 transition-all"
           >
             <Plus className="w-4 h-4" /> Add New Hostel Block
           </button>
@@ -287,25 +333,51 @@ export const HostelMasterView: React.FC = () => {
 
       {/* Filter Bar */}
       {!isWarden && (
-        <div className="glass-card p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="relative w-full sm:w-72">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-            <input
-              type="text"
-              placeholder="Search by name or code..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none"
-            />
+        <div className="glass-card p-3 rounded-xl flex flex-col sm:flex-row items-start justify-between gap-2.5 border border-slate-200/80 dark:border-slate-800 shadow-xs">
+          <div className="flex flex-col w-full sm:w-72">
+            <div className="relative w-full h-[36px]">
+              <Search className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none transition-colors ${searchError ? "text-rose-500" : "text-slate-400"}`} />
+              <input
+                type="text"
+                data-skip-global-validation="true"
+                data-search-input="true"
+                placeholder="Search by name or code..."
+                value={searchQuery}
+                onChange={e => handleSearchQueryChange(e.target.value)}
+                className={`w-full h-[36px] pl-9 ${searchQuery ? "pr-8" : "pr-4"} rounded-lg bg-slate-50 dark:bg-slate-800 border text-xs font-semibold text-slate-900 dark:text-white outline-none transition-all ${
+                  searchError
+                    ? "border-rose-500 focus:border-rose-500 ring-1 ring-rose-500/20"
+                    : "border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500"
+                }`}
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setSearchError(undefined);
+                  }}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                  title="Clear search"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+            {searchError && (
+              <p className="text-[11px] font-bold text-rose-500 flex items-center gap-1.5 mt-1.5 animate-in fade-in">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>{searchError}</span>
+              </p>
+            )}
           </div>
 
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <span className="text-xs font-extrabold text-slate-600 dark:text-slate-300">Filter:</span>
+          <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
             <select
               value={filterType}
-              onChange={e => setFilterType(e.target.value)}
-              className={`px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold cursor-pointer outline-none transition-all ${
-                !filterType ? 'text-slate-400 dark:text-slate-500 font-medium' : 'text-slate-900 dark:text-white'
+              onChange={e => handleFilterChange(e.target.value)}
+              className={`px-3 py-1.5 rounded-lg bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 text-xs font-bold cursor-pointer outline-none h-[36px] transition-all hover:border-sky-400 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 min-w-[180px] ${
+                !filterType ? 'text-sky-600/70 dark:text-sky-400/70 font-medium' : 'text-sky-900 dark:text-sky-100'
               }`}
             >
               <option value="" className="text-slate-400 dark:text-slate-500 font-sans italic bg-white dark:bg-slate-900">Select Hostel...</option>
@@ -332,19 +404,30 @@ export const HostelMasterView: React.FC = () => {
           <div className="max-w-md mx-auto space-y-1">
             <h3 className="text-sm font-bold text-slate-900 dark:text-white">Select a Hostel</h3>
             <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-              Please select a hostel option from the filter dropdown above to render operational hostel blocks.
+              Please select a hostel option from the filter dropdown above or click below to view all operational hostel blocks.
             </p>
+          </div>
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={() => handleFilterChange('All')}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-md shadow-sky-600/20 transition-all cursor-pointer hover:scale-105 active:scale-95"
+            >
+              <Eye className="w-4 h-4" />
+              <span>View All Hostel Blocks</span>
+            </button>
           </div>
         </div>
       ) : (
-        /* Hostels Grid */
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="space-y-4">
+          {/* Hostels Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
           {loading ? (
             <div className="col-span-full py-12 text-center text-slate-400 font-semibold italic">Loading Hostels...</div>
           ) : filteredHostels.length === 0 ? (
             <div className="col-span-full py-12 text-center text-slate-400 font-semibold italic">No hostels found for this category.</div>
           ) : (
-            filteredHostels.map((h, idx) => {
+            paginatedHostels.map((h, idx) => {
               const hRooms = roomMasters.filter(r => 
                 (r.hostelCode && h.hostelCode && r.hostelCode.toLowerCase().trim() === h.hostelCode.toLowerCase().trim()) ||
                 (Number(r.hostelId) === Number(h.hostelId) && String(r.hostelName || '').toLowerCase().trim() === String(h.hostelName || '').toLowerCase().trim())
@@ -355,7 +438,7 @@ export const HostelMasterView: React.FC = () => {
               const displayTitle = h.hostelName || (h as any).name || (h as any).blockName || `Block #${h.hostelId}`;
 
               return (
-                <div key={`h-card-${h.hostelId || idx}-${h.hostelCode || idx}-${idx}`} className="glass-card p-5 rounded-3xl space-y-4 border border-slate-200/80 dark:border-slate-800 relative group hover:border-sky-500/50 transition-all">
+                <div key={`h-card-${h.hostelId || idx}-${h.hostelCode || idx}-${idx}`} className="glass-card p-3.5 sm:p-4 rounded-xl space-y-3 border border-slate-200/80 dark:border-slate-800 relative group hover:border-sky-500/50 transition-all shadow-xs">
                   <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                     <div>
                       <span className="font-mono text-xs font-black text-sky-600 dark:text-sky-400">{h.hostelCode}</span>
@@ -420,6 +503,21 @@ export const HostelMasterView: React.FC = () => {
             })
           )}
         </div>
+
+          {/* Neat Pagination Footer Container */}
+          {filteredHostels.length > 0 && (
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl px-5 py-3.5 shadow-xs">
+              <Pagination
+                currentPage={currentPage}
+                totalItems={filteredHostels.length}
+                itemsPerPage={itemsPerPage}
+                onPageChange={setCurrentPage}
+                showBorder={false}
+                className="pt-0 pb-0"
+              />
+            </div>
+          )}
+        </div>
       )}
 
       {/* CREATE / EDIT MODAL */}
@@ -463,13 +561,13 @@ export const HostelMasterView: React.FC = () => {
                   <select
                     value={form.hostelType || ''}
                     onChange={e => setForm({ ...form, hostelType: e.target.value })}
-                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold cursor-pointer transition-all ${
-                      !form.hostelType ? 'text-slate-600 dark:text-slate-300 font-sans font-medium' : 'text-slate-900 dark:text-white'
+                    className={`w-full px-3 py-2 rounded-xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 font-bold cursor-pointer transition-all hover:border-sky-400 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 ${
+                      !form.hostelType ? 'text-slate-700 dark:text-slate-200 font-sans font-semibold' : 'text-sky-950 dark:text-sky-100'
                     }`}
                     disabled={isSubmitting}
                     required
                   >
-                    <option value="" className="text-slate-600 dark:text-slate-300 font-sans font-medium bg-white dark:bg-slate-900">Select Category</option>
+                    <option value="" className="text-slate-700 dark:text-slate-200 font-sans font-semibold bg-white dark:bg-slate-900">Select Category</option>
                     <option value="Boys Hostel" className="text-slate-900 dark:text-white bg-white dark:bg-slate-900 font-medium">Boys Hostel</option>
                     <option value="Girls Hostel" className="text-slate-900 dark:text-white bg-white dark:bg-slate-900 font-medium">Girls Hostel</option>
                   </select>
@@ -479,15 +577,13 @@ export const HostelMasterView: React.FC = () => {
                   <select
                     value={(form as any).totalFloors || ''}
                     onChange={e => setForm({ ...form, totalFloors: parseInt(e.target.value) || 1 } as any)}
-                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold cursor-pointer transition-all ${
-                      !(form as any).totalFloors
-                        ? 'text-slate-600 dark:text-slate-300 font-sans font-medium'
-                        : 'font-mono text-slate-900 dark:text-white'
+                    className={`w-full px-3 py-2 rounded-xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 font-bold cursor-pointer transition-all hover:border-sky-400 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 ${
+                      !(form as any).totalFloors ? 'text-slate-700 dark:text-slate-200 font-sans font-semibold' : 'font-mono text-sky-950 dark:text-sky-100'
                     }`}
                     disabled={isSubmitting}
                     required
                   >
-                    <option value="" className="text-slate-600 dark:text-slate-300 font-sans font-medium bg-white dark:bg-slate-900">Select Floors...</option>
+                    <option value="" className="text-slate-700 dark:text-slate-200 font-sans font-semibold bg-white dark:bg-slate-900">Select Floors...</option>
                     {Array.from({ length: 30 }, (_, i) => (
                       <option key={i + 1} value={i + 1} className="font-mono text-slate-900 dark:text-white bg-white dark:bg-slate-900">{i + 1} Floor{i > 0 ? 's' : ''}</option>
                     ))}

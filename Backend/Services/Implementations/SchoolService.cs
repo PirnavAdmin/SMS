@@ -705,9 +705,9 @@ public class SchoolService : ISchoolService
 	};
 
 	// --- ADMISSIONS ---
-	public async Task<List<AdmissionApplicationResponseDto>> GetAllApplicationsAsync(string? search, string? branch, int? classId, string? status)
+	public async Task<List<AdmissionApplicationResponseDto>> GetAllApplicationsAsync(string? search, string? branch, int? classId, string? status, string? academicYear = null)
 	{
-		var list = await _schoolRepository.GetAllApplicationsAsync(search, branch, classId, status);
+		var list = await _schoolRepository.GetAllApplicationsAsync(search, branch, classId, status, academicYear);
 		var result = list.Select(a => MapToAdmissionResponseDto(a)).ToList();
 
 		var appsMissingAdmNo = result.Where(r => string.IsNullOrWhiteSpace(r.AdmissionNo) || r.AdmissionNo.StartsWith("REG-", StringComparison.OrdinalIgnoreCase)).ToList();
@@ -766,6 +766,13 @@ public class SchoolService : ISchoolService
 		if (!string.IsNullOrWhiteSpace(branch) && !branch.Equals("All Branches", StringComparison.OrdinalIgnoreCase) && !branch.Equals("All", StringComparison.OrdinalIgnoreCase) && !branch.Equals("All Campuses", StringComparison.OrdinalIgnoreCase))
 		{
 			studentQuery = studentQuery.Where(s => s.Branch != null && (s.Branch.BranchName.ToLower() == branch.ToLower() || s.Branch.BranchName.ToLower().Contains(branch.ToLower()) || branch.ToLower().Contains(s.Branch.BranchName.ToLower())));
+		}
+
+		if (!string.IsNullOrWhiteSpace(academicYear) && !academicYear.Equals("All", StringComparison.OrdinalIgnoreCase))
+		{
+			var cleanYear = academicYear.Trim().ToLower().Replace(" ", "");
+			var startYear = cleanYear.Length >= 4 ? cleanYear.Substring(0, 4) : cleanYear;
+			studentQuery = studentQuery.Where(s => s.AcademicYear != null && (s.AcademicYear.AcademicYearName.ToLower().Replace(" ", "") == cleanYear || s.AcademicYear.AcademicYearName.StartsWith(startYear)));
 		}
 
 		if (classId.HasValue && classId.Value > 0)
@@ -1602,6 +1609,13 @@ public class SchoolService : ISchoolService
 			effectiveBranchName = defaultBranch?.BranchName ?? (dto.BranchName ?? "");
 		}
 
+		string? targetClassAcademicYear = null;
+		if (targetClassId > 0)
+		{
+			var clsObj = await _schoolRepository.GetClassGradeByIdAsync(targetClassId);
+			targetClassAcademicYear = clsObj?.AcademicYear;
+		}
+
 		var app = new AdmissionApplication
 		{
 			RegistrationNo = nextRegNo,
@@ -1611,6 +1625,7 @@ public class SchoolService : ISchoolService
 			Gender = dto.Gender,
 			AppliedClassId = targetClassId,
 			BranchName = effectiveBranchName,
+			AcademicYear = !string.IsNullOrWhiteSpace(dto.AcademicYear) ? dto.AcademicYear : (targetClassAcademicYear ?? "2026-27"),
 			BloodGroup = dto.BloodGroup,
 			Religion = dto.Religion,
 			Caste = dto.Caste,
@@ -1778,6 +1793,7 @@ public class SchoolService : ISchoolService
 		}
 		app.Scholarship = dto.Scholarship;
 		app.Discount = dto.Discount;
+		if (!string.IsNullOrWhiteSpace(dto.AcademicYear)) app.AcademicYear = dto.AcademicYear;
 
 		if (parsedDob.HasValue) app.DateOfBirth = parsedDob.Value;
 
@@ -2340,6 +2356,7 @@ public class SchoolService : ISchoolService
 		Gender = a.Gender ?? "",
 		AppliedClassGrade = a.AppliedClass != null ? a.AppliedClass.ClassName ?? "N/A" : "N/A",
 		BranchName = a.BranchName ?? "",
+		AcademicYear = !string.IsNullOrWhiteSpace(a.AcademicYear) ? a.AcademicYear : a.AppliedClass?.AcademicYear,
 		BloodGroup = a.BloodGroup,
 		Religion = a.Religion,
 		Caste = a.Caste,

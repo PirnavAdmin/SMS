@@ -33,17 +33,17 @@ public class AdmissionsController : ControllerBase
         string? effectiveBranch = !string.IsNullOrWhiteSpace(branch) ? branch : (!string.IsNullOrWhiteSpace(headerBranch) ? headerBranch : null);
         string? effectiveAcademicYear = !string.IsNullOrWhiteSpace(academicYear) ? academicYear : (!string.IsNullOrWhiteSpace(headerAcademicYear) ? headerAcademicYear : null);
 
-        var apps = await _schoolService.GetAllApplicationsAsync(search, effectiveBranch, classId, status);
+        var apps = await _schoolService.GetAllApplicationsAsync(search, effectiveBranch, classId, status, effectiveAcademicYear);
 
         if (!string.IsNullOrWhiteSpace(effectiveAcademicYear) && !effectiveAcademicYear.Equals("All", System.StringComparison.OrdinalIgnoreCase))
         {
             var cleanYear = effectiveAcademicYear.Trim().ToLower().Replace(" ", "");
             var startYear = cleanYear.Length >= 4 ? cleanYear.Substring(0, 4) : cleanYear;
-            apps = apps.Where(a => string.IsNullOrWhiteSpace(a.AcademicYear) ||
-                                   a.AcademicYear.ToLower().Replace(" ", "") == cleanYear ||
-                                   a.AcademicYear.ToLower().Replace(" ", "").Contains(cleanYear) ||
-                                   cleanYear.Contains(a.AcademicYear.ToLower().Replace(" ", "")) ||
-                                   a.AcademicYear.StartsWith(startYear)).ToList();
+            apps = apps.Where(a => (!string.IsNullOrWhiteSpace(a.AcademicYear) &&
+                                   (a.AcademicYear.ToLower().Replace(" ", "") == cleanYear ||
+                                    a.AcademicYear.ToLower().Replace(" ", "").Contains(cleanYear) ||
+                                    cleanYear.Contains(a.AcademicYear.ToLower().Replace(" ", "")) ||
+                                    a.AcademicYear.StartsWith(startYear)))).ToList();
         }
 
         return Ok(new { success = true, data = apps });

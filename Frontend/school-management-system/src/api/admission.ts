@@ -1,7 +1,20 @@
 import { apiClient } from './client';
  
-export const fetchAdmissionsApi = async () => {
-  return apiClient('/api/admissions', {
+export const fetchAdmissionsApi = async (filter?: {
+  branch?: string;
+  academicYear?: string;
+  search?: string;
+  status?: string;
+  classId?: number;
+}) => {
+  const params = new URLSearchParams();
+  if (filter?.branch && filter.branch !== 'All' && filter.branch !== 'All Branches') params.append('branch', filter.branch);
+  if (filter?.academicYear && filter.academicYear !== 'All') params.append('academicYear', filter.academicYear);
+  if (filter?.search) params.append('search', filter.search);
+  if (filter?.status && filter.status !== 'All' && filter.status !== 'All Status') params.append('status', filter.status);
+  if (filter?.classId) params.append('classId', String(filter.classId));
+  const qs = params.toString();
+  return apiClient(`/api/admissions${qs ? `?${qs}` : ''}`, {
     method: 'GET'
   });
 };

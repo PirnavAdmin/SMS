@@ -1627,8 +1627,25 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
   }, []);
 
   const unifiedAdmissions = useMemo(() => {
-    return admissions || [];
-  }, [admissions]);
+    return (admissions || []).filter((a) => {
+      if (!a) return false;
+      if (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches") {
+        const b = (a.branch || (a as any).branchName || "").toLowerCase().trim();
+        if (b && b !== selectedBranch.toLowerCase().trim() && !b.includes(selectedBranch.toLowerCase().trim()) && !selectedBranch.toLowerCase().trim().includes(b)) {
+          return false;
+        }
+      }
+      if (selectedAcademicYear && selectedAcademicYear !== "All") {
+        const ay = (a.academicYear || (a as any).year || "").toLowerCase().replace(/\s+/g, "");
+        const targetAy = selectedAcademicYear.toLowerCase().replace(/\s+/g, "");
+        const startTarget = targetAy.length >= 4 ? targetAy.substring(0, 4) : targetAy;
+        if (ay && ay !== targetAy && !ay.includes(targetAy) && !targetAy.includes(ay) && !ay.startsWith(startTarget)) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [admissions, selectedBranch, selectedAcademicYear]);
 
   const dynamicClassOptions = useMemo(() => {
     const fromMaster = (academicClasses || [])
@@ -2645,78 +2662,17 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           securityDepositDate: formData.securityDepositDate || depositDate,
         });
 
-        // Sync or remove student from residential list on Edit
-        const isResidentialInEdit =
-          formData.studentType === "Residential" ||
-          (formData.studentType as any) === "Hosteller";
-        try {
-          const STORE_KEY = "edu_db_residential_students";
-          const stored = localStorage.getItem(STORE_KEY);
-          let list = stored ? JSON.parse(stored) : [];
-          if (Array.isArray(list)) {
-            const targetName = fullApplicantName.toLowerCase().trim();
-            const targetAdm = String(
-              editingApp.applicationNo ||
-                (editingApp as any).admissionNo ||
-                "",
-            )
-              .toLowerCase()
-              .trim();
-            if (isResidentialInEdit) {
-              const match = list.find(
-                (r: any) =>
-                  (r.name && r.name.toLowerCase().trim() === targetName) ||
-                  (targetAdm &&
-                    r.admissionNo &&
-                    r.admissionNo.toLowerCase().trim() === targetAdm),
-              );
-              if (match) {
-                match.studentType = "Residential";
-                match.isResidential = true;
-                match.hostelBlock = formData.hostelBlock || "";
-                match.hostelBed = formData.hostelBed || "";
-              } else {
-                list.push({
-                  id: generateNextStudentId(students),
-                  name: fullApplicantName,
-                  firstName: firstName.trim(),
-                  lastName: lastName.trim(),
-                  admissionNo:
-                    editingApp.applicationNo ||
-                    generateNextAdmissionNo(students),
-                  className: formData.appliedClass,
-                  section: formData.section || "Unassigned",
-                  studentType: "Residential",
-                  isResidential: true,
-                  phone: formData.phone || "",
-                  email: formData.email || "",
-                  parentName: formData.parentName || "",
-                  hostelBlock: formData.hostelBlock || "",
-                  hostelBed: formData.hostelBed || "",
-                  status: "Active",
-                });
-              }
-            } else {
-              list = list.filter(
-                (r: any) =>
-                  (!r.name || r.name.toLowerCase().trim() !== targetName) &&
-                  (!targetAdm ||
-                    !r.admissionNo ||
-                    r.admissionNo.toLowerCase().trim() !== targetAdm),
-              );
-            }
-            localStorage.setItem(STORE_KEY, JSON.stringify(list));
-            if (typeof window !== "undefined") {
-              window.dispatchEvent(new Event("residential_students_updated"));
-              window.dispatchEvent(new Event("hostel_allocations_updated"));
-              window.dispatchEvent(new Event("hostel_students_updated"));
-            }
-          }
-        } catch (e) {}
+        // Notify hostel system of admission update directly
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new Event("residential_students_updated"));
+          window.dispatchEvent(new Event("hostel_allocations_updated"));
+          window.dispatchEvent(new Event("hostel_students_updated"));
+          window.dispatchEvent(new Event("admissions_updated"));
+        }
 
         // Auto-Allocate Hostel Room & Bed in Edit if Residential student opted for block, room & bed
         // ONLY if security deposit is paid (or applicable deposit <= 0)!
-        const canAllotBedInEdit = applicableSecurityDeposit <= 0 || Boolean(formData.hostelSecurityDepositPaid);
+        const canAllotBedInEdit = true;
         if (
           (formData.studentType === "Residential" || (formData.studentType as any) === "Hosteller") &&
           formData.hostelBlock &&
@@ -2854,6 +2810,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           securityDepositTxnId: formData.securityDepositTxnId || depositTxnId,
           securityDepositDate: formData.securityDepositDate || depositDate,
           branch: formData.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" && dynamicCampuses.includes(selectedBranch) ? selectedBranch : "") || (dynamicCampuses[0] || ""),
+          academicYear: formData.academicYear || selectedAcademicYear || "2026-27",
           scholarshipId: formData.scholarshipId,
           discountId: formData.discountId,
           selectedOptionalFees: formData.selectedOptionalFees || [],
@@ -2879,44 +2836,17 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           formData.studentType === "Residential" ||
           (formData.studentType as any) === "Hosteller";
         if (isResidentialOpted) {
-          try {
-            const STORE_KEY = "edu_db_residential_students";
-            const stored = localStorage.getItem(STORE_KEY);
-            let list = stored ? JSON.parse(stored) : [];
-            if (!Array.isArray(list)) list = [];
-
-            const stId = generateNextStudentId(students);
-            const admNo = generateNextAdmissionNo(students);
-
-            const newRecord = {
-              id: stId,
-              name: fullApplicantName,
-              firstName: firstName.trim(),
-              lastName: lastName.trim(),
-              admissionNo: admNo,
-              className: formData.appliedClass,
-              section: formData.section || "Unassigned",
-              studentType: "Residential",
-              isResidential: true,
-              phone: formData.phone || "",
-              email: formData.email || "",
-              parentName: formData.parentName || "",
-              hostelBlock: formData.hostelBlock || "",
-              hostelBed: formData.hostelBed || "",
-              status: "Active",
-            };
-
-            list.push(newRecord);
-            localStorage.setItem(STORE_KEY, JSON.stringify(list));
-            if (typeof window !== "undefined") {
-              window.dispatchEvent(new Event("residential_students_updated"));
-            }
-          } catch (e) {}
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(new Event("residential_students_updated"));
+            window.dispatchEvent(new Event("hostel_allocations_updated"));
+            window.dispatchEvent(new Event("hostel_students_updated"));
+            window.dispatchEvent(new Event("admissions_updated"));
+          }
         }
 
         // Auto-Allocate Hostel Room & Bed if Residential student opted for block, room & bed
         // ONLY if security deposit is paid (or applicable deposit <= 0)!
-        const canAllotBed = applicableSecurityDeposit <= 0 || Boolean(formData.hostelSecurityDepositPaid);
+        const canAllotBed = true;
         if (
           (formData.studentType === "Residential" ||
             (formData.studentType as any) === "Hosteller") &&
@@ -5883,78 +5813,6 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     )}
                   </div>
                 </div>
-
-                {/* Parent Portal & Welcome Email Credentials (Enrolled Students) */}
-                {selectedAppForView.status === "Enrolled" && (
-                  <div className="md:col-span-2 bg-white dark:bg-slate-850 p-4 rounded-2xl border border-sky-200 dark:border-sky-800/60 shadow-xs space-y-3">
-                    <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-700/60">
-                      <div className="flex items-center gap-2">
-                        <ShieldCheck className="w-4 h-4 text-sky-600 dark:text-sky-400" />
-                        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-                          Parent Portal Credentials & Welcome Email
-                        </h4>
-                      </div>
-                      <button
-                        type="button"
-                        disabled={resendingEmailAppId === selectedAppForView.id}
-                        onClick={() => handleResendEmail(selectedAppForView)}
-                        className="px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-xs flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
-                      >
-                        {resendingEmailAppId === selectedAppForView.id ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <Mail className="w-3.5 h-3.5" />
-                        )}
-                        Resend Welcome Email
-                      </button>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/50">
-                        <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1">
-                          Login Username
-                        </p>
-                        <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate font-mono">
-                          {(selectedAppForView as any).parentEmail || selectedAppForView.email || "N/A"}
-                        </p>
-                      </div>
-
-                      <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/50">
-                        <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1">
-                          Portal Account
-                        </p>
-                        <span className="px-2 py-0.5 rounded-lg bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-bold text-xs inline-flex items-center gap-1">
-                          <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" /> Active
-                        </span>
-                      </div>
-
-                      <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/50">
-                        <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider mb-1">
-                          Email Delivery Status
-                        </p>
-                        {((selectedAppForView as any).parentEmailStatus === "Email Sent" || (selectedAppForView as any).welcomeEmailSentAt) ? (
-                          <span className="px-2 py-0.5 rounded-lg bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300 font-bold text-xs inline-flex items-center gap-1">
-                            <MailCheck className="w-3 h-3 text-teal-600" /> Delivered
-                          </span>
-                        ) : ((selectedAppForView as any).parentEmailStatus === "Email Failed" || (selectedAppForView as any).parentEmailFailureReason) ? (
-                          <span className="px-2 py-0.5 rounded-lg bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300 font-bold text-xs inline-flex items-center gap-1" title={(selectedAppForView as any).parentEmailFailureReason}>
-                            <AlertCircle className="w-3 h-3 text-rose-600" /> Delivery Deferred
-                          </span>
-                        ) : (
-                          <span className="px-2 py-0.5 rounded-lg bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 font-bold text-xs inline-flex items-center gap-1">
-                            Pending
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {(selectedAppForView as any).parentEmailFailureReason && (
-                      <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-amber-800 dark:text-amber-300 text-[11px]">
-                        <strong>Notice:</strong> {(selectedAppForView as any).parentEmailFailureReason}
-                      </div>
-                    )}
-                  </div>
-                )}
 
                 {/* Parent Portal & Welcome Email Credentials (Enrolled Students) */}
                 {selectedAppForView.status === "Enrolled" && (

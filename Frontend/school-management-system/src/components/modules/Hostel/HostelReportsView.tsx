@@ -1,6 +1,7 @@
-﻿// @ts-nocheck
+// @ts-nocheck
 import React, { useState, useEffect, useMemo } from 'react';
-import { FileSpreadsheet, Printer, FileText, Search } from 'lucide-react';
+import { FileSpreadsheet, Printer, Search, X, AlertCircle } from 'lucide-react';
+import { validateSearchQuery } from '../../../utils/validation';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { useAuth } from '../../../context/AuthContext';
@@ -10,6 +11,8 @@ import { SchoolPrintHeader } from '../../common/SchoolPrintHeader';
 import { SearchableSelect } from '../../common/SearchableSelect';
 import { getHostelBlocks, getRooms, getAllocations, getWardens, formatRoomNumber, HostelBlock, HostelRoom, BedAllocation, WardenRecord } from '../../../api/hostel';
 import { normalizeStudentType } from '../../../utils/studentTypeUtils';
+import { formatPhoneNumber } from '../../../utils/validation';
+import { downloadHostelReportPdf } from '../../../utils/hostelReportPdf';
 
 const ENTERPRISE_HOSTEL_REPORTS = [
   'Block Report',
@@ -20,7 +23,7 @@ const ENTERPRISE_HOSTEL_REPORTS = [
 
 export const HostelReportsView: React.FC = () => {
   const { addToast } = useToast();
-  const { user, role } = useAuth();
+  const { user, role, selectedAcademicYear } = useAuth();
   const userRole = (role || user?.role || '').toLowerCase();
   const isWarden = userRole.includes('warden');
 
@@ -28,9 +31,21 @@ export const HostelReportsView: React.FC = () => {
   const students = Array.isArray(dataContext?.students) ? dataContext.students : [];
   const admissions = Array.isArray(dataContext?.admissions) ? dataContext.admissions : [];
 
-  const [selectedReport, setSelectedReport] = useState<string>('Block Report');
+  const [selectedReport, setSelectedReport] = useState<string>('');
   const [manualReportInput, setManualReportInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchError, setSearchError] = useState<string | undefined>(undefined);
+
+  const handleSearchQueryChange = (val: string) => {
+    setSearchQuery(val);
+    setCurrentPage(1);
+    if (!val.trim()) {
+      setSearchError(undefined);
+    } else {
+      const res = validateSearchQuery(val, 30);
+      setSearchError(res.isValid ? undefined : (res.error || 'Enter a valid search term.'));
+    }
+  };
   const [filterHostel, setFilterHostel] = useState('');
   const [manualHostelInput, setManualHostelInput] = useState('');
   const [tabFilter, setTabFilter] = useState('');
@@ -56,15 +71,15 @@ export const HostelReportsView: React.FC = () => {
       return false;
     });
 
-    if (matched.length > 0) return matched;
+    const activeList = matched.length > 0 ? matched : (blocks.length > 0 ? [blocks[0]] : []);
 
-    const defaultWardenBlock = blocks.find(b =>
-      (b.hostelName || '').toLowerCase().includes('ramachandra') ||
-      (b.hostelName || '').toLowerCase().includes('bhanu') ||
-      (b.hostelName || '').toLowerCase().includes('boys')
-    );
-
-    return defaultWardenBlock ? [defaultWardenBlock] : (blocks.length > 0 ? [blocks[0]] : []);
+    // Synchronize the block's assigned warden with the currently logged-in warden's details
+    return activeList.map(b => ({
+      ...b,
+      wardenName: user?.name || b.wardenName,
+      email: user?.email || b.email,
+      primaryMobileNumber: user?.phone || (user as any)?.mobileNumber || b.primaryMobileNumber
+    }));
   }, [blocks, isWarden, user]);
 
   const targetBlocks = isWarden ? wardenAssignedBlocks : blocks;
@@ -200,20 +215,62 @@ export const HostelReportsView: React.FC = () => {
 
       case 'Block Report': {
         if (reportBlocks.length === 0) return [];
-        return reportBlocks.map(b => ({
-          'Block Code': b.hostelCode || `BLK-${b.hostelId}`,
-          'Block Name': b.hostelName || `Block #${b.hostelId}`,
-          'Category': b.hostelType || 'Boys Hostel',
-          'Total Floors': (b as any).totalFloors || 1,
-          'Warden Name': b.wardenName || 'Unassigned',
-          'Primary Mobile': b.primaryMobileNumber || 'N/A',
-          'Location': b.address || '-',
-      'Location': b.address || '-',
-          'Status': b.status || 'Active'
-        }));
+        return reportBlocks.map(b => {
+          const isAssigned = Boolean(
+            b.wardenName &&
+            b.wardenName.toLowerCase() !== 'unassigned' &&
+            b.wardenName.toLowerCase() !== 'not assigned' &&
+            b.wardenName.toLowerCase() !== 'n/a'
+          );
+
+          // Find assigned warden in wardens list to resolve real phone number
+          const matchedWarden = wardens.find(w =>
+            (w.wardenName && b.wardenName && w.wardenName.toLowerCase().trim() === b.wardenName.toLowerCase().trim()) ||
+            (w.hostelName && b.hostelName && w.hostelName.toLowerCase().trim() === b.hostelName.toLowerCase().trim()) ||
+            (w.hostelId && b.hostelId && String(w.hostelId) === String(b.hostelId))
+          );
+
+          let rawMobile = (b.primaryMobileNumber || matchedWarden?.mobileNumber || user?.phone || '').trim();
+          const isDummyMobile = !rawMobile || /^[0\s-]+$/.test(rawMobile) || rawMobile.toLowerCase() === 'n/a' || rawMobile.toLowerCase() === 'null';
+
+          const wardenName = isWarden ? (user?.name || b.wardenName || 'Not Assigned') : (isAssigned ? b.wardenName : 'Not Assigned');
+          const primaryMobile = (isAssigned || isWarden) && !isDummyMobile ? formatPhoneNumber(rawMobile) : 'Not Available';
+
+          // Clean Location display
+          const rawLocation = (b.address || (b as any).location || '').trim();
+          const location = rawLocation && rawLocation !== '-' ? rawLocation : 'Not Available';
+
+          return {
+            'Block Code': b.hostelCode || `BLK-${b.hostelId}`,
+            'Block Name': b.hostelName || `Block #${b.hostelId}`,
+            'Category': b.hostelType || 'Boys Hostel',
+            'Total Floors': (b as any).totalFloors || 1,
+            'Warden Name': wardenName,
+            'Primary Mobile': primaryMobile,
+            'Location': location,
+            'Status': b.status || 'Active'
+          };
+        });
       }
 
       case 'Warden Report': {
+        if (isWarden) {
+          const assignedBlock = targetBlocks[0];
+          const blockName = assignedBlock?.hostelName || 'N/A';
+          const empId = (user as any)?.employeeId || (user as any)?.empId || (assignedBlock?.hostelId ? `EMP-${assignedBlock.hostelId}` : 'N/A');
+          const phone = user?.phone || (user as any)?.mobileNumber || assignedBlock?.primaryMobileNumber || 'Not Available';
+          const email = user?.email || assignedBlock?.email || 'Not Available';
+
+          return [{
+            'Warden Name': user?.name || 'Assigned Warden',
+            'Employee ID': empId,
+            'Assigned Block': blockName,
+            'Mobile Number': phone !== 'N/A' && phone !== 'Not Available' && !/^[0\s-]+$/.test(phone) ? formatPhoneNumber(phone) : 'Not Available',
+            'Email': email,
+            'Assignment Date': 'Active'
+          }];
+        }
+
         if (wardens.length === 0 && reportBlocks.length === 0) return [];
         if (wardens.length > 0) {
           const filteredWardens = isWarden
@@ -221,9 +278,9 @@ export const HostelReportsView: React.FC = () => {
             : wardens;
           return filteredWardens.map(w => ({
             'Warden Name': w.wardenName || 'Warden',
-            'Employee ID': w.employeeId || 'EMP-101',
-            'Assigned Block': w.hostelName || 'Hostel Block',
-            'Mobile Number': w.mobileNumber || 'N/A',
+            'Employee ID': w.employeeId || 'N/A',
+            'Assigned Block': w.hostelName || 'N/A',
+            'Mobile Number': w.mobileNumber ? formatPhoneNumber(w.mobileNumber) : 'N/A',
             'Email': w.emailAddress || 'N/A',
             'Assignment Date': w.createdAt ? w.createdAt.split('T')[0] : 'Active'
           }));
@@ -232,7 +289,7 @@ export const HostelReportsView: React.FC = () => {
           'Warden Name': b.wardenName,
           'Employee ID': `EMP-${b.hostelId}`,
           'Assigned Block': b.hostelName,
-          'Mobile Number': b.primaryMobileNumber || 'N/A',
+          'Mobile Number': b.primaryMobileNumber ? formatPhoneNumber(b.primaryMobileNumber) : 'N/A',
           'Email': b.email || 'N/A',
           'Assignment Date': 'Active'
         }));
@@ -374,58 +431,67 @@ export const HostelReportsView: React.FC = () => {
   };
 
   const handlePdfExport = () => {
-    addToast('success', 'PDF Export Complete', `Exported ${reportData.length} filtered records to PDF`);
-    const link = document.createElement('a');
-    const content = `HOSTEL REPORT - ${selectedReport.toUpperCase()}\nRecords Count: ${reportData.length}\nGenerated: ${new Date().toLocaleString()}\n\n` +
-      reportData.map((r, i) => `${i + 1}. ` + Object.entries(r).map(([k, v]) => `${k}: ${v}`).join(' | ')).join('\n');
-    const blob = new Blob([content], { type: 'text/plain;charset=utf-8;' });
-    link.href = URL.createObjectURL(blob);
-    link.download = `Hostel_${selectedReport.replace(/\s+/g, '_')}_Filtered_Report.txt`;
-    link.click();
+    if (!selectedReport) {
+      addToast('warning', 'Select Report', 'Please select a report category to export.');
+      return;
+    }
+    if (reportData.length === 0) {
+      addToast('warning', 'No Records', 'There are no records to export for the selected filter.');
+      return;
+    }
+
+    try {
+      downloadHostelReportPdf({
+        reportTitle: selectedReport,
+        data: reportData,
+        academicYear: selectedAcademicYear || '2025-2026',
+        blockFilter: effectiveHostel || 'All Blocks',
+        filename: `Hostel_${selectedReport.replace(/\s+/g, '_')}_Report.pdf`
+      });
+      addToast('success', 'PDF Export Complete', `Generated and downloaded formatted PDF with ${reportData.length} records.`);
+    } catch (err: any) {
+      console.error('PDF export failed:', err);
+      addToast('error', 'PDF Export Failed', 'Could not generate formatted PDF report.');
+    }
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in">
+    <div className="space-y-3.5 animate-in fade-in">
       {/* Page Header (Hidden in Print) */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 no-print">
         <div>
-          <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <FileSpreadsheet className="w-6 h-6 text-sky-500" /> Hostel Reports
+          <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
+            <FileSpreadsheet className="w-5 h-5 text-sky-500" /> Hostel Reports
           </h2>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={handlePrint}
-            className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center gap-1.5 shadow-sm"
+            title="Print or save report preview"
+            className="px-3 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center gap-1.5 shadow-sm cursor-pointer transition-colors"
           >
             <Printer className="w-4 h-4 text-sky-600" /> Print
           </button>
 
-          <button
-            onClick={handlePdfExport}
-            className="px-3.5 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center gap-1.5 shadow-sm"
-          >
-            <FileText className="w-4 h-4 text-rose-600" /> Export PDF
-          </button>
-
           <ExportButton
             data={reportData}
-            filename={`Hostel_${selectedReport.replace(/\s+/g, '_')}_Report`}
-            label="Download"
+            filename={`Hostel_${(selectedReport || 'Report').replace(/\s+/g, '_')}_Report`}
+            label="Export Excel"
+            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-50 dark:bg-emerald-500/10 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-500/20 flex items-center gap-1.5 shadow-sm transition-all cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed"
           />
         </div>
       </div>
 
       {/* Filter Bar with Report Selector (Hidden in Print) */}
-      <div className="glass-card p-4 rounded-2xl space-y-4 border border-slate-200 dark:border-slate-800 shadow-sm text-xs no-print">
+      <div className="glass-card p-3 rounded-xl space-y-2.5 border border-slate-200/80 dark:border-slate-800 shadow-xs text-xs no-print">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           
           {/* 1. Hostel Block Filter */}
           <div>
             <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Hostel Block Filter</label>
             {isWarden ? (
-              <div className="w-full px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-xs text-slate-700 dark:text-slate-200 flex items-center h-[38px]">
+              <div className="w-full px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-xs text-slate-700 dark:text-slate-200 flex items-center h-[34px]">
                 {targetBlocks[0]?.hostelName || 'Assigned Hostel Block'}
               </div>
             ) : (
@@ -437,7 +503,7 @@ export const HostelReportsView: React.FC = () => {
                     if (e.target.value !== 'MANUAL') setManualHostelInput('');
                     setCurrentPage(1);
                   }}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-xs cursor-pointer outline-none focus:border-sky-500 h-[38px]"
+                  className="w-full px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-xs cursor-pointer outline-none focus:border-sky-500 h-[34px]"
                 >
                   {blockFilterOptions.map(opt => (
                     <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -466,9 +532,9 @@ export const HostelReportsView: React.FC = () => {
                 setSelectedReport(e.target.value);
                 if (e.target.value !== 'MANUAL') setManualReportInput('');
               }}
-              className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-xs cursor-pointer outline-none focus:border-sky-500 h-[38px]"
+              className="w-full px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-xs cursor-pointer outline-none focus:border-sky-500 h-[34px]"
             >
-              <option value="">-- Select Hostel Report --</option>
+              <option value="">-- Select Hostel Report Category --</option>
               {ENTERPRISE_HOSTEL_REPORTS.map(r => (
                 <option key={r} value={r}>{r}</option>
               ))}
@@ -496,7 +562,7 @@ export const HostelReportsView: React.FC = () => {
                 if (e.target.value !== 'MANUAL') setManualTabInput('');
                 setCurrentPage(1);
               }}
-              className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-xs cursor-pointer outline-none focus:border-sky-500 h-[38px]"
+              className="w-full px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-xs cursor-pointer outline-none focus:border-sky-500 h-[34px]"
             >
               {tabFilterOptions.map(opt => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -517,18 +583,43 @@ export const HostelReportsView: React.FC = () => {
         </div>
 
         <div className="flex flex-col lg:flex-row items-center justify-between gap-4 pt-2 border-t border-slate-100 dark:border-slate-800">
-          <div className="relative w-full">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
-            <input
-              type="text"
-              placeholder="Search hostel report records..."
-              value={searchQuery}
-              onChange={e => {
-                setSearchQuery(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="w-full pl-10 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all"
-            />
+          <div className="flex flex-col w-full">
+            <div className="relative w-full h-[36px]">
+              <Search className={`w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none transition-colors ${searchError ? "text-rose-500" : "text-slate-400"}`} />
+              <input
+                type="text"
+                data-skip-global-validation="true"
+                data-search-input="true"
+                placeholder="Search hostel report records..."
+                value={searchQuery}
+                onChange={e => handleSearchQueryChange(e.target.value)}
+                className={`w-full h-[36px] pl-10 ${searchQuery ? "pr-8" : "pr-4"} rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-semibold text-slate-900 dark:text-white outline-none transition-all ${
+                  searchError
+                    ? "border-rose-500 focus:border-rose-500 ring-1 ring-rose-500/20"
+                    : "border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500"
+                }`}
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setSearchError(undefined);
+                    setCurrentPage(1);
+                  }}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                  title="Clear search"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+            {searchError && (
+              <p className="text-[11px] font-bold text-rose-500 flex items-center gap-1.5 mt-1.5 animate-in fade-in">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>{searchError}</span>
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -547,10 +638,19 @@ export const HostelReportsView: React.FC = () => {
         </div>
       ) : (
         <div id="printable-content" className="glass-card rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 overflow-hidden shadow-md space-y-3 p-4">
-          <SchoolPrintHeader title={`Hostel Report - ${effectiveReportName}`} subtitle={`Total Records: ${reportData.length}`} />
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3 no-print">
-            <h3 className="font-black text-base text-slate-900 dark:text-white">{effectiveReportName}</h3>
-            <span className="text-xs font-bold text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950 px-3 py-1 rounded-full">
+          <SchoolPrintHeader
+            title={`Hostel Report - ${effectiveReportName}`}
+            subtitle={`Total Records: ${reportData.length}`}
+            academicYear={selectedAcademicYear || "2026-27"}
+          />
+          <div className="flex items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-3 px-1 no-print">
+            <div className="flex items-center gap-2.5">
+              <div className="w-2.5 h-2.5 rounded-full bg-sky-500 shrink-0" />
+              <h3 className="font-black text-base sm:text-lg text-slate-900 dark:text-white tracking-tight leading-none">
+                {effectiveReportName}
+              </h3>
+            </div>
+            <span className="text-xs font-bold text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/80 border border-sky-200 dark:border-sky-800/60 px-3 py-1.5 rounded-full shrink-0 flex items-center leading-none">
               Total Records: {reportData.length}
             </span>
           </div>
@@ -561,11 +661,11 @@ export const HostelReportsView: React.FC = () => {
             ) : reportData.length === 0 ? (
               <p className="text-center py-10 text-xs text-slate-400 italic font-semibold">No report records found matching filter.</p>
             ) : (
-              <table className="w-full text-left border-collapse text-xs text-slate-700 dark:text-slate-300">
+              <table className="w-full text-center border-collapse text-xs text-slate-700 dark:text-slate-300">
                 <thead>
                   <tr className="bg-slate-50 dark:bg-slate-800/80 uppercase font-extrabold text-[10px] tracking-wider text-slate-500 border-b border-slate-200 dark:border-slate-800">
                     {Object.keys(reportData[0] || {}).map(key => (
-                      <th key={key} className="py-3 px-4">{key}</th>
+                      <th key={key} className="py-3 px-4 text-center">{key}</th>
                     ))}
                   </tr>
                 </thead>
@@ -573,7 +673,7 @@ export const HostelReportsView: React.FC = () => {
                   {paginatedData.map((row, idx) => (
                     <tr key={idx} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
                       {Object.values(row).map((val: any, valIdx) => (
-                        <td key={valIdx} className="py-3.5 px-4 text-slate-800 dark:text-slate-200 font-semibold">
+                        <td key={valIdx} className="py-2 px-3 text-center text-slate-800 dark:text-slate-200 font-semibold">
                           {String(val)}
                         </td>
                       ))}
@@ -584,8 +684,9 @@ export const HostelReportsView: React.FC = () => {
             )}
           </div>
 
+          {/* Neat Table Footer with Integrated Pagination */}
           {reportData.length > 0 && (
-            <div className="pt-2">
+            <div className="px-5 py-3.5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40 rounded-b-2xl no-print print:hidden">
               <Pagination
                 currentPage={currentPage}
                 totalItems={reportData.length}
@@ -593,6 +694,8 @@ export const HostelReportsView: React.FC = () => {
                 onPageChange={setCurrentPage}
                 onItemsPerPageChange={setItemsPerPage}
                 itemsPerPageOptions={[5, 8, 10, 25, 50]}
+                showBorder={false}
+                className="pt-0 pb-0"
               />
             </div>
           )}

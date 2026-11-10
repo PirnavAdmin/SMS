@@ -1,11 +1,15 @@
 // @ts-nocheck
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Users, Edit, Trash2, Plus, Search, ShieldCheck, History, UserCheck, Layers, Building, Filter } from 'lucide-react';
+import { Users, Edit, Trash2, Plus, Search, ShieldCheck, History, UserCheck, Layers, Building, Filter, Eye, X, AlertCircle } from 'lucide-react';
+import { validateSearchQuery } from '../../../utils/validation';
+import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { Badge } from '../../common/Badge';
 import { ExportButton } from '../../common/ExportButton';
 import { ConfirmModal } from '../../common/ConfirmModal';
 import { DateInput } from '../../common/DateInput';
+import { SearchableSelect } from '../../common/SearchableSelect';
+import { Pagination } from '../../common/Pagination';
 import { getWardens, getStaffCandidates, getHostelBlocks, assignWarden, deleteWarden, HostelBlock, StaffCandidate } from '../../../api/hostel';
 
 interface WardenRecord {
@@ -20,14 +24,69 @@ interface WardenRecord {
   createdAt: string;
 }
 
-export const WardenMasterView: React.FC = () => {
+interface WardenMasterViewProps {
+  selectedHostelFilter?: string;
+  onHostelFilterChange?: (hostelName: string) => void;
+}
+
+export const WardenMasterView: React.FC<WardenMasterViewProps> = ({
+  selectedHostelFilter,
+  onHostelFilterChange
+}) => {
+  const dataContext = useData();
+  const contextStaff = Array.isArray(dataContext?.staff) ? dataContext.staff : [];
   const { addToast } = useToast();
 
   const [activeTab, setActiveTab] = useState<'current' | 'history'>('current');
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterHostel, setFilterHostel] = useState('');
+  const [searchError, setSearchError] = useState<string | undefined>(undefined);
+
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  const handleSearchQueryChange = (val: string) => {
+    setCurrentPage(1);
+    setSearchQuery(val);
+    if (!val.trim()) {
+      setSearchError(undefined);
+    } else {
+      const res = validateSearchQuery(val, 30);
+      setSearchError(res.isValid ? undefined : (res.error || 'Enter a valid search term.'));
+    }
+  };
+  const [localFilterHostel, setLocalFilterHostel] = useState(() => {
+    try {
+      const saved = localStorage.getItem('hostel_warden_filter') || localStorage.getItem('hostel_master_selected_filter') || '';
+      return (saved === 'All' || saved === 'ALL_HOSTELS') ? 'ALL_HOSTELS' : saved;
+    } catch {
+      return '';
+    }
+  });
+
+  const filterHostel = selectedHostelFilter !== undefined
+    ? ((selectedHostelFilter === 'All' || selectedHostelFilter === 'ALL_HOSTELS') ? 'ALL_HOSTELS' : selectedHostelFilter)
+    : localFilterHostel;
+
   const [manualHostelInput, setManualHostelInput] = useState('');
   const effectiveHostel = filterHostel === 'MANUAL' ? manualHostelInput : filterHostel;
+
+  const handleFilterHostelChange = (val: string) => {
+    setCurrentPage(1);
+    setLocalFilterHostel(val);
+    try {
+      localStorage.setItem('hostel_warden_filter', val);
+      if (val === 'ALL_HOSTELS') {
+        localStorage.setItem('hostel_master_selected_filter', 'All');
+      } else if (val && val !== 'MANUAL') {
+        localStorage.setItem('hostel_master_selected_filter', val);
+      }
+    } catch {}
+    if (onHostelFilterChange) {
+      onHostelFilterChange(val === 'ALL_HOSTELS' ? 'All' : val);
+    }
+    if (val !== 'MANUAL') setManualHostelInput('');
+  };
 
   const [wardens, setWardens] = useState<WardenRecord[]>([]);
   const [staffList, setStaffList] = useState<StaffCandidate[]>([]);
@@ -39,8 +98,8 @@ export const WardenMasterView: React.FC = () => {
 
   const [selectedStaffId, setSelectedStaffId] = useState('');
   const [selectedHostelId, setSelectedHostelId] = useState('');
-  const [selectedBlock, setSelectedBlock] = useState('Block A');
-  const [selectedFloor, setSelectedFloor] = useState('Floor 1');
+  const [selectedBlock, setSelectedBlock] = useState('');
+  const [selectedFloor, setSelectedFloor] = useState('');
   const [assignmentDate, setAssignmentDate] = useState('');
 
   const fetchData = useCallback(async () => {
@@ -66,6 +125,7 @@ export const WardenMasterView: React.FC = () => {
   }, [fetchData]);
 
   const filteredWardens = useMemo(() => {
+    if (searchError) return [];
     if (!filterHostel && !searchQuery.trim()) return [];
     return wardens.map(w => {
       const matchedStaff = staffList.find(s => 
@@ -94,40 +154,84 @@ export const WardenMasterView: React.FC = () => {
         (w.wardenName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
         (w.employeeId || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
         (w.hostelName || '').toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesHostel = !effectiveHostel || effectiveHostel === 'ALL_HOSTELS' || (w.hostelName || '').toLowerCase().includes(effectiveHostel.toLowerCase().trim());
+      const matchesHostel = !effectiveHostel || effectiveHostel === 'ALL_HOSTELS' || effectiveHostel === 'All' || (w.hostelName || '').toLowerCase().includes(effectiveHostel.toLowerCase().trim());
       return matchesSearch && matchesHostel;
     });
-  }, [wardens, staffList, hostels, searchQuery, filterHostel, effectiveHostel]);
+  }, [wardens, staffList, hostels, searchQuery, searchError, filterHostel, effectiveHostel]);
+
+  const paginatedWardens = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredWardens.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredWardens, currentPage, itemsPerPage]);
 
   const wardenCandidates = useMemo(() => {
-    const predefinedWardens = [
-      { staffId: 101, employeeId: 'STF-2026-NTS-01', staffName: 'Dr. Eleanor Vance', designation: 'Chief Hostel Warden' },
-      { staffId: 102, employeeId: 'STF-2026-NTS-02', staffName: 'Rajesh Kumar', designation: 'Senior Hostel Warden' },
-      { staffId: 103, employeeId: 'STF-2026-NTS-03', staffName: 'Savitri Devi', designation: 'Girls Hostel Warden' },
-      { staffId: 104, employeeId: 'STF-2026-NTS-04', staffName: 'Vikram Singh', designation: 'Assistant Hostel Warden' },
-    ];
+    // 100% dynamic candidates from backend API & DataContext staff list (zero hardcoded mock wardens)
+    const combinedList: any[] = [];
+    const seenIds = new Set<string>();
 
-    const fromStaffList = (staffList || [])
-      .filter(s => {
-        const desig = (s.designation || '').toLowerCase();
-        const role = ((s as any).role || '').toLowerCase();
-        const cat = ((s as any).employeeCategory || '').toLowerCase();
-        return desig.includes('warden') || role.includes('warden') || cat.includes('warden');
-      })
-      .map(s => ({
-        ...s,
-        designation: s.designation || 'Hostel Warden'
+    const pushItem = (item: any) => {
+      if (!item) return;
+      const sId = String(item.staffId ?? item.id ?? '');
+      if (!sId || seenIds.has(sId)) return;
+      seenIds.add(sId);
+      combinedList.push(item);
+    };
+
+    (staffList || []).forEach(pushItem);
+    contextStaff.forEach((cs: any) => {
+      pushItem({
+        staffId: Number(cs.id) || cs.staffId,
+        employeeId: cs.empId || cs.employeeId,
+        staffName: cs.name || cs.staffName,
+        designation: cs.designation,
+        phone: cs.phone || cs.mobileNumber,
+        email: cs.email || cs.emailAddress,
+        role: cs.role,
+        employeeCategory: cs.employeeCategory,
+        department: cs.department
+      });
+    });
+
+    // ONLY hostel wardens (strictly filtering out teachers, drivers, attendants, accountants, etc.)
+    const onlyHostelWardens = combinedList.filter(s => {
+      const desig = (s.designation || '').toLowerCase().trim();
+      const role = ((s as any).role || '').toLowerCase().trim();
+      const cat = ((s as any).employeeCategory || '').toLowerCase().trim();
+      return desig.includes('warden') || role.includes('warden') || cat.includes('warden');
+    });
+
+    return onlyHostelWardens.map(s => ({
+      staffId: s.staffId ?? Number(s.id),
+      employeeId: s.employeeId || s.empId || `STF-${s.staffId || s.id}`,
+      staffName: s.staffName || s.name || `${(s as any).firstName || ''} ${(s as any).lastName || ''}`.trim() || 'Staff Member',
+      designation: s.designation || 'Hostel Warden',
+      phone: s.phone || s.mobileNumber || '',
+      email: s.email || s.emailAddress || ''
+    }));
+  }, [staffList, contextStaff]);
+
+  const wardenSelectOptions = useMemo(() => {
+    return wardenCandidates.map(s => ({
+      value: String(s.staffId),
+      label: `${s.staffName} (${s.designation || 'Hostel Warden'})`,
+      code: s.employeeId
+    }));
+  }, [wardenCandidates]);
+
+  const hostelSelectOptions = useMemo(() => {
+    return hostels
+      .filter(h => h && h.hostelId && h.hostelName && !h.hostelName.includes('undefined'))
+      .map(h => ({
+        value: String(h.hostelId),
+        label: `${h.hostelName} (${h.hostelType || 'Hostel'})`
       }));
-
-    const combined = [...predefinedWardens, ...fromStaffList];
-    return Array.from(new Map(combined.map(item => [item.staffId, item])).values());
-  }, [staffList]);
+  }, [hostels]);
 
   const handleOpenAdd = () => {
     setSelectedStaffId('');
     setSelectedHostelId('');
-    setSelectedBlock('Block A');
-    setSelectedFloor('Floor 1');
+    setSelectedBlock('');
+    setSelectedFloor('');
     setAssignmentDate('');
     setIsModalOpen(true);
   };
@@ -189,17 +293,17 @@ export const WardenMasterView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in">
+    <div className="space-y-3.5 animate-in fade-in">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <ShieldCheck className="w-6 h-6 text-sky-500" /> Wardens
+          <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
+            <ShieldCheck className="w-5 h-5 text-sky-500" /> Wardens
           </h2>
           </div>
         <div className="flex items-center gap-3">
           <button
             onClick={handleOpenAdd}
-            className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-lg shadow-sky-500/20 flex items-center gap-1.5 transition-all"
+            className="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-sm flex items-center gap-1.5 transition-all"
           >
             <Plus className="w-4 h-4" /> Assign Warden
           </button>
@@ -207,31 +311,55 @@ export const WardenMasterView: React.FC = () => {
         </div>
       </div>
 
-      <div className="glass-card p-4 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4">
-        <div className="relative w-full md:w-64">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-          <input
-            type="text"
-            placeholder="Search warden by name, ID, hostel..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-sky-500"
-          />
+      <div className="glass-card p-3 rounded-xl flex flex-col md:flex-row items-start justify-between gap-2.5 border border-slate-200/80 dark:border-slate-800 shadow-xs">
+        <div className="flex flex-col w-full md:w-64">
+          <div className="relative w-full h-[36px]">
+            <Search className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none transition-colors ${searchError ? "text-rose-500" : "text-slate-400"}`} />
+            <input
+              type="text"
+              data-skip-global-validation="true"
+              data-search-input="true"
+              placeholder="Search warden by name, ID, hostel..."
+              value={searchQuery}
+              onChange={e => handleSearchQueryChange(e.target.value)}
+              className={`w-full h-[36px] pl-9 ${searchQuery ? "pr-8" : "pr-4"} rounded-lg bg-slate-50 dark:bg-slate-800 border text-xs font-semibold text-slate-900 dark:text-white outline-none transition-all ${
+                searchError
+                  ? "border-rose-500 focus:border-rose-500 ring-1 ring-rose-500/20"
+                  : "border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500"
+              }`}
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery('');
+                  setSearchError(undefined);
+                }}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                title="Clear search"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+          {searchError && (
+            <p className="text-[11px] font-bold text-rose-500 flex items-center gap-1.5 mt-1.5 animate-in fade-in">
+              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+              <span>{searchError}</span>
+            </p>
+          )}
         </div>
 
         <div className="flex flex-col sm:flex-row items-center gap-2 w-full md:w-auto">
           <select
             value={filterHostel}
-            onChange={e => {
-              setFilterHostel(e.target.value);
-              if (e.target.value !== 'MANUAL') setManualHostelInput('');
-            }}
-            className="px-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white cursor-pointer outline-none focus:border-sky-500 min-w-[180px]"
+            onChange={e => handleFilterHostelChange(e.target.value)}
+            className="px-3 py-1.5 rounded-lg bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 text-xs font-bold text-sky-900 dark:text-sky-100 cursor-pointer outline-none hover:border-sky-400 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 min-w-[180px] h-[36px] transition-all"
           >
-            <option value="">-- Select Hostel --</option>
-            <option value="ALL_HOSTELS">All Hostels</option>
-            {hostels.map(h => <option key={h.hostelId} value={h.hostelName}>{h.hostelName}</option>)}
-            <option value="MANUAL">✍️ Custom / Manual Entry</option>
+            <option value="" className="bg-white text-slate-800 dark:bg-slate-900 dark:text-slate-100">-- Select Hostel --</option>
+            <option value="ALL_HOSTELS" className="bg-white text-slate-800 dark:bg-slate-900 dark:text-slate-100">All Hostels</option>
+            {hostels.map(h => <option key={h.hostelId} value={h.hostelName} className="bg-white text-slate-800 dark:bg-slate-900 dark:text-slate-100">{h.hostelName}</option>)}
+            <option value="MANUAL" className="bg-white text-slate-800 dark:bg-slate-900 dark:text-slate-100">✍️ Custom / Manual Entry</option>
           </select>
 
           {filterHostel === 'MANUAL' && (
@@ -257,18 +385,28 @@ export const WardenMasterView: React.FC = () => {
               Please select a hostel block from the filter dropdown above or use search/manual entry to load warden records.
             </p>
           </div>
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={() => handleFilterHostelChange('ALL_HOSTELS')}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-md shadow-sky-500/20 transition-all cursor-pointer hover:shadow-lg active:scale-95"
+            >
+              <Eye className="w-4 h-4" />
+              <span>View All Wardens</span>
+            </button>
+          </div>
         </div>
       ) : (
         <div className="glass-card rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+            <table className="w-full text-center text-xs">
               <thead>
                 <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
-                  <th className="py-3.5 px-4">Employee ID</th>
-                  <th className="py-3.5 px-4">Warden Name</th>
-                  <th className="py-3.5 px-4">Mobile & Email</th>
-                  <th className="py-3.5 px-4">Assigned Hostel</th>
-                  <th className="py-3.5 px-4 text-right">Actions</th>
+                  <th className="py-3.5 px-4 text-center">Employee ID</th>
+                  <th className="py-3.5 px-4 text-center">Warden Name</th>
+                  <th className="py-3.5 px-4 text-center">Mobile & Email</th>
+                  <th className="py-3.5 px-4 text-center">Assigned Hostel</th>
+                  <th className="py-3.5 px-4 text-center">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
@@ -281,17 +419,17 @@ export const WardenMasterView: React.FC = () => {
                     <td colSpan={5} className="py-8 text-center text-slate-400 italic">No warden assignments found matching filter.</td>
                   </tr>
                 ) : (
-                  filteredWardens.map(a => (
+                  paginatedWardens.map(a => (
                     <tr key={a.wardenId} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                      <td className="py-3 px-4 font-mono font-bold text-slate-500">{a.employeeId}</td>
-                      <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{a.wardenName}</td>
-                      <td className="py-3 px-4">
+                      <td className="py-3 px-4 text-center font-mono font-bold text-slate-500">{a.employeeId}</td>
+                      <td className="py-3 px-4 text-center font-bold text-slate-900 dark:text-white">{a.wardenName}</td>
+                      <td className="py-3 px-4 text-center">
                         <p className="font-mono font-bold text-sky-600">{a.mobileNumber}</p>
                         <p className="text-[10px] text-slate-400">{a.emailAddress}</p>
                       </td>
-                      <td className="py-3 px-4 font-bold text-sky-600 dark:text-sky-400">{a.hostelName}</td>
-                      <td className="py-3 px-4 text-right">
-                        <div className="flex items-center justify-end gap-1">
+                      <td className="py-3 px-4 text-center font-bold text-sky-600 dark:text-sky-400">{a.hostelName}</td>
+                      <td className="py-3 px-4 text-center">
+                        <div className="flex items-center justify-center gap-1 mx-auto">
                           <button onClick={() => setDeletingWarden(a)} className="p-1.5 rounded hover:bg-rose-50 text-rose-600" title="Revoke Assignment"><Trash2 className="w-3.5 h-3.5" /></button>
                         </div>
                       </td>
@@ -301,6 +439,20 @@ export const WardenMasterView: React.FC = () => {
               </tbody>
             </table>
           </div>
+
+          {/* Neat Table Footer with Integrated Pagination */}
+          {filteredWardens.length > 0 && (
+            <div className="px-5 py-3.5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40 rounded-b-2xl">
+              <Pagination
+                currentPage={currentPage}
+                totalItems={filteredWardens.length}
+                itemsPerPage={itemsPerPage}
+                onPageChange={setCurrentPage}
+                showBorder={false}
+                className="pt-0 pb-0"
+              />
+            </div>
+          )}
         </div>
       )}
 
@@ -319,28 +471,14 @@ export const WardenMasterView: React.FC = () => {
                 <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
                   Select Hostel Warden <span className="text-rose-500 font-bold ml-0.5">*</span>
                 </label>
-                <select
+                <SearchableSelect
                   value={selectedStaffId}
-                  onChange={e => setSelectedStaffId(e.target.value)}
-                  required
-                  className={`w-full max-w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold truncate outline-none cursor-pointer focus:ring-2 focus:ring-sky-500 transition-all ${
-                    !selectedStaffId
-                      ? 'text-slate-400 dark:text-slate-500 font-normal'
-                      : 'text-slate-900 dark:text-white'
-                  }`}
-                >
-                  <option value="" disabled hidden className="text-slate-400 dark:text-slate-500">
-                    Select Hostel Warden
-                  </option>
-                  <option value="" className="text-slate-400 dark:text-slate-500">
-                    Select Hostel Warden
-                  </option>
-                  {wardenCandidates.map(s => (
-                    <option key={s.staffId} value={s.staffId} className="text-slate-900 dark:text-white font-medium">
-                      {s.staffName} ({s.designation})
-                    </option>
-                  ))}
-                </select>
+                  onChange={val => setSelectedStaffId(val)}
+                  options={wardenSelectOptions}
+                  placeholder="Select Hostel Warden"
+                  searchPlaceholder="Search hostel warden..."
+                  showSearch={true}
+                />
                 <p className="text-[10px] font-semibold text-slate-400 mt-1">Dedicated Hostel Warden directory auto-loaded for assignment.</p>
               </div>
 
@@ -348,30 +486,14 @@ export const WardenMasterView: React.FC = () => {
                 <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
                   Select Hostel Block <span className="text-rose-500 font-bold ml-0.5">*</span>
                 </label>
-                <select
+                <SearchableSelect
                   value={selectedHostelId}
-                  onChange={e => setSelectedHostelId(e.target.value)}
-                  required
-                  className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold truncate outline-none cursor-pointer focus:ring-2 focus:ring-sky-500 transition-all ${
-                    !selectedHostelId
-                      ? 'text-slate-400 dark:text-slate-500 font-normal'
-                      : 'text-sky-600 dark:text-sky-400'
-                  }`}
-                >
-                  <option value="" disabled hidden className="text-slate-400 dark:text-slate-500">
-                    Select Hostel Block
-                  </option>
-                  <option value="" className="text-slate-400 dark:text-slate-500">
-                    Select Hostel Block
-                  </option>
-                  {hostels
-                    .filter(h => h && h.hostelId && h.hostelName && !h.hostelName.includes('undefined'))
-                    .map(h => (
-                      <option key={h.hostelId} value={h.hostelId} className="text-slate-900 dark:text-white font-medium">
-                        {h.hostelName} ({h.hostelType || 'Boys Hostel'})
-                      </option>
-                    ))}
-                </select>
+                  onChange={val => setSelectedHostelId(val)}
+                  options={hostelSelectOptions}
+                  placeholder="Select Hostel Block"
+                  searchPlaceholder="Search hostel block..."
+                  showSearch={true}
+                />
               </div>
 
               <div>
@@ -383,7 +505,7 @@ export const WardenMasterView: React.FC = () => {
                   onChange={e => setAssignmentDate(e.target.value)}
                   placeholder="Select Assignment Date"
                   required
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 placeholder:font-normal outline-none focus:ring-2 focus:ring-sky-500 transition-all"
+                  className="w-full px-3 py-2 rounded-xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 font-bold text-sky-900 dark:text-sky-100 placeholder:text-sky-400 placeholder:font-normal outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
                 />
               </div>
 

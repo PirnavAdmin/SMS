@@ -113,11 +113,16 @@ public class DashboardService : IDashboardService
         {
             var cleanYear = academicYearContext.Trim().ToLower().Replace(" ", "");
             var startYear = cleanYear.Length >= 4 ? cleanYear.Substring(0, 4) : cleanYear;
-            admissionAppsQuery = admissionAppsQuery.Where(a => a.AppliedClass != null && a.AppliedClass.AcademicYear != null &&
+            admissionAppsQuery = admissionAppsQuery.Where(a => 
+                (a.AcademicYear != null && (a.AcademicYear.ToLower().Replace(" ", "") == cleanYear ||
+                                           a.AcademicYear.ToLower().Replace(" ", "").Contains(cleanYear) ||
+                                           cleanYear.Contains(a.AcademicYear.ToLower().Replace(" ", "")) ||
+                                           a.AcademicYear.StartsWith(startYear))) ||
+                (a.AppliedClass != null && a.AppliedClass.AcademicYear != null &&
                 (a.AppliedClass.AcademicYear.ToLower().Replace(" ", "") == cleanYear ||
                  a.AppliedClass.AcademicYear.ToLower().Replace(" ", "").Contains(cleanYear) ||
                  cleanYear.Contains(a.AppliedClass.AcademicYear.ToLower().Replace(" ", "")) ||
-                 a.AppliedClass.AcademicYear.StartsWith(startYear)));
+                 a.AppliedClass.AcademicYear.StartsWith(startYear))));
         }
 
         var candidateAdmissions = await admissionAppsQuery.ToListAsync(cancellationToken);
@@ -198,11 +203,16 @@ public class DashboardService : IDashboardService
         {
             var cleanYear = academicYearContext.Trim().ToLower().Replace(" ", "");
             var startYear = cleanYear.Length >= 4 ? cleanYear.Substring(0, 4) : cleanYear;
-            admQuery = admQuery.Where(a => a.AppliedClass == null || string.IsNullOrWhiteSpace(a.AppliedClass.AcademicYear) ||
-                                           a.AppliedClass.AcademicYear.ToLower().Replace(" ", "") == cleanYear ||
-                                           a.AppliedClass.AcademicYear.ToLower().Replace(" ", "").Contains(cleanYear) ||
-                                           cleanYear.Contains(a.AppliedClass.AcademicYear.ToLower().Replace(" ", "")) ||
-                                           a.AppliedClass.AcademicYear.StartsWith(startYear));
+            admQuery = admQuery.Where(a => 
+                (a.AcademicYear != null && (a.AcademicYear.ToLower().Replace(" ", "") == cleanYear ||
+                                           a.AcademicYear.ToLower().Replace(" ", "").Contains(cleanYear) ||
+                                           cleanYear.Contains(a.AcademicYear.ToLower().Replace(" ", "")) ||
+                                           a.AcademicYear.StartsWith(startYear))) ||
+                (a.AppliedClass != null && a.AppliedClass.AcademicYear != null &&
+                (a.AppliedClass.AcademicYear.ToLower().Replace(" ", "") == cleanYear ||
+                 a.AppliedClass.AcademicYear.ToLower().Replace(" ", "").Contains(cleanYear) ||
+                 cleanYear.Contains(a.AppliedClass.AcademicYear.ToLower().Replace(" ", "")) ||
+                 a.AppliedClass.AcademicYear.StartsWith(startYear))));
         }
 
         var admStatusCounts = await admQuery

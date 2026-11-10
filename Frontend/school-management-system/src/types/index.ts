@@ -33,6 +33,11 @@ export interface User {
   id: string;
   empId?: string;
   staffId?: number;
+  studentId?: number;
+  admissionNo?: string;
+  rollNo?: string;
+  className?: string;
+  section?: string;
   name: string;
   email: string;
   role: Role;

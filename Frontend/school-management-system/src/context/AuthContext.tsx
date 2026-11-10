@@ -38,7 +38,8 @@ const defaultAdminUser: User = {
 
 export const normalizeUserRole = (roleStr: string): UserRole => {
   const clean = (roleStr || "").toLowerCase().replace(/[_\s-]+/g, " ").trim();
-  if (clean === "superadmin" || clean === "super admin" || clean === "admin") return "Admin";
+  if (clean === "superadmin" || clean === "super admin") return "Super Admin";
+  if (clean === "admin") return "Admin";
   if (clean === "principal") return "Principal";
   if (clean === "teacher" || clean === "faculty") return "Teacher";
   if (clean === "warden" || clean === "hostel warden" || clean === "hostelwarden") return "Hostel Warden";
@@ -108,21 +109,27 @@ export const isTokenValid = (): boolean => {
     }
   } catch {}
 
+  if (hasValidJwtExp) return true;
+
   // 2. Check 24-hour token timestamp
   const timestampStr = localStorage.getItem('auth_token_timestamp');
   if (timestampStr) {
     const timestamp = Number(timestampStr);
     if (!isNaN(timestamp)) {
       const age = Date.now() - timestamp;
-      if (age < 0 || age >= TOKEN_EXPIRATION_MS) {
+      if (age >= TOKEN_EXPIRATION_MS) {
         return false;
       }
       return true;
     }
+  } else {
+    try {
+      localStorage.setItem('auth_token_timestamp', String(Date.now()));
+    } catch {}
+    return true;
   }
 
-  // If JWT had an unexpired exp, consider it valid even if timestamp was missing
-  return hasValidJwtExp;
+  return true;
 };
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -388,6 +395,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     const checkSessionValidity = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
       if (token && !isTokenValid()) {
         console.warn('Session expired: token duration reached.');
         try {
@@ -480,12 +488,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       const empIdStr = response?.employeeId || response?.empId || undefined;
       const staffIdVal = response?.staffId ? Number(response.staffId) : undefined;
+      const studentIdVal = response?.studentId ? Number(response.studentId) : undefined;
+      const studentAdmNo = response?.admissionNo || (response as any)?.admissionNumber || undefined;
+      const studentRollNo = response?.rollNo || response?.employeeId || (response as any)?.rollNumber || undefined;
+      const studentClassName = response?.className || (response as any)?.class || undefined;
+      const studentSection = response?.section || (response as any)?.sectionName || undefined;
       const userBranch = response?.branch || savedProfile?.branch || selectedBranch || '';
 
       const loggedUser: User = {
-        id: userIdStr,
+        id: (mappedRole === 'Student' && studentIdVal) ? String(studentIdVal) : userIdStr,
         empId: empIdStr,
         staffId: staffIdVal,
+        studentId: studentIdVal,
+        admissionNo: studentAdmNo,
+        rollNo: studentRollNo,
+        className: studentClassName,
+        section: studentSection,
         name: userName,
         email: loginEmail || (emailOrPhone.includes('@') ? emailOrPhone : ''),
         phone: userPhone,

@@ -40,7 +40,7 @@ public interface ISchoolRepository
     void RemoveClassGrade(ClassGrade classGrade);
 
     // Admissions Operations
-    Task<List<AdmissionApplication>> GetAllApplicationsAsync(string? search, string? branch, int? classId, string? status);
+    Task<List<AdmissionApplication>> GetAllApplicationsAsync(string? search, string? branch, int? classId, string? status, string? academicYear = null);
     Task<AdmissionApplication?> GetApplicationByIdAsync(int id);
     Task<AdmissionApplication?> GetApplicationByIdentifierAsync(string identifier);
     Task AddApplicationAsync(AdmissionApplication application);

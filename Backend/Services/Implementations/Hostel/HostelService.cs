@@ -190,7 +190,7 @@ public class HostelService : IHostelService
             AlternateMobileNumber = dto.AlternateMobileNumber?.Trim(),
             Email = dto.Email?.Trim(),
             Status = string.IsNullOrWhiteSpace(dto.Status) ? "Active" : dto.Status.Trim(),
-            Address = dto.Address?.Trim(),
+            Address = !string.IsNullOrWhiteSpace(dto.Address) ? string.Join(", ", dto.Address.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).Select(s => s.Trim()).Distinct()) : null,
             CreatedAt = DateTime.UtcNow
         };
 
@@ -665,16 +665,10 @@ public class HostelService : IHostelService
                 paidAmount = app.SecurityDepositAmount ?? requiredDeposit;
             }
 
-            // RULE 2: SECURITY FEE PAYMENT VERIFICATION
-            // Consider paid ONLY when recorded successful payments satisfy required security fee amount
+            // RULE 2: SECURITY FEE PAYMENT VERIFICATION & ELIGIBILITY
             bool isDepositPaid = (requiredDeposit > 0 && paidAmount >= requiredDeposit) ||
-                                 (app.HostelSecurityDepositPaid && paidAmount >= (app.SecurityDepositAmount ?? requiredDeposit));
-
-            if (!isDepositPaid)
-            {
-                // Not eligible!
-                continue;
-            }
+                                 (app.HostelSecurityDepositPaid && paidAmount >= (app.SecurityDepositAmount ?? requiredDeposit)) ||
+                                 (requiredDeposit == 0);
 
             var dedupKey = !string.IsNullOrWhiteSpace(admNo) ? admNo : $"{stName}__{className}";
             if (processedKeys.Contains(dedupKey)) continue;
@@ -693,8 +687,8 @@ public class HostelService : IHostelService
                 StudentType = "Residential",
                 RequiredSecurityDeposit = requiredDeposit,
                 PaidSecurityDeposit = paidAmount,
-                IsSecurityDepositPaid = true,
-                PaymentStatus = "Paid",
+                IsSecurityDepositPaid = isDepositPaid,
+                PaymentStatus = isDepositPaid ? "Paid" : (paidAmount > 0 ? "Partial" : "Pending"),
                 HostelBlock = app.HostelBlock,
                 HostelRoom = app.HostelRoom,
                 BedNumber = app.AllocatedBedId
@@ -729,49 +723,91 @@ public class HostelService : IHostelService
 
         if (_context != null)
         {
-            if (dto.StudentId > 0)
+            var cleanAdmNo = dto.AdmissionNo?.Trim();
+            var cleanName = dto.StudentName?.Trim();
+
+            // 1. Highest priority: Match by unique Admission Number if provided
+            if (!string.IsNullOrWhiteSpace(cleanAdmNo))
             {
-                studentApp = await _context.AdmissionApplications.Include(a => a.AppliedClass).FirstOrDefaultAsync(a => a.Id == dto.StudentId);
-                if (studentApp == null)
+                enrolledStudent = await _context.Students
+                    .Include(s => s.ClassGrade)
+                    .Include(s => s.ClassSection)
+                    .FirstOrDefaultAsync(s => s.AdmissionNumber == cleanAdmNo);
+
+                studentApp = await _context.AdmissionApplications
+                    .Include(a => a.AppliedClass)
+                    .FirstOrDefaultAsync(a => a.AdmissionNo == cleanAdmNo);
+            }
+
+            // 2. Second priority: Match by StudentId (with name disambiguation to avoid ID collision)
+            if (enrolledStudent == null && studentApp == null && dto.StudentId > 0)
+            {
+                // First check enrolled Students table
+                var candStudent = await _context.Students
+                    .Include(s => s.ClassGrade)
+                    .Include(s => s.ClassSection)
+                    .FirstOrDefaultAsync(s => s.StudentId == dto.StudentId);
+
+                // If candidate student exists and matches studentName (if provided), accept it
+                if (candStudent != null && (string.IsNullOrWhiteSpace(cleanName) || candStudent.StudentName.Equals(cleanName, StringComparison.OrdinalIgnoreCase)))
                 {
-                    enrolledStudent = await _context.Students
-                        .Include(s => s.ClassGrade)
-                        .Include(s => s.ClassSection)
-                        .FirstOrDefaultAsync(s => s.StudentId == dto.StudentId);
-                    if (enrolledStudent != null)
+                    enrolledStudent = candStudent;
+                    if (!string.IsNullOrWhiteSpace(candStudent.AdmissionNumber))
                     {
                         studentApp = await _context.AdmissionApplications
-                            .FirstOrDefaultAsync(a => a.AdmissionNo == enrolledStudent.AdmissionNumber);
+                            .Include(a => a.AppliedClass)
+                            .FirstOrDefaultAsync(a => a.AdmissionNo == candStudent.AdmissionNumber);
+                    }
+                }
+                else
+                {
+                    // Check AdmissionApplications
+                    var candApp = await _context.AdmissionApplications
+                        .Include(a => a.AppliedClass)
+                        .FirstOrDefaultAsync(a => a.Id == dto.StudentId);
+
+                    if (candApp != null && (string.IsNullOrWhiteSpace(cleanName) || $"{candApp.FirstName} {candApp.LastName}".Trim().Equals(cleanName, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        studentApp = candApp;
+                        if (!string.IsNullOrWhiteSpace(candApp.AdmissionNo))
+                        {
+                            enrolledStudent = await _context.Students
+                                .Include(s => s.ClassGrade)
+                                .Include(s => s.ClassSection)
+                                .FirstOrDefaultAsync(s => s.AdmissionNumber == candApp.AdmissionNo);
+                        }
+                    }
+                    else if (candStudent != null)
+                    {
+                        enrolledStudent = candStudent;
+                    }
+                    else if (candApp != null)
+                    {
+                        studentApp = candApp;
                     }
                 }
             }
 
-            if (studentApp == null && !string.IsNullOrWhiteSpace(dto.AdmissionNo))
+            // 3. Third priority: Disambiguate or match by StudentName
+            if (enrolledStudent == null && studentApp == null && !string.IsNullOrWhiteSpace(cleanName))
             {
-                studentApp = await _context.AdmissionApplications
-                    .Include(a => a.AppliedClass)
-                    .FirstOrDefaultAsync(a => a.AdmissionNo == dto.AdmissionNo.Trim());
-                if (enrolledStudent == null)
-                {
-                    enrolledStudent = await _context.Students
-                        .Include(s => s.ClassGrade)
-                        .Include(s => s.ClassSection)
-                        .FirstOrDefaultAsync(s => s.AdmissionNumber == dto.AdmissionNo.Trim());
-                }
-            }
-
-            if (studentApp == null && !string.IsNullOrWhiteSpace(dto.StudentName))
-            {
-                var trimmedName = dto.StudentName.Trim().ToLowerInvariant();
+                var trimmedName = cleanName.ToLowerInvariant();
                 studentApp = await _context.AdmissionApplications
                     .Include(a => a.AppliedClass)
                     .FirstOrDefaultAsync(a => (a.FirstName + " " + a.LastName).ToLower() == trimmedName);
-                if (enrolledStudent == null && studentApp != null)
+                if (studentApp != null)
                 {
                     enrolledStudent = await _context.Students
                         .Include(s => s.ClassGrade)
                         .Include(s => s.ClassSection)
                         .FirstOrDefaultAsync(s => s.AdmissionNumber == studentApp.AdmissionNo);
+                }
+                else
+                {
+                    enrolledStudent = await _context.Students
+                        .Include(s => s.ClassGrade)
+                        .Include(s => s.ClassSection)
+                        .FirstOrDefaultAsync(s => s.StudentName.ToLower() == trimmedName);
                 }
             }
         }
@@ -847,13 +883,23 @@ public class HostelService : IHostelService
             {
                 paidDeposit = studentApp.SecurityDepositAmount ?? requiredDeposit;
             }
+            else if (studentApp?.HostelSecurityDepositPaid == true && paidDeposit == 0m)
+            {
+                paidDeposit = requiredDeposit > 0 ? requiredDeposit : (studentApp.SecurityDepositAmount ?? 0m);
+            }
 
             bool isDepositFullyPaid = (requiredDeposit > 0 && paidDeposit >= requiredDeposit) ||
-                                      (studentApp?.HostelSecurityDepositPaid == true && paidDeposit >= (studentApp.SecurityDepositAmount ?? requiredDeposit));
+                                      (studentApp?.HostelSecurityDepositPaid == true && paidDeposit >= (studentApp.SecurityDepositAmount ?? requiredDeposit)) ||
+                                      (requiredDeposit <= 0);
 
-            if (!isDepositFullyPaid)
+            if (requiredDeposit > 0 && !isDepositFullyPaid)
             {
                 throw new InvalidOperationException($"Student '{stName}' has not fully paid the required hostel security deposit of {requiredDeposit:C}. Current paid amount: {paidDeposit:C}. Room and bed allocation is locked until security deposit is paid in full.");
+            }
+
+            if (studentApp != null && isDepositFullyPaid)
+            {
+                studentApp.HostelSecurityDepositPaid = true;
             }
         }
 
@@ -1180,10 +1226,10 @@ public class HostelService : IHostelService
                 var w = wardens.FirstOrDefault(w => w.HostelId == h.HostelId);
                 return new HostelReportItemDto
                 {
-                    BlockCode = h.HostelCode ?? "HST-01",
-                    BlockName = h.HostelName ?? "Block A",
-                    HostelName = h.HostelName ?? "Hostel Facility",
-                    FloorsCount = 3,
+                    BlockCode = h.HostelCode ?? "",
+                    BlockName = h.HostelName ?? "",
+                    HostelName = h.HostelName ?? "",
+                    FloorsCount = h.TotalFloors > 0 ? h.TotalFloors : 1,
                     AssignedSupervisor = w?.WardenName ?? h.WardenName ?? "Unassigned",
                     SupervisorMobile = w?.MobileNumber ?? h.PrimaryMobileNumber ?? "N/A",
                     Status = h.Status ?? "Active"
@@ -1233,9 +1279,9 @@ public class HostelService : IHostelService
                 return new HostelReportItemDto
                 {
                     AssignedSupervisor = w?.WardenName ?? h.WardenName ?? "Unassigned",
-                    EmployeeId = w?.Staff?.EmployeeId ?? "EMP-101",
-                    BlockName = h.HostelName ?? "Block A",
-                    HostelName = h.HostelName ?? "Hostel Facility",
+                    EmployeeId = w?.Staff?.EmployeeId ?? "N/A",
+                    BlockName = h.HostelName ?? "",
+                    HostelName = h.HostelName ?? "",
                     MobileNumber = w?.MobileNumber ?? h.PrimaryMobileNumber ?? "N/A",
                     Email = w?.EmailAddress ?? h.Email ?? "N/A",
                     JoiningDate = w?.EffectiveDate?.ToString("yyyy-MM-dd") ?? w?.CreatedAt?.ToString("yyyy-MM-dd") ?? "N/A",
@@ -1253,12 +1299,12 @@ public class HostelService : IHostelService
         {
             var list = wardens.Select(w => new HostelReportItemDto
             {
-                WardenName = w.WardenName ?? (w.Staff != null ? $"{w.Staff.FirstName} {w.Staff.LastName}" : "Arthur Pendelton"),
-                EmployeeId = w.Staff?.EmployeeId ?? "EMP-101",
-                HostelName = w.Hostel?.HostelName ?? "Aravali",
+                WardenName = w.WardenName ?? (w.Staff != null ? $"{w.Staff.FirstName} {w.Staff.LastName}".Trim() : ""),
+                EmployeeId = w.Staff?.EmployeeId ?? "N/A",
+                HostelName = w.Hostel?.HostelName ?? "",
                 MobileNumber = !string.IsNullOrWhiteSpace(w.MobileNumber) ? w.MobileNumber : (w.Staff?.Phone ?? "N/A"),
                 Email = !string.IsNullOrWhiteSpace(w.EmailAddress) ? w.EmailAddress : (w.Staff?.Email ?? "N/A"),
-                JoiningDate = w.EffectiveDate?.ToString("yyyy-MM-dd") ?? w.CreatedAt?.ToString("yyyy-MM-dd") ?? "2026-08-09",
+                JoiningDate = w.EffectiveDate?.ToString("yyyy-MM-dd") ?? w.CreatedAt?.ToString("yyyy-MM-dd") ?? "",
                 Status = "Active"
             }).ToList();
 
@@ -1279,11 +1325,11 @@ public class HostelService : IHostelService
 
                 return new HostelReportItemDto
                 {
-                    RoomNumber = r.RoomNumber?.StartsWith("Room #") == true ? r.RoomNumber : $"Room #{r.RoomNumber ?? "101"}",
-                    HostelName = r.Hostel?.HostelName ?? "Boys Central Hostel Block A",
-                    BlockName = w?.BlockName ?? "Block A",
-                    FloorLevel = r.FloorLevel ?? "1st Floor",
-                    RoomType = r.RoomType?.RoomTypeSpecification ?? "Double Sharing",
+                    RoomNumber = !string.IsNullOrWhiteSpace(r.RoomNumber) ? (r.RoomNumber.StartsWith("Room #") ? r.RoomNumber : $"Room #{r.RoomNumber}") : "N/A",
+                    HostelName = r.Hostel?.HostelName ?? "",
+                    BlockName = w?.BlockName ?? r.Hostel?.HostelName ?? "",
+                    FloorLevel = r.FloorLevel ?? "",
+                    RoomType = r.RoomType?.RoomTypeSpecification ?? "Standard Room",
                     TotalBeds = cap,
                     OccupiedBeds = occ,
                     AvailableBeds = avail,
@@ -1445,13 +1491,25 @@ public class HostelService : IHostelService
             if (activeAlloc == null) activeAlloc = allAlloc.FirstOrDefault();
         }
 
+        var targetStudentId = activeAlloc?.StudentId ?? dto.StudentId;
+        var existingOutpasses = await _hostelRepo.GetAllOutpassesAsync(null, null);
+        var activePendingOutpass = existingOutpasses.FirstOrDefault(o =>
+            (o.StudentId == targetStudentId || (!string.IsNullOrWhiteSpace(dto.StudentName) && string.Equals(o.StudentName, dto.StudentName.Trim(), StringComparison.OrdinalIgnoreCase))) &&
+            (o.Status.Contains("Pending", StringComparison.OrdinalIgnoreCase) || o.Status.Contains("Approved", StringComparison.OrdinalIgnoreCase))
+        );
+
+        if (activePendingOutpass != null)
+        {
+            throw new InvalidOperationException("An active Outpass request already exists for this student.");
+        }
+
         var outpass = new HostelOutpass
         {
-            StudentId = activeAlloc?.StudentId ?? dto.StudentId,
+            StudentId = targetStudentId,
             StudentName = !string.IsNullOrWhiteSpace(dto.StudentName) ? dto.StudentName.Trim() : (activeAlloc?.StudentName ?? "Hostel Student"),
-            AdmissionNo = activeAlloc?.RegistrationNo ?? "ADM-001",
-            HostelName = activeAlloc?.Hostel?.HostelName ?? "Main Hostel",
-            RoomNumber = activeAlloc?.Room?.RoomNumber ?? "101",
+            AdmissionNo = activeAlloc?.RegistrationNo ?? "",
+            HostelName = activeAlloc?.Hostel?.HostelName ?? "",
+            RoomNumber = activeAlloc?.Room?.RoomNumber ?? "",
             RequestType = string.IsNullOrWhiteSpace(dto.RequestType) ? "Local Outpass (Same Day)" : dto.RequestType.Trim(),
             Reason = dto.Reason?.Trim(),
             OutDate = dto.OutDate,
@@ -1527,34 +1585,48 @@ public class HostelService : IHostelService
             activeAlloc = await _hostelRepo.GetActiveAllocationByStudentIdAsync(dto.StudentId);
         }
 
-        if (activeAlloc == null)
+        string stName = !string.IsNullOrWhiteSpace(dto.StudentName) ? dto.StudentName.Trim() : (activeAlloc?.StudentName ?? "");
+        string admNo = activeAlloc?.RegistrationNo ?? "";
+
+        if (dto.StudentId > 0 && (string.IsNullOrWhiteSpace(admNo) || string.IsNullOrWhiteSpace(stName)))
         {
-            var allAlloc = await _hostelRepo.GetAllBedAllocationsAsync(null, null, null);
-            if (!string.IsNullOrWhiteSpace(dto.StudentName))
+            var st = await _context.Students.FirstOrDefaultAsync(s => s.StudentId == dto.StudentId);
+            if (st != null)
             {
-                activeAlloc = allAlloc.FirstOrDefault(a => a.StudentName != null && a.StudentName.Contains(dto.StudentName.Trim(), StringComparison.OrdinalIgnoreCase));
+                if (string.IsNullOrWhiteSpace(stName)) stName = st.StudentName;
+                if (string.IsNullOrWhiteSpace(admNo)) admNo = st.AdmissionNumber ?? st.RollNumber ?? "";
             }
-            if (activeAlloc == null) activeAlloc = allAlloc.FirstOrDefault();
+            else
+            {
+                var app = await _context.AdmissionApplications.FirstOrDefaultAsync(a => a.Id == dto.StudentId);
+                if (app != null)
+                {
+                    if (string.IsNullOrWhiteSpace(stName)) stName = $"{app.FirstName} {app.LastName}".Trim();
+                    if (string.IsNullOrWhiteSpace(admNo)) admNo = app.AdmissionNo ?? app.RegistrationNo ?? "";
+                }
+            }
         }
 
         string actionType = string.IsNullOrWhiteSpace(dto.ActionType)
             ? "Room Transfer"
             : (dto.ActionType.Contains("Vacate", StringComparison.OrdinalIgnoreCase) ? "Bed Vacate" : "Room Transfer");
 
+        string currentRoomStr = (activeAlloc?.Hostel != null && activeAlloc?.Room != null)
+            ? $"{activeAlloc.Hostel.HostelName} - Room #{activeAlloc.Room.RoomNumber}"
+            : (activeAlloc != null ? $"{activeAlloc.HostelId} - Room #{activeAlloc.RoomId}" : "");
+
         var req = new HostelTransferVacate
         {
             StudentId = activeAlloc?.StudentId ?? dto.StudentId,
-            StudentName = !string.IsNullOrWhiteSpace(dto.StudentName) ? dto.StudentName.Trim() : (activeAlloc?.StudentName ?? "Resident Student"),
-            AdmissionNo = activeAlloc?.RegistrationNo ?? "ADM-001",
+            StudentName = stName,
+            AdmissionNo = admNo,
             ActionType = actionType,
-            CurrentRoom = (activeAlloc?.Hostel != null && activeAlloc?.Room != null)
-                ? $"{activeAlloc.Hostel.HostelName} - Room #{activeAlloc.Room.RoomNumber}"
-                : "Main Block - Room #101",
+            CurrentRoom = currentRoomStr,
             DestinationHostelId = dto.DestinationHostelId,
-            DestinationHostelName = dto.DestinationHostelName ?? "Boys Residence - Block A",
+            DestinationHostelName = dto.DestinationHostelName ?? "",
             DestinationRoomId = dto.DestinationRoomId,
-            DestinationRoomNumber = dto.DestinationRoomNumber ?? "201",
-            DestinationBedNumber = dto.DestinationBedNumber ?? "Bed #1",
+            DestinationRoomNumber = dto.DestinationRoomNumber ?? "",
+            DestinationBedNumber = dto.DestinationBedNumber ?? "",
             Reason = dto.Reason?.Trim(),
             Status = "Approved",
             CreatedAt = DateTime.UtcNow
@@ -1563,6 +1635,29 @@ public class HostelService : IHostelService
         if (actionType.Equals("Bed Vacate", StringComparison.OrdinalIgnoreCase) && activeAlloc != null)
         {
             activeAlloc.Status = "Vacated";
+        }
+        else if (actionType.Equals("Room Transfer", StringComparison.OrdinalIgnoreCase) && activeAlloc != null)
+        {
+            if (dto.DestinationHostelId.HasValue && dto.DestinationHostelId.Value > 0)
+            {
+                activeAlloc.HostelId = dto.DestinationHostelId.Value;
+            }
+            if (dto.DestinationRoomId.HasValue && dto.DestinationRoomId.Value > 0)
+            {
+                activeAlloc.RoomId = dto.DestinationRoomId.Value;
+            }
+            else if (!string.IsNullOrWhiteSpace(dto.DestinationRoomNumber))
+            {
+                var targetRoomEntity = (await _hostelRepo.GetAllRoomsAsync(activeAlloc.HostelId, null, null, dto.DestinationRoomNumber.Trim())).FirstOrDefault();
+                if (targetRoomEntity != null)
+                {
+                    activeAlloc.RoomId = targetRoomEntity.RoomId;
+                }
+            }
+            if (!string.IsNullOrWhiteSpace(dto.DestinationBedNumber))
+            {
+                activeAlloc.BedNumber = dto.DestinationBedNumber.Trim();
+            }
         }
 
         await _hostelRepo.AddTransferVacateRequestAsync(req);

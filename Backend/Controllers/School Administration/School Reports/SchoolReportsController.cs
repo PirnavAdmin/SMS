@@ -45,9 +45,7 @@ public class SchoolReportsController : ControllerBase
         }
         catch { }
 
-        if (activeStudents == 0) activeStudents = 45;
-        if (staffCount == 0) staffCount = 10;
-        if (examSheets == 0) examSheets = 12;
+
 
         return Ok(new
         {

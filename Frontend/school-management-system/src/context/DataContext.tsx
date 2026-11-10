@@ -2197,7 +2197,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   // Finance -> Transport Pricing Configuration Master State
   const [financeTransportConfigs, setFinanceTransportConfigs] = useState<
     FinanceTransportConfig[]
-  >([]);
+  >(() => getStored("finance_transport_configs", initialFinanceTransportConfigs));
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("finance_transport_configs", JSON.stringify(financeTransportConfigs));
+      localStorage.setItem("edu_db_finance_transport_configs", JSON.stringify(financeTransportConfigs));
+    } catch (e) {}
+  }, [financeTransportConfigs]);
 
   const MONTH_NAMES_ACADEMIC = [
     "April",
@@ -4324,7 +4331,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     }
     const promise = (async () => {
       try {
-        const json = await fetchAdmissionsApi();
+        const json = await fetchAdmissionsApi({ branch: selectedBranch, academicYear: selectedAcademicYear });
         if (json && json.success && json.data) {
           if (json.data.length === 0) {
             addToast(
@@ -4520,6 +4527,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                   new Date().toISOString(),
                 branch:
                   item.branch || item.branchName || existing?.branch || "",
+                academicYear:
+                  item.academicYear || item.academic_year || existing?.academicYear || "",
                 avatar: item.avatar || existing?.avatar || "",
                 scholarshipId:
                   item.scholarshipId ||
@@ -4612,7 +4621,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     })();
     activeRequests.current["admissions"] = promise;
     return promise;
-  }, [addToast]);
+  }, [addToast, selectedBranch, selectedAcademicYear]);
 
   const fetchDepartments = useCallback(async () => {
     try {
@@ -6217,10 +6226,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 "hostel_blocks",
                 JSON.stringify(mappedBlocks),
               );
-              localStorage.setItem(
-                "edu_db_hostel_blocks",
-                JSON.stringify(mappedBlocks),
-              );
             } catch (e) {}
           }
           if (
@@ -6596,6 +6601,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       // Always fetch students (handles ward lookup for parents)
       fetchStudents();
 
+      // Academic classes, teacher assignments, staff, subjects, timetables are essential for ALL authenticated users
+      // (Used by Admin management, as well as Student/Parent portals to dynamically view assigned faculty, subjects, and schedules)
+      fetchStaff();
+      fetchAcademicClasses();
+      fetchSubjects();
+      fetchPeriods();
+      fetchTimetables();
+
       // Sync automated ID sequence settings from database
       fetchIdSequenceSettingsApi()
         .then((res: any) => {
@@ -6606,11 +6619,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         .catch(() => {});
 
       if (!isParentOrStudent) {
-        fetchStaff();
-        fetchAcademicClasses();
-        fetchSubjects();
-        fetchPeriods();
-        fetchTimetables();
         fetchDepartments();
         fetchDesignations();
         fetchPayrollConfigurations();
@@ -6873,6 +6881,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           try {
             localStorage.setItem("edu_db_profile", JSON.stringify(next));
             localStorage.setItem("profile", JSON.stringify(next));
+            localStorage.setItem("school_name", next.name || "");
             localStorage.setItem("school_logo", next.logoUrl || "");
             localStorage.setItem("logoUrl", next.logoUrl || "");
             localStorage.setItem("schoolLogo", next.logoUrl || "");
@@ -22066,6 +22075,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               date: String(item.date).split("T")[0].split(" ")[0],
               entityType: "Staff",
               entityId: item.staffId?.toString() || item.id?.toString() || "",
+              employeeId: item.employeeId || "",
+              staffId: item.staffId?.toString() || "",
+              staffName: item.fullName || item.staffName || "",
               status:
                 item.status === "Half Day"
                   ? "HalfDay"
@@ -22805,6 +22817,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const saveStudentAttendance = (record: any) => {
     const recordDate = String(record.date || "").split("T")[0];
+    const isUnmarked = !record.status || record.status === 'null' || record.status === '-';
+
     setStudentAttendance((prev) => {
       const recStudentId = String(record.studentId || record.id || "").trim();
       const recRoll = String(record.rollNo || "").trim();
@@ -22830,6 +22844,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           (recName && rName && rName === recName);
         return !isMatch;
       });
+
+      if (isUnmarked) {
+        return filtered;
+      }
+
       const updated = [...filtered, { ...record, date: recordDate }];
       return updated;
     });
@@ -22838,6 +22857,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         window.dispatchEvent(new Event("attendance_updated"));
       } catch {}
     }, 0);
+
+    if (isUnmarked) {
+      return;
+    }
 
     const numId = Number(record.studentId || record.id);
     const validStudentId = !isNaN(numId) && numId > 0 ? numId : undefined;
@@ -22890,12 +22913,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           recs.forEach((r: any) => {
             const rDate = String(r.date || payload.date || "").split("T")[0];
             const k = `${r.studentId || r.id}_${rDate}_${r.subject || payload.subject || ""}_${r.period || payload.period || ""}`;
-            map.set(k, {
-              ...r,
-              date: rDate,
-              className: r.className || payload.className,
-              section: r.section || payload.section,
-            });
+            if (!r.status || r.status === '-' || r.status === 'null') {
+              map.delete(k);
+            } else {
+              map.set(k, {
+                ...r,
+                date: rDate,
+                className: r.className || payload.className,
+                section: r.section || payload.section,
+              });
+            }
           });
           const updated = Array.from(map.values());
           return updated;
@@ -22906,9 +22933,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           } catch {}
         }, 0);
 
-        const response = await saveBulkStudentAttendanceApi(payload);
-        fetchStudentAttendanceData();
-        return response;
+        const validRecords = recs.filter((r: any) => r.status && r.status !== '-' && r.status !== 'null');
+        if (validRecords.length > 0) {
+          const response = await saveBulkStudentAttendanceApi({
+            ...payload,
+            records: validRecords,
+          });
+          fetchStudentAttendanceData();
+          return response;
+        }
       }
     } catch (err) {
       console.warn("Bulk attendance save failed:", err);
@@ -26087,6 +26120,28 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
       // Check academic year
       let ayMatch = true;
+      if (selectedAcademicYear && selectedAcademicYear !== "All") {
+        if (anyItem.academicYear && anyItem.academicYear !== "All") {
+          const selClean = selectedAcademicYear.replace(/[^0-9]/g, "");
+          const itemClean = String(anyItem.academicYear).replace(/[^0-9]/g, "");
+          if (selClean && itemClean) {
+            const selStart = selClean.slice(0, 4);
+            const itemStart = itemClean.slice(0, 4);
+            ayMatch =
+              selClean === itemClean ||
+              selStart === itemStart ||
+              anyItem.academicYear === selectedAcademicYear;
+          } else {
+            ayMatch = anyItem.academicYear === selectedAcademicYear;
+          }
+        } else if (anyItem.appliedClass || anyItem.applicationNo || anyItem.registrationNo || anyItem.studentId) {
+          ayMatch = false;
+        }
+      }
+      return branchMatch && ayMatch;
+    });
+  };
+  /* const _unusedFilter = () => {
       if (
         selectedAcademicYear &&
         selectedAcademicYear !== "All" &&
@@ -26111,6 +26166,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     });
   };
 
+  */
   const filteredStudents = useMemo(() => {
     return filterByBranch(students);
   }, [students, selectedBranch, selectedAcademicYear]);

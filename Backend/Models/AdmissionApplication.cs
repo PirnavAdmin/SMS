@@ -31,6 +31,7 @@ public class AdmissionApplication
     public ClassGrade? AppliedClass { get; set; }
 
     public string? BranchName { get; set; }
+    public string? AcademicYear { get; set; }
 
     public string? BloodGroup { get; set; }
     public string? Religion { get; set; }

@@ -1,6 +1,6 @@
 // @ts-nocheck
 import React, { useState, useEffect } from 'react';
-import { Clock, Printer, CalendarOff } from 'lucide-react';
+import { Clock, Printer, CalendarOff, Loader2 } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { SchoolPrintHeader } from '../../common/SchoolPrintHeader';
@@ -13,6 +13,15 @@ export const ParentTimetableView: React.FC = () => {
   const [selectedChildIdx, setSelectedChildIdx] = useState(0);
   const [apiTimetableSlots, setApiTimetableSlots] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const handlePrintDownload = () => {
+    setIsDownloading(true);
+    setTimeout(() => {
+      window.print();
+      setTimeout(() => setIsDownloading(false), 1200);
+    }, 400);
+  };
 
   const currentWard = parentWards[selectedChildIdx] || parentWards[0];
 
@@ -206,11 +215,22 @@ export const ParentTimetableView: React.FC = () => {
           
           <div className="flex items-center justify-end gap-3 no-print">
             <button 
-              onClick={() => window.print()}
-              className="no-print flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 rounded-xl text-xs font-extrabold text-slate-700 dark:text-slate-200 hover:bg-sky-50/60 dark:hover:bg-slate-800 transition-colors shadow-2xs cursor-pointer"
+              type="button"
+              disabled={isDownloading}
+              onClick={handlePrintDownload}
+              className="no-print flex items-center gap-2 px-4 py-2 bg-sky-600 hover:bg-sky-700 active:bg-sky-800 text-white rounded-xl text-xs font-bold transition-all shadow-sm shadow-sky-500/20 hover:shadow-md disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
             >
-              <Printer className="w-4 h-4 text-sky-600" />
-              <span>Print / Download</span>
+              {isDownloading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin text-white" />
+                  <span>Preparing PDF...</span>
+                </>
+              ) : (
+                <>
+                  <Printer className="w-4 h-4 text-white" />
+                  <span>Print / Download</span>
+                </>
+              )}
             </button>
           </div>
 

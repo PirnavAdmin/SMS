@@ -54,13 +54,13 @@ namespace SMS.Api.Dtos
         public string BlockCode { get; set; } = string.Empty;
 
         [JsonPropertyName("blockName")]
-        public string BlockName { get; set; } = "Block A";
+        public string BlockName { get; set; } = string.Empty;
 
         [JsonPropertyName("block")]
         public string Block => BlockName;
 
         [JsonPropertyName("floorsCount")]
-        public int FloorsCount { get; set; } = 3;
+        public int FloorsCount { get; set; } = 0;
 
         // Supervisor / Warden fields
         [JsonPropertyName("assignedSupervisor")]

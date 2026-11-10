@@ -472,8 +472,6 @@ export const FinanceHostelConfigView: React.FC = () => {
 
     const bId = targetBlock ? String(targetBlock.id) : "";
     const bName = targetBlock ? targetBlock.hostelName : "";
-    const ay = selectedAcademicYear || (academicYears && academicYears[0]?.academicYear) || "";
-    const initialClass = dynamicClasses[0] || "";
 
     const matchedHead = getHostelFeeHeadForBlock(bName);
     let initialFeePlan = "Annual";
@@ -492,24 +490,24 @@ export const FinanceHostelConfigView: React.FC = () => {
       hostelId: bId,
       hostelName: bName,
       roomId: "",
-      roomNo: initialRoomNo || "All Rooms",
+      roomNo: initialRoomNo || "",
       roomTypeId: "",
-      roomTypeName: "All Room Types",
+      roomTypeName: "",
       acType: "All",
-      sharingType: "All",
-      academicYear: ay,
-      feePlan: initialFeePlan,
-      applicableTerms: initialTerms,
+      sharingType: "",
+      academicYear: "",
+      feePlan: "",
+      applicableTerms: [],
       effectiveFrom: new Date().toISOString().split("T")[0],
-      status: "Active",
+      status: "" as any,
     });
 
-    // Start with 1 clean empty tier (No hardcoded fees)
+    // Start with 1 clean empty tier (explicit selection required)
     setTiers([
       {
         id: `tier_${Date.now()}_1`,
-        startClass: initialClass,
-        endClass: initialClass,
+        startClass: "",
+        endClass: "",
         hostelFee: "",
         securityDeposit: "",
       },
@@ -624,6 +622,18 @@ export const FinanceHostelConfigView: React.FC = () => {
       addToast("error", "Validation Error", "Please select a Hostel Block.");
       return;
     }
+    if (!form.feePlan) {
+      addToast("error", "Validation Error", "Please select a Payment Frequency.");
+      return;
+    }
+    if (!form.academicYear) {
+      addToast("error", "Validation Error", "Please select an Academic Year.");
+      return;
+    }
+    if (!form.status) {
+      addToast("error", "Validation Error", "Please select a Status.");
+      return;
+    }
 
     if (tiers.length === 0) {
       addToast("error", "Validation Error", "Please configure at least one class range fee tier.");
@@ -642,6 +652,15 @@ export const FinanceHostelConfigView: React.FC = () => {
 
       if (isNaN(parsedFee) || parsedFee < 0 || t.hostelFee.trim() === "") {
         addToast("error", "Validation Error", `Please enter a valid non-negative fee amount in Tier ${i + 1}.`);
+        return;
+      }
+      if (parsedFee > 1000000) {
+        addToast("error", "Amount Limit Exceeded", `Hostel fee in Tier ${i + 1} cannot exceed ₹10,00,000.`);
+        return;
+      }
+      const parsedDep = Number(t.securityDeposit || 0);
+      if (parsedDep > 1000000) {
+        addToast("error", "Amount Limit Exceeded", `Security deposit in Tier ${i + 1} cannot exceed ₹10,00,000.`);
         return;
       }
 
@@ -823,8 +842,13 @@ export const FinanceHostelConfigView: React.FC = () => {
         if (!match) return false;
       }
 
-      if (selectedBlock !== "All" && String(c.hostelId) !== String(selectedBlock)) {
-        return false;
+      if (selectedBlock !== "All") {
+        const matchedBlockObj = activeBlocks.find(b => String(b.id) === String(selectedBlock) || b.hostelName.toLowerCase() === selectedBlock.toLowerCase());
+        const matchById = String(c.hostelId) === String(selectedBlock);
+        const matchByName = matchedBlockObj && (c.hostelName || "").toLowerCase() === matchedBlockObj.hostelName.toLowerCase();
+        if (!matchById && !matchByName) {
+          return false;
+        }
       }
 
       if (selectedRoom !== "All" && c.roomNo !== selectedRoom && c.roomId !== selectedRoom) {
@@ -905,7 +929,7 @@ export const FinanceHostelConfigView: React.FC = () => {
           />
           <button
             onClick={() => handleOpenAdd()}
-            className="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-md shadow-sky-500/20 flex items-center gap-1.5 transition-all cursor-pointer"
+            className="h-[38px] px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-md shadow-sky-500/20 flex items-center gap-1.5 transition-all cursor-pointer"
           >
             <Plus className="w-4 h-4" /> Add Hostel Fee
           </button>
@@ -1020,7 +1044,7 @@ export const FinanceHostelConfigView: React.FC = () => {
       {/* Main Standard Table */}
       <div className="glass-card rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
+          <table className="w-full text-left border-collapse text-xs table-fixed">
             <thead>
               <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800 text-[10px]">
                 <th className="py-3 px-3">Order</th>
@@ -1253,10 +1277,21 @@ export const FinanceHostelConfigView: React.FC = () => {
                       {isLoadingRooms && <span className="text-[10px] text-sky-500">Loading...</span>}
                     </label>
                     <select
-                      value={form.roomId || (form.roomNo === "All Rooms" ? "" : form.roomNo)}
+                      value={form.roomId || (form.roomNo === "All Rooms" ? "All Rooms" : form.roomNo)}
                       onChange={(e) => {
                         const selVal = e.target.value;
                         if (!selVal) {
+                          setForm((prev) => ({
+                            ...prev,
+                            roomId: "",
+                            roomNo: "",
+                            roomTypeId: "",
+                            roomTypeName: "",
+                            acType: "All",
+                          }));
+                          return;
+                        }
+                        if (selVal === "All Rooms") {
                           setForm((prev) => ({
                             ...prev,
                             roomId: "",
@@ -1291,9 +1326,12 @@ export const FinanceHostelConfigView: React.FC = () => {
                           }));
                         }
                       }}
-                      className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border text-xs font-bold text-slate-900 dark:text-white outline-none"
+                      className={`w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border text-xs outline-none ${
+                        !form.roomNo ? 'text-slate-400 font-normal' : 'font-bold text-slate-900 dark:text-white'
+                      }`}
                     >
-                      <option value="">All Rooms in Block (Default)</option>
+                      <option value="" disabled hidden>Select Room Number</option>
+                      <option value="All Rooms">All Rooms in Block</option>
                       {blockRooms.map((r) => (
                         <option key={r.roomId} value={String(r.roomId)}>
                           Room {r.roomNumber} ({r.roomTypeSpecification || "Standard"} • {r.floorLevel})
@@ -1307,10 +1345,13 @@ export const FinanceHostelConfigView: React.FC = () => {
                       Sharing Type
                     </label>
                     <select
-                      value={form.sharingType}
+                      value={form.sharingType || ''}
                       onChange={(e) => setForm({ ...form, sharingType: e.target.value })}
-                      className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border text-xs font-bold text-slate-900 dark:text-white outline-none"
+                      className={`w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border text-xs outline-none ${
+                        !form.sharingType ? 'text-slate-400 font-normal' : 'font-bold text-slate-900 dark:text-white'
+                      }`}
                     >
+                      <option value="" disabled hidden>Select Sharing Type</option>
                       <option value="All">All Sharing Types</option>
                       <option value="Single">Single</option>
                       <option value="Double">Double</option>
@@ -1354,11 +1395,14 @@ export const FinanceHostelConfigView: React.FC = () => {
                           <tr key={t.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50">
                             <td className="p-1.5">
                               <select
-                                value={t.startClass}
+                                value={t.startClass || ''}
                                 aria-label="Start Class"
                                 onChange={(e) => handleUpdateTier(t.id, "startClass", e.target.value)}
-                                className="w-full px-2 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-900 dark:text-white outline-none"
+                                className={`w-full px-2 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs outline-none ${
+                                  !t.startClass ? 'text-slate-400 font-normal' : 'font-semibold text-slate-900 dark:text-white'
+                                }`}
                               >
+                                <option value="" disabled hidden>Select Start Class</option>
                                 {dynamicClasses.map((cls) => (
                                   <option key={`s_${t.id}_${cls}`} value={cls}>
                                     {cls}
@@ -1368,11 +1412,14 @@ export const FinanceHostelConfigView: React.FC = () => {
                             </td>
                             <td className="p-1.5">
                               <select
-                                value={t.endClass}
+                                value={t.endClass || ''}
                                 aria-label="End Class"
                                 onChange={(e) => handleUpdateTier(t.id, "endClass", e.target.value)}
-                                className="w-full px-2 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-900 dark:text-white outline-none"
+                                className={`w-full px-2 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs outline-none ${
+                                  !t.endClass ? 'text-slate-400 font-normal' : 'font-semibold text-slate-900 dark:text-white'
+                                }`}
                               >
+                                <option value="" disabled hidden>Select End Class</option>
                                 {dynamicClasses.map((cls) => (
                                   <option key={`e_${t.id}_${cls}`} value={cls}>
                                     {cls}
@@ -1388,8 +1435,9 @@ export const FinanceHostelConfigView: React.FC = () => {
                                 aria-label="Hostel Fee"
                                 placeholder="0"
                                 value={t.hostelFee ?? ""}
+                                maxLength={7}
                                 onChange={(e) => {
-                                  const val = e.target.value.replace(/[^0-9]/g, "");
+                                  const val = e.target.value.replace(/[^0-9]/g, "").slice(0, 7);
                                   handleUpdateTier(t.id, "hostelFee", val);
                                 }}
                                 className="w-full px-2 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-sky-600 dark:text-sky-400 outline-none"
@@ -1402,8 +1450,9 @@ export const FinanceHostelConfigView: React.FC = () => {
                                 aria-label="Security Deposit"
                                 placeholder="0"
                                 value={t.securityDeposit ?? ""}
+                                maxLength={7}
                                 onChange={(e) => {
-                                  const val = e.target.value.replace(/[^0-9]/g, "");
+                                  const val = e.target.value.replace(/[^0-9]/g, "").slice(0, 7);
                                   handleUpdateTier(t.id, "securityDeposit", val);
                                 }}
                                 className="w-full px-2 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 outline-none"
@@ -1449,10 +1498,13 @@ export const FinanceHostelConfigView: React.FC = () => {
                       })()}
                     </div>
                     <select
-                      value={form.feePlan}
+                      value={form.feePlan || ''}
                       onChange={(e) => setForm({ ...form, feePlan: e.target.value })}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white outline-none"
+                      className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs outline-none ${
+                        !form.feePlan ? 'text-slate-400 font-normal' : 'font-bold text-slate-900 dark:text-white'
+                      }`}
                     >
+                      <option value="" disabled hidden>Select Payment Frequency</option>
                       <option value="Annual">Annual (Full Session)</option>
                       <option value="Term-wise">Term-wise</option>
                       <option value="Half Yearly">Half Yearly</option>
@@ -1466,10 +1518,13 @@ export const FinanceHostelConfigView: React.FC = () => {
                       Academic Year <span className="text-rose-500">*</span>
                     </label>
                     <select
-                      value={form.academicYear}
+                      value={form.academicYear || ''}
                       onChange={(e) => setForm({ ...form, academicYear: e.target.value })}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white outline-none"
+                      className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs outline-none ${
+                        !form.academicYear ? 'text-slate-400 font-normal' : 'font-bold text-slate-900 dark:text-white'
+                      }`}
                     >
+                      <option value="" disabled hidden>Select Academic Year</option>
                       {(academicYears || []).map((ay: any) => (
                         <option key={ay.id || ay.academicYear} value={ay.academicYear || ay.name}>
                           {ay.academicYear || ay.name}
@@ -1533,10 +1588,13 @@ export const FinanceHostelConfigView: React.FC = () => {
                       Status
                     </label>
                     <select
-                      value={form.status}
+                      value={form.status || ''}
                       onChange={(e) => setForm({ ...form, status: e.target.value as any })}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white outline-none"
+                      className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs outline-none ${
+                        !form.status ? 'text-slate-400 font-normal' : 'font-bold text-slate-900 dark:text-white'
+                      }`}
                     >
+                      <option value="" disabled hidden>Select Status</option>
                       <option value="Active">Active</option>
                       <option value="Inactive">Inactive</option>
                     </select>

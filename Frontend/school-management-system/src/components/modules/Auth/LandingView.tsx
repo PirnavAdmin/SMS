@@ -1295,6 +1295,11 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
             <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-2">Portal Sign In</h3>
             <ul className="space-y-1.5 text-xs text-slate-400">
               <li>
+                <button onClick={() => onLoginClick('Super Admin')} className="hover:text-amber-400 text-slate-300 font-semibold transition-colors flex items-center gap-1">
+                  Super Administrator Portal
+                </button>
+              </li>
+              <li>
                 <button onClick={() => onLoginClick('Admin')} className="hover:text-sky-400 transition-colors">
                   Administrator Portal
                 </button>

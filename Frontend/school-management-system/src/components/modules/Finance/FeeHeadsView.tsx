@@ -180,16 +180,16 @@ export const FeeHeadsView: React.FC = () => {
   const [formData, setFormData] = useState<Partial<FeeHead>>({
     name: '',
     code: '',
-    category: 'Tuition',
+    category: '' as any,
     frequency: 'Term-wise',
-    mandatory: true,
-    applicableClasses: classOptions,
-    applicableBranches: ['All Branches'],
-    applicableSections: ['All Sections'],
-    paymentEligibility: 'Both One-Time and Term-Wise',
-    applicableTerms: [...availableAcademicTerms],
+    mandatory: false,
+    applicableClasses: [],
+    applicableBranches: [],
+    applicableSections: [],
+    paymentEligibility: '' as any,
+    applicableTerms: [],
     taxPercentage: 0,
-    displayOrder: 1,
+    displayOrder: '' as any,
     status: 'Active',
     hostelBlockId: '',
     hostelBlockName: 'All',
@@ -232,6 +232,7 @@ export const FeeHeadsView: React.FC = () => {
     return (uniformSizes || []).map((s: any) => s.sizeName || s.size || s.name).filter(Boolean);
   }, [uniforms, uniformSizes, formData.uniformItemId]);
 
+
   const filteredHeads = feeHeads.filter(h => {
     const matchesQuery = h.name.toLowerCase().includes(query.toLowerCase()) || h.code.toLowerCase().includes(query.toLowerCase());
     const matchesCategory = selectedCategory === 'All' || h.category === selectedCategory;
@@ -248,21 +249,40 @@ export const FeeHeadsView: React.FC = () => {
     return (a.displayOrder || 0) - (b.displayOrder || 0);
   });
 
+const exportData = useMemo(() => {
+    return filteredHeads.map((h, idx) => ({
+      "S.No": idx + 1,
+      "Fee Type Name": h.name,
+      "Fee Code": h.code,
+      "Category": h.category,
+      "Payment Eligibility Mode": h.paymentEligibility || 'Both One-Time and Term-Wise',
+      "Frequency": h.frequency,
+      "Applicable Classes": (h.applicableClasses && h.applicableClasses.length > 0) ? h.applicableClasses.join(', ') : 'All Classes',
+      "Applicable Sections": (h.applicableSections && h.applicableSections.length > 0) ? h.applicableSections.join(', ') : 'All Sections',
+      "Applicable Branches": (h.applicableBranches && h.applicableBranches.length > 0) ? h.applicableBranches.join(', ') : 'All Branches',
+      "Academic Terms": (h.applicableTerms && h.applicableTerms.length > 0) ? h.applicableTerms.join(', ') : 'All Terms',
+      "Tax (%)": h.taxPercentage ?? 0,
+      "Display Order": h.displayOrder ?? idx + 1,
+      "Mandatory": h.mandatory ? 'Yes' : 'No',
+      "Status": h.status || 'Active'
+    }));
+  }, [filteredHeads]);
+
   const handleOpenAdd = () => {
     setEditingHead(null);
     setFormData({
       name: '',
-      code: 'FH-' + Math.floor(100 + Math.random() * 900),
-      category: 'Tuition Fee',
+      code: '',
+      category: '' as any,
       frequency: 'Term-wise',
-      mandatory: true,
-      applicableClasses: classOptions,
-      applicableBranches: ['All Branches'],
-      applicableSections: ['All Sections'],
-      paymentEligibility: 'Both One-Time and Term-Wise',
-      applicableTerms: [...availableAcademicTerms],
+      mandatory: false,
+      applicableClasses: [],
+      applicableBranches: [],
+      applicableSections: [],
+      paymentEligibility: '' as any,
+      applicableTerms: [],
       taxPercentage: 0,
-      displayOrder: feeHeads.length + 1,
+      displayOrder: '' as any,
       status: 'Active',
       hostelBlockId: '',
       hostelBlockName: 'All',
@@ -309,6 +329,12 @@ export const FeeHeadsView: React.FC = () => {
   const handleSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     try {
+      if (!formData.category) {
+        throw new Error('Please select a Category.');
+      }
+      if (!formData.paymentEligibility) {
+        throw new Error('Please select a Payment Eligibility Mode.');
+      }
       if (!formData.name || !formData.name.trim()) {
         throw new Error('Fee type name is required.');
       }
@@ -424,7 +450,7 @@ export const FeeHeadsView: React.FC = () => {
           >
             <Plus className="w-4 h-4" /> Add Fee Category
           </button>
-          <ExportButton data={filteredHeads} filename="fee_heads" />
+          <ExportButton data={exportData} filename="fee_categories" />
         </div>
       </div>
 
@@ -476,15 +502,15 @@ export const FeeHeadsView: React.FC = () => {
           <table className="w-full text-left border-collapse text-xs">
             <thead>
               <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
-                <th className="py-3.5 px-4">Order</th>
-                <th className="py-3.5 px-4">Fee Type</th>
-                <th className="py-3.5 px-4">Code</th>
-                <th className="py-3.5 px-4">Category & Module Mapping</th>
-                <th className="py-3.5 px-4">Payment Eligibility</th>
-                <th className="py-3.5 px-4">Mandatory</th>
-                <th className="py-3.5 px-4">Classes</th>
-                <th className="py-3.5 px-4">Status</th>
-                <th className="py-3.5 px-4 text-right">Actions</th>
+                <th className="py-3.5 px-4 text-center whitespace-nowrap">#</th>
+                <th className="py-3.5 px-4 text-left whitespace-nowrap">Fee Type</th>
+                <th className="py-3.5 px-4 text-left whitespace-nowrap">Code</th>
+                <th className="py-3.5 px-4 text-left whitespace-nowrap">Category & Module Mapping</th>
+                <th className="py-3.5 px-4 text-center whitespace-nowrap">Payment Eligibility</th>
+                <th className="py-3.5 px-4 text-center whitespace-nowrap">Mandatory</th>
+                <th className="py-3.5 px-4 text-left whitespace-nowrap">Classes</th>
+                <th className="py-3.5 px-4 text-center whitespace-nowrap">Status</th>
+                <th className="py-3.5 px-4 text-right whitespace-nowrap">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
@@ -499,10 +525,10 @@ export const FeeHeadsView: React.FC = () => {
               ) : (
                 filteredHeads.map((h, idx) => (
                   <tr key={h.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                    <td className="py-3 px-4 text-slate-400 font-mono">{idx + 1}</td>
-                    <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{h.name}</td>
-                    <td className="py-3 px-4 font-mono text-slate-600 dark:text-slate-300">{h.code}</td>
-                    <td className="py-3 px-4">
+                    <td className="py-3 px-4 text-center text-slate-400 font-mono whitespace-nowrap align-middle">{idx + 1}</td>
+                    <td className="py-3 px-4 font-bold text-slate-900 dark:text-white align-middle">{h.name}</td>
+                    <td className="py-3 px-4 font-mono font-bold text-slate-600 dark:text-slate-300 whitespace-nowrap align-middle min-w-[90px]">{h.code}</td>
+                    <td className="py-3 px-4 align-middle">
                       <div className="space-y-1">
                         <span className="inline-block px-2 py-0.5 rounded-lg bg-sky-50 dark:bg-sky-950 text-sky-600 dark:text-sky-400 font-bold">
                           {h.category}
@@ -531,40 +557,40 @@ export const FeeHeadsView: React.FC = () => {
                         )}
                       </div>
                     </td>
-                    <td className="py-3 px-4">
+                    <td className="py-3 px-4 text-center whitespace-nowrap align-middle">
                       {h.paymentEligibility === 'One-Time Only' ? (
-                        <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300 font-bold text-[10px]">
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300 font-bold text-[10px] whitespace-nowrap">
                           One-Time Only
                         </span>
                       ) : h.paymentEligibility === 'Term-Wise Allowed' ? (
-                        <span className="px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 font-bold text-[10px]">
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 font-bold text-[10px] whitespace-nowrap">
                           Term-Wise ({(h.applicableTerms || []).length || 'All'} Terms)
                         </span>
                       ) : (
-                        <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-bold text-[10px]">
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-bold text-[10px] whitespace-nowrap">
                           Both (One-Time / Term)
                         </span>
                       )}
                     </td>
-                    <td className="py-3 px-4">
+                    <td className="py-3 px-4 text-center whitespace-nowrap align-middle">
                       {h.mandatory ? (
-                        <span className="text-rose-500 font-bold flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5" /> Mandatory</span>
+                        <span className="text-rose-500 font-bold inline-flex items-center justify-center gap-1 whitespace-nowrap"><CheckCircle2 className="w-3.5 h-3.5" /> Mandatory</span>
                       ) : (
-                        <span className="text-slate-400 font-medium">Optional</span>
+                        <span className="text-slate-400 font-medium whitespace-nowrap">Optional</span>
                       )}
                     </td>
-                    <td className="py-3 px-4 text-slate-500 font-medium">{formatClassListForDisplay(h.applicableClasses)}</td>
-                    <td className="py-3 px-4">
+                    <td className="py-3 px-4 text-slate-500 font-medium align-middle">{formatClassListForDisplay(h.applicableClasses)}</td>
+                    <td className="py-3 px-4 text-center whitespace-nowrap align-middle">
                       <button
                         onClick={() => toggleFeeHeadStatus(h.id)}
-                        className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold transition-all ${
+                        className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold transition-all whitespace-nowrap ${
                           h.status === 'Active' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300'
                         }`}
                       >
                         {h.status}
                       </button>
                     </td>
-                    <td className="py-3 px-4 text-right">
+                    <td className="py-3 px-4 text-right whitespace-nowrap align-middle">
                       <div className="flex items-center justify-end gap-1">
                         <button onClick={() => handleOpenEdit(h)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-sky-600">
                           <Edit className="w-3.5 h-3.5" />
@@ -595,15 +621,15 @@ export const FeeHeadsView: React.FC = () => {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4 text-xs">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block font-semibold mb-1">Fee Type Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input
                     type="text"
                     required
-                    value={formData.name}
+                    value={formData.name || ''}
                     onChange={e => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="e.g. Tuition Fee"
+                    placeholder="Enter Fee Type Name"
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none"
                   />
                 </div>
@@ -612,29 +638,32 @@ export const FeeHeadsView: React.FC = () => {
                   <input
                     type="text"
                     required
-                    value={formData.code}
+                    value={formData.code || ''}
                     onChange={e => setFormData({ ...formData, code: e.target.value })}
-                    placeholder="e.g. TUIT-101"
+                    placeholder="Enter Fee Code"
                     className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono outline-none"
                   />
                 </div>
-              </div>
-
-              <div>
-                <label className="block font-semibold mb-1">Category <span className="text-rose-500 font-bold">*</span></label>
-                <select
-                  value={formData.category}
-                  onChange={e => {
-                    const newCategory = e.target.value as FeeHeadCategory;
-                    setFormData({
-                      ...formData,
-                      category: newCategory
-                    });
-                  }}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none font-bold text-xs"
-                >
-                  {categoryOptions.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
+                <div>
+                  <label className="block font-semibold mb-1">Category <span className="text-rose-500 font-bold">*</span></label>
+                  <select
+                    value={formData.category || ''}
+                    required
+                    onChange={e => {
+                      const newCategory = e.target.value as FeeHeadCategory;
+                      setFormData({
+                        ...formData,
+                        category: newCategory
+                      });
+                    }}
+                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none text-xs ${
+                      !formData.category ? 'text-slate-400 font-normal' : 'font-bold text-slate-900 dark:text-white'
+                    }`}
+                  >
+                    <option value="" disabled hidden>Select Category</option>
+                    {categoryOptions.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
               </div>
 
               {/* DYNAMIC MODULE ARCHITECTURE NOTICES */}
@@ -800,7 +829,8 @@ export const FeeHeadsView: React.FC = () => {
                     Payment Eligibility Mode <span className="text-rose-500 font-bold">*</span>
                   </label>
                   <select
-                    value={formData.paymentEligibility || 'Both One-Time and Term-Wise'}
+                    value={formData.paymentEligibility || ''}
+                    required
                     onChange={(e) => {
                       const val = e.target.value as FeePaymentEligibility;
                       setFormData({
@@ -810,8 +840,11 @@ export const FeeHeadsView: React.FC = () => {
                         applicableTerms: val === 'One-Time Only' ? [] : (formData.applicableTerms && formData.applicableTerms.length > 0 ? formData.applicableTerms : [...availableAcademicTerms])
                       });
                     }}
-                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 font-bold text-slate-900 dark:text-white text-xs outline-none"
+                    className={`w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 text-xs outline-none ${
+                      !formData.paymentEligibility ? 'text-slate-400 font-normal' : 'font-bold text-slate-900 dark:text-white'
+                    }`}
                   >
+                    <option value="" disabled hidden>Select Payment Eligibility Mode</option>
                     <option value="One-Time Only">One-Time Only (Single Payment / Installment for Academic Year)</option>
                     <option value="Term-Wise Allowed">Term-Wise Allowed Only (Installments derived from Academic Terms)</option>
                     <option value="Both One-Time and Term-Wise">Both One-Time and Term-Wise (Flexible Payment Mode)</option>
@@ -904,7 +937,7 @@ export const FeeHeadsView: React.FC = () => {
                   <input
                     type="number"
                     min="1"
-                    value={(formData.displayOrder as any) === '' ? '' : (formData.displayOrder ?? 1)}
+                    placeholder="Enter Display Order" value={(formData.displayOrder as any) === '' || formData.displayOrder === undefined ? '' : formData.displayOrder}
                     onChange={e => {
                       const val = e.target.value;
                       setFormData({ ...formData, displayOrder: val === '' ? '' as any : Number(val) });
@@ -932,6 +965,12 @@ export const FeeHeadsView: React.FC = () => {
 
               {/* Applicable Classes Configuration */}
               <div className="space-y-2 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700">
+                {classOptions.length === 0 && (
+                  <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 text-xs flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600" />
+                    <span>No classes are configured. Please create classes before creating a fee category.</span>
+                  </div>
+                )}
                 <div className="flex items-center justify-between">
                   <label className="font-extrabold text-slate-800 dark:text-slate-200">
                     Applicable Classes ({(formData.applicableClasses || []).length}/{classOptions.length}) <span className="text-rose-500 font-bold ml-0.5">*</span>
@@ -944,14 +983,18 @@ export const FeeHeadsView: React.FC = () => {
                     >
                       Select All
                     </button>
-                    <span className="text-slate-300">|</span>
-                    <button
-                      type="button"
-                      onClick={() => setFormData({ ...formData, applicableClasses: [] })}
-                      className="text-slate-400 hover:text-slate-600 font-bold hover:underline cursor-pointer"
-                    >
-                      Deselect All
-                    </button>
+                    {(formData.applicableClasses || []).length > 0 && (
+                      <>
+                        <span className="text-slate-300">|</span>
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, applicableClasses: [] })}
+                          className="text-slate-400 hover:text-slate-600 font-bold hover:underline cursor-pointer"
+                        >
+                          Deselect All
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -1036,7 +1079,7 @@ export const FeeHeadsView: React.FC = () => {
               <div className="space-y-2 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700">
                 <div className="flex items-center justify-between">
                   <label className="font-extrabold text-slate-800 dark:text-slate-200">
-                    Applicable Branches ({(formData.applicableBranches || []).includes('All Branches') ? 'All' : (formData.applicableBranches || []).length})
+                    Applicable Branches ({(formData.applicableBranches || []).length} Selected)
                   </label>
                 </div>
 

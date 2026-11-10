@@ -82,12 +82,18 @@ export const FinanceTransportConfigView: React.FC = () => {
   // Global Transport Fee Billing Policy (One-Time vs Term-Wise)
   const [globalPolicy, setGlobalPolicy] = useState<'One-Time' | 'Term-wise'>(() => {
     const saved = localStorage.getItem('transport_fee_billing_policy');
-    return (saved === 'One-Time' || saved === 'Term-wise') ? saved : 'Term-wise';
+    return (saved === 'One-Time' || saved === 'Term-wise') ? saved : (((financeSettings as any)?.transportBillingPolicy as any) || 'Term-wise');
   });
 
   const handlePolicyChange = (newPolicy: 'One-Time' | 'Term-wise') => {
     setGlobalPolicy(newPolicy);
-    localStorage.setItem('transport_fee_billing_policy', newPolicy);
+    try {
+      localStorage.setItem('transport_fee_billing_policy', newPolicy);
+      localStorage.setItem('edu_db_transport_fee_billing_policy', newPolicy);
+      if (financeSettings) {
+        (financeSettings as any).transportBillingPolicy = newPolicy;
+      }
+    } catch (e) {}
     window.dispatchEvent(new Event('transport_policy_updated'));
     addToast('success', 'Transport Fee Policy Updated', `Transport billing policy is now set to ${newPolicy === 'One-Time' ? 'One-Time (Full Annual)' : 'Term-Wise (Split across terms)'}.`);
   };
@@ -299,7 +305,23 @@ export const FinanceTransportConfigView: React.FC = () => {
       // Calculate dynamic fee
       const isAC = params.transportType ? params.transportType.toLowerCase().includes('ac') && !params.transportType.toLowerCase().includes('non') : undefined;
       const stopFees = calculateStopFees(targetRoute.id, stopObj?.id || params.pickupStop, isAC);
-      const calculatedFee = stopFees.oneTimeAnnual > 0 ? stopFees.oneTimeAnnual : 0;
+
+      // Check customConfig for this stop or route
+      const customConfig = (financeTransportConfigs || []).find(
+        (c) =>
+          (String(c.routeId) === String(targetRoute.id) || (c.routeName && targetRoute.routeName && c.routeName.trim().toLowerCase() === targetRoute.routeName.trim().toLowerCase())) &&
+          (String(c.pickupPointId) === String(stopObj?.id || '') || (c.pickupName && stopName && c.pickupName.trim().toLowerCase() === stopName.trim().toLowerCase())) &&
+          c.status === 'Active'
+      );
+      const studentFeePolicy = customConfig?.feePlan
+        ? (customConfig.feePlan === 'Annual' ? 'One-Time' : 'Term-wise')
+        : globalPolicy;
+
+      const policyCalculatedFee = customConfig?.feeAmount && customConfig.feeAmount > 0
+        ? customConfig.feeAmount
+        : (studentFeePolicy === 'One-Time' ? stopFees.oneTimeAnnual : stopFees.termWise);
+
+      const calculatedFee = policyCalculatedFee > 0 ? policyCalculatedFee : 0;
 
       // Ledger check for specific transport fee
       const ledger = getStudentFeeLedger ? getStudentFeeLedger(params.studentId || params.id, params.rawStudentObj, activeAY) : null;
@@ -347,7 +369,7 @@ export const FinanceTransportConfigView: React.FC = () => {
         section: params.section || 'A',
         pickupStop: stopName || stopObj?.pickupName || (stopObj as any)?.pickupPointName || 'Main Stop',
         distanceKm,
-        feePlan: globalPolicy === 'One-Time' ? 'One-Time' : 'Term-Wise',
+        feePlan: studentFeePolicy === 'One-Time' ? 'One-Time (Annual)' : `Term-Wise (${scheduleTerms.length || 4} Terms)`,
         totalFee: finalFee,
         paidAmount: paidAmt,
         dueAmount: dueAmt,
@@ -805,10 +827,15 @@ export const FinanceTransportConfigView: React.FC = () => {
   const handleRouteSelect = (routeId: string) => {
     const route = routeMasters.find(r => String(r.id) === String(routeId));
     const assignment = vehicleAssignments.find(va => String(va.routeId) === String(routeId));
-    const stops = pickupPoints.filter(p => String(p.routeId) === String(routeId));
+    const stops = pickupPoints.filter(p => {
+      const matchesRouteId = p.routeId !== undefined && p.routeId !== null && String(p.routeId) === String(routeId);
+      const matchesRouteName = p.routeName && route?.routeName &&
+        p.routeName.trim().toLowerCase() === route.routeName.trim().toLowerCase();
+      return matchesRouteId || matchesRouteName;
+    });
     const firstStop = stops[0];
 
-    const feeMetrics = firstStop ? calculateStopFees(routeId, firstStop.id) : null;
+    const feeMetrics = firstStop ? calculateStopFees(routeId, firstStop.id) : calculateStopFees(routeId);
     const initialAmt = feeMetrics
       ? (globalPolicy === 'One-Time' ? feeMetrics.oneTimeAnnual : feeMetrics.termWise)
       : 0;
@@ -821,8 +848,8 @@ export const FinanceTransportConfigView: React.FC = () => {
       vehicleNumber: assignment?.vehicleNumber || 'Unassigned',
       driverId: assignment?.driverId || '',
       driverName: assignment?.driverName || 'Unassigned',
-      pickupPointId: firstStop?.id || '',
-      pickupName: firstStop?.pickupName || '',
+      pickupPointId: firstStop?.id || 'direct-route',
+      pickupName: firstStop?.pickupName || (route?.routeEnd ? `${route.routeStart || 'Start'} to ${route.routeEnd}` : 'Direct Route'),
       feePlan: globalPolicy === 'One-Time' ? 'Annual' : 'Quarterly',
       feeAmount: initialAmt
     }));
@@ -831,12 +858,12 @@ export const FinanceTransportConfigView: React.FC = () => {
   const handlePickupSelect = (pickupPointId: string) => {
     const pk = pickupPoints.find(p => String(p.id) === String(pickupPointId));
     const feeMetrics = calculateStopFees(form.routeId, pickupPointId);
-    const initialAmt = globalPolicy === 'One-Time' ? feeMetrics.oneTimeAnnual : feeMetrics.termWise;
+    const initialAmt = form.feePlan === 'Annual' ? feeMetrics.oneTimeAnnual : feeMetrics.termWise;
 
     setForm(prev => ({
       ...prev,
       pickupPointId,
-      pickupName: pk?.pickupName || '',
+      pickupName: pk?.pickupName || 'Direct Route',
       feeAmount: initialAmt
     }));
   };
@@ -872,19 +899,32 @@ export const FinanceTransportConfigView: React.FC = () => {
 
   const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
-    if (!form.routeId || !form.pickupPointId) {
-      addToast('warning', 'Missing Selection', 'Please select Route and Pickup Point.');
+    if (!form.routeId) {
+      addToast('warning', 'Missing Selection', 'Please select Route.');
       return;
     }
 
-    const payload = form as Omit<FinanceTransportConfig, 'id'>;
+    const payload: Omit<FinanceTransportConfig, 'id'> = {
+      routeId: form.routeId,
+      routeName: form.routeName || '',
+      vehicleId: form.vehicleId || '',
+      vehicleNumber: form.vehicleNumber || 'Unassigned',
+      driverId: form.driverId || '',
+      driverName: form.driverName || 'Unassigned',
+      pickupPointId: form.pickupPointId || 'direct-route',
+      pickupName: form.pickupName || 'Direct Route',
+      feePlan: form.feePlan || 'Quarterly',
+      feeAmount: typeof form.feeAmount === 'number' ? form.feeAmount : 0,
+      effectiveFrom: form.effectiveFrom || new Date().toISOString().split('T')[0],
+      status: form.status || 'Active'
+    };
 
     if (editingConfig) {
       updateFinanceTransportConfig(editingConfig.id, payload);
-      addToast('success', 'Transport Fee Config Updated', `Updated pricing for ${form.pickupName}`);
+      addToast('success', 'Transport Fee Config Updated', `Updated pricing for ${payload.pickupName}`);
     } else {
       addFinanceTransportConfig(payload);
-      addToast('success', 'Transport Fee Config Saved', `Saved configuration for ${form.pickupName}`);
+      addToast('success', 'Transport Fee Config Saved', `Saved configuration for ${payload.pickupName}`);
     }
     setIsModalOpen(false);
   };
@@ -925,8 +965,8 @@ export const FinanceTransportConfigView: React.FC = () => {
           if (matchesQuery && matchesRoute) {
             const fees = calculateStopFees(route.id, p.id);
             const customConfig = financeTransportConfigs.find(
-              c => String(c.routeId) === String(route.id) &&
-                   String(c.pickupPointId) === String(p.id) &&
+              c => (String(c.routeId) === String(route.id) || (c.routeName && route.routeName && c.routeName.trim().toLowerCase() === route.routeName.trim().toLowerCase())) &&
+                   (String(c.pickupPointId) === String(p.id) || (c.pickupName && p.pickupName && c.pickupName.trim().toLowerCase() === p.pickupName.trim().toLowerCase())) &&
                    c.status === 'Active'
             );
             rows.push({
@@ -950,8 +990,8 @@ export const FinanceTransportConfigView: React.FC = () => {
         if (matchesQuery && matchesRoute) {
           const fees = calculateStopFees(route.id);
           const customConfig = financeTransportConfigs.find(
-            c => String(c.routeId) === String(route.id) &&
-                 (!c.pickupPointId || c.pickupPointId === '0') &&
+            c => (String(c.routeId) === String(route.id) || (c.routeName && route.routeName && c.routeName.trim().toLowerCase() === route.routeName.trim().toLowerCase())) &&
+                 (!c.pickupPointId || c.pickupPointId === '0' || c.pickupPointId === 'direct-route') &&
                  c.status === 'Active'
           );
           const syntheticPickup: PickupPoint = {
@@ -982,8 +1022,14 @@ export const FinanceTransportConfigView: React.FC = () => {
   }, [pickupPoints, routeMasters, vehicleAssignments, vehicleMasters, financeTransportConfigs, query, filterRoute, scheduleTerms]);
 
   const routeStops = useMemo(() => {
-    return pickupPoints.filter(p => String(p.routeId) === String(form.routeId));
-  }, [pickupPoints, form.routeId]);
+    const selectedRoute = routeMasters.find(r => String(r.id) === String(form.routeId));
+    return pickupPoints.filter(p => {
+      const matchesRouteId = p.routeId !== undefined && p.routeId !== null && String(p.routeId) === String(form.routeId);
+      const matchesRouteName = p.routeName && selectedRoute?.routeName &&
+        p.routeName.trim().toLowerCase() === selectedRoute.routeName.trim().toLowerCase();
+      return matchesRouteId || matchesRouteName;
+    });
+  }, [pickupPoints, form.routeId, routeMasters]);
 
   return (
     <div className="space-y-6 animate-in fade-in">
@@ -1005,15 +1051,28 @@ export const FinanceTransportConfigView: React.FC = () => {
           >
             <Plus className="w-4 h-4" /> Add Custom Rate Override
           </button>
-          <ExportButton data={pickupMatrix.map(m => ({
-            Route: m.route?.routeName || m.pickup.routeName,
-            PickupPoint: m.pickup.pickupName,
-            DistanceKm: m.fees.distance,
-            VehicleType: m.isAC ? 'AC' : 'Non-AC',
-            MonthlyFee: m.fees.monthly,
-            OneTimeAnnualFee: m.fees.oneTimeAnnual,
-            TermWiseFee: m.fees.termWise
-          }))} filename="finance_transport_kilometer_matrix" />
+          <ExportButton data={pickupMatrix.map(({ pickup, route, isAC, fees, customConfig }) => {
+            const effectivePolicy = customConfig?.feePlan ? (customConfig.feePlan === 'Annual' ? 'One-Time' : 'Term-wise') : globalPolicy;
+            const effectiveAnnual = customConfig?.feePlan === 'Annual' && customConfig?.feeAmount ? customConfig.feeAmount : fees.oneTimeAnnual;
+            const effectiveTerm = (customConfig?.feePlan === 'Quarterly' || (customConfig?.feePlan as any) === 'Term-wise') && customConfig?.feeAmount ? customConfig.feeAmount : fees.termWise;
+            return {
+              'Route Name': route?.routeName || pickup.routeName,
+              'Route Code': route?.routeCode || '-',
+              'Pickup Stop': pickup.pickupName,
+              'Sequence': pickup.sequenceNumber ?? 1,
+              'Arrival Time': pickup.arrivalTime || '-',
+              'Distance (KM)': fees.distance,
+              'Bus Type': isAC ? 'AC Bus' : 'Non-AC Bus',
+              'Base Fare (₹)': fees.baseFare,
+              'Rate Per KM (₹)': fees.ratePerKm,
+              'Monthly Rate (₹)': fees.monthly,
+              'One-Time Fee (₹)': effectiveAnnual,
+              'Term-Wise Fee (₹)': effectiveTerm,
+              'Active Policy': effectivePolicy === 'One-Time' ? 'One-Time (Annual)' : `Term-Wise (${scheduleTerms.length} Terms)`,
+              'Active Fee Amount (₹)': effectivePolicy === 'One-Time' ? effectiveAnnual : effectiveTerm,
+              'Custom Override': customConfig ? 'Yes' : 'No'
+            };
+          })} filename="finance_transport_kilometer_matrix" />
         </div>
       </div>
 
@@ -1112,16 +1171,17 @@ export const FinanceTransportConfigView: React.FC = () => {
           <table className="w-full text-left border-collapse text-xs">
             <thead>
               <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
-                <th className="py-3.5 px-4">Route & Code</th>
-                <th className="py-3.5 px-4">Pickup Stop</th>
-                <th className="py-3.5 px-4 text-center">Distance</th>
-                <th className="py-3.5 px-4">Kilometer Slab Rates</th>
-                <th className="py-3.5 px-4 text-right">Monthly Rate</th>
-                <th className="py-3.5 px-4 text-right">One-Time (Annual)</th>
-                <th className="py-3.5 px-4 text-right">Term-Wise ({scheduleTerms.length} Terms)</th>
-                <th className="py-3.5 px-4 text-center">Active Policy</th>
-                <th className="py-3.5 px-4 text-center">Students</th>
-                <th className="py-3.5 px-4 text-right">Actions</th>
+<th className="py-3.5 px-4 text-left whitespace-nowrap">Route & Code</th>
+                <th className="py-3.5 px-4 text-left whitespace-nowrap">Pickup Stop</th>
+                <th className="py-3.5 px-4 text-center whitespace-nowrap">Distance</th>
+                <th className="py-3.5 px-4 text-center whitespace-nowrap">Bus Type</th>
+                <th className="py-3.5 px-4 text-left whitespace-nowrap">Kilometer Slab Rates</th>
+                <th className="py-3.5 px-4 text-right whitespace-nowrap">Monthly Rate</th>
+                <th className={`py-3.5 px-4 text-right whitespace-nowrap transition-colors ${globalPolicy === 'One-Time' ? 'bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 font-black' : ''}`}>One-Time (Annual){globalPolicy === 'One-Time' ? ' ★' : ''}</th>
+                <th className={`py-3.5 px-4 text-right whitespace-nowrap transition-colors ${globalPolicy === 'Term-wise' ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-black' : ''}`}>Term-Wise ({scheduleTerms.length} Terms){globalPolicy === 'Term-wise' ? ' ★' : ''}</th>
+                <th className="py-3.5 px-4 text-center whitespace-nowrap">Active Policy</th>
+                <th className="py-3.5 px-4 text-center whitespace-nowrap">Students</th>
+                <th className="py-3.5 px-4 text-center whitespace-nowrap">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
@@ -1131,11 +1191,14 @@ export const FinanceTransportConfigView: React.FC = () => {
                   const effectiveTerm = (customConfig?.feePlan === 'Quarterly' || (customConfig?.feePlan as any) === 'Term-wise') && customConfig?.feeAmount
                     ? customConfig.feeAmount
                     : fees.termWise;
+                  const effectivePolicy = customConfig?.feePlan
+                    ? (customConfig.feePlan === 'Annual' ? 'One-Time' : 'Term-wise')
+                    : globalPolicy;
 
                   return (
                     <tr key={pickup.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
                       <td
-                        className="py-3 px-4 font-extrabold text-slate-900 dark:text-white cursor-pointer group/rt"
+                        className="py-3 px-4 font-extrabold text-slate-900 dark:text-white cursor-pointer group/rt align-middle whitespace-nowrap"
                         onClick={() => setSelectedRouteForStudents(route)}
                         title="Click to view students on this route"
                       >
@@ -1148,52 +1211,69 @@ export const FinanceTransportConfigView: React.FC = () => {
                         </span>
                       </td>
 
-                      <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">
+                      <td className="py-3 px-4 align-middle whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
                           <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-                          <span>{pickup.pickupName}</span>
+                          <span className="font-bold text-slate-900 dark:text-white">{pickup.pickupName}</span>
                         </div>
-                        <span className="text-[10px] text-slate-400 block mt-0.5">
-                          Seq #{pickup.sequenceNumber ?? 1} {pickup.arrivalTime ? `• Arr: ${pickup.arrivalTime}` : ''}
+                        <span className="text-[10px] text-slate-400 block mt-0.5 pl-5 font-mono">
+                          Seq #{pickup.sequenceNumber ?? 1}{pickup.arrivalTime ? ` • Arr: ${pickup.arrivalTime}` : ''}
                         </span>
                       </td>
 
-                      <td className="py-3 px-4 text-center font-mono font-bold text-slate-800 dark:text-slate-200">
+                      <td className="py-3 px-4 text-center font-mono font-bold text-slate-800 dark:text-slate-200 align-middle whitespace-nowrap">
                         <span className="px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-xs">
                           {fees.distance} KM
                         </span>
                       </td>
 
-                      <td className="py-3 px-4 text-[11px] text-slate-600 dark:text-slate-300">
-                        <div className="flex items-center gap-1">
-                          <span className={`px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase ${isAC ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'}`}>
-                            {isAC ? 'AC Bus' : 'Non-AC Bus'}
-                          </span>
-                          <span className="text-slate-400">•</span>
-                          <span>Base: ₹{fees.baseFare} (0-{fees.minKm}km) + ₹{fees.ratePerKm}/km</span>
-                        </div>
+                      {/* BUG 08: Separate Bus Type Column */}
+                      <td className="py-3 px-4 text-center align-middle whitespace-nowrap">
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-extrabold uppercase ${isAC ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700'}`}>
+                          <Bus className="w-3 h-3" />
+                          {isAC ? 'AC Bus' : 'Non-AC Bus'}
+                        </span>
                       </td>
 
-                      <td className="py-3 px-4 text-right font-extrabold text-slate-700 dark:text-slate-300">
+                      {/* BUG 08: Separate Slab Rates Column */}
+                      <td className="py-3 px-4 text-[11px] text-slate-600 dark:text-slate-300 align-middle whitespace-nowrap">
+                        <span className="font-bold text-slate-800 dark:text-slate-200">Base: ₹{fees.baseFare}</span>
+                        <span className="text-slate-400 mx-1">(0-{fees.minKm}km)</span>
+                        <span className="font-bold text-sky-600 dark:text-sky-400">+ ₹{fees.ratePerKm}/km</span>
+                      </td>
+
+                      <td className="py-3 px-4 text-right font-extrabold text-slate-700 dark:text-slate-300 align-middle whitespace-nowrap">
                         {formatCurrency(fees.monthly)}
                       </td>
 
-                      <td className="py-3 px-4 text-right font-black text-sky-600 dark:text-sky-400 text-xs">
+                      <td className={`py-3 px-4 text-right text-xs align-middle whitespace-nowrap transition-colors ${globalPolicy === 'One-Time' ? 'bg-sky-50/60 dark:bg-sky-950/30 font-black text-sky-600 dark:text-sky-400' : 'font-bold text-slate-600 dark:text-slate-400'}`}>
                         {formatCurrency(effectiveAnnual)}
                       </td>
 
-                      <td className="py-3 px-4 text-right font-black text-emerald-600 dark:text-emerald-400 text-xs">
+                      <td className={`py-3 px-4 text-right text-xs align-middle whitespace-nowrap transition-colors ${globalPolicy === 'Term-wise' ? 'bg-emerald-50/60 dark:bg-emerald-950/30 font-black text-emerald-600 dark:text-emerald-400' : 'font-bold text-slate-600 dark:text-slate-400'}`}>
                         {formatCurrency(effectiveTerm)}
                         <span className="text-[10px] text-slate-400 block font-normal">/ term</span>
                       </td>
 
-                      <td className="py-3 px-4 text-center">
-                        <Badge variant={globalPolicy === 'One-Time' ? 'info' : 'success'}>
-                          {globalPolicy === 'One-Time' ? 'One-Time' : 'Term-Wise'}
-                        </Badge>
+                      {/* BUG 07 & BUG 09: Active Policy */}
+                      <td className="py-3 px-4 text-center align-middle whitespace-nowrap">
+                        <div className="inline-flex items-center gap-1.5 justify-center">
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-extrabold whitespace-nowrap ${
+                            effectivePolicy === 'One-Time'
+                              ? 'bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300 border border-sky-300 dark:border-sky-800'
+                              : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800'
+                          }`}>
+                            {effectivePolicy === 'One-Time' ? 'One-Time (Annual)' : `Term-Wise (${scheduleTerms.length} Terms)`}
+                          </span>
+                          {customConfig && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300 font-bold border border-purple-300 dark:border-purple-800" title="Custom Rate Override Active">
+                              Override
+                            </span>
+                          )}
+                        </div>
                       </td>
 
-                      <td className="py-3 px-4 text-center">
+                      <td className="py-3 px-4 text-center align-middle whitespace-nowrap">
                         {(() => {
                           const routeStudents = getRouteStudentsList(route);
                           const count = routeStudents.length;
@@ -1211,60 +1291,56 @@ export const FinanceTransportConfigView: React.FC = () => {
                         })()}
                       </td>
 
-                      {/* Actions */}
-                      <td className="py-3 px-4 text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (customConfig) {
-                                handleOpenEdit(customConfig);
-                              } else {
-                                setEditingConfig(null);
-                                setForm({
-                                  routeId: String(route.id),
-                                  routeName: route.routeName || '',
-                                  vehicleId: assignment?.vehicleId ? String(assignment.vehicleId) : '',
-                                  vehicleNumber: vehicle?.vehicleNumber || '',
-                                  driverId: assignment?.driverId ? String(assignment.driverId) : '',
-                                  driverName: '',
-                                  pickupPointId: pickup.id && !String(pickup.id).startsWith('route-base-') ? String(pickup.id) : '',
-                                  pickupName: pickup.pickupName || '',
-                                  feePlan: globalPolicy === 'One-Time' ? 'Annual' : 'Quarterly',
-                                  feeAmount: globalPolicy === 'One-Time' ? effectiveAnnual : effectiveTerm,
-                                  effectiveFrom: new Date().toISOString().split('T')[0],
-                                  status: 'Active'
+{/* Actions column for Custom Override */}
+                      <td className="py-3 px-4 text-center align-middle whitespace-nowrap">
+                        {customConfig ? (
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEdit(customConfig)}
+                              className="p-1.5 rounded-lg bg-sky-50 dark:bg-sky-950 text-sky-600 dark:text-sky-400 hover:bg-sky-100 dark:hover:bg-sky-900 transition-colors cursor-pointer"
+                              title="Edit Custom Rate Override"
+                            >
+                              <Edit className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const routeStudents = getRouteStudentsList(route);
+                                setDeleteTarget({
+                                  row: { pickup, route, customConfig },
+                                  studentCount: routeStudents.length
                                 });
-                                setIsModalOpen(true);
-                              }
-                            }}
-                            title={customConfig ? "Edit custom transport fee override" : "Set custom rate override for this stop"}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                          >
-                            <Edit className="w-3.5 h-3.5" />
-                          </button>
+                              }}
+                              className="p-1.5 rounded-lg bg-rose-50 dark:bg-rose-950 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900 transition-colors cursor-pointer"
+                              title="Delete Custom Rate Override"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ) : (
                           <button
                             type="button"
                             onClick={() => {
-                              const routeStudents = getRouteStudentsList(route);
-                              setDeleteTarget({
-                                row: { pickup, route, customConfig },
-                                studentCount: routeStudents.length
-                              });
+                              setEditingConfig(null);
+                              handleRouteSelect(route.id);
+                              handlePickupSelect(pickup.id);
+                              setIsModalOpen(true);
                             }}
-                            title="Delete rate configuration / route stop"
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                            className="px-2.5 py-1 rounded-lg text-[10px] font-bold text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/60 hover:bg-sky-100 dark:hover:bg-sky-900/60 transition-colors cursor-pointer border border-sky-200 dark:border-sky-800"
+                            title="Set custom rate override for this stop"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            + Override
                           </button>
-                        </div>
+                        )}
+                      </td>
                       </td>
                     </tr>
                   );
                 })
               ) : (
                 <tr>
-                  <td colSpan={10} className="py-8 text-center text-slate-400">
+<td colSpan={11} className="py-8 text-center text-slate-400">
                     No pickup points found matching search criteria.
                   </td>
                 </tr>
@@ -1654,7 +1730,7 @@ export const FinanceTransportConfigView: React.FC = () => {
                       </option>
                     ))
                   ) : (
-                    <option value="">No pickup points created for this route</option>
+                    <option value="direct-route">Direct Route (Full Route Distance)</option>
                   )}
                 </select>
               </div>

@@ -572,9 +572,9 @@ export const WardenCommunicationHubView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in pb-12">
+    <div className="space-y-3.5 animate-in fade-in pb-6">
       {/* 12. PAGE HEADER & SUBTITLE */}
-      <div className="glass-card py-4 px-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="glass-card py-3 px-4 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-2.5">
         <div>
           <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2.5">
             <Building2 className="w-6 h-6 text-sky-600 dark:text-sky-400" />
@@ -592,11 +592,11 @@ export const WardenCommunicationHubView: React.FC = () => {
       </div>
 
       {/* 7. WARDEN DASHBOARD SUMMARY CARDS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {/* Card 1: Total Announcements */}
         <div
           onClick={() => setActiveTab("announcements")}
-          className={`glass-card p-4.5 rounded-3xl border transition-all cursor-pointer group ${
+          className={`glass-card p-3.5 rounded-xl border transition-all cursor-pointer group ${
             activeTab === "announcements"
               ? "border-sky-500 ring-2 ring-sky-500/20 bg-sky-50/40 dark:bg-sky-950/30"
               : "border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 hover:shadow-md"
@@ -626,7 +626,7 @@ export const WardenCommunicationHubView: React.FC = () => {
         {/* Card 2: Parent Messages */}
         <div
           onClick={() => setActiveTab("parent-comm")}
-          className={`glass-card p-4.5 rounded-3xl border transition-all cursor-pointer group ${
+          className={`glass-card p-3.5 rounded-xl border transition-all cursor-pointer group ${
             activeTab === "parent-comm"
               ? "border-indigo-500 ring-2 ring-indigo-500/20 bg-indigo-50/40 dark:bg-indigo-950/30"
               : "border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 hover:shadow-md"
@@ -656,7 +656,7 @@ export const WardenCommunicationHubView: React.FC = () => {
         {/* Card 3: Relevant Meetings */}
         <div
           onClick={() => setActiveTab("meetings")}
-          className={`glass-card p-4.5 rounded-3xl border transition-all cursor-pointer group ${
+          className={`glass-card p-3.5 rounded-xl border transition-all cursor-pointer group ${
             activeTab === "meetings"
               ? "border-blue-500 ring-2 ring-blue-500/20 bg-blue-50/40 dark:bg-blue-950/30"
               : "border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 hover:shadow-md"
@@ -686,7 +686,7 @@ export const WardenCommunicationHubView: React.FC = () => {
         {/* Card 4: Open Requests */}
         <div
           onClick={() => setActiveTab("requests")}
-          className={`glass-card p-4.5 rounded-3xl border transition-all cursor-pointer group ${
+          className={`glass-card p-3.5 rounded-xl border transition-all cursor-pointer group ${
             activeTab === "requests"
               ? "border-emerald-500 ring-2 ring-emerald-500/20 bg-emerald-50/40 dark:bg-emerald-950/30"
               : "border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 hover:shadow-md"
@@ -715,7 +715,7 @@ export const WardenCommunicationHubView: React.FC = () => {
       </div>
 
       {/* 13. WARDEN TAB LAYOUT */}
-      <div className="glass-card p-2 rounded-2xl flex items-center gap-1 overflow-x-auto no-scrollbar border border-slate-200/80 dark:border-slate-800">
+      <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm p-1 rounded-xl flex items-center gap-1 overflow-x-auto no-scrollbar border border-slate-200/80 dark:border-slate-800 shadow-xs">
         {[
           { id: "announcements", label: "Announcements", icon: Megaphone },
           { id: "parent-comm", label: "Parent Communication", icon: MessageSquare },
@@ -728,13 +728,13 @@ export const WardenCommunicationHubView: React.FC = () => {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`px-4.5 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap flex items-center gap-1.5 transition-all cursor-pointer ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap flex items-center gap-1.5 transition-all cursor-pointer ${
                 isActive
-                  ? "bg-sky-600 text-white shadow-md shadow-sky-500/20"
-                  : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
+                  ? "bg-sky-600 text-white shadow-sm"
+                  : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white font-medium"
               }`}
             >
-              <Icon className="w-4 h-4" />
+              <Icon className="w-3.5 h-3.5" />
               <span>{tab.label}</span>
             </button>
           );
@@ -742,7 +742,7 @@ export const WardenCommunicationHubView: React.FC = () => {
       </div>
 
       {/* 9. WARDEN MULTI-FILTERS BAR */}
-      <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
+      <div className="glass-card p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xs grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-2.5">
         {/* Search Input */}
         <div className="lg:col-span-2 relative">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />

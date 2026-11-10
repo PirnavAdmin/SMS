@@ -1,14 +1,16 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { LogOut, Plus, Search, CheckCircle2, XCircle, Clock, Trash2, AlertTriangle } from 'lucide-react';
+import { LogOut, Plus, Search, CheckCircle2, XCircle, Clock, Trash2, AlertTriangle, AlertCircle, X } from 'lucide-react';
+import { validateSearchQuery } from '../../../utils/validation';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { useAuth } from '../../../context/AuthContext';
 import { SearchableSelect } from '../../common/SearchableSelect';
 import { ConfirmModal } from '../../common/ConfirmModal';
-import { getHostelBlocks, getAllocations, formatRoomNumber, HostelBlock, BedAllocation } from '../../../api/hostel';
+import { Pagination } from '../../common/Pagination';
+import { getHostelBlocks, getAllocations, formatRoomNumber, HostelBlock, BedAllocation, getOutpasses, createOutpass, updateOutpassStatus, deleteOutpass } from '../../../api/hostel';
 
 interface OutpassRecord {
-  id: number;
+  id: number | string;
   studentId?: string | number;
   studentName: string;
   admissionNo: string;
@@ -20,8 +22,6 @@ interface OutpassRecord {
   reason: string;
   status: 'Approved' | 'Pending' | 'Rejected' | 'Completed' | 'Cancelled';
 }
-
-const OUTPASSES_STORE_KEY = 'edu_db_hostel_outpasses';
 
 const DEFAULT_INITIAL_OUTPASSES: OutpassRecord[] = [];
 
@@ -95,30 +95,24 @@ export const HostelOutpassLeaveView: React.FC = () => {
       });
 
       if (matched.length > 0) return matched;
+      return blocks.length > 0 ? [blocks[0]] : [];
     }
 
-    // Default warden block fallback matching StudentList.tsx
-    const defaultBlock = blocks.find(b =>
-      (b.hostelName || (b as any).name || '').toLowerCase().includes('ramachandra') ||
-      (b.hostelName || (b as any).name || '').toLowerCase().includes('bhanu') ||
-      (b.hostelName || (b as any).name || '').toLowerCase().includes('boys')
-    );
-
-    return defaultBlock ? [defaultBlock] : (blocks.length > 0 ? [blocks[0]] : []);
+    return blocks;
   }, [blocks, allocations, isWarden, user]);
 
-  // Strictly filter residential hostellers allocated to assigned block
+  // Dynamically load all residential hostellers allocated to assigned block(s) or all blocks for admin
   const displayStudentsList = React.useMemo(() => {
-    const targetBlocks = (wardenAssignedBlocks && wardenAssignedBlocks.length > 0)
-      ? wardenAssignedBlocks
-      : (blocks.length > 0 ? [blocks[0]] : []);
-
+    const targetBlocks = isWarden && wardenAssignedBlocks.length > 0 ? wardenAssignedBlocks : blocks;
     const targetBlockIds = new Set(targetBlocks.map(b => String(b.hostelId || (b as any).id)));
     const targetBlockNames = targetBlocks.map(b => (b.hostelName || (b as any).name || '').toLowerCase().trim()).filter(Boolean);
 
-    // Active allocations specifically for target block(s)
+    // Active allocations specifically for target block(s) (or all blocks if not warden)
     const blockAllocations = (allocations || []).filter(a => {
-      if (!a || a.status === 'Vacated' || a.status === 'Inactive') return false;
+      if (!a) return false;
+      const st = (a.status || '').toLowerCase().trim();
+      if (st === 'vacated' || st === 'inactive' || st === 'cancelled') return false;
+      if (!isWarden) return true;
       const aName = (a.hostelName || '').toLowerCase().trim();
       const aId = String(a.hostelId || '');
       const matchId = targetBlockIds.has(aId);
@@ -126,98 +120,128 @@ export const HostelOutpassLeaveView: React.FC = () => {
       return matchId || matchName;
     });
 
-    const allocatedStudentIds = new Set(blockAllocations.map(a => String(a.studentId).toLowerCase().trim()));
-    const allocatedAdmNos = new Set(blockAllocations.map(a => (a.admissionNo || '').toLowerCase().trim()).filter(Boolean));
-    const allocatedNames = new Set(blockAllocations.map(a => (a.studentName || '').toLowerCase().trim()).filter(Boolean));
+    const list: Array<{
+      id: string;
+      studentId: string | number;
+      studentName: string;
+      firstName: string;
+      lastName: string;
+      admissionNo: string;
+      hostelName: string;
+      roomNumber: string;
+      bedNumber: string;
+    }> = [];
 
-    const otherBlockOrVacatedKeys = new Set<string>();
-    (allocations || []).forEach(a => {
-      if (!a) return;
-      const aName = (a.hostelName || '').toLowerCase().trim();
-      const aId = String(a.hostelId || '');
-      const matchId = targetBlockIds.has(aId);
-      const matchName = targetBlockNames.some(tn => tn && (aName.includes(tn) || tn.includes(aName)));
-      const isTarget = matchId || matchName;
-      if (!isTarget || a.status === 'Vacated' || a.status === 'Inactive') {
-        if (a.studentId) otherBlockOrVacatedKeys.add(String(a.studentId).toLowerCase().trim());
-        if (a.admissionNo) otherBlockOrVacatedKeys.add(String(a.admissionNo).toLowerCase().trim());
-        if (a.studentName) otherBlockOrVacatedKeys.add(String(a.studentName).toLowerCase().trim());
-      }
+    const seenKeys = new Set<string>();
+
+    blockAllocations.forEach(a => {
+      const key = String(a.studentId || a.admissionNo || a.allocationId).toLowerCase().trim();
+      if (!key || seenKeys.has(key)) return;
+      seenKeys.add(key);
+
+      const matchedStudent = (students || []).find(s =>
+        (s.id && a.studentId && String(s.id).toLowerCase() === String(a.studentId).toLowerCase()) ||
+        (s.admissionNo && a.admissionNo && s.admissionNo.toLowerCase().trim() === a.admissionNo.toLowerCase().trim())
+      );
+
+      const sName = a.studentName || (matchedStudent ? `${matchedStudent.firstName || ''} ${matchedStudent.lastName || ''}`.trim() : 'Resident Student');
+      const parts = sName.split(' ');
+
+      list.push({
+        id: String(a.studentId || a.admissionNo || a.allocationId),
+        studentId: a.studentId,
+        studentName: sName,
+        firstName: matchedStudent?.firstName || parts[0] || sName,
+        lastName: matchedStudent?.lastName || parts.slice(1).join(' ') || '',
+        admissionNo: a.admissionNo || matchedStudent?.admissionNo || '',
+        hostelName: a.hostelName || (matchedStudent as any)?.hostelBlock || '',
+        roomNumber: a.roomNumber || '',
+        bedNumber: a.bedNumber || ''
+      });
     });
 
-    // Match context students against target block allocations OR direct student hostelBlock assignment
-    const matchedStudents = (students || []).filter(s => {
-      if (!s) return false;
+    // Also include any students context marked as Hosteller not yet in list
+    (students || []).forEach(s => {
+      if (!s || s.status === 'Completed' || s.status === 'Alumni') return;
       const sId = String(s.id || '').toLowerCase().trim();
       const sAdm = String(s.admissionNo || '').toLowerCase().trim();
-      const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase().trim();
-      const sHostel = String((s as any).hostelBlock || (s as any).hostelName || (s as any).hostel || '').toLowerCase().trim();
+      if ((sId && seenKeys.has(sId)) || (sAdm && seenKeys.has(sAdm))) return;
 
-      const matchesAlloc = (sId && allocatedStudentIds.has(sId)) ||
-                           (sAdm && allocatedAdmNos.has(sAdm)) ||
-                           (sFullName && allocatedNames.has(sFullName));
+      const isHosteller = Boolean((s as any).isHosteller) || s.studentType === 'Hosteller' || s.studentType === 'Residential' || Boolean((s as any).hostelBlock);
+      if (!isHosteller) return;
 
-      const isAllocatedElsewhereOrVacated = (sId && otherBlockOrVacatedKeys.has(sId)) || (sAdm && otherBlockOrVacatedKeys.has(sAdm)) || (sFullName && otherBlockOrVacatedKeys.has(sFullName));
-
-      if (isAllocatedElsewhereOrVacated && !matchesAlloc) {
-        return false;
+      const hBlock = String((s as any).hostelBlock || (s as any).hostelName || '').toLowerCase().trim();
+      if (isWarden && targetBlockNames.length > 0 && !targetBlockNames.some(tn => tn && hBlock.includes(tn))) {
+        return;
       }
 
-      const matchesDirectHostelBlock = targetBlockNames.length > 0 && sHostel && targetBlockNames.some(tn => tn && (sHostel.includes(tn) || tn.includes(sHostel)));
+      const sName = `${s.firstName || ''} ${s.lastName || ''}`.trim() || s.name || 'Resident Student';
+      if (sId) seenKeys.add(sId);
+      if (sAdm) seenKeys.add(sAdm);
 
-      return matchesAlloc || matchesDirectHostelBlock;
+      list.push({
+        id: String(s.id),
+        studentId: s.id,
+        studentName: sName,
+        firstName: s.firstName || sName,
+        lastName: s.lastName || '',
+        admissionNo: s.admissionNo || '',
+        hostelName: (s as any).hostelBlock || (s as any).hostelName || 'Hostel Block',
+        roomNumber: (s as any).roomNumber || '',
+        bedNumber: (s as any).bedNumber || ''
+      });
     });
 
-    // Synthetic records for any blockAllocations not present in matchedStudents
-    const existingAdmNos = new Set(matchedStudents.map(s => String(s.admissionNo || '').toLowerCase().trim()));
-    const existingIds = new Set(matchedStudents.map(s => String(s.id || '').toLowerCase().trim()));
-    const existingNames = new Set(matchedStudents.map(s => `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase().trim()));
+    return list;
+  }, [students, wardenAssignedBlocks, blocks, allocations, isWarden]);
 
-    const syntheticFromAllocations = blockAllocations
-      .filter(a => {
-        const aId = String(a.studentId || '').toLowerCase().trim();
-        const aAdm = String(a.admissionNo || '').toLowerCase().trim();
-        const aName = String(a.studentName || '').toLowerCase().trim();
-        return !existingIds.has(aId) && (!aAdm || !existingAdmNos.has(aAdm)) && (!aName || !existingNames.has(aName));
-      })
-      .map(a => ({
-        id: a.studentId || a.allocationId || `alloc_${a.admissionNo}`,
-        firstName: a.studentName || 'Student',
-        lastName: '',
-        admissionNo: a.admissionNo || `ADM-${a.studentId}`,
-        studentType: 'Hosteller',
-        hostelName: a.hostelName,
-        roomNumber: a.roomNumber
-      }));
+  const [records, setRecords] = useState<OutpassRecord[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-    const merged = [...matchedStudents, ...syntheticFromAllocations];
-
-    return merged;
-  }, [students, wardenAssignedBlocks, blocks, allocations]);
-
-  const [records, setRecords] = useState<OutpassRecord[]>(() => {
-    if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem(OUTPASSES_STORE_KEY);
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-        } catch (e) {}
-      }
-    }
-    return DEFAULT_INITIAL_OUTPASSES;
-  });
-
-  const saveRecords = (newRecords: OutpassRecord[]) => {
-    setRecords(newRecords);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(OUTPASSES_STORE_KEY, JSON.stringify(newRecords));
-      window.dispatchEvent(new Event('hostel_outpasses_updated'));
+  const loadOutpasses = async () => {
+    try {
+      setIsLoading(true);
+      const data = await getOutpasses();
+      setRecords(data || []);
+    } catch (err) {
+      console.warn("Failed to load outpasses from server:", err);
+    } finally {
+      setIsLoading(false);
     }
   };
 
+  useEffect(() => {
+    loadOutpasses();
+    window.addEventListener('hostel_outpasses_updated', loadOutpasses);
+    return () => {
+      window.removeEventListener('hostel_outpasses_updated', loadOutpasses);
+    };
+  }, []);
+
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchError, setSearchError] = useState<string | undefined>(undefined);
+
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  const handleSearchQueryChange = (val: string) => {
+    setCurrentPage(1);
+    setSearchQuery(val);
+    if (!val.trim()) {
+      setSearchError(undefined);
+    } else {
+      const res = validateSearchQuery(val, 30);
+      setSearchError(res.isValid ? undefined : (res.error || 'Enter a valid search term.'));
+    }
+  };
+
   const [filterStatus, setFilterStatus] = useState('');
+
+  const handleFilterStatusChange = (val: string) => {
+    setCurrentPage(1);
+    setFilterStatus(val);
+  };
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -273,7 +297,7 @@ export const HostelOutpassLeaveView: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedStudentId || !departureDate || !returnDate) {
       addToast('Please complete all required fields.', 'warning');
@@ -297,8 +321,7 @@ export const HostelOutpassLeaveView: React.FC = () => {
 
     const defaultBlockName = wardenAssignedBlocks[0]?.hostelName || 'Hostel Block';
 
-    const newRecord: OutpassRecord = {
-      id: Date.now(),
+    const newRecord = {
       studentId: selectedStudentId,
       studentName: selectedSt ? `${selectedSt.firstName || ''} ${selectedSt.lastName || ''}`.trim() : 'Student',
       admissionNo: selectedSt?.admissionNo || `ADM-2026-${selectedStudentId}`,
@@ -307,27 +330,43 @@ export const HostelOutpassLeaveView: React.FC = () => {
       outpassType,
       departureDate,
       returnDate,
-      reason: reason || 'Personal work',
-      status: 'Pending'
+      reason: reason || 'Personal work'
     };
 
-    saveRecords([newRecord, ...records]);
-    addToast(isWarden ? 'Outpass / Leave issued successfully.' : 'Outpass / Leave request submitted successfully.', 'success');
-    setIsSubmitting(false);
-    setIsModalOpen(false);
+    try {
+      await createOutpass(newRecord);
+      window.dispatchEvent(new Event('hostel_outpasses_updated'));
+      await loadOutpasses();
+      addToast(isWarden ? 'Outpass / Leave issued successfully.' : 'Outpass / Leave request submitted successfully.', 'success');
+    } catch (err: any) {
+      addToast(err?.message || 'Failed to issue outpass on server', 'error');
+    } finally {
+      setIsSubmitting(false);
+      setIsModalOpen(false);
+    }
   };
 
-  const handleStatusChange = (id: number, newStatus: 'Approved' | 'Rejected' | 'Completed' | 'Cancelled') => {
-    const updated = records.map(r => r.id === id ? { ...r, status: newStatus } : r);
-    saveRecords(updated);
-    addToast(`Outpass request marked as ${newStatus}.`, 'info');
+  const handleStatusChange = async (id: number | string, newStatus: 'Approved' | 'Rejected' | 'Completed' | 'Cancelled') => {
+    try {
+      await updateOutpassStatus(id, newStatus, user?.name || (isWarden ? 'Hostel Warden' : 'Admin'));
+      setRecords(prev => prev.map(r => r.id === id ? { ...r, status: newStatus } : r));
+      window.dispatchEvent(new Event('hostel_outpasses_updated'));
+      addToast(`Outpass request marked as ${newStatus}.`, 'info');
+    } catch (err: any) {
+      addToast(err?.message || 'Failed to update outpass status', 'error');
+    }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!deletingRecord) return;
-    const updated = records.filter(r => r.id !== deletingRecord.id);
-    saveRecords(updated);
-    addToast('Outpass record deleted.', 'success');
+    try {
+      await deleteOutpass(deletingRecord.id);
+      setRecords(prev => prev.filter(r => r.id !== deletingRecord.id));
+      window.dispatchEvent(new Event('hostel_outpasses_updated'));
+      addToast('Outpass record deleted.', 'success');
+    } catch (err: any) {
+      addToast(err?.message || 'Failed to delete outpass', 'error');
+    }
     setDeletingRecord(null);
   };
 
@@ -336,6 +375,7 @@ export const HostelOutpassLeaveView: React.FC = () => {
   }, [wardenAssignedBlocks]);
 
   const filtered = records.filter(r => {
+    if (searchError) return false;
     const matchesSearch =
       r.studentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       r.admissionNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -345,35 +385,68 @@ export const HostelOutpassLeaveView: React.FC = () => {
     return matchesSearch && matchesStatus && matchesBlock;
   });
 
+  const paginated = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filtered.slice(startIndex, startIndex + itemsPerPage);
+  }, [filtered, currentPage, itemsPerPage]);
+
   return (
-    <div className="space-y-6 animate-in fade-in">
+    <div className="space-y-3.5 animate-in fade-in">
       <div className="flex justify-end">
         <button
           onClick={handleOpenAdd}
-          className="px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-lg shadow-sky-500/20 flex items-center gap-2 transition-all"
+          className="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-sm flex items-center gap-1.5 transition-all"
         >
           <Plus className="w-4 h-4" /> {actionLabel}
         </button>
       </div>
 
       {/* Filter Bar */}
-      <div className="glass-card p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 border border-slate-200 dark:border-slate-800 shadow-sm">
-        <div className="relative w-full sm:w-80">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
-          <input
-            type="text"
-            placeholder="Search student, student ID, room..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500 outline-none transition-all"
-          />
+      <div className="glass-card p-3.5 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border border-slate-200/80 dark:border-slate-800 shadow-xs">
+        <div className="w-full sm:w-80 flex flex-col">
+          <div className="relative w-full h-[36px]">
+            <Search className={`w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none transition-colors ${searchError ? "text-rose-500" : "text-slate-400"}`} />
+            <input
+              type="text"
+              maxLength={50}
+              data-skip-global-validation="true"
+              data-search-input="true"
+              placeholder="Search student, student ID, room..."
+              value={searchQuery}
+              onChange={e => handleSearchQueryChange(e.target.value)}
+              className={`w-full h-[36px] pl-10 ${searchQuery ? "pr-8" : "pr-4"} rounded-lg bg-slate-50 dark:bg-slate-800 border text-xs font-semibold text-slate-900 dark:text-white outline-none transition-all ${
+                searchError
+                  ? "border-rose-500 focus:border-rose-500 ring-1 ring-rose-500/20"
+                  : "border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500"
+              }`}
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery('');
+                  setSearchError(undefined);
+                }}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                title="Clear search"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+          {searchError && (
+            <p className="text-[11px] font-bold text-rose-500 flex items-center gap-1.5 mt-1.5 animate-in fade-in">
+              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+              <span>{searchError}</span>
+            </p>
+          )}
         </div>
 
         <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
           <div className="min-w-[180px] w-full sm:w-auto">
             <SearchableSelect
               value={filterStatus}
-              onChange={setFilterStatus}
+              onChange={handleFilterStatusChange}
               placeholder="Select"
               searchPlaceholder="Search status..."
               options={[
@@ -397,24 +470,36 @@ export const HostelOutpassLeaveView: React.FC = () => {
           </div>
           <div className="max-w-md mx-auto">
             <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-              Please enter a search query to load records.
+              Please enter a search query or select a status to load records.
+            </p>
+          </div>
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="py-16 px-6 glass-card rounded-3xl border border-slate-200 dark:border-slate-800 text-center space-y-3 bg-white dark:bg-slate-900 shadow-sm">
+          <div className="w-14 h-14 rounded-2xl bg-slate-50 dark:bg-slate-800 text-slate-400 flex items-center justify-center mx-auto">
+            <Search className="w-7 h-7" />
+          </div>
+          <div className="max-w-md mx-auto space-y-1">
+            <h4 className="text-sm font-bold text-slate-800 dark:text-white">No Matching Records Found</h4>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              No outpass or leave applications match &quot;{searchQuery}&quot;. Please verify the student name, ID, or room number.
             </p>
           </div>
         </div>
       ) : (
-        <div className="glass-card rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 overflow-hidden shadow-md">
+        <div className="glass-card rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 overflow-hidden shadow-xs">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-700 dark:text-slate-300">
+            <table className="w-full text-center text-xs text-slate-700 dark:text-slate-300">
               <thead className="bg-slate-50 dark:bg-slate-800/80 uppercase font-extrabold text-[10px] tracking-wider text-slate-500 border-b border-slate-200 dark:border-slate-800">
                 <tr>
-                  <th className="py-3.5 px-5">Student</th>
-                  <th className="py-3.5 px-5">Student ID</th>
-                  <th className="py-3.5 px-5">Hostel & Room</th>
-                  <th className="py-3.5 px-5">Outpass Type</th>
-                  <th className="py-3.5 px-5">Departure</th>
-                  <th className="py-3.5 px-5">Expected Return</th>
-                  <th className="py-3.5 px-5 text-center">Status</th>
-                  <th className="py-3.5 px-5 text-right">Actions</th>
+                  <th className="py-2 px-3 text-center">Student</th>
+                  <th className="py-2 px-3 text-center">Student ID</th>
+                  <th className="py-2 px-3 text-center">Hostel & Room</th>
+                  <th className="py-2 px-3 text-center">Outpass Type</th>
+                  <th className="py-2 px-3 text-center">Departure</th>
+                  <th className="py-2 px-3 text-center">Expected Return</th>
+                  <th className="py-2 px-3 text-center">Status</th>
+                  <th className="py-2 px-3 text-center">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
@@ -423,15 +508,15 @@ export const HostelOutpassLeaveView: React.FC = () => {
                     <td colSpan={8} className="py-10 text-center text-slate-400 italic font-semibold">No outpass records found matching filter.</td>
                   </tr>
                 ) : (
-                  filtered.map(r => (
+                  paginated.map(r => (
                     <tr key={r.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/50 transition-colors">
-                      <td className="py-3.5 px-5 font-bold text-slate-900 dark:text-white">{r.studentName}</td>
-                      <td className="py-3.5 px-5 font-mono text-slate-500">{r.studentId || r.admissionNo}</td>
-                      <td className="py-3.5 px-5 font-semibold text-sky-600 dark:text-sky-400">{r.hostelName} ({formatRoomNumber(r.roomNumber)})</td>
-                      <td className="py-3.5 px-5 font-bold text-slate-800 dark:text-slate-200">{r.outpassType}</td>
-                      <td className="py-3.5 px-5 text-slate-500 font-mono text-[11px]">{r.departureDate}</td>
-                      <td className="py-3.5 px-5 text-slate-500 font-mono text-[11px]">{r.returnDate}</td>
-                      <td className="py-3.5 px-5 text-center">
+                      <td className="py-2 px-3 text-center font-bold text-slate-900 dark:text-white">{r.studentName}</td>
+                      <td className="py-2 px-3 text-center font-mono text-slate-500">{r.admissionNo || r.studentId}</td>
+                      <td className="py-2 px-3 text-center font-semibold text-sky-600 dark:text-sky-400">{r.hostelName} ({formatRoomNumber(r.roomNumber)})</td>
+                      <td className="py-2 px-3 text-center font-bold text-slate-800 dark:text-slate-200">{r.outpassType}</td>
+                      <td className="py-2 px-3 text-center text-slate-500 font-mono text-[11px]">{r.departureDate}</td>
+                      <td className="py-2 px-3 text-center text-slate-500 font-mono text-[11px]">{r.returnDate}</td>
+                      <td className="py-2 px-3 text-center">
                         <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold ${
                           r.status === 'Approved' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' :
                           r.status === 'Pending' ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300' :
@@ -441,8 +526,8 @@ export const HostelOutpassLeaveView: React.FC = () => {
                           {r.status}
                         </span>
                       </td>
-                      <td className="py-3.5 px-5 text-right">
-                        <div className="flex items-center justify-end gap-2">
+                      <td className="py-2 px-3 text-center">
+                        <div className="flex items-center justify-center gap-2 mx-auto">
                           {r.status === 'Pending' && (
                             <>
                               <button onClick={() => handleStatusChange(r.id, 'Approved')} className="p-1 rounded-lg text-emerald-600 hover:bg-emerald-50" title="Approve Request"><CheckCircle2 className="w-4 h-4" /></button>
@@ -467,6 +552,20 @@ export const HostelOutpassLeaveView: React.FC = () => {
               </tbody>
             </table>
           </div>
+
+          {/* Neat Table Footer with Integrated Pagination */}
+          {filtered.length > 0 && (
+            <div className="px-5 py-3.5 border-t border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-900/40 rounded-b-xl">
+              <Pagination
+                currentPage={currentPage}
+                totalItems={filtered.length}
+                itemsPerPage={itemsPerPage}
+                onPageChange={setCurrentPage}
+                showBorder={false}
+                className="pt-0 pb-0"
+              />
+            </div>
+          )}
         </div>
       )}
 
@@ -485,8 +584,8 @@ export const HostelOutpassLeaveView: React.FC = () => {
                 <select
                   value={selectedStudentId}
                   onChange={e => setSelectedStudentId(e.target.value)}
-                  className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold cursor-pointer transition-all ${
-                    !selectedStudentId ? 'text-slate-400 dark:text-slate-500 font-sans font-medium' : 'text-slate-900 dark:text-white'
+                  className={`w-full px-3 py-2 rounded-xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 font-bold cursor-pointer transition-all hover:border-sky-400 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 ${
+                    !selectedStudentId ? 'text-sky-600/70 dark:text-sky-400/70 font-sans font-medium' : 'text-sky-950 dark:text-sky-100'
                   } ${activeOutpassForSelectedStudent ? 'border-amber-400 ring-1 ring-amber-400' : ''}`}
                   disabled={isSubmitting}
                   required
@@ -495,12 +594,25 @@ export const HostelOutpassLeaveView: React.FC = () => {
                   {displayStudentsList.map(st => {
                     const activeOp = getActiveOutpassForStudent(String(st.id ?? ''));
                     return (
-                      <option key={st.id} value={String(st.id ?? '')}>
-                        {st.firstName} {st.lastName} (ID: {st.id}){activeOp ? ` • [Active: ${activeOp.status}]` : ''}
+                      <option key={st.id} value={String(st.id ?? '')} className="bg-white text-slate-800 dark:bg-slate-900 dark:text-slate-100">
+                        {st.studentName} ({st.admissionNo ? `ADM: ${st.admissionNo}` : `ID: ${st.id}`}) - {st.hostelName} (Room #{formatRoomNumber(st.roomNumber)}){activeOp ? ` • [Active: ${activeOp.status}]` : ''}
                       </option>
                     );
                   })}
                 </select>
+
+                {selectedStudentId && (() => {
+                  const st = displayStudentsList.find(s => String(s.id) === String(selectedStudentId));
+                  if (!st) return null;
+                  return (
+                    <div className="mt-2 p-2.5 rounded-xl bg-sky-50/70 dark:bg-sky-950/40 border border-sky-200/80 dark:border-sky-800 text-xs flex items-center justify-between animate-in fade-in">
+                      <span className="text-slate-700 dark:text-slate-200 font-semibold">
+                        Hostel: <strong className="text-sky-600 dark:text-sky-400">{st.hostelName}</strong> • Room #{formatRoomNumber(st.roomNumber)}
+                      </span>
+                      <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">Active Resident</span>
+                    </div>
+                  );
+                })()}
 
                 {activeOutpassForSelectedStudent && (
                   <div className="mt-2.5 p-3 bg-amber-50 dark:bg-amber-950/50 border border-amber-300 dark:border-amber-800 rounded-2xl flex items-start gap-2.5 text-xs text-amber-900 dark:text-amber-200 animate-in fade-in">
@@ -523,12 +635,12 @@ export const HostelOutpassLeaveView: React.FC = () => {
                 <select
                   value={outpassType}
                   onChange={e => setOutpassType(e.target.value as any)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-sky-600"
+                  className="w-full px-3 py-2 rounded-xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 font-bold text-sky-900 dark:text-sky-100 hover:border-sky-400 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 cursor-pointer"
                   disabled={isSubmitting}
                 >
-                  <option value="Local Outpass">Local Outpass (Same Day)</option>
-                  <option value="Home Leave">Home Leave (Multiple Days)</option>
-                  <option value="Emergency Outpass">Emergency Outpass</option>
+                  <option value="Local Outpass" className="bg-white text-slate-800 dark:bg-slate-900 dark:text-slate-100">Local Outpass (Same Day)</option>
+                  <option value="Home Leave" className="bg-white text-slate-800 dark:bg-slate-900 dark:text-slate-100">Home Leave (Multiple Days)</option>
+                  <option value="Emergency Outpass" className="bg-white text-slate-800 dark:bg-slate-900 dark:text-slate-100">Emergency Outpass</option>
                 </select>
               </div>
 
@@ -544,7 +656,7 @@ export const HostelOutpassLeaveView: React.FC = () => {
                       setDepartureDate(newDep);
                       if (returnDate < newDep) setReturnDate(newDep);
                     }}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono text-[11px]"
+                    className="w-full px-3 py-2 rounded-xl bg-sky-50/50 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-800 font-mono text-[11px] text-sky-950 dark:text-sky-100 outline-none focus:border-sky-500"
                     required
                   />
                 </div>
@@ -555,7 +667,7 @@ export const HostelOutpassLeaveView: React.FC = () => {
                     value={returnDate}
                     min={departureDate || new Date().toISOString().slice(0, 16)}
                     onChange={e => setReturnDate(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono text-[11px]"
+                    className="w-full px-3 py-2 rounded-xl bg-sky-50/50 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-800 font-mono text-[11px] text-sky-950 dark:text-sky-100 outline-none focus:border-sky-500"
                     required
                   />
                 </div>

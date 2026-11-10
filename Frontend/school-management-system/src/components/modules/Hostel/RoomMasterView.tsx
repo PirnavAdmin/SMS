@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Home, Plus, Edit, Trash2, Search, Building2, CheckCircle2, AlertTriangle, XCircle, Users, Layers } from 'lucide-react';
+import { Home, Plus, Edit, Trash2, Search, Building2, CheckCircle2, AlertTriangle, XCircle, Users, Layers, Eye, X, AlertCircle } from 'lucide-react';
+import { validateSearchQuery } from '../../../utils/validation';
 import { useToast } from '../../../context/ToastContext';
 import { useAuth } from '../../../context/AuthContext';
 import { ConfirmModal } from '../../common/ConfirmModal';
@@ -24,6 +25,18 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
   const [loading, setLoading] = useState(true);
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchError, setSearchError] = useState<string | undefined>(undefined);
+
+  const handleSearchQueryChange = (val: string) => {
+    setSearchQuery(val);
+    setCurrentPage(1);
+    if (!val.trim()) {
+      setSearchError(undefined);
+    } else {
+      const res = validateSearchQuery(val, 30);
+      setSearchError(res.isValid ? undefined : (res.error || 'Enter a valid search term.'));
+    }
+  };
   const [filterHostelState, setFilterHostelState] = useState('');
   const filterHostel = selectedHostelFilter !== undefined ? selectedHostelFilter : filterHostelState;
   const setFilterHostel = onHostelFilterChange || setFilterHostelState;
@@ -172,13 +185,7 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
 
     if (matched.length > 0) return matched;
 
-    const defaultWardenBlock = blocks.find(b =>
-      (b.hostelName || '').toLowerCase().includes('ramachandra') ||
-      (b.hostelName || '').toLowerCase().includes('bhanu') ||
-      (b.hostelName || '').toLowerCase().includes('boys')
-    );
-
-    return defaultWardenBlock ? [defaultWardenBlock] : (blocks.length > 0 ? [blocks[0]] : []);
+    return blocks.length > 0 ? [blocks[0]] : [];
   }, [blocks, isWarden, user]);
 
   const targetBlocks = isWarden ? wardenAssignedHostels : blocks;
@@ -229,6 +236,7 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
   };
 
   const filteredRooms = useMemo(() => {
+    if (searchError) return [];
     const matched = (rooms || []).filter(rm => {
       if (!rm) return false;
       const rmHostelId = String(rm.hostelId ?? (rm as any).hostel_id ?? (rm as any).hostelBlockId ?? '');
@@ -250,7 +258,7 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
       if (numA !== numB) return numA - numB;
       return (a.roomNumber || '').localeCompare(b.roomNumber || '', undefined, { numeric: true });
     });
-  }, [rooms, isWarden, targetBlocks, searchQuery, filterHostel, filterFloor]);
+  }, [rooms, isWarden, targetBlocks, searchQuery, searchError, filterHostel, filterFloor]);
 
   const totalPages = Math.ceil(filteredRooms.length / itemsPerPage);
   const paginatedRooms = filteredRooms.slice(
@@ -269,7 +277,7 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in">
+    <div className="space-y-3.5 animate-in fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
@@ -287,39 +295,66 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
         )}
       </div>
 
-      <div className="glass-card p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 border border-slate-200 dark:border-slate-800 shadow-sm">
-        <div className="relative w-full sm:w-72">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-          <input
-            type="text"
-            placeholder="Search room number, hostel..."
-            value={searchQuery}
-            onChange={e => { setSearchQuery(e.target.value); setCurrentPage(1); }}
-            className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none"
-          />
+      <div className="glass-card p-3 rounded-xl flex flex-col sm:flex-row items-start justify-between gap-2.5 border border-slate-200/80 dark:border-slate-800 shadow-xs">
+        <div className="flex flex-col w-full sm:w-72">
+          <div className="relative w-full h-[36px]">
+            <Search className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none transition-colors ${searchError ? "text-rose-500" : "text-slate-400"}`} />
+            <input
+              type="text"
+              data-skip-global-validation="true"
+              data-search-input="true"
+              placeholder="Search room number, hostel..."
+              value={searchQuery}
+              onChange={e => handleSearchQueryChange(e.target.value)}
+              className={`w-full h-[36px] pl-9 ${searchQuery ? "pr-8" : "pr-4"} rounded-lg bg-slate-50 dark:bg-slate-800 border text-xs font-semibold text-slate-900 dark:text-white outline-none transition-all ${
+                searchError
+                  ? "border-rose-500 focus:border-rose-500 ring-1 ring-rose-500/20"
+                  : "border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500"
+              }`}
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery('');
+                  setSearchError(undefined);
+                  setCurrentPage(1);
+                }}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                title="Clear search"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+          {searchError && (
+            <p className="text-[11px] font-bold text-rose-500 flex items-center gap-1.5 mt-1.5 animate-in fade-in">
+              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+              <span>{searchError}</span>
+            </p>
+          )}
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto flex-wrap">
-          <span className="text-xs font-extrabold text-slate-600 dark:text-slate-300">Filter:</span>
+        <div className="flex items-center gap-2.5 w-full sm:w-auto flex-wrap justify-end">
           {isWarden ? (
-            <div className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-sky-600 dark:text-sky-400">
+            <div className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 h-[36px] flex items-center">
               {targetBlocks[0]?.hostelName || 'Assigned Hostel Block'}
             </div>
           ) : (
             <select
               value={filterHostel}
               onChange={e => { setFilterHostel(e.target.value); setCurrentPage(1); }}
-              className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white outline-none"
+              className="px-3 py-1.5 rounded-lg bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 text-xs font-bold text-sky-900 dark:text-sky-100 outline-none cursor-pointer h-[36px] hover:border-sky-400 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
             >
-              <option value="">Select Hostel...</option>
-              <option value="All">All Hostels</option>
+              <option value="" className="bg-white text-slate-800 dark:bg-slate-900 dark:text-slate-100">Select Hostel...</option>
+              <option value="All" className="bg-white text-slate-800 dark:bg-slate-900 dark:text-slate-100">All Hostels</option>
               {(targetBlocks || [])
                 .filter(h => h != null)
                 .map((h, idx) => {
                   const idVal = h.hostelId !== undefined && h.hostelId !== null ? String(h.hostelId) : String((h as any).id || idx);
                   const nameVal = h.hostelName || (h as any).name || `Hostel Block #${idVal}`;
                   return (
-                    <option key={`filter_h_${idVal}_${idx}`} value={idVal}>
+                    <option key={`filter_h_${idVal}_${idx}`} value={idVal} className="bg-white text-slate-800 dark:bg-slate-900 dark:text-slate-100">
                       {nameVal}
                     </option>
                   );
@@ -328,18 +363,15 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
           )}
 
           {/* Floor Filter */}
-          <div className="flex items-center gap-1.5">
-            <Layers className="w-3.5 h-3.5 text-sky-500 shrink-0" />
-            <select
-              value={filterFloor}
-              onChange={e => { setFilterFloor(e.target.value); setCurrentPage(1); }}
-              className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
-            >
-              {availableFloorOptions.map(f => (
-                <option key={f} value={f}>{f}</option>
-              ))}
-            </select>
-          </div>
+          <select
+            value={filterFloor}
+            onChange={e => { setFilterFloor(e.target.value); setCurrentPage(1); }}
+            className="px-3 py-1.5 rounded-lg bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 text-xs font-bold text-sky-900 dark:text-sky-100 outline-none cursor-pointer h-[36px] hover:border-sky-400 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all"
+          >
+            {availableFloorOptions.map(f => (
+              <option key={f} value={f} className="bg-white text-slate-800 dark:bg-slate-900 dark:text-slate-100">{f}</option>
+            ))}
+          </select>
         </div>
       </div>
 
@@ -351,8 +383,18 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
           <div className="max-w-md mx-auto space-y-1">
             <h3 className="text-sm font-bold text-slate-900 dark:text-white">Select a Hostel</h3>
             <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
-              Please select a hostel option from the filter dropdown above to view room allocations.
+              Please select a hostel option from the filter dropdown above or click below to view all room allocations.
             </p>
+          </div>
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={() => setFilterHostel('All')}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-md shadow-sky-600/20 transition-all cursor-pointer hover:scale-105 active:scale-95"
+            >
+              <Eye className="w-4 h-4" />
+              <span>View All Rooms</span>
+            </button>
           </div>
         </div>
       ) : loading ? (
@@ -361,7 +403,7 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
         <div className="py-12 text-center text-slate-400 font-bold">No rooms found.</div>
       ) : (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
             {paginatedRooms.map((rm, idx) => {
               const matchingRt = (roomTypes || []).find(rt => String(rt.roomTypeId) === String(rm.roomTypeId ?? (rm as any).room_type_id));
               const roomCategoryLabel = rm.roomTypeSpecification || matchingRt?.roomTypeSpecification || 'Standard Room';
@@ -370,7 +412,7 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
               const vac = typeof rm.vacantBeds === 'number' ? rm.vacantBeds : Math.max(0, cap - occ);
 
               return (
-              <div key={`rm-card-${rm.roomId || idx}-${rm.roomNumber || idx}-${idx}`} className="glass-card p-5 rounded-3xl space-y-4 border border-slate-200/80 dark:border-slate-800 relative group hover:border-sky-500/50 transition-all">
+              <div key={`rm-card-${rm.roomId || idx}-${rm.roomNumber || idx}-${idx}`} className="glass-card p-3.5 sm:p-4 rounded-xl space-y-3 border border-slate-200/80 dark:border-slate-800 relative group hover:border-sky-500/50 transition-all shadow-xs">
                 <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                   <div>
                     <span className="font-mono text-xs font-black text-sky-600 dark:text-sky-400">{formatRoomNumber(rm.roomNumber)}</span>
@@ -398,14 +440,18 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
             })}
           </div>
 
-          {totalPages > 1 && (
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              totalItems={filteredRooms.length}
-              itemsPerPage={itemsPerPage}
-              onPageChange={setCurrentPage}
-            />
+          {/* Neat Pagination Footer Container */}
+          {filteredRooms.length > 0 && (
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl px-5 py-3.5 shadow-xs">
+              <Pagination
+                currentPage={currentPage}
+                totalItems={filteredRooms.length}
+                itemsPerPage={itemsPerPage}
+                onPageChange={setCurrentPage}
+                showBorder={false}
+                className="pt-0 pb-0"
+              />
+            </div>
           )}
         </div>
       )}
@@ -460,36 +506,25 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
                   const selBlock = (blocks || []).find(b => b && b.hostelId !== undefined && String(b.hostelId) === formHostelId);
                   let floorList: string[] = [];
                   if (selBlock) {
-                    const stored = localStorage.getItem(`edu_db_floor_sharing_config_${selBlock.hostelId}`);
-                    if (stored) {
-                      try {
-                        const parsed = JSON.parse(stored);
-                        if (Array.isArray(parsed) && parsed.length > 0) {
-                          floorList = parsed.map((f: any) => f.floorLabel || `Floor #${f.floorIndex + 1}`);
-                        }
-                      } catch (e) {}
-                    }
-                    if (floorList.length === 0) {
-                      const count = Math.max(1, Number((selBlock as any).totalFloors || (selBlock as any).totalBuildingFloors || 2));
-                      floorList = Array.from({ length: count }, (_, i) =>
-                        i === 0 ? 'Ground Floor' : i === 1 ? '1st Floor' : i === 2 ? '2nd Floor' : i === 3 ? '3rd Floor' : `${i}th Floor`
-                      );
-                    }
+                    const count = Math.max(1, Number((selBlock as any).totalFloors || (selBlock as any).totalBuildingFloors || 4));
+                    floorList = Array.from({ length: count }, (_, i) =>
+                      i === 0 ? 'Ground Floor' : i === 1 ? '1st Floor' : i === 2 ? '2nd Floor' : i === 3 ? '3rd Floor' : `${i}th Floor`
+                    );
                   }
 
                   return (
                     <select 
                       value={formFloorLevel} 
                       onChange={e => setFormFloorLevel(e.target.value)} 
-                      className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold cursor-pointer transition-all ${
-                        !formFloorLevel ? 'text-slate-400 dark:text-slate-500 font-sans font-medium' : 'text-slate-900 dark:text-white'
+                      className={`w-full px-3 py-2 rounded-xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 font-bold cursor-pointer transition-all hover:border-sky-400 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 ${
+                        !formFloorLevel ? 'text-sky-600/70 dark:text-sky-400/70 font-sans font-medium' : 'text-sky-950 dark:text-sky-100'
                       }`}
                       disabled={isSubmitting || !formHostelId}
                       required
                     >
                       <option value="" disabled className="text-slate-400 dark:text-slate-500 font-sans italic bg-white dark:bg-slate-900">{!formHostelId ? 'Select Hostel Block first...' : 'Select Floor Level...'}</option>
                       {floorList.map((fl, idx) => (
-                        <option key={`fl_opt_${idx}`} value={fl}>
+                        <option key={`fl_opt_${idx}`} value={fl} className="bg-white text-slate-800 dark:bg-slate-900 dark:text-slate-100">
                           {fl}
                         </option>
                       ))}
@@ -507,7 +542,7 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
                     placeholder="e.g. 101"
                     value={formRoomNumber}
                     onChange={e => setFormRoomNumber(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono font-bold text-slate-900 dark:text-white"
+                    className="w-full px-3 py-2 rounded-xl bg-sky-50/50 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-800 font-mono font-bold text-sky-950 dark:text-sky-100 outline-none focus:border-sky-500"
                     disabled={isSubmitting}
                   />
                 </div>
@@ -516,8 +551,8 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
                   <select 
                     value={formRoomTypeId} 
                     onChange={e => setFormRoomTypeId(e.target.value)} 
-                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold cursor-pointer transition-all ${
-                      !formRoomTypeId ? 'text-slate-400 dark:text-slate-500 font-sans font-medium' : 'text-slate-900 dark:text-white'
+                    className={`w-full px-3 py-2 rounded-xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 font-bold cursor-pointer transition-all hover:border-sky-400 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 ${
+                      !formRoomTypeId ? 'text-sky-600/70 dark:text-sky-400/70 font-sans font-medium' : 'text-sky-950 dark:text-sky-100'
                     }`}
                     disabled={isSubmitting}
                     required
@@ -527,7 +562,7 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
                       const hasAcInSpec = (rt.roomTypeSpecification || '').toLowerCase().includes('ac');
                       const acLabel = rt.acType && !hasAcInSpec ? ` (${rt.acType})` : '';
                       return (
-                        <option key={rt.roomTypeId} value={String(rt.roomTypeId ?? '')}>
+                        <option key={rt.roomTypeId} value={String(rt.roomTypeId ?? '')} className="bg-white text-slate-800 dark:bg-slate-900 dark:text-slate-100">
                           {rt.roomTypeSpecification}{acLabel} • (Cap: {rt.bedCapacity} {rt.bedCapacity === 1 ? 'Bed' : 'Beds'})
                         </option>
                       );
@@ -541,12 +576,12 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
                 <select 
                   value={formStatus} 
                   onChange={e => setFormStatus(e.target.value)} 
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold"
+                  className="w-full px-3 py-2 rounded-xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 font-bold text-sky-900 dark:text-sky-100 cursor-pointer hover:border-sky-400 focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500"
                   disabled={isSubmitting}
                 >
-                  <option value="Active">Active</option>
-                  <option value="Inactive">Inactive</option>
-                  <option value="Maintenance">Maintenance</option>
+                  <option value="Active" className="bg-white text-slate-800 dark:bg-slate-900 dark:text-slate-100">Active</option>
+                  <option value="Inactive" className="bg-white text-slate-800 dark:bg-slate-900 dark:text-slate-100">Inactive</option>
+                  <option value="Maintenance" className="bg-white text-slate-800 dark:bg-slate-900 dark:text-slate-100">Maintenance</option>
                 </select>
               </div>
 
