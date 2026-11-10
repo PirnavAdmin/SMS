@@ -460,65 +460,7 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
 
 
 
-  const [cityDropdownOpen, setCityDropdownOpen] = useState(false);
-  const cityContainerRef = React.useRef<HTMLDivElement>(null);
-  const [stateDropdownOpen, setStateDropdownOpen] = useState(false);
-  const stateContainerRef = React.useRef<HTMLDivElement>(null);
 
-  React.useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (cityContainerRef.current && !cityContainerRef.current.contains(e.target as Node)) {
-        setCityDropdownOpen(false);
-      }
-      if (stateContainerRef.current && !stateContainerRef.current.contains(e.target as Node)) {
-        setStateDropdownOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const filteredCities = React.useMemo(() => {
-    const query = (value.city || '').trim().toLowerCase();
-    if (!query) return KNOWN_INDIAN_CITIES;
-    return KNOWN_INDIAN_CITIES.filter(c => c.toLowerCase().includes(query));
-  }, [value.city]);
-
-  const filteredStates = React.useMemo(() => {
-    const query = (value.state || '').trim().toLowerCase();
-    if (!query) return VALID_INDIAN_STATES;
-    return VALID_INDIAN_STATES.filter(s => s.toLowerCase().includes(query));
-  }, [value.state]);
-
-  const handleSelectCity = (cityName: string) => {
-    onChange('city', cityName);
-    setCityDropdownOpen(false);
-    const res = validateCityName(cityName);
-    if (!res.isValid && res.error) {
-      setLocalErrors(prev => ({ ...prev, city: res.error! }));
-    } else {
-      setLocalErrors(prev => {
-        const next = { ...prev };
-        delete next.city;
-        return next;
-      });
-    }
-  };
-
-  const handleSelectState = (stateName: string) => {
-    onChange('state', stateName);
-    setStateDropdownOpen(false);
-    const res = validateStateName(stateName);
-    if (!res.isValid && res.error) {
-      setLocalErrors(prev => ({ ...prev, state: res.error! }));
-    } else {
-      setLocalErrors(prev => {
-        const next = { ...prev };
-        delete next.state;
-        return next;
-      });
-    }
-  };
 
   const handlePinCodeChange = async (val: string) => {
     const cleanPin = val.replace(/[^0-9]/g, '').slice(0, 6);
@@ -1423,16 +1365,13 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                 <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
                   State <span className="text-rose-500">*</span>
                 </label>
-                <div ref={stateContainerRef} className="relative mt-1.5">
-                  <input
-                    type="text"
+                <div className="relative mt-1.5">
+                  <select
                     value={value.state || ''}
-                    onFocus={() => setStateDropdownOpen(true)}
                     onChange={e => {
-                      const val = e.target.value.replace(/[^A-Za-z\s.\-']/g, '');
+                      const val = e.target.value;
                       onChange('state', val);
-                      setStateDropdownOpen(true);
-                      if (val.trim()) {
+                      if (val) {
                         const res = validateStateName(val);
                         if (!res.isValid && res.error) {
                           setLocalErrors(prev => ({ ...prev, state: res.error! }));
@@ -1443,64 +1382,23 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                             return next;
                           });
                         }
+                      } else {
+                        setLocalErrors(prev => ({ ...prev, state: 'State is required.' }));
                       }
                     }}
-                    onBlur={() => {
-                      if (value.state?.trim()) {
-                        const res = validateStateName(value.state);
-                        if (!res.isValid && res.error) {
-                          setLocalErrors(prev => ({ ...prev, state: res.error! }));
-                        }
-                      }
-                    }}
-                    className={`w-full rounded-xl border bg-white dark:bg-slate-950 pl-3.5 pr-9 py-2 text-xs outline-none transition font-medium ${
-                      errors.state
-                        ? 'border-rose-500 text-rose-700 dark:text-rose-400 focus:border-rose-500 focus:ring-1 focus:ring-rose-500'
-                        : 'border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white focus:border-brand-500'
-                    }`}
-                    placeholder="e.g. Telangana, Andhra Pradesh"
-                    autoComplete="off"
-                  />
-                  <button
-                    type="button"
-                    tabIndex={-1}
-                    onClick={() => setStateDropdownOpen(prev => !prev)}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                    className={`w-full rounded-xl border bg-white dark:bg-slate-950 px-3.5 py-2 text-xs outline-none transition font-medium appearance-none cursor-pointer pr-10 ${
+                      !value.state ? 'text-slate-400 dark:text-slate-500' : 'text-slate-900 dark:text-white'
+                    } ${errors.state ? 'border-rose-500 text-rose-700' : 'border-slate-200 dark:border-slate-800 focus:border-brand-500'}`}
                   >
-                    <ChevronDown className={`w-4 h-4 transition-transform ${stateDropdownOpen ? 'rotate-180 text-brand-600' : ''}`} />
-                  </button>
-
-                  {stateDropdownOpen && (
-                    <div className="absolute z-50 left-0 right-0 top-full mt-1 max-h-48 overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-1 shadow-xl custom-scrollbar animate-in fade-in duration-100">
-                      {filteredStates.length > 0 ? (
-                        filteredStates.map(st => {
-                          const isSelected = value.state?.trim().toLowerCase() === st.toLowerCase();
-                          return (
-                            <button
-                              key={st}
-                              type="button"
-                              onMouseDown={e => {
-                                e.preventDefault();
-                                handleSelectState(st);
-                              }}
-                              className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-xs font-semibold text-left transition-colors ${
-                                isSelected
-                                  ? 'bg-brand-50 dark:bg-brand-950/60 text-brand-700 dark:text-brand-300 font-bold'
-                                  : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/70'
-                              }`}
-                            >
-                              <span className="truncate">{st}</span>
-                              {isSelected && <Check className="w-3.5 h-3.5 text-brand-600 shrink-0 ml-2" />}
-                            </button>
-                          );
-                        })
-                      ) : (
-                        <div className="px-3 py-2 text-xs text-slate-400 italic">
-                          No matching states found
-                        </div>
-                      )}
-                    </div>
-                  )}
+                    <option value="" disabled className="text-slate-400">Select State</option>
+                    {VALID_INDIAN_STATES.map(st => (
+                      <option key={st} value={st} className="text-slate-900 dark:text-white">{st}</option>
+                    ))}
+                    {value.state && !VALID_INDIAN_STATES.includes(value.state) && (
+                      <option value={value.state} className="text-slate-900 dark:text-white">{value.state}</option>
+                    )}
+                  </select>
+                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 </div>
                 {errors.state && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors.state}</p>}
               </div>
@@ -1509,16 +1407,13 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                 <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
                   City <span className="text-rose-500">*</span>
                 </label>
-                <div ref={cityContainerRef} className="relative mt-1.5">
-                  <input
-                    type="text"
+                <div className="relative mt-1.5">
+                  <select
                     value={value.city || ''}
-                    onFocus={() => setCityDropdownOpen(true)}
                     onChange={e => {
-                      const val = e.target.value.replace(/[^A-Za-z\s.\-']/g, '');
+                      const val = e.target.value;
                       onChange('city', val);
-                      setCityDropdownOpen(true);
-                      if (val.trim()) {
+                      if (val) {
                         const res = validateCityName(val);
                         if (!res.isValid && res.error) {
                           setLocalErrors(prev => ({ ...prev, city: res.error! }));
@@ -1529,64 +1424,23 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                             return next;
                           });
                         }
+                      } else {
+                        setLocalErrors(prev => ({ ...prev, city: 'City is required.' }));
                       }
                     }}
-                    onBlur={() => {
-                      if (value.city?.trim()) {
-                        const res = validateCityName(value.city);
-                        if (!res.isValid && res.error) {
-                          setLocalErrors(prev => ({ ...prev, city: res.error! }));
-                        }
-                      }
-                    }}
-                    className={`w-full rounded-xl border bg-white dark:bg-slate-950 pl-3.5 pr-9 py-2 text-xs outline-none transition font-medium ${
-                      errors.city
-                        ? 'border-rose-500 text-rose-700 dark:text-rose-400 focus:border-rose-500 focus:ring-1 focus:ring-rose-500'
-                        : 'border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white focus:border-brand-500'
-                    }`}
-                    placeholder="e.g. Hyderabad, Vijayawada"
-                    autoComplete="off"
-                  />
-                  <button
-                    type="button"
-                    tabIndex={-1}
-                    onClick={() => setCityDropdownOpen(prev => !prev)}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+                    className={`w-full rounded-xl border bg-white dark:bg-slate-950 px-3.5 py-2 text-xs outline-none transition font-medium appearance-none cursor-pointer pr-10 ${
+                      !value.city ? 'text-slate-400 dark:text-slate-500' : 'text-slate-900 dark:text-white'
+                    } ${errors.city ? 'border-rose-500 text-rose-700' : 'border-slate-200 dark:border-slate-800 focus:border-brand-500'}`}
                   >
-                    <ChevronDown className={`w-4 h-4 transition-transform ${cityDropdownOpen ? 'rotate-180 text-brand-600' : ''}`} />
-                  </button>
-
-                  {cityDropdownOpen && (
-                    <div className="absolute z-50 left-0 right-0 top-full mt-1 max-h-48 overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-1 shadow-xl custom-scrollbar animate-in fade-in duration-100">
-                      {filteredCities.length > 0 ? (
-                        filteredCities.map(ct => {
-                          const isSelected = value.city?.trim().toLowerCase() === ct.toLowerCase();
-                          return (
-                            <button
-                              key={ct}
-                              type="button"
-                              onMouseDown={e => {
-                                e.preventDefault();
-                                handleSelectCity(ct);
-                              }}
-                              className={`w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-xs font-semibold text-left transition-colors ${
-                                isSelected
-                                  ? 'bg-brand-50 dark:bg-brand-950/60 text-brand-700 dark:text-brand-300 font-bold'
-                                  : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/70'
-                              }`}
-                            >
-                              <span className="truncate">{ct}</span>
-                              {isSelected && <Check className="w-3.5 h-3.5 text-brand-600 shrink-0 ml-2" />}
-                            </button>
-                          );
-                        })
-                      ) : (
-                        <div className="px-3 py-2 text-xs text-slate-400 italic">
-                          No matching cities found
-                        </div>
-                      )}
-                    </div>
-                  )}
+                    <option value="" disabled className="text-slate-400">Select City</option>
+                    {KNOWN_INDIAN_CITIES.map(ct => (
+                      <option key={ct} value={ct} className="text-slate-900 dark:text-white">{ct}</option>
+                    ))}
+                    {value.city && !KNOWN_INDIAN_CITIES.includes(value.city) && (
+                      <option value={value.city} className="text-slate-900 dark:text-white">{value.city}</option>
+                    )}
+                  </select>
+                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                 </div>
                 {errors.city && <p className="mt-1 text-[11px] font-semibold text-rose-500">{errors.city}</p>}
               </div>
