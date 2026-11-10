@@ -24,7 +24,7 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
     financialAccounts, addFinancialAccount, updateFinancialAccount, deleteFinancialAccount,
     financialCategories, addFinancialCategory, updateFinancialCategory, deleteFinancialCategory,
     financialBudgets, addFinancialBudget, updateFinancialBudget, deleteFinancialBudget,
-    students, staff
+    students, staff, fetchFinanceData
   } = useData();
 
   const { selectedAcademicYear, selectedBranch } = useAuth();
@@ -40,6 +40,12 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
       setActiveSubTab(initialSubTab);
     }
   }, [initialSubTab]);
+
+  useEffect(() => {
+    if ((!financialAccounts || financialAccounts.length === 0 || !financialCategories || financialCategories.length === 0) && fetchFinanceData) {
+      fetchFinanceData().catch(() => {});
+    }
+  }, [financialAccounts, financialCategories, fetchFinanceData]);
 
   // Filter States
   const [searchQuery, setSearchQuery] = useState('');

@@ -42,10 +42,21 @@ export const FeeHeadsView: React.FC = () => {
     financeHostelConfigs = [],
     updateFinanceHostelConfig,
     addFinanceHostelConfig,
+    fetchAcademicClasses,
+    fetchFinanceData,
   } = useData();
 
   const { selectedAcademicYear } = useAuth();
   const { addToast } = useToast();
+
+  useEffect(() => {
+    if ((!academicClasses || academicClasses.length === 0) && fetchAcademicClasses) {
+      fetchAcademicClasses().catch(() => {});
+    }
+    if ((!feeHeads || feeHeads.length === 0) && fetchFinanceData) {
+      fetchFinanceData().catch(() => {});
+    }
+  }, [academicClasses, feeHeads, fetchAcademicClasses, fetchFinanceData]);
 
   const classOptions = useMemo(() => {
     if (academicClasses && academicClasses.length > 0) {

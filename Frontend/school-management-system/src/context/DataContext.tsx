@@ -812,6 +812,7 @@ interface DataContextType {
 
   academicClasses: AcademicClass[];
   rawClasses: any[];
+  rawAcademicClasses: AcademicClass[];
   addAcademicClass: (cls: Omit<AcademicClass, "id">) => Promise<void>;
   updateAcademicClass: (
     id: string,
@@ -5706,8 +5707,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
   const fetchFinanceData = useCallback(async () => {
     const userRole = (role || user?.role || "").toLowerCase().replace(/[\s_-]+/g, "");
-    const allowedFinanceRoles = ["admin", "superadmin", "accountant", "finance", "staff", "principal"];
-    if (!allowedFinanceRoles.includes(userRole)) {
+    const allowedFinanceRoles = ["admin", "superadmin", "accountant", "finance", "staff", "principal", "teacher", "management", "director", "chairperson"];
+    if (userRole === "parent" || userRole === "student") {
       return;
     }
     if (activeRequests.current["finance-data"]) {
@@ -6631,10 +6632,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         fetchDailyAttendance(new Date().toISOString().split("T")[0]);
         fetchUniformData().catch(() => {});
         fetchFacultyTrainingData().catch(() => {});
-        const allowedFinanceRoles = ["admin", "superadmin", "accountant", "finance", "staff"];
-        if (allowedFinanceRoles.includes(userRole)) {
-          fetchFinanceData().catch(() => {});
-        }
+        fetchFinanceData().catch(() => {});
       }
       fetchAdmissions();
     }
@@ -6642,9 +6640,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   useEffect(() => {
     const handleFinanceUpdated = () => {
-      const userRole = (role || user?.role || "").toLowerCase();
-      const allowedFinanceRoles = ["admin", "superadmin", "accountant", "finance", "staff"];
-      if (!allowedFinanceRoles.includes(userRole)) return;
+      const userRole = (role || user?.role || "").toLowerCase().replace(/[\s_-]+/g, "");
+      if (userRole === "parent" || userRole === "student") return;
       fetchFinanceData().catch(() => {});
     };
     window.addEventListener("finance_updated", handleFinanceUpdated);
@@ -26134,8 +26131,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           } else {
             ayMatch = anyItem.academicYear === selectedAcademicYear;
           }
-        } else if (anyItem.appliedClass || anyItem.applicationNo || anyItem.registrationNo || anyItem.studentId) {
-          ayMatch = false;
         }
       }
       return branchMatch && ayMatch;
@@ -26168,7 +26163,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   */
   const filteredStudents = useMemo(() => {
-    return filterByBranch(students);
+    const list = filterByBranch(students);
+    return list.length > 0 ? list : students;
   }, [students, selectedBranch, selectedAcademicYear]);
 
   useEffect(() => {
@@ -26185,7 +26181,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   );
   const filteredClasses = useMemo(() => {
     const list = filterByBranch(academicClasses);
-    return [...list].sort((a, b) => compareClassesAscending(a, b));
+    const sorted = [...list].sort((a, b) => compareClassesAscending(a, b));
+    if (sorted.length > 0) return sorted;
+    return [...academicClasses].sort((a, b) => compareClassesAscending(a, b));
   }, [academicClasses, selectedBranch, selectedAcademicYear]);
   const filteredSubjects = useMemo(
     () => filterByBranch(subjects),
@@ -27063,6 +27061,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         fetchSalaryStructures,
         fetchSalaryAssignments,
         academicClasses: filteredClasses,
+        rawAcademicClasses: academicClasses,
         addAcademicClass,
         updateAcademicClass,
         deleteAcademicClass,

@@ -12,6 +12,10 @@ using System.Threading.Tasks;
 [Tags("Finance Master, General Ledger & Reports Hub")]
 public class FinanceMasterController : ControllerBase
 {
+    private const string ReadRoles = "Admin,Staff,SuperAdmin,Super Admin,Principal,Accountant,Finance,HR,Receptionist";
+    private const string WriteRoles = "Admin,SuperAdmin,Super Admin,Principal,Accountant,Finance,Staff";
+    private const string ManageRoles = "Admin,SuperAdmin,Super Admin,Principal,Accountant,Finance";
+
     private readonly IFinanceMasterService _masterService;
 
     public FinanceMasterController(IFinanceMasterService masterService)
@@ -24,7 +28,7 @@ public class FinanceMasterController : ControllerBase
     // =========================================================================
 
     [HttpGet("transactions")]
-    [Authorize(Roles = "Admin,Staff,SuperAdmin,Accountant")]
+    [Authorize(Roles = ReadRoles)]
     public async Task<IActionResult> GetTransactions(
         [FromQuery] string? search,
         [FromQuery] string? type,
@@ -41,7 +45,7 @@ public class FinanceMasterController : ControllerBase
     }
 
     [HttpGet("transactions/summary")]
-    [Authorize(Roles = "Admin,Staff,SuperAdmin,Accountant")]
+    [Authorize(Roles = ReadRoles)]
     public async Task<IActionResult> GetTransactionSummary()
     {
         var result = await _masterService.GetTransactionSummaryAsync();
@@ -49,7 +53,7 @@ public class FinanceMasterController : ControllerBase
     }
 
     [HttpPost("transactions")]
-    [Authorize(Roles = "Admin,Staff,SuperAdmin,Accountant")]
+    [Authorize(Roles = ReadRoles)]
     public async Task<IActionResult> CreateTransaction([FromBody] CreateTransactionRequestDto request)
     {
         if (request == null || request.Amount <= 0)
@@ -60,7 +64,7 @@ public class FinanceMasterController : ControllerBase
     }
 
     [HttpPost("transactions/{id:int}/reverse")]
-    [Authorize(Roles = "Admin,SuperAdmin")]
+    [Authorize(Roles = ManageRoles)]
     public async Task<IActionResult> ReverseTransaction(int id, [FromBody] ReverseTransactionRequestDto request)
     {
         var success = await _masterService.ReverseTransactionAsync(id, request ?? new ReverseTransactionRequestDto());
@@ -75,7 +79,7 @@ public class FinanceMasterController : ControllerBase
     // =========================================================================
 
     [HttpGet("accounts")]
-    [Authorize(Roles = "Admin,Staff,SuperAdmin,Accountant")]
+    [Authorize(Roles = ReadRoles)]
     public async Task<IActionResult> GetAccounts()
     {
         var result = await _masterService.GetAccountsAsync();
@@ -83,7 +87,7 @@ public class FinanceMasterController : ControllerBase
     }
 
     [HttpPost("accounts")]
-    [Authorize(Roles = "Admin,SuperAdmin,Accountant")]
+    [Authorize(Roles = WriteRoles)]
     public async Task<IActionResult> CreateAccount([FromBody] FinancialAccountDto account)
     {
         if (account == null || string.IsNullOrWhiteSpace(account.AccountName))
@@ -94,7 +98,7 @@ public class FinanceMasterController : ControllerBase
     }
 
     [HttpPut("accounts/{id:int}")]
-    [Authorize(Roles = "Admin,SuperAdmin,Accountant")]
+    [Authorize(Roles = WriteRoles)]
     public async Task<IActionResult> UpdateAccount(int id, [FromBody] FinancialAccountDto account)
     {
         var success = await _masterService.UpdateAccountAsync(id, account);
@@ -105,7 +109,7 @@ public class FinanceMasterController : ControllerBase
     }
 
     [HttpDelete("accounts/{id:int}")]
-    [Authorize(Roles = "Admin,SuperAdmin,Accountant")]
+    [Authorize(Roles = WriteRoles)]
     public async Task<IActionResult> DeleteAccount(int id)
     {
         var success = await _masterService.DeleteAccountAsync(id);
@@ -116,7 +120,7 @@ public class FinanceMasterController : ControllerBase
     }
 
     [HttpGet("categories")]
-    [Authorize(Roles = "Admin,Staff,SuperAdmin,Accountant")]
+    [Authorize(Roles = ReadRoles)]
     public async Task<IActionResult> GetCategories([FromQuery] string? type)
     {
         var result = await _masterService.GetCategoriesAsync(type);
@@ -124,7 +128,7 @@ public class FinanceMasterController : ControllerBase
     }
 
     [HttpPost("categories")]
-    [Authorize(Roles = "Admin,SuperAdmin,Accountant")]
+    [Authorize(Roles = WriteRoles)]
     public async Task<IActionResult> CreateCategory([FromBody] FinancialCategoryDto category)
     {
         if (category == null || string.IsNullOrWhiteSpace(category.Name))
@@ -135,7 +139,7 @@ public class FinanceMasterController : ControllerBase
     }
 
     [HttpPut("categories/{id:int}")]
-    [Authorize(Roles = "Admin,SuperAdmin,Accountant")]
+    [Authorize(Roles = WriteRoles)]
     public async Task<IActionResult> UpdateCategory(int id, [FromBody] FinancialCategoryDto category)
     {
         var success = await _masterService.UpdateCategoryAsync(id, category);
@@ -146,7 +150,7 @@ public class FinanceMasterController : ControllerBase
     }
 
     [HttpDelete("categories/{id:int}")]
-    [Authorize(Roles = "Admin,SuperAdmin,Accountant")]
+    [Authorize(Roles = WriteRoles)]
     public async Task<IActionResult> DeleteCategory(int id)
     {
         var success = await _masterService.DeleteCategoryAsync(id);
@@ -161,7 +165,7 @@ public class FinanceMasterController : ControllerBase
     // =========================================================================
 
     [HttpGet("budgets")]
-    [Authorize(Roles = "Admin,Staff,SuperAdmin,Accountant")]
+    [Authorize(Roles = ReadRoles)]
     public async Task<IActionResult> GetBudgets([FromQuery] string? branch, [FromQuery] string? academicYear)
     {
         var result = await _masterService.GetBudgetsAsync(branch, academicYear);
@@ -169,7 +173,7 @@ public class FinanceMasterController : ControllerBase
     }
 
     [HttpPost("budgets")]
-    [Authorize(Roles = "Admin,SuperAdmin,Accountant")]
+    [Authorize(Roles = WriteRoles)]
     public async Task<IActionResult> SaveBudget([FromBody] FinancialBudgetDto budget)
     {
         if (budget == null || (string.IsNullOrWhiteSpace(budget.Department) && string.IsNullOrWhiteSpace(budget.CategoryName)))
@@ -180,7 +184,7 @@ public class FinanceMasterController : ControllerBase
     }
 
     [HttpPut("budgets/{id:int}")]
-    [Authorize(Roles = "Admin,SuperAdmin,Accountant")]
+    [Authorize(Roles = WriteRoles)]
     public async Task<IActionResult> UpdateBudget(int id, [FromBody] FinancialBudgetDto budget)
     {
         var success = await _masterService.UpdateBudgetAsync(id, budget);
@@ -191,7 +195,7 @@ public class FinanceMasterController : ControllerBase
     }
 
     [HttpDelete("budgets/{id:int}")]
-    [Authorize(Roles = "Admin,SuperAdmin,Accountant")]
+    [Authorize(Roles = WriteRoles)]
     public async Task<IActionResult> DeleteBudget(int id)
     {
         var success = await _masterService.DeleteBudgetAsync(id);
@@ -206,7 +210,7 @@ public class FinanceMasterController : ControllerBase
     // =========================================================================
 
     [HttpGet("refunds")]
-    [Authorize(Roles = "Admin,Staff,SuperAdmin,Accountant")]
+    [Authorize(Roles = ReadRoles)]
     public async Task<IActionResult> GetRefundRequests([FromQuery] string? status)
     {
         var result = await _masterService.GetRefundRequestsAsync(status);
@@ -214,7 +218,7 @@ public class FinanceMasterController : ControllerBase
     }
 
     [HttpPost("refunds/request")]
-    [Authorize(Roles = "Admin,Staff,SuperAdmin,Accountant,Parent")]
+    [Authorize(Roles = ReadRoles + ",Parent")]
     public async Task<IActionResult> CreateRefundRequest([FromBody] CreateRefundRequestDto request)
     {
         if (request == null || request.RefundAmount <= 0)
@@ -225,7 +229,7 @@ public class FinanceMasterController : ControllerBase
     }
 
     [HttpPost("refunds/{id:int}/process")]
-    [Authorize(Roles = "Admin,SuperAdmin,Accountant")]
+    [Authorize(Roles = WriteRoles)]
     public async Task<IActionResult> ProcessRefundRequest(int id, [FromBody] ProcessRefundRequestDto request)
     {
         var success = await _masterService.ProcessRefundRequestAsync(id, request ?? new ProcessRefundRequestDto());
@@ -240,7 +244,7 @@ public class FinanceMasterController : ControllerBase
     // =========================================================================
 
     [HttpGet("fee-schedules")]
-    [Authorize(Roles = "Admin,Staff,SuperAdmin,Accountant,Parent,Student")]
+    [Authorize(Roles = ReadRoles + ",Parent,Student")]
     public async Task<IActionResult> GetFeeSchedule([FromQuery] string? academicYear = "2026-2027")
     {
         var result = await _masterService.GetFeeScheduleAsync(academicYear);
@@ -248,7 +252,7 @@ public class FinanceMasterController : ControllerBase
     }
 
     [HttpPost("fee-schedules")]
-    [Authorize(Roles = "Admin,SuperAdmin,Accountant,Staff")]
+    [Authorize(Roles = WriteRoles)]
     public async Task<IActionResult> SaveFeeSchedule([FromBody] FeeScheduleConfigDto schedule)
     {
         var success = await _masterService.SaveFeeScheduleAsync(schedule);
@@ -256,7 +260,7 @@ public class FinanceMasterController : ControllerBase
     }
 
     [HttpGet("settings")]
-    [Authorize(Roles = "Admin,Staff,SuperAdmin,Accountant")]
+    [Authorize(Roles = ReadRoles)]
     public async Task<IActionResult> GetFinanceSettings()
     {
         var result = await _masterService.GetFinanceSettingsAsync();
@@ -264,7 +268,7 @@ public class FinanceMasterController : ControllerBase
     }
 
     [HttpPut("settings")]
-    [Authorize(Roles = "Admin,SuperAdmin")]
+    [Authorize(Roles = ManageRoles)]
     public async Task<IActionResult> UpdateFinanceSettings([FromBody] FinanceSettingsDto settings)
     {
         var success = await _masterService.UpdateFinanceSettingsAsync(settings);
@@ -276,7 +280,7 @@ public class FinanceMasterController : ControllerBase
     // =========================================================================
 
     [HttpGet("reports/summary")]
-    [Authorize(Roles = "Admin,Staff,SuperAdmin,Accountant")]
+    [Authorize(Roles = ReadRoles)]
     public async Task<IActionResult> GetReportsSummary([FromQuery] string? academicYear = "2025-2026")
     {
         var result = await _masterService.GetReportsSummaryAsync(academicYear);
@@ -284,7 +288,7 @@ public class FinanceMasterController : ControllerBase
     }
 
     [HttpGet("reports/daily-collection")]
-    [Authorize(Roles = "Admin,Staff,SuperAdmin,Accountant")]
+    [Authorize(Roles = ReadRoles)]
     public async Task<IActionResult> GetDailyCollectionReport([FromQuery] string? date)
     {
         var result = await _masterService.GetDailyCollectionReportAsync(date);
@@ -292,7 +296,7 @@ public class FinanceMasterController : ControllerBase
     }
 
     [HttpGet("reports/class-wise-collection")]
-    [Authorize(Roles = "Admin,Staff,SuperAdmin,Accountant")]
+    [Authorize(Roles = ReadRoles)]
     public async Task<IActionResult> GetClassWiseCollectionReport([FromQuery] string? academicYear = "2026-2027")
     {
         var result = await _masterService.GetClassWiseCollectionReportAsync(academicYear);
@@ -304,7 +308,7 @@ public class FinanceMasterController : ControllerBase
     // =========================================================================
 
     [HttpGet("scholarships")]
-    [Authorize(Roles = "Admin,Staff,SuperAdmin,Accountant")]
+    [Authorize(Roles = ReadRoles)]
     public async Task<IActionResult> GetScholarships(
         [FromQuery] string? search,
         [FromQuery] string? type,
@@ -315,7 +319,7 @@ public class FinanceMasterController : ControllerBase
     }
 
     [HttpGet("scholarships/{id:int}")]
-    [Authorize(Roles = "Admin,Staff,SuperAdmin,Accountant")]
+    [Authorize(Roles = ReadRoles)]
     public async Task<IActionResult> GetScholarshipById(int id)
     {
         var item = await _masterService.GetScholarshipByIdAsync(id);
@@ -325,7 +329,7 @@ public class FinanceMasterController : ControllerBase
     }
 
     [HttpPost("scholarships")]
-    [Authorize(Roles = "Admin,SuperAdmin,Accountant")]
+    [Authorize(Roles = WriteRoles)]
     public async Task<IActionResult> CreateScholarship([FromBody] ScholarshipMasterDto dto)
     {
         if (dto == null || string.IsNullOrWhiteSpace(dto.Name))
@@ -336,7 +340,7 @@ public class FinanceMasterController : ControllerBase
     }
 
     [HttpPut("scholarships/{id:int}")]
-    [Authorize(Roles = "Admin,SuperAdmin,Accountant")]
+    [Authorize(Roles = WriteRoles)]
     public async Task<IActionResult> UpdateScholarship(int id, [FromBody] ScholarshipMasterDto dto)
     {
         var result = await _masterService.UpdateScholarshipAsync(id, dto);
@@ -347,7 +351,7 @@ public class FinanceMasterController : ControllerBase
     }
 
     [HttpDelete("scholarships/{id:int}")]
-    [Authorize(Roles = "Admin,SuperAdmin,Accountant")]
+    [Authorize(Roles = WriteRoles)]
     public async Task<IActionResult> DeleteScholarship(int id)
     {
         var success = await _masterService.DeleteScholarshipAsync(id);
@@ -358,7 +362,7 @@ public class FinanceMasterController : ControllerBase
     }
 
     [HttpGet("student-scholarships")]
-    [Authorize(Roles = "Admin,Staff,SuperAdmin,Accountant")]
+    [Authorize(Roles = ReadRoles)]
     public async Task<IActionResult> GetStudentScholarships(
         [FromQuery] string? search,
         [FromQuery] string? className,
@@ -369,7 +373,7 @@ public class FinanceMasterController : ControllerBase
     }
 
     [HttpPost("student-scholarships")]
-    [Authorize(Roles = "Admin,SuperAdmin,Accountant")]
+    [Authorize(Roles = WriteRoles)]
     public async Task<IActionResult> AwardStudentScholarship([FromBody] AwardScholarshipRequestDto dto)
     {
         if (dto == null || string.IsNullOrWhiteSpace(dto.StudentId) || dto.ScholarshipId <= 0)
@@ -380,7 +384,7 @@ public class FinanceMasterController : ControllerBase
     }
 
     [HttpDelete("student-scholarships/{id:int}")]
-    [Authorize(Roles = "Admin,SuperAdmin,Accountant")]
+    [Authorize(Roles = WriteRoles)]
     public async Task<IActionResult> RevokeStudentScholarship(int id)
     {
         var success = await _masterService.RevokeStudentScholarshipAsync(id);
@@ -395,7 +399,7 @@ public class FinanceMasterController : ControllerBase
     // =========================================================================
 
     [HttpGet("discounts")]
-    [Authorize(Roles = "Admin,Staff,SuperAdmin,Accountant")]
+    [Authorize(Roles = ReadRoles)]
     public async Task<IActionResult> GetDiscounts(
         [FromQuery] string? search,
         [FromQuery] string? type,
@@ -407,7 +411,7 @@ public class FinanceMasterController : ControllerBase
     }
 
     [HttpGet("discounts/{id:int}")]
-    [Authorize(Roles = "Admin,Staff,SuperAdmin,Accountant")]
+    [Authorize(Roles = ReadRoles)]
     public async Task<IActionResult> GetDiscountById(int id)
     {
         var item = await _masterService.GetDiscountByIdAsync(id);
@@ -417,7 +421,7 @@ public class FinanceMasterController : ControllerBase
     }
 
     [HttpPost("discounts")]
-    [Authorize(Roles = "Admin,SuperAdmin,Accountant")]
+    [Authorize(Roles = WriteRoles)]
     public async Task<IActionResult> CreateDiscount([FromBody] DiscountRuleDto dto)
     {
         if (dto == null || string.IsNullOrWhiteSpace(dto.Name))
@@ -428,7 +432,7 @@ public class FinanceMasterController : ControllerBase
     }
 
     [HttpPut("discounts/{id:int}")]
-    [Authorize(Roles = "Admin,SuperAdmin,Accountant")]
+    [Authorize(Roles = WriteRoles)]
     public async Task<IActionResult> UpdateDiscount(int id, [FromBody] DiscountRuleDto dto)
     {
         var result = await _masterService.UpdateDiscountAsync(id, dto);
@@ -439,7 +443,7 @@ public class FinanceMasterController : ControllerBase
     }
 
     [HttpDelete("discounts/{id:int}")]
-    [Authorize(Roles = "Admin,SuperAdmin,Accountant")]
+    [Authorize(Roles = WriteRoles)]
     public async Task<IActionResult> DeleteDiscount(int id)
     {
         var success = await _masterService.DeleteDiscountAsync(id);
@@ -450,7 +454,7 @@ public class FinanceMasterController : ControllerBase
     }
 
     [HttpGet("student-discounts")]
-    [Authorize(Roles = "Admin,Staff,SuperAdmin,Accountant")]
+    [Authorize(Roles = ReadRoles)]
     public async Task<IActionResult> GetStudentDiscounts(
         [FromQuery] string? search,
         [FromQuery] string? className,
@@ -461,7 +465,7 @@ public class FinanceMasterController : ControllerBase
     }
 
     [HttpPost("student-discounts")]
-    [Authorize(Roles = "Admin,SuperAdmin,Accountant")]
+    [Authorize(Roles = WriteRoles)]
     public async Task<IActionResult> GrantStudentDiscount([FromBody] GrantDiscountRequestDto dto)
     {
         if (dto == null || string.IsNullOrWhiteSpace(dto.StudentId) || dto.DiscountId <= 0)
@@ -472,7 +476,7 @@ public class FinanceMasterController : ControllerBase
     }
 
     [HttpDelete("student-discounts/{id:int}")]
-    [Authorize(Roles = "Admin,SuperAdmin,Accountant")]
+    [Authorize(Roles = WriteRoles)]
     public async Task<IActionResult> RemoveStudentDiscount(int id)
     {
         var success = await _masterService.RemoveStudentDiscountAsync(id);
@@ -487,7 +491,7 @@ public class FinanceMasterController : ControllerBase
     // =========================================================================
 
     [HttpGet("fine-rules")]
-    [Authorize(Roles = "Admin,Staff,SuperAdmin,Accountant")]
+    [Authorize(Roles = ReadRoles)]
     public async Task<IActionResult> GetFineRules(
         [FromQuery] string? search,
         [FromQuery] string? status)
@@ -497,7 +501,7 @@ public class FinanceMasterController : ControllerBase
     }
 
     [HttpGet("fine-rules/{id:int}")]
-    [Authorize(Roles = "Admin,Staff,SuperAdmin,Accountant")]
+    [Authorize(Roles = ReadRoles)]
     public async Task<IActionResult> GetFineRuleById(int id)
     {
         var item = await _masterService.GetFineRuleByIdAsync(id);
@@ -507,7 +511,7 @@ public class FinanceMasterController : ControllerBase
     }
 
     [HttpPost("fine-rules")]
-    [Authorize(Roles = "Admin,SuperAdmin,Accountant")]
+    [Authorize(Roles = WriteRoles)]
     public async Task<IActionResult> CreateFineRule([FromBody] FineRuleDto dto)
     {
         if (dto == null || string.IsNullOrWhiteSpace(dto.RuleName))
@@ -518,7 +522,7 @@ public class FinanceMasterController : ControllerBase
     }
 
     [HttpPut("fine-rules/{id:int}")]
-    [Authorize(Roles = "Admin,SuperAdmin,Accountant")]
+    [Authorize(Roles = WriteRoles)]
     public async Task<IActionResult> UpdateFineRule(int id, [FromBody] FineRuleDto dto)
     {
         var result = await _masterService.UpdateFineRuleAsync(id, dto);
@@ -529,7 +533,7 @@ public class FinanceMasterController : ControllerBase
     }
 
     [HttpDelete("fine-rules/{id:int}")]
-    [Authorize(Roles = "Admin,SuperAdmin,Accountant")]
+    [Authorize(Roles = WriteRoles)]
     public async Task<IActionResult> DeleteFineRule(int id)
     {
         var success = await _masterService.DeleteFineRuleAsync(id);
@@ -544,7 +548,7 @@ public class FinanceMasterController : ControllerBase
     // =========================================================================
 
     [HttpGet("hostel-fees")]
-    [Authorize(Roles = "Admin,Staff,SuperAdmin,Accountant")]
+    [Authorize(Roles = ReadRoles)]
     public async Task<IActionResult> GetHostelFeeConfigs(
         [FromQuery] string? search,
         [FromQuery] string? hostelId,
@@ -555,7 +559,7 @@ public class FinanceMasterController : ControllerBase
     }
 
     [HttpGet("hostel-fees/{id:int}")]
-    [Authorize(Roles = "Admin,Staff,SuperAdmin,Accountant")]
+    [Authorize(Roles = ReadRoles)]
     public async Task<IActionResult> GetHostelFeeConfigById(int id)
     {
         var item = await _masterService.GetHostelFeeConfigByIdAsync(id);
@@ -565,7 +569,7 @@ public class FinanceMasterController : ControllerBase
     }
 
     [HttpPost("hostel-fees")]
-    [Authorize(Roles = "Admin,SuperAdmin,Accountant")]
+    [Authorize(Roles = WriteRoles)]
     public async Task<IActionResult> CreateHostelFeeConfig([FromBody] CreateFinanceHostelConfigDto dto)
     {
         if (dto == null || string.IsNullOrWhiteSpace(dto.HostelId) || dto.HostelFee < 0)
@@ -576,7 +580,7 @@ public class FinanceMasterController : ControllerBase
     }
 
     [HttpPut("hostel-fees/{id:int}")]
-    [Authorize(Roles = "Admin,SuperAdmin,Accountant")]
+    [Authorize(Roles = WriteRoles)]
     public async Task<IActionResult> UpdateHostelFeeConfig(int id, [FromBody] CreateFinanceHostelConfigDto dto)
     {
         if (dto == null || string.IsNullOrWhiteSpace(dto.HostelId) || dto.HostelFee < 0)
@@ -590,7 +594,7 @@ public class FinanceMasterController : ControllerBase
     }
 
     [HttpDelete("hostel-fees/{id:int}")]
-    [Authorize(Roles = "Admin,SuperAdmin,Accountant")]
+    [Authorize(Roles = WriteRoles)]
     public async Task<IActionResult> DeleteHostelFeeConfig(int id)
     {
         var success = await _masterService.DeleteHostelFeeConfigAsync(id);
@@ -605,7 +609,7 @@ public class FinanceMasterController : ControllerBase
     // =========================================================================
 
     [HttpGet("uniform-fees")]
-    [Authorize(Roles = "Admin,Staff,SuperAdmin,Accountant")]
+    [Authorize(Roles = ReadRoles)]
     public async Task<IActionResult> GetUniformFeeConfigs(
         [FromQuery] string? search,
         [FromQuery] string? className,
@@ -617,7 +621,7 @@ public class FinanceMasterController : ControllerBase
     }
 
     [HttpGet("uniform-fees/{id:int}")]
-    [Authorize(Roles = "Admin,Staff,SuperAdmin,Accountant")]
+    [Authorize(Roles = ReadRoles)]
     public async Task<IActionResult> GetUniformFeeConfigById(int id)
     {
         var item = await _masterService.GetUniformFeeConfigByIdAsync(id);
@@ -627,7 +631,7 @@ public class FinanceMasterController : ControllerBase
     }
 
     [HttpPost("uniform-fees")]
-    [Authorize(Roles = "Admin,SuperAdmin,Accountant")]
+    [Authorize(Roles = WriteRoles)]
     public async Task<IActionResult> CreateUniformFeeConfig([FromBody] CreateFinanceUniformConfigDto dto)
     {
         if (dto == null || string.IsNullOrWhiteSpace(dto.ClassName) || string.IsNullOrWhiteSpace(dto.UniformPackage) || dto.FeeAmount < 0)
@@ -638,7 +642,7 @@ public class FinanceMasterController : ControllerBase
     }
 
     [HttpPut("uniform-fees/{id:int}")]
-    [Authorize(Roles = "Admin,SuperAdmin,Accountant")]
+    [Authorize(Roles = WriteRoles)]
     public async Task<IActionResult> UpdateUniformFeeConfig(int id, [FromBody] CreateFinanceUniformConfigDto dto)
     {
         if (dto == null || string.IsNullOrWhiteSpace(dto.ClassName) || string.IsNullOrWhiteSpace(dto.UniformPackage) || dto.FeeAmount < 0)
@@ -652,7 +656,7 @@ public class FinanceMasterController : ControllerBase
     }
 
     [HttpDelete("uniform-fees/{id:int}")]
-    [Authorize(Roles = "Admin,SuperAdmin,Accountant")]
+    [Authorize(Roles = WriteRoles)]
     public async Task<IActionResult> DeleteUniformFeeConfig(int id)
     {
         var success = await _masterService.DeleteUniformFeeConfigAsync(id);

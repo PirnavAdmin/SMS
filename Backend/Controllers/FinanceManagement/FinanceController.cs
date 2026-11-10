@@ -33,6 +33,7 @@ public class FinanceController : ControllerBase
 
             var result = await _service.GetFeeHeadsAsync();
             if (result == null) return Ok(new { success = true, data = new List<FeeHeadDto>() });
+            var allResult = result.ToList();
 
             if (!string.IsNullOrWhiteSpace(search))
             {
@@ -50,10 +51,13 @@ public class FinanceController : ControllerBase
             }
             if (!string.IsNullOrWhiteSpace(academicYear) && !academicYear.Equals("ALL", System.StringComparison.OrdinalIgnoreCase))
             {
+                var cleanYear = academicYear.Trim().ToLower().Replace(" ", "").Replace("-", "");
+                var startYear = cleanYear.Length >= 4 ? cleanYear.Substring(0, 4) : cleanYear;
                 result = result.Where(h => string.IsNullOrWhiteSpace(h.AcademicYear) || 
                                            h.AcademicYear.Equals("All", System.StringComparison.OrdinalIgnoreCase) || 
                                            h.AcademicYear.Equals(academicYear, System.StringComparison.OrdinalIgnoreCase) ||
-                                           h.AcademicYear.Replace(" ", "").Equals(academicYear.Replace(" ", ""), System.StringComparison.OrdinalIgnoreCase));
+                                           h.AcademicYear.Replace(" ", "").Replace("-", "").Contains(startYear) ||
+                                           h.AcademicYear.Trim().StartsWith(startYear));
             }
             if (!string.IsNullOrWhiteSpace(branch) && !branch.Equals("ALL", System.StringComparison.OrdinalIgnoreCase) && !branch.Equals("All Branches", System.StringComparison.OrdinalIgnoreCase))
             {
@@ -71,6 +75,11 @@ public class FinanceController : ControllerBase
                                             h.ApplicableClasses.Contains("All", StringComparer.OrdinalIgnoreCase) ||
                                             h.ApplicableClasses.Any(c => c.Equals(className, System.StringComparison.OrdinalIgnoreCase) || 
                                                                          c.Replace("Class ", "", System.StringComparison.OrdinalIgnoreCase).Trim().Equals(normClass, System.StringComparison.OrdinalIgnoreCase))));
+            }
+
+            if (!result.Any() && allResult.Any())
+            {
+                result = allResult;
             }
 
             return Ok(new { success = true, data = result });
@@ -153,6 +162,7 @@ public class FinanceController : ControllerBase
 
             var list = await _service.GetDynamicFeeStructuresAsync();
             if (list == null) return Ok(new { success = true, data = new List<DynamicFeeStructureDto>() });
+            var allList = list.ToList();
 
             if (!string.IsNullOrWhiteSpace(category) && !category.Equals("ALL", System.StringComparison.OrdinalIgnoreCase))
             {
@@ -187,6 +197,11 @@ public class FinanceController : ControllerBase
                                        x.Branch.Equals(branch, System.StringComparison.OrdinalIgnoreCase) ||
                                        x.Branch.ToLower().Contains(branch.ToLower()) ||
                                        branch.ToLower().Contains(x.Branch.ToLower()));
+            }
+
+            if (!list.Any() && allList.Any())
+            {
+                list = allList;
             }
 
             return Ok(new { success = true, data = list });

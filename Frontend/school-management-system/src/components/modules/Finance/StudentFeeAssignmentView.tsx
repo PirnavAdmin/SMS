@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { formatCurrency } from '../../../utils/currency';
 import { UserPlus, Search, CheckSquare, Square, CheckCircle, CheckCircle2, ArrowRight, Settings2, RefreshCw, X, AlertTriangle, Info, Check } from 'lucide-react';
 import { useData, matchesAcademicYear } from '../../../context/DataContext';
@@ -23,11 +23,26 @@ export const StudentFeeAssignmentView: React.FC = () => {
     academicYears,
     academicYearFeeSchedules,
     generateInstallmentsForStudent,
-    getStudentFeeLedger
+    getStudentFeeLedger,
+    fetchAcademicClasses,
+    fetchFinanceData,
+    fetchStudents,
   } = useData();
 
   const { selectedAcademicYear } = useAuth();
   const { addToast } = useToast();
+
+  useEffect(() => {
+    if ((!academicClasses || academicClasses.length === 0) && fetchAcademicClasses) {
+      fetchAcademicClasses().catch(() => {});
+    }
+    if (fetchFinanceData) {
+      fetchFinanceData().catch(() => {});
+    }
+    if ((!students || students.length === 0) && fetchStudents) {
+      fetchStudents().catch(() => {});
+    }
+  }, [academicClasses, students, fetchAcademicClasses, fetchFinanceData, fetchStudents]);
 
   const [selectedClass, setSelectedClass] = useState('All');
   const [selectedSection, setSelectedSection] = useState('All');

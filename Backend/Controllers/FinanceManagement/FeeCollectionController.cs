@@ -194,7 +194,7 @@ public class FeeCollectionController : ControllerBase
     }
 
     [HttpPost("receipts/{receiptNo}/cancel")]
-    [Authorize(Roles = "Admin,SuperAdmin,Super Admin,Principal")]
+    [Authorize(Roles = "Admin,SuperAdmin,Super Admin,Principal,Accountant,Finance")]
     public async Task<IActionResult> CancelReceipt(string receiptNo, [FromBody] string? reason)
     {
         var success = await _feeCollectionService.CancelReceiptAsync(receiptNo, reason ?? "Administrative cancellation");

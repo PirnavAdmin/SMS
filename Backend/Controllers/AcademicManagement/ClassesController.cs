@@ -102,21 +102,39 @@ namespace SMS.Api.Controllers.AcademicManagement
             if (!string.IsNullOrEmpty(campus))
             {
                 var cleanCampus = campus.ToLowerInvariant();
-                query = query.Where(c => c.CampusLocation != null && (c.CampusLocation.ToLower() == cleanCampus || c.CampusLocation.ToLower().Contains(cleanCampus)));
+                query = query.Where(c => string.IsNullOrEmpty(c.CampusLocation) ||
+                    c.CampusLocation.ToLower() == "all" ||
+                    c.CampusLocation.ToLower() == "all branches" ||
+                    c.CampusLocation.ToLower() == cleanCampus ||
+                    c.CampusLocation.ToLower().Contains(cleanCampus));
             }
 
             if (!string.IsNullOrEmpty(academicYear))
             {
                 var cleanYear = academicYear.ToLowerInvariant().Replace(" ", "");
                 var startYear = cleanYear.Length >= 4 ? cleanYear.Substring(0, 4) : cleanYear;
-                query = query.Where(c => c.AcademicYear != null && 
-                    (c.AcademicYear.ToLower().Replace(" ", "") == cleanYear ||
-                     c.AcademicYear.ToLower().Replace(" ", "").Contains(cleanYear) ||
-                     cleanYear.Contains(c.AcademicYear.ToLower().Replace(" ", "")) ||
-                     c.AcademicYear.StartsWith(startYear)));
+                query = query.Where(c => string.IsNullOrEmpty(c.AcademicYear) ||
+                    c.AcademicYear.ToLower() == "all" ||
+                    c.AcademicYear.ToLower().Replace(" ", "") == cleanYear ||
+                    c.AcademicYear.ToLower().Replace(" ", "").Contains(cleanYear) ||
+                    cleanYear.Contains(c.AcademicYear.ToLower().Replace(" ", "")) ||
+                    c.AcademicYear.StartsWith(startYear));
             }
 
             var classes = await query.ToListAsync();
+
+            if (classes.Count == 0 && (!string.IsNullOrEmpty(campus) || !string.IsNullOrEmpty(academicYear)))
+            {
+                // Fallback to all classes if filtering by specific campus or academic year produced 0 classes
+                classes = await _context.Classes
+                    .AsNoTracking()
+                    .Include(c => c.Sections)
+                    .Include(c => c.SubjectMappings)
+                        .ThenInclude(cs => cs.Subject)
+                    .Include(c => c.TeacherAssignments)
+                        .ThenInclude(ta => ta.Teacher)
+                    .ToListAsync();
+            }
 
             var response = classes.Select(c => new ClassGradeResponseDto
             {

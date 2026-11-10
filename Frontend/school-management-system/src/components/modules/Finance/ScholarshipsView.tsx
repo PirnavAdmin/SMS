@@ -48,8 +48,23 @@ export const ScholarshipsView: React.FC = () => {
     assignScholarshipToStudent,
     revokeStudentScholarship,
     academicClasses,
+    fetchAcademicClasses,
+    fetchFinanceData,
+    fetchStudents,
   } = useData();
   const { addToast } = useToast();
+
+  useEffect(() => {
+    if ((!academicClasses || academicClasses.length === 0) && fetchAcademicClasses) {
+      fetchAcademicClasses().catch(() => {});
+    }
+    if (fetchFinanceData) {
+      fetchFinanceData().catch(() => {});
+    }
+    if (fetchStudents) {
+      fetchStudents().catch(() => {});
+    }
+  }, [academicClasses, fetchAcademicClasses, fetchFinanceData, fetchStudents]);
 
   const [activeTab, setActiveTab] = useState<"master" | "allocated">("master");
   const [query, setQuery] = useState("");

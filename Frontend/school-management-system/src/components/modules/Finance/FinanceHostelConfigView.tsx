@@ -213,9 +213,16 @@ export const FinanceHostelConfigView: React.FC = () => {
     addFinanceHostelConfig,
     updateFinanceHostelConfig,
     deleteFinanceHostelConfig,
+    fetchFinanceData,
   } = useData();
   const { selectedBranch, selectedAcademicYear } = useAuth();
   const { addToast } = useToast();
+
+  useEffect(() => {
+    if ((!financeHostelConfigs || financeHostelConfigs.length === 0) && fetchFinanceData) {
+      fetchFinanceData().catch(() => {});
+    }
+  }, [financeHostelConfigs, fetchFinanceData]);
 
   const getHostelFeeHeadForBlock = useCallback((hostelName?: string) => {
     if (!hostelName || hostelName === "All") {

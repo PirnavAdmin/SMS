@@ -29,7 +29,7 @@ namespace Backend.Tests.Controllers
                 new AdmissionApplicationResponseDto { Id = 1, FirstName = "Alice", LastName = "Smith" }
             };
 
-            _schoolServiceMock.Setup(s => s.GetAllApplicationsAsync("Alice", "Main", 1, "Pending"))
+            _schoolServiceMock.Setup(s => s.GetAllApplicationsAsync("Alice", "Main", 1, "Pending", null))
                 .ReturnsAsync(expectedList);
 
             var result = await _controller.GetApplications("Alice", "Main", 1, "Pending");

@@ -11,6 +11,12 @@ interface ConcessionsViewProps {
 export const ConcessionsView: React.FC<ConcessionsViewProps> = ({ initialTab = 'rules' }) => {
   const [activeTab, setActiveTab] = useState<string>(initialTab);
 
+  React.useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
+
   const tabs = [
     { id: 'rules', label: 'Concession Rules', icon: Percent },
     { id: 'student-concessions', label: 'Student Concessions', icon: Gift },
