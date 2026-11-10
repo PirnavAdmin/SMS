@@ -297,10 +297,10 @@ export const EventsView: React.FC = () => {
 
     // 5. Admissions Schedule (Teal)
     (admissions || []).forEach(adm => {
-      const dateStr = adm.submissionDate || '2026-08-10';
+      const dateStr = adm.submissionDate || new Date().toISOString().split('T')[0];
       eventsList.push({
         id: `ADM-${adm.id}`,
-        title: `Admission Review: ${adm.applicantName || `${adm.firstName || ''} ${adm.lastName || ''}`} (${adm.appliedClass || 'Class 1'})`,
+        title: `Admission Review: ${(adm.applicantName || `${adm.firstName || ''} ${adm.lastName || ''}`).trim()}${adm.appliedClass ? ` (${adm.appliedClass})` : ''}`,
         date: dateStr,
         endDate: dateStr,
         type: 'Admission Event',

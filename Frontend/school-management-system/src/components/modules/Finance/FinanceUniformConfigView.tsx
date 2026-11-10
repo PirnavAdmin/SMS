@@ -58,7 +58,7 @@ export const FinanceUniformConfigView: React.FC = () => {
     if (academicClasses && academicClasses.length > 0) {
       return academicClasses.map(c => c.name);
     }
-    return ['Nursery', 'LKG', 'UKG', ...Array.from({ length: 12 }, (_, i) => `Class ${i + 1}`)];
+    return [];
   }, [academicClasses]);
 
   const fabricSizeOptions = React.useMemo(() => {

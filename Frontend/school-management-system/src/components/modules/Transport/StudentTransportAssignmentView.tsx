@@ -387,7 +387,7 @@ export const StudentTransportAssignmentView: React.FC = () => {
                         <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
                           {st.studentName}
                           <span className="px-2 py-0.5 rounded-md bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300 font-extrabold text-[10px]">
-                            {sObj ? `${sObj.className}-${sObj.section}` : 'Class 10-A'}
+                            {sObj ? `${sObj.className || ''}${sObj.section ? `-${sObj.section}` : ''}` : ''}
                           </span>
                         </div>
                         <div className="text-[10px] text-slate-400 font-medium">{sObj?.studentType || 'Day Scholar (Non-Residential)'}</div>

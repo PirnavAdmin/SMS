@@ -408,7 +408,7 @@ export const PromotedStudentsDuesView: React.FC<PromotedStudentsDuesViewProps> =
 
                         {/* Previous Class */}
                         <td className="py-3.5 px-4 font-bold text-slate-600 dark:text-slate-400">
-                          {previousClass || "Class 5"}
+                          {previousClass || "-"}
                         </td>
 
                         {/* Current Class */}

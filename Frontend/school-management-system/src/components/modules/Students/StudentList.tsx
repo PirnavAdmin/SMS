@@ -416,7 +416,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
       return str;
     }).filter((c: string) => !c.toLowerCase().includes('nursery') && !c.toLowerCase().includes('lkg') && !c.toLowerCase().includes('ukg'));
 
-    return cleaned.length > 0 ? Array.from(new Set(cleaned)) : ['Class 10-A', 'Class 9-B', 'Class 6-A'];
+    return cleaned.length > 0 ? Array.from(new Set(cleaned)) : [];
   }, [teacher, teacherAssignments, timetable]);
 
   const [teacherSelectedClass, setTeacherSelectedClass] = useState('All Assigned Classes');
@@ -440,7 +440,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
       }
     });
     const list = Array.from(set).sort((a, b) => getClassOrderRank(a) - getClassOrderRank(b));
-    return list.length > 0 ? list : ['Class 10', 'Class 9', 'Class 6'];
+    return list.length > 0 ? list : [];
   }, [teacherAssignedClasses]);
 
   // Dynamic Section options for Teacher Filter - STRICTLY assigned sections for selected class

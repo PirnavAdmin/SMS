@@ -1444,18 +1444,18 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
                     }
                     gender={
                       generationMode === 'bulk'
-                        ? previewStudentForBulk?.gender || 'Male'
-                        : selectedStudent?.gender || 'Male'
+                        ? previewStudentForBulk?.gender || ''
+                        : selectedStudent?.gender || ''
                     }
                     className={
                       generationMode === 'bulk'
-                        ? previewStudentForBulk?.className || selectedBulkClass || 'Class 11'
-                        : selectedStudent?.className || 'Class 10'
+                        ? previewStudentForBulk?.className || selectedBulkClass || (academicClasses && academicClasses[0] ? academicClasses[0].name : '')
+                        : selectedStudent?.className || (academicClasses && academicClasses[0] ? academicClasses[0].name : '')
                     }
                     section={
                       generationMode === 'bulk'
-                        ? previewStudentForBulk?.section || 'A'
-                        : selectedStudent?.section || 'A'
+                        ? previewStudentForBulk?.section || ''
+                        : selectedStudent?.section || ''
                     }
                     rollNo={
                       generationMode === 'bulk'

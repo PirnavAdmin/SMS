@@ -560,7 +560,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
         const nameParts = fullName.split(" ");
         const fName = adm.firstName || nameParts[0] || "Student";
         const lName = adm.lastName || nameParts.slice(1).join(" ") || "";
-        const targetCls = adm.appliedClass || (adm as any).appliedClassGrade || adm.targetClass || adm.className || (academicClasses && academicClasses[0] ? academicClasses[0].name : "Nursery");
+        const targetCls = adm.appliedClass || (adm as any).appliedClassGrade || adm.targetClass || adm.className || (academicClasses && academicClasses[0] ? academicClasses[0].name : "");
 
         const dynamicStudentId =
           (adm as any).studentId ||
@@ -1265,9 +1265,9 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
             addStudentUniformIssue({
               studentId: selectedStudent.id,
               studentName: `${selectedStudent.firstName} ${selectedStudent.lastName}`,
-              admissionNo: selectedStudent.admissionNo || "ADM2026-000",
-              className: selectedStudent.className || "Class 4",
-              section: selectedStudent.section || "A",
+              admissionNo: selectedStudent.admissionNo || selectedStudent.id,
+              className: selectedStudent.className || (academicClasses && academicClasses[0] ? academicClasses[0].name : ""),
+              section: selectedStudent.section || "",
               itemId: `pkg_${selectedStudent.className}`,
               itemName: `${selectedStudent.gender === 'Female' ? 'Girls' : 'Boys'} Base Package (Admission Kit)`,
               size: "M",

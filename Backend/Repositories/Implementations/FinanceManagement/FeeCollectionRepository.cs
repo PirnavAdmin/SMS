@@ -1997,6 +1997,12 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             ? System.Text.RegularExpressions.Regex.Match(academicYear, @"\d{4}").Value
             : (academicYear ?? "");
 
+        var activeClassesList = await _context.Classes.AsNoTracking()
+            .Where(c => c.Status == "Active" || string.IsNullOrEmpty(c.Status))
+            .ToListAsync();
+
+        var classIdToNameDict = activeClassesList.ToDictionary(c => c.ClassId, c => c.ClassName, EqualityComparer<int>.Default);
+
         foreach (var adm in allActiveAdmissions)
         {
             string admIdStr = adm.Id.ToString();
@@ -2022,7 +2028,8 @@ public class FeeCollectionRepository : IFeeCollectionRepository
 
                 if (branchMatches)
                 {
-                    string appliedClassName = adm.AppliedClass?.ClassName ?? "Nursery";
+                    string appliedClassName = adm.AppliedClass?.ClassName 
+                        ?? (adm.AppliedClassId.HasValue && classIdToNameDict.TryGetValue(adm.AppliedClassId.Value, out var cName) ? cName : string.Empty);
 
                     activeStudents.Add(new SMS.Api.Models.Student
                     {
@@ -2052,12 +2059,6 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                 validPayments = new List<SMS.Api.Models.FinanceManagement.FeePayment>();
             }
         }
-
-        var activeClassesList = await _context.Classes.AsNoTracking()
-            .Where(c => c.Status == "Active" || string.IsNullOrEmpty(c.Status))
-            .ToListAsync();
-
-        var classIdToNameDict = activeClassesList.ToDictionary(c => c.ClassId, c => c.ClassName, EqualityComparer<int>.Default);
 
         string GetStudentClassName(SMS.Api.Models.Student st)
         {

@@ -256,8 +256,8 @@ export const StudentHostelAssignmentView: React.FC = () => {
       const studentObj = {
         id: sId || sAdm,
         name: `${s.firstName || ''} ${s.lastName || ''}`.trim() || s.name || `Student #${sId}`,
-        className: s.className || s.class || 'Class 10',
-        section: s.section || 'A',
+        className: s.className || s.class || '',
+        section: s.section || '',
         admissionNo: s.admissionNo || s.registrationNumber || sId,
         isResidential: Boolean(isRes),
         studentType: isRes ? 'Residential' : 'Non-Residential',
@@ -325,8 +325,8 @@ export const StudentHostelAssignmentView: React.FC = () => {
       const admissionObj = {
         id: aId || aAdm,
         name: a.applicantName || `${a.firstName || ''} ${a.lastName || ''}`.trim() || `Applicant #${aId}`,
-        className: a.appliedClass || a.className || 'Class 10',
-        section: a.section || 'A',
+        className: a.appliedClass || a.className || '',
+        section: a.section || '',
         admissionNo: a.admissionNo || a.applicationNo || a.registrationNo || aId,
         isResidential: Boolean(isRes),
         studentType: isRes ? 'Residential' : 'Non-Residential',

@@ -457,8 +457,8 @@ export const WardenCommunicationHubView: React.FC = () => {
       id: `PCM-${Date.now().toString().slice(-4)}`,
       studentId: selectedStudentObj.id,
       studentName: `${selectedStudentObj.firstName} ${selectedStudentObj.lastName}`.trim(),
-      className: selectedStudentObj.className || "Class 10",
-      roomNo: (selectedStudentObj as any).roomNo || "Room 101",
+      className: selectedStudentObj.className || "",
+      roomNo: (selectedStudentObj as any).roomNo || "",
       parentName,
       parentPhone,
       parentEmail,
@@ -1367,7 +1367,7 @@ export const WardenCommunicationHubView: React.FC = () => {
                   <option value="">-- Choose Residential Hosteller Student --</option>
                   {filteredResidentialStudents.map((s) => (
                     <option key={s.id} value={s.id}>
-                      {s.firstName} {s.lastName} ({s.className || "Class 10"}) — Adm: {(s as any).admissionNo || (s as any).admissionNumber || s.id}
+                      {s.firstName} {s.lastName}{s.className ? ` (${s.className})` : ''} — Adm: {(s as any).admissionNo || (s as any).admissionNumber || s.id}
                     </option>
                   ))}
                 </select>

@@ -293,7 +293,7 @@ export const HomeworkView: React.FC = () => {
           (userEmail && (a.email?.toLowerCase().trim() === userEmail || (a as any).studentEmail?.toLowerCase().trim() === userEmail || (a as any).parentEmail?.toLowerCase().trim() === userEmail)) ||
           (userPhone && userPhone.length >= 7 && (a.phone && a.phone.replace(/\D/g, '').endsWith(userPhone)))
         )
-      ) ? { className: (admissions || []).find(a => (a.email?.toLowerCase().trim() === userEmail || (a as any).studentEmail?.toLowerCase().trim() === userEmail || (a as any).parentEmail?.toLowerCase().trim() === userEmail))?.appliedClass || 'Class 8' } : null;
+      ) ? { className: (admissions || []).find(a => (a.email?.toLowerCase().trim() === userEmail || (a as any).studentEmail?.toLowerCase().trim() === userEmail || (a as any).parentEmail?.toLowerCase().trim() === userEmail))?.appliedClass || '' } : null;
       if (!currentStudent) return homework;
       const sCls = cleanClassName(currentStudent.className);
       return homework.filter(h => cleanClassName(h.className) === sCls);

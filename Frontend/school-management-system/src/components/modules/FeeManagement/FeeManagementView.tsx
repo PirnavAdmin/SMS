@@ -40,7 +40,7 @@ export const FeeManagementView: React.FC = () => {
 
   const [structForm, setStructForm] = useState<Partial<FeeStructure>>({
     academicYear: '2025-2026',
-    className: 'Class 10',
+    className: academicClasses?.[0]?.name || '',
     term: 'Quarterly',
     tuitionFee: 2500,
     transportFee: 300,
@@ -77,7 +77,7 @@ export const FeeManagementView: React.FC = () => {
     setEditingStruct(null);
     setStructForm({
       academicYear: '2025-2026',
-      className: 'Class 10',
+      className: academicClasses?.[0]?.name || '',
       term: 'Quarterly',
       tuitionFee: 2500,
       transportFee: 300,

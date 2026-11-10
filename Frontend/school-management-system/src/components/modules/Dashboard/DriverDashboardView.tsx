@@ -266,12 +266,12 @@ export const DriverDashboardView: React.FC<DriverDashboardViewProps> = ({ onNavi
 
       studentMap.set(key, {
         id: student?.id || st.studentId || key,
-        admissionNo: student?.admissionNo || st.admissionNo || matchedAdm?.registrationNo || matchedAdm?.applicationNo || 'ADM-001',
+        admissionNo: student?.admissionNo || st.admissionNo || matchedAdm?.registrationNo || matchedAdm?.applicationNo || '',
         studentName: fullName,
-        gender: student?.gender || matchedAdm?.gender || 'Male',
-        className: student?.className || matchedAdm?.appliedClass || 'Class 8',
-        section: student?.section || 'A',
-        rollNo: student?.rollNo || '1',
+        gender: student?.gender || matchedAdm?.gender || '',
+        className: student?.className || matchedAdm?.appliedClass || '',
+        section: student?.section || '',
+        rollNo: student?.rollNo || '',
         pickupPoint: pPoint,
         parentName: pName,
         parentMobile: pMobile
@@ -338,10 +338,10 @@ export const DriverDashboardView: React.FC<DriverDashboardViewProps> = ({ onNavi
           id: student.id,
           admissionNo: student.admissionNo || matchedAdm?.registrationNo || '-',
           studentName: fullName,
-          gender: student.gender || matchedAdm?.gender || 'Male',
-          className: student.className || matchedAdm?.appliedClass || 'Class 8',
-          section: student.section || 'A',
-          rollNo: student.rollNo || '1',
+          gender: student.gender || matchedAdm?.gender || '',
+          className: student.className || matchedAdm?.appliedClass || '',
+          section: student.section || '',
+          rollNo: student.rollNo || '',
           pickupPoint: pPoint,
           parentName: pName,
           parentMobile: pMobile

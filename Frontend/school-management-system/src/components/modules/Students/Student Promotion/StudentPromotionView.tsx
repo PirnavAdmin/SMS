@@ -135,10 +135,16 @@ export const StudentPromotionView: React.FC<StudentPromotionViewProps> = ({ onNa
       const found = (academicClasses || []).find((c: any) => c.name.toLowerCase() === calculatedNext.toLowerCase());
       return found ? found.name : calculatedNext;
     }
-    if (currClass.toLowerCase() === 'nursery') return 'LKG';
-    if (currClass.toLowerCase() === 'lkg') return 'UKG';
-    if (currClass.toLowerCase() === 'ukg') return 'Class 1';
-    return 'Class 2';
+    if (academicClasses && academicClasses.length > 0) {
+      const idx = academicClasses.findIndex((c: any) => c.name.toLowerCase() === currClass.toLowerCase());
+      if (idx !== -1 && idx + 1 < academicClasses.length) {
+        return academicClasses[idx + 1].name;
+      }
+    }
+    return '';
+
+
+
   };
 
   // Helper: Parse academic year into canonical key (YYYY-YYYY) and start year
