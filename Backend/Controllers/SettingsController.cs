@@ -19,9 +19,38 @@ namespace SMS.Api.Controllers
             _settingsService = settingsService;
         }
 
+        // GET: api/Settings/public-branding
+        [HttpGet("public-branding")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetPublicBranding()
+        {
+            try
+            {
+                var settings = await _settingsService.GetSettingsAsync();
+                return Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        schoolName = settings?.SchoolName ?? "Pirnav School",
+                        logoUrl = settings?.LogoUrl ?? string.Empty,
+                        tagline = settings?.Tagline ?? "Nurturing character, academic excellence, and ethical leadership in every student.",
+                        address = settings?.Address ?? string.Empty,
+                        phone = settings?.Phone ?? string.Empty,
+                        email = settings?.Email ?? string.Empty,
+                        website = settings?.Website ?? string.Empty
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
         // GET: api/Settings
         [HttpGet]
-        [AllowAnonymous]
+        [Authorize]
         public async Task<IActionResult> GetSettings()
         {
             try
@@ -42,7 +71,7 @@ namespace SMS.Api.Controllers
         // POST: api/Settings
         [HttpPost]
         [HttpPut]
-        [AllowAnonymous]
+        [Authorize(Roles = "SuperAdmin,Admin")]
         public async Task<IActionResult> UpdateSettings([FromBody] SchoolSettingsDto dto)
         {
             if (dto == null) return BadRequest("Invalid settings payload.");
@@ -65,7 +94,7 @@ namespace SMS.Api.Controllers
 
         // POST: api/Settings/logo
         [HttpPost("logo")]
-        [AllowAnonymous]
+        [Authorize(Roles = "SuperAdmin,Admin")]
         public async Task<IActionResult> UploadLogo([FromBody] UploadLogoDto dto)
         {
             if (dto == null)
@@ -89,7 +118,7 @@ namespace SMS.Api.Controllers
 
         // POST: api/Settings/logo/upload
         [HttpPost("logo/upload")]
-        [AllowAnonymous]
+        [Authorize(Roles = "SuperAdmin,Admin")]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> UploadLogoFile([FromForm] UploadLogoFileRequest request)
         {
@@ -115,7 +144,7 @@ namespace SMS.Api.Controllers
 
         // POST: api/Settings/certificate-templates
         [HttpPost("certificate-templates")]
-        [AllowAnonymous]
+        [Authorize(Roles = "SuperAdmin,Admin")]
         public async Task<IActionResult> UpdateCertificateTemplates([FromBody] object templates)
         {
             if (templates == null) return BadRequest("Templates payload required.");
@@ -133,7 +162,7 @@ namespace SMS.Api.Controllers
 
         // POST: api/Settings/campuses
         [HttpPost("campuses")]
-        [AllowAnonymous]
+        [Authorize(Roles = "SuperAdmin,Admin")]
         public async Task<IActionResult> UpdateCampuses([FromBody] object campuses)
         {
             if (campuses == null) return BadRequest("Campuses payload required.");
@@ -151,7 +180,7 @@ namespace SMS.Api.Controllers
 
         // GET: api/Settings/id-sequences
         [HttpGet("id-sequences")]
-        [AllowAnonymous]
+        [Authorize]
         public async Task<IActionResult> GetIdSequences()
         {
             try
@@ -172,7 +201,7 @@ namespace SMS.Api.Controllers
         // POST: api/Settings/id-sequences
         [HttpPost("id-sequences")]
         [HttpPut("id-sequences")]
-        [AllowAnonymous]
+        [Authorize(Roles = "SuperAdmin,Admin")]
         public async Task<IActionResult> UpdateIdSequences([FromBody] IdSequenceSettingsDto dto)
         {
             if (dto == null) return BadRequest("Invalid ID sequence payload.");
@@ -195,7 +224,7 @@ namespace SMS.Api.Controllers
 
         // GET: api/Settings/id-sequences/next
         [HttpGet("id-sequences/next")]
-        [AllowAnonymous]
+        [Authorize]
         public async Task<IActionResult> GenerateNextId([FromQuery] string type = "student", [FromQuery] string? sequenceId = null)
         {
             try
@@ -215,7 +244,7 @@ namespace SMS.Api.Controllers
 
         // POST: api/Settings/id-sequences/custom
         [HttpPost("id-sequences/custom")]
-        [AllowAnonymous]
+        [Authorize(Roles = "SuperAdmin,Admin")]
         public async Task<IActionResult> AddOrUpdateCustomIdSequence([FromBody] CustomIdSequenceDto dto)
         {
             if (dto == null) return BadRequest("Invalid custom ID sequence payload.");
@@ -238,7 +267,7 @@ namespace SMS.Api.Controllers
 
         // DELETE: api/Settings/id-sequences/custom/{formatKey}
         [HttpDelete("id-sequences/custom/{formatKey}")]
-        [AllowAnonymous]
+        [Authorize(Roles = "SuperAdmin,Admin")]
         public async Task<IActionResult> DeleteCustomIdSequence(string formatKey)
         {
             if (string.IsNullOrWhiteSpace(formatKey)) return BadRequest("Format key is required.");
@@ -264,7 +293,7 @@ namespace SMS.Api.Controllers
 
         // GET: api/Settings/profile
         [HttpGet("profile")]
-        [AllowAnonymous]
+        [Authorize]
         public async Task<IActionResult> GetUserProfile()
         {
             try
@@ -285,7 +314,7 @@ namespace SMS.Api.Controllers
         // POST/PUT: api/Settings/profile
         [HttpPost("profile")]
         [HttpPut("profile")]
-        [AllowAnonymous]
+        [Authorize]
         public async Task<IActionResult> UpdateUserProfile([FromBody] UserProfileDto dto)
         {
             if (dto == null) return BadRequest("Profile payload is required.");
@@ -308,7 +337,7 @@ namespace SMS.Api.Controllers
 
         // POST: api/Settings/profile/upload
         [HttpPost("profile/upload")]
-        [AllowAnonymous]
+        [Authorize]
         [Consumes("multipart/form-data")]
         public async Task<IActionResult> UploadProfileImage([FromForm] UploadProfileImageFileRequest request)
         {

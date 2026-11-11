@@ -4,7 +4,7 @@ import { loginApi, sendOtpApi, verifyOtpApi, resetPasswordWithOtpApi, changePass
 import { fetchUserProfileApi, getLocalUserProfile, saveLocalUserProfile, getActiveUserKey } from '../api/profile';
 import { DEFAULT_USER_AVATAR } from '../utils/mediaUtils';
 import { fetchBranchesApi, fetchAcademicYearsApi } from '../api/settings';
-import { setActiveBranchHeader, setActiveAcademicYearHeader } from '../api/client';
+import { setActiveBranchHeader, setActiveAcademicYearHeader, cancelPendingRequests } from '../api/client';
 
 interface AuthContextType {
   user: User | null;
@@ -227,6 +227,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [selectedAcademicYear, setSelectedAcademicYearState] = useState<string>('');
 
   useEffect(() => {
+    if (!token || !user) {
+      return;
+    }
+
     const handleSync = async () => {
       try {
         const res: any = await fetchBranchesApi();
@@ -276,7 +280,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       window.removeEventListener('branches_updated', handleSync);
       window.removeEventListener('academic_years_updated', handleSync);
     };
-  }, []);
+  }, [token, user]);
 
   const handleSetBranch = (branch: string) => {
     setSelectedBranchState(branch);
@@ -350,6 +354,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [token, user?.email, user?.role]);
 
   const logout = () => {
+    cancelPendingRequests();
+    try {
+      window.dispatchEvent(new CustomEvent('auth_logout'));
+    } catch {}
+    setSelectedBranchState('');
+    setSelectedAcademicYearState('');
     try {
       const isTimeout = localStorage.getItem('session_timeout_occurred') === 'true';
       if (!isTimeout) {

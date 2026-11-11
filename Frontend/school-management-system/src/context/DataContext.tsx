@@ -8,6 +8,7 @@ import React, {
   useMemo,
   useRef,
 } from "react";
+import { cancelPendingRequests } from "../api/client";
 import { formatCurrency } from "../utils/currency";
 import {
   fetchWorkshopsApi,
@@ -1534,12 +1535,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const activeRequests = useRef<Record<string, any>>({});
   const {
     user,
+    token,
     selectedBranch,
     selectedAcademicYear,
     setSelectedAcademicYear,
     isAuthenticated,
     role,
   } = useAuth();
+
+  const initializedSessionRef = useRef<string | null>(null);
 
   const getStored = <T,>(_key: string, initial: T): T => {
     // All business data is dynamically fetched from backend API and database
@@ -2531,6 +2535,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
 
   useEffect(() => {
+    if (!isAuthenticated || !token) return;
     const syncAcademicYearsFromApi = async () => {
       try {
         const res: any = await fetchAcademicYearsApi();
@@ -2540,7 +2545,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       } catch {}
     };
     syncAcademicYearsFromApi();
-  }, []);
+  }, [isAuthenticated, token]);
   // Stale localStorage sync for staff removed to ensure 100% dynamic API data
   useEffect(() => {
     try {
@@ -2875,6 +2880,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Fetch API data on mount
   useEffect(() => {
+    if (!isAuthenticated || !token) return;
     const fetchTransportData = async () => {
       try {
         const results = await Promise.allSettled([
@@ -3724,7 +3730,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       }
     };
     fetchTransportData();
-  }, [isAuthenticated]);
+  }, [isAuthenticated, token]);
 
   // Finance Transport Config & Ledger Effects
 
@@ -3831,6 +3837,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const classUpdatesRef = useRef<Record<string, Partial<AcademicClass>>>({});
 
   const fetchAcademicClasses = useCallback(async () => {
+    if (!isAuthenticated || !token) return;
     if (activeRequests.current["classes"]) {
       return activeRequests.current["classes"];
     }
@@ -4141,6 +4148,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const fetchSubjects = useCallback(async () => {
+    if (!isAuthenticated || !token) return;
     try {
       const data: any = await fetchAcademicSubjectsApi();
       const dataArray = Array.isArray(data) ? data : data?.data || [];
@@ -4164,6 +4172,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const fetchPeriods = useCallback(async () => {
+    if (!isAuthenticated || !token) return;
     try {
       const data: any = await fetchAcademicPeriodsApi();
       const dataArray = Array.isArray(data) ? data : data?.data || [];
@@ -4230,6 +4239,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const fetchTimetables = useCallback(
     async (force: boolean = false) => {
+    if (!isAuthenticated || !token) return;
       try {
         const data: any = await fetchAllTimetablesApi(selectedAcademicYear);
         const dataArray = Array.isArray(data) ? data : data?.data || [];
@@ -4327,6 +4337,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const fetchAdmissions = useCallback(async () => {
+    if (!isAuthenticated || !token) return;
     if (activeRequests.current["admissions"]) {
       return activeRequests.current["admissions"];
     }
@@ -4625,6 +4636,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [addToast, selectedBranch, selectedAcademicYear]);
 
   const fetchDepartments = useCallback(async () => {
+    if (!isAuthenticated || !token) return;
     try {
       const response: any = await fetchDepartmentsApi();
       const dataArray = Array.isArray(response)
@@ -4647,6 +4659,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const fetchDesignations = useCallback(async () => {
+    if (!isAuthenticated || !token) return;
     try {
       const response: any = await fetchDesignationsApi();
       const dataArray = Array.isArray(response)
@@ -4670,6 +4683,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const fetchBranches = useCallback(async () => {
+    if (!isAuthenticated || !token) return;
     try {
       const res: any = await fetchBranchesApi();
       let list = (res?.success && Array.isArray(res.data)) ? res.data : (Array.isArray(res) ? res : res?.data || []);
@@ -4687,17 +4701,19 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   useEffect(() => {
+    if (!isAuthenticated || !token) return;
     fetchBranches();
     const handleBranchesUpdated = () => {
-      fetchBranches();
+      if (isAuthenticated && token) fetchBranches();
     };
     window.addEventListener("branches_updated", handleBranchesUpdated);
     return () => {
       window.removeEventListener("branches_updated", handleBranchesUpdated);
     };
-  }, [fetchBranches]);
+  }, [isAuthenticated, token, fetchBranches]);
 
   const fetchStaff = useCallback(async () => {
+    if (!isAuthenticated || !token) return;
     if (activeRequests.current["staff"]) {
       return activeRequests.current["staff"];
     }
@@ -4921,6 +4937,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   // =========================================================
 
   const fetchStudents = useCallback(async () => {
+    if (!isAuthenticated || !token) return;
     if (activeRequests.current["students"]) {
       return activeRequests.current["students"];
     }
@@ -5159,6 +5176,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const fetchHomeworkData = useCallback(async () => {
+    if (!isAuthenticated || !token) return;
     try {
       const response: any = await fetchHomeworkApi();
       const items = Array.isArray(response)
@@ -5260,6 +5278,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const fetchStudentAttendanceData = useCallback(async (query?: any) => {
+    if (!isAuthenticated || !token) return;
     const reqKey = "student-attendance" + (query ? JSON.stringify(query) : "");
     if (activeRequests.current[reqKey]) {
       return activeRequests.current[reqKey];
@@ -5316,6 +5335,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const fetchGradingScaleRules = useCallback(
     async (examType: string = "All") => {
+    if (!isAuthenticated || !token) return;
       try {
         const res: any = await fetchGradingScaleRulesApi(examType);
         if (
@@ -5363,6 +5383,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   const fetchUniformData = useCallback(async () => {
+    if (!isAuthenticated || !token) return;
     if (activeRequests.current["uniform-data"]) {
       return activeRequests.current["uniform-data"];
     }
@@ -5541,6 +5562,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [selectedBranch, selectedAcademicYear]);
 
   const fetchSchoolEventsData = useCallback(async () => {
+    if (!isAuthenticated || !token) return;
     try {
       const response: any = await fetchSchoolEventsApi();
       const rawList = Array.isArray(response)
@@ -5576,6 +5598,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const fetchHolidaysData = useCallback(async () => {
+    if (!isAuthenticated || !token) return;
     try {
       const response: any = await fetchHolidaysApi();
       const rawList = Array.isArray(response)
@@ -5619,6 +5642,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const fetchAnnouncementsData = useCallback(async () => {
+    if (!isAuthenticated || !token) return;
     try {
       const response: any = await fetchNotificationsApi();
       const rawItems = Array.isArray(response)
@@ -5664,8 +5688,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   useEffect(() => {
+    if (!isAuthenticated || !token) return;
+    fetchAnnouncementsData();
     const handleAnnouncementsUpdated = () => {
-      fetchAnnouncementsData();
+      if (isAuthenticated && token) fetchAnnouncementsData();
     };
     window.addEventListener(
       "announcements_updated",
@@ -5673,7 +5699,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     );
     window.addEventListener("circulars_updated", handleAnnouncementsUpdated);
     const interval = setInterval(() => {
-      fetchAnnouncementsData();
+      if (isAuthenticated && token) fetchAnnouncementsData();
     }, 30000);
     return () => {
       window.removeEventListener(
@@ -5686,9 +5712,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       );
       clearInterval(interval);
     };
-  }, [fetchAnnouncementsData]);
+  }, [isAuthenticated, token, fetchAnnouncementsData]);
 
   const fetchMeetingsData = useCallback(async () => {
+    if (!isAuthenticated || !token) return;
     try {
       const response: any = await fetchMeetingsApi();
       const items = Array.isArray(response)
@@ -5706,6 +5733,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, []);
   const fetchFinanceData = useCallback(async () => {
+    if (!isAuthenticated || !token) return;
     const userRole = (role || user?.role || "").toLowerCase().replace(/[\s_-]+/g, "");
     const allowedFinanceRoles = ["admin", "superadmin", "accountant", "finance", "staff", "principal", "teacher", "management", "director", "chairperson"];
     if (userRole === "parent" || userRole === "student") {
@@ -6467,6 +6495,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [role, user?.role]);
 
   const fetchFacultyTrainingData = useCallback(async () => {
+    if (!isAuthenticated || !token) return;
     try {
       const [workshopsRes, assessmentsRes, certsRes] = await Promise.allSettled([
         fetchWorkshopsApi(),
@@ -6586,57 +6615,103 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [selectedBranch]);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      const userRole = role?.toLowerCase() || "";
-      const isParentOrStudent = userRole === "parent" || userRole === "student";
-
-      // Always fetch events, holidays, announcements, and meetings as these are relevant to parents/students
-      fetchSchoolEventsData();
-      fetchHolidaysData();
-      fetchAnnouncementsData();
-      fetchMeetingsData();
-      fetchHomeworkData();
-      fetchStudentAttendanceData();
-      fetchGradingScaleRules();
-
-      // Always fetch students (handles ward lookup for parents)
-      fetchStudents();
-
-      // Academic classes, teacher assignments, staff, subjects, timetables are essential for ALL authenticated users
-      // (Used by Admin management, as well as Student/Parent portals to dynamically view assigned faculty, subjects, and schedules)
-      fetchStaff();
-      fetchAcademicClasses();
-      fetchSubjects();
-      fetchPeriods();
-      fetchTimetables();
-
-      // Sync automated ID sequence settings from database
-      fetchIdSequenceSettingsApi()
-        .then((res: any) => {
-          if (res && res.success && res.data) {
-            saveIdSequenceSettings(res.data);
-          }
-        })
-        .catch(() => {});
-
-      if (!isParentOrStudent) {
-        fetchDepartments();
-        fetchDesignations();
-        fetchPayrollConfigurations();
-        fetchPayrollComponents();
-        fetchPayrollRuns();
-        fetchPayslips();
-        fetchLeaveApplications();
-        fetchLeaveTypes();
-        fetchLeaveBalances();
-        fetchDailyAttendance(new Date().toISOString().split("T")[0]);
-        fetchUniformData().catch(() => {});
-        fetchFacultyTrainingData().catch(() => {});
-        fetchFinanceData().catch(() => {});
-      }
-      fetchAdmissions();
+    if (!isAuthenticated || !token) {
+      initializedSessionRef.current = null;
+      return;
     }
-  }, [isAuthenticated, role, user?.role, selectedBranch, selectedAcademicYear]);
+
+    const currentSessionKey = `${token}_${user?.id || user?.email}_${selectedBranch}_${selectedAcademicYear}`;
+    if (initializedSessionRef.current === currentSessionKey) {
+      return;
+    }
+    initializedSessionRef.current = currentSessionKey;
+
+    const userRole = role?.toLowerCase() || "";
+    const isParentOrStudent = userRole === "parent" || userRole === "student";
+
+    // Always fetch events, holidays, announcements, and meetings as these are relevant to parents/students
+    fetchSchoolEventsData();
+    fetchHolidaysData();
+    fetchAnnouncementsData();
+    fetchMeetingsData();
+    fetchHomeworkData();
+    fetchStudentAttendanceData();
+    fetchGradingScaleRules();
+
+    // Always fetch students (handles ward lookup for parents)
+    fetchStudents();
+
+    // Academic classes, teacher assignments, staff, subjects, timetables are essential for ALL authenticated users
+    fetchStaff();
+    fetchAcademicClasses();
+    fetchSubjects();
+    fetchPeriods();
+    fetchTimetables();
+
+    // Sync automated ID sequence settings from database
+    fetchIdSequenceSettingsApi()
+      .then((res: any) => {
+        if (res && res.success && res.data) {
+          saveIdSequenceSettings(res.data);
+        }
+      })
+      .catch(() => {});
+
+    if (!isParentOrStudent) {
+      fetchDepartments();
+      fetchDesignations();
+      fetchPayrollConfigurations();
+      fetchPayrollComponents();
+      fetchPayrollRuns();
+      fetchPayslips();
+      fetchLeaveApplications();
+      fetchLeaveTypes();
+      fetchLeaveBalances();
+      fetchDailyAttendance(new Date().toISOString().split("T")[0]);
+      fetchUniformData().catch(() => {});
+      fetchFacultyTrainingData().catch(() => {});
+      fetchFinanceData().catch(() => {});
+    }
+    fetchAdmissions();
+  }, [isAuthenticated, token, role, user?.role, selectedBranch, selectedAcademicYear]);
+
+  // Handle logout: clear in-memory module data and reset initialization
+  useEffect(() => {
+    const handleLogout = () => {
+      cancelPendingRequests();
+      initializedSessionRef.current = null;
+      activeRequests.current = {};
+      setStudents([]);
+      setStaff([]);
+      setAcademicClasses([]);
+      setSubjects([]);
+      setPeriodSettings([]);
+      setTimetable([]);
+      setAdmissions([]);
+      setDepartments([]);
+      setDesignations([]);
+      setAnnouncements([]);
+      setSchoolEvents([]);
+      setHolidays([]);
+      setMeetings([]);
+      setHomework([]);
+      setStudentAttendance([]);
+      setPayrollConfigurations([]);
+      setPayrollComponents([]);
+      setPayrollRuns([]);
+      setPayslips([]);
+      setLeaveApplications([]);
+      setStudentUniformIssues([]);
+      setFeeStructures([]);
+      setStudentFeeLedgers([]);
+      setAuditLogs([]);
+    };
+
+    window.addEventListener("auth_logout", handleLogout);
+    return () => {
+      window.removeEventListener("auth_logout", handleLogout);
+    };
+  }, []);
 
   useEffect(() => {
     const handleFinanceUpdated = () => {
@@ -6813,6 +6888,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [exams]);
 
   useEffect(() => {
+    if (!isAuthenticated || !token) return;
     const loadSchoolSettingsFromDb = async () => {
       try {
         const res: any = await fetchSchoolSettingsApi();
@@ -7022,7 +7098,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       );
       clearInterval(syncInterval);
     };
-  }, []);
+  }, [isAuthenticated, token]);
 
   const addStudent = (
     stData: Omit<Student, "id">,
@@ -22060,6 +22136,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const fetchDailyAttendance = useCallback(
     async (date: string, department?: string) => {
+    if (!isAuthenticated || !token) return;
       try {
         const response = await fetchDailyStaffAttendanceApi(date, department);
         if (response && response.success && Array.isArray(response.data)) {
@@ -24686,6 +24763,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const fetchLeaveApplications = useCallback(async () => {
+    if (!isAuthenticated || !token) return;
     if (activeRequests.current["leave-applications"]) {
       return activeRequests.current["leave-applications"];
     }
@@ -24762,6 +24840,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [selectedBranch]);
 
   const fetchLeaveBalances = useCallback(async () => {
+    if (!isAuthenticated || !token) return;
     try {
       const response = await fetchLeaveBalancesApi();
       if (response && response.success && response.data) {
@@ -24812,6 +24891,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const fetchPayrollConfigurations = useCallback(async () => {
+    if (!isAuthenticated || !token) return;
     try {
       const response = await fetchPayrollConfigurationsApi();
       if (response && response.success && response.data) {
@@ -24823,6 +24903,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const fetchPayrollComponents = useCallback(async () => {
+    if (!isAuthenticated || !token) return;
     try {
       const response = await fetchPayrollComponentsApi();
       if (response && response.success && response.data) {
@@ -24834,6 +24915,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const fetchPayrollRuns = useCallback(async () => {
+    if (!isAuthenticated || !token) return;
     try {
       const response = await fetchPayrollRunsApi();
       if (response && response.success && response.data) {
@@ -24845,6 +24927,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const fetchPayslips = useCallback(async (month?: string, year?: number) => {
+    if (!isAuthenticated || !token) return;
     try {
       const response = await fetchPayslipsApi(month, year);
       if (response && response.success && response.data) {

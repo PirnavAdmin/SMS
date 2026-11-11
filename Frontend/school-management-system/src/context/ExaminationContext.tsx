@@ -219,17 +219,24 @@ export const ExaminationProvider: React.FC<{
     // =========================================================
 
     useEffect(() => {
-
-        /*
-         * refreshExamData itself checks the token.
-         *
-         * When login succeeds and the token changes,
-         * refreshExamData is recreated and this effect runs.
-         */
-
+        if (!token) {
+            setExams([]);
+            setExamMarks([]);
+            setExamSchedules([]);
+            return;
+        }
         refreshExamData();
+    }, [token, refreshExamData]);
 
-    }, [refreshExamData]);
+    useEffect(() => {
+        const handleLogout = () => {
+            setExams([]);
+            setExamMarks([]);
+            setExamSchedules([]);
+        };
+        window.addEventListener('auth_logout', handleLogout);
+        return () => window.removeEventListener('auth_logout', handleLogout);
+    }, []);
 
 
     // =========================================================

@@ -36,14 +36,14 @@ const HostelContext = createContext<HostelContextType | undefined>(undefined);
 
 export const HostelProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { addToast } = useToast();
-  const { token } = useAuth();
+  const { token, isAuthenticated } = useAuth();
   const [blocks, setBlocks] = useState<APIHostelBlock[]>([]);
   const [rooms, setRooms] = useState<APIHostelRoom[]>([]);
   const [allocations, setAllocations] = useState<APIBedAllocation[]>([]);
   const [loading, setLoading] = useState(false);
 
   const refreshHostelData = useCallback(async () => {
-    if (!token) {
+    if (!token || !isAuthenticated) {
       return;
     }
     try {

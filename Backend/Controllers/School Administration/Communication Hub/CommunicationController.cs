@@ -15,7 +15,7 @@ using System.Threading.Tasks;
 [Route("api/communications")]
 [Route("api/communication")]
 [Route("api/v1/communication")]
-[AllowAnonymous]
+[Authorize]
 [Tags("Communication Hub & Meetings")]
 public class CommunicationController : ControllerBase
 {

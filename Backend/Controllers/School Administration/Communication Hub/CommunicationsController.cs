@@ -13,7 +13,7 @@ using System.Threading.Tasks;
 
 [ApiController]
 [Route("api/communications-admin")]
-[AllowAnonymous]
+[Authorize]
 [Tags("Communications & Meeting Management")]
 public class CommunicationsController : ControllerBase
 {
@@ -29,7 +29,7 @@ public class CommunicationsController : ControllerBase
     // =========================================================
 
     [HttpGet("circulars")]
-    [AllowAnonymous]
+    [Authorize]
     public async Task<IActionResult> GetAllCirculars()
     {
         var list = await _context.Circulars.AsNoTracking().OrderByDescending(c => c.CreatedDate).ToListAsync();
@@ -54,7 +54,7 @@ public class CommunicationsController : ControllerBase
     }
 
     [HttpGet("circulars/{id:int}")]
-    [AllowAnonymous]
+    [Authorize]
     public async Task<IActionResult> GetCircularById(int id)
     {
         try
@@ -83,7 +83,7 @@ public class CommunicationsController : ControllerBase
     }
 
     [HttpPost("circulars")]
-    [AllowAnonymous]
+    [Authorize]
     public async Task<IActionResult> CreateCircular([FromBody] CircularDto dto)
     {
         var entity = new Circular
@@ -110,7 +110,7 @@ public class CommunicationsController : ControllerBase
     }
 
     [HttpPut("circulars/{id:int}")]
-    [AllowAnonymous]
+    [Authorize]
     public async Task<IActionResult> UpdateCircular(int id, [FromBody] CircularDto dto)
     {
         try
@@ -138,7 +138,7 @@ public class CommunicationsController : ControllerBase
     }
 
     [HttpDelete("circulars/{id:int}")]
-    [AllowAnonymous]
+    [Authorize]
     public async Task<IActionResult> DeleteCircular(int id)
     {
         try
@@ -160,7 +160,7 @@ public class CommunicationsController : ControllerBase
     // =========================================================
 
     [HttpGet("meetings")]
-    [AllowAnonymous]
+    [Authorize]
     public async Task<IActionResult> GetAllMeetings([FromQuery] string? audience, [FromQuery] string? mode, [FromQuery] string? status, [FromQuery] string? search)
     {
         var query = _context.Meetings.AsNoTracking().AsQueryable();
@@ -208,7 +208,7 @@ public class CommunicationsController : ControllerBase
     }
 
     [HttpGet("meetings/{id:int}")]
-    [AllowAnonymous]
+    [Authorize]
     public async Task<IActionResult> GetMeetingById(int id)
     {
         try
@@ -247,7 +247,7 @@ public class CommunicationsController : ControllerBase
     }
 
     [HttpPost("meetings")]
-    [AllowAnonymous]
+    [Authorize]
     public async Task<IActionResult> ScheduleMeeting([FromBody] MeetingCreateDto dto)
     {
         DateTime mDate = DateTime.TryParse(dto.MeetingDate, out var d) ? d : DateTime.UtcNow;
@@ -286,7 +286,7 @@ public class CommunicationsController : ControllerBase
     }
 
     [HttpPut("meetings/{id:int}")]
-    [AllowAnonymous]
+    [Authorize]
     public async Task<IActionResult> UpdateMeeting(int id, [FromBody] MeetingCreateDto dto)
     {
         try
@@ -319,7 +319,7 @@ public class CommunicationsController : ControllerBase
     }
 
     [HttpDelete("meetings/{id:int}")]
-    [AllowAnonymous]
+    [Authorize]
     public async Task<IActionResult> DeleteMeeting(int id)
     {
         try
