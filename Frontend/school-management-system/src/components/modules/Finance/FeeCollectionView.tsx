@@ -100,6 +100,8 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     hostelRooms = [],
     hostelBeds = [],
     financeHostelConfigs = [],
+    academicClasses = [],
+    addStudentUniformIssue,
     fetchAcademicClasses,
     fetchStudents,
     fetchAdmissions,
@@ -1251,6 +1253,8 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
       paymentAllocation: paymentAllocations,
     });
 
+    const receiptNumber = payment?.receiptNo || "";
+
     // Mark uniform items as Paid in studentUniformIssues if collected
     if (updateStudentUniformIssue) {
       selectedInstallments.forEach((instId) => {
@@ -1291,7 +1295,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
               status: "Issued" as any,
               academicYear: selectedAcademicYear || financeSettings.academicYear || "",
               type: "Base Package",
-              price: paidAmount,
+              price: numericAmount,
               notes: `Fees Paid at Counter (${paymentMode}) — Receipt #${receiptNumber}`,
             });
           }
