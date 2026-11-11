@@ -2,9 +2,12 @@ import { defineConfig, loadEnv, type ProxyOptions } from 'vite';
 import react from '@vitejs/plugin-react';
 import http from 'http';
 import https from 'https';
-import net from 'net';
+import dns from 'dns';
 import fs from 'fs';
 import path from 'path';
+
+// Prefer IPv4 first so Node's Happy Eyeballs does not stall on unavailable IPv6 routes to trycloudflare.com.
+dns.setDefaultResultOrder('ipv4first');
 
 const httpAgent = new http.Agent({
   keepAlive: true,
@@ -19,31 +22,10 @@ const httpsAgent = new https.Agent({
   rejectUnauthorized: false,
 });
 
-const isPortReachable = (host: string, port: number, timeoutMs = 300): Promise<boolean> =>
-  new Promise((resolve) => {
-    const socket = net.createConnection({ host, port });
-    let settled = false;
-    const finish = (reachable: boolean) => {
-      if (settled) return;
-      settled = true;
-      socket.destroy();
-      resolve(reachable);
-    };
-    socket.setTimeout(timeoutMs);
-    socket.once('connect', () => finish(true));
-    socket.once('timeout', () => finish(false));
-    socket.once('error', () => finish(false));
-  });
-
-export default defineConfig(async ({ command, mode }) => {
+export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
-  const localTarget = 'http://127.0.0.1:5151';
-  const configuredTarget = (env.VITE_BACKEND_TARGET || env.VITE_API_URL || '').trim().replace(/\/+$/, '');
-  const useLocalBackend =
-    command === 'serve' &&
-    env.VITE_FORCE_REMOTE_PROXY !== 'true' &&
-    (await isPortReachable('127.0.0.1', 5151));
-  const apiTarget = useLocalBackend ? localTarget : (configuredTarget || localTarget);
+  const rawTarget = env.VITE_BACKEND_TARGET || env.VITE_API_URL || 'http://127.0.0.1:5151';
+  const apiTarget = rawTarget.trim().replace(/\/+$/, '');
   const isHttps = apiTarget.startsWith('https');
 
   const sharedProxyOptions: ProxyOptions = {
