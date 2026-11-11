@@ -1822,7 +1822,7 @@ public class SchoolService : ISchoolService
 			var branchId = appBranch != null ? appBranch.BranchId : 1;
 
 			var allClasses = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync(_context.Classes);
-			int targetClassId = 1;
+			int? targetClassId = allClasses.FirstOrDefault()?.ClassId;
 			if (app.AppliedClassId.HasValue && app.AppliedClassId.Value > 0 && allClasses.Any(c => c.ClassId == app.AppliedClassId.Value))
 			{
 				targetClassId = app.AppliedClassId.Value;
@@ -1855,6 +1855,7 @@ public class SchoolService : ISchoolService
 					BloodGroup = app.BloodGroup,
 					Caste = app.Caste,
 					BranchId = branchId,
+					AcademicYear = app.AcademicYear,
 					ClassId = targetClassId,
 					SectionLetter = !string.IsNullOrWhiteSpace(sectionLetter) ? sectionLetter : "A",
 					AdmissionType = app.StudentType ?? "Non-Residential",
@@ -1875,6 +1876,10 @@ public class SchoolService : ISchoolService
 				existing.BloodGroup = app.BloodGroup;
 				existing.Caste = app.Caste;
 				existing.BranchId = branchId;
+				if (!string.IsNullOrWhiteSpace(app.AcademicYear))
+				{
+					existing.AcademicYear = app.AcademicYear;
+				}
 				existing.ClassId = targetClassId;
 				existing.AdmissionType = app.StudentType ?? "Non-Residential";
 				if (!string.IsNullOrWhiteSpace(sectionLetter))

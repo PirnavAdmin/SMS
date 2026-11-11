@@ -1786,6 +1786,7 @@ using (var scope = app.Services.CreateScope())
         EnsureColumnExists("admission_applications", "SecurityDepositReceiptNo", "varchar(100) NULL");
         EnsureColumnExists("admission_applications", "AcademicYear", "varchar(100) NULL");
         EnsureColumnExists("admission_applications", "BranchName", "varchar(100) NULL");
+        EnsureColumnExists("admissions", "academic_year", "varchar(100) NULL");
         EnsureColumnExists("uniform_fee_configs", "Branch", "varchar(100) NULL");
         EnsureColumnExists("uniform_fee_configs", "UniformItemId", "varchar(50) NULL");
         EnsureColumnExists("uniform_fee_configs", "FeePlan", "varchar(50) NULL DEFAULT 'Annual'");
@@ -2373,7 +2374,7 @@ using (var scope = app.Services.CreateScope())
                         var appBranch = branches.Find(b => b.BranchName.ToLower() == (admApp.BranchName ?? "").ToLower()) ?? defaultBranch;
                         bool isAppDeleted = admApp.IsDeleted || admApp.Status == "Deleted";
 
-                        int targetClassId = 1;
+                        int? targetClassId = allClasses.FirstOrDefault()?.ClassId;
                         if (admApp.AppliedClassId.HasValue && admApp.AppliedClassId.Value > 0 && allClasses.Any(c => c.ClassId == admApp.AppliedClassId.Value))
                         {
                             targetClassId = admApp.AppliedClassId.Value;
@@ -2408,6 +2409,7 @@ using (var scope = app.Services.CreateScope())
                                     BloodGroup = admApp.BloodGroup,
                                     Caste = admApp.Caste,
                                     BranchId = appBranch.BranchId,
+                                    AcademicYear = admApp.AcademicYear,
                                     ClassId = targetClassId,
                                     SectionLetter = null,
                                     AdmissionType = "Regular",
@@ -2422,6 +2424,10 @@ using (var scope = app.Services.CreateScope())
                         {
                             existingAdmission.ApplicationNo = effectiveAppNo;
                             existingAdmission.BranchId = appBranch.BranchId;
+                            if (!string.IsNullOrWhiteSpace(admApp.AcademicYear))
+                            {
+                                existingAdmission.AcademicYear = admApp.AcademicYear;
+                            }
                             existingAdmission.ClassId = targetClassId;
                             existingAdmission.Status = admApp.Status ?? "";
                             existingAdmission.IsDeleted = isAppDeleted;

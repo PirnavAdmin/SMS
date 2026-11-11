@@ -307,6 +307,8 @@ namespace SMS.Api.Data
                     .HasForeignKey(x => x.StudentId)
                     .OnDelete(DeleteBehavior.Cascade);
 
+                entity.HasQueryFilter(x => !x.Student!.IsDeleted);
+
                 entity.HasIndex(x => new { x.ParentUserId, x.StudentId })
                     .IsUnique()
                     .HasDatabaseName("UQ_parent_student_mappings_Parent_Student");

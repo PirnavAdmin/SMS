@@ -205,6 +205,31 @@ namespace Backend.Tests.Services
         }
 
         [Fact]
+        public async Task SubmitApplicationAsync_WithAcademicYear_SyncsAcademicYearAndClassFallbackToAdmissions()
+        {
+            _context.Classes.Add(new ClassGrade { ClassId = 14, ClassName = "Class 1", AcademicYear = "2026-27", Status = "Active" });
+            await _context.SaveChangesAsync();
+
+            var dto = new SubmitAdmissionDto
+            {
+                FirstName = "Maya",
+                LastName = "Rao",
+                AppliedClassId = 0,
+                AcademicYear = "2026-27",
+                Gender = "Female",
+                FatherName = "Kiran Rao",
+                FatherContact = "9876500001"
+            };
+
+            await _service.SubmitApplicationAsync(dto);
+
+            var syncedAdmission = await _context.Admissions.FirstOrDefaultAsync(a => a.StudentName == "Maya Rao");
+            Assert.NotNull(syncedAdmission);
+            Assert.Equal("2026-27", syncedAdmission!.AcademicYear);
+            Assert.Equal(14, syncedAdmission.ClassId);
+        }
+
+        [Fact]
         public async Task RejectApplicationAsync_PendingApp_UpdatesStatusToRejected()
         {
             var app = new AdmissionApplication { Id = 2, Status = "Pending" };
