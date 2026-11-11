@@ -39,8 +39,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
   });
 
   useEffect(() => {
-    let isMounted = true;
-
     const updateLogo = () => {
       const savedLogo =
         localStorage.getItem('school_logo') ||
@@ -50,42 +48,18 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
       if (savedLogo) {
         setDynamicLogo(savedLogo);
       }
+      const savedName = localStorage.getItem('school_name');
+      if (savedName) {
+        setSchoolName(savedName);
+      }
     };
 
     updateLogo();
-
-    fetchSchoolSettingsApi()
-      .then((res: any) => {
-        if (!isMounted) return;
-        const data = res?.data || res;
-        if (data) {
-          if (data.schoolName || data.name) {
-            const name = data.schoolName || data.name;
-            setSchoolName(name);
-            localStorage.setItem('school_name', name);
-          }
-          const savedLogo =
-            localStorage.getItem('school_logo') ||
-            localStorage.getItem('logoUrl') ||
-            localStorage.getItem('schoolLogo');
-          const backendLogo = data.logoUrl || data.logo || data.schoolLogo || data.logoData;
-          const effectiveLogo = backendLogo || savedLogo || pirnavLogo;
-
-          if (effectiveLogo) {
-            setDynamicLogo(effectiveLogo);
-            localStorage.setItem('school_logo', effectiveLogo);
-            localStorage.setItem('logoUrl', effectiveLogo);
-            localStorage.setItem('schoolLogo', effectiveLogo);
-          }
-        }
-      })
-      .catch(() => {});
 
     window.addEventListener('school_profile_updated', updateLogo);
     window.addEventListener('storage', updateLogo);
 
     return () => {
-      isMounted = false;
       window.removeEventListener('school_profile_updated', updateLogo);
       window.removeEventListener('storage', updateLogo);
     };
@@ -152,20 +126,22 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
   const [showSaPassword, setShowSaPassword] = useState(false);
   const [showSaConfirmPassword, setShowSaConfirmPassword] = useState(false);
 
-  // Check setup status on load
+  // Only check setup status if explicitly navigating to setup mode (not on standard login mount)
   useEffect(() => {
-    let isMounted = true;
-    getSuperAdminSetupStatusApi()
-      .then(res => {
-        if (!isMounted) return;
-        if (!res.isConfigured || res.superAdminCount === 0) {
-          setIsSetupRequired(true);
-          setMode('setup-superadmin');
-        }
-      })
-      .catch(() => {});
+    if (typeof window !== 'undefined' && (window.location.hash === '#setup' || window.location.hash === '#setup-superadmin')) {
+      let isMounted = true;
+      getSuperAdminSetupStatusApi()
+        .then(res => {
+          if (!isMounted) return;
+          if (!res.isConfigured || res.superAdminCount === 0) {
+            setIsSetupRequired(true);
+            setMode('setup-superadmin');
+          }
+        })
+        .catch(() => {});
 
-    return () => { isMounted = false; };
+      return () => { isMounted = false; };
+    }
   }, []);
 
   const [forgotIdentifier, setForgotIdentifier] = useState('');

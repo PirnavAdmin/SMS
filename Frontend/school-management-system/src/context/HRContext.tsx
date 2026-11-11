@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useToast } from './ToastContext';
+import { useAuth } from './AuthContext';
 import {
   fetchLeaveTypesApi,
   createLeaveTypeApi,
@@ -60,6 +61,7 @@ const HRContext = createContext<HRContextType | undefined>(undefined);
 
 export const HRProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { addToast } = useToast();
+  const { token, isAuthenticated } = useAuth();
   const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
   const [leaveApplications, setLeaveApplications] = useState<LeaveApplication[]>([]);
   const [salaryStructures, setSalaryStructures] = useState<SalaryStructure[]>([]);
@@ -67,6 +69,7 @@ export const HRProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   const [payrollRuns, setPayrollRuns] = useState<PayrollRun[]>([]);
 
   const fetchLeaveTypes = useCallback(async () => {
+    if (!token || !isAuthenticated) return;
     try {
       const response = await fetchLeaveTypesApi();
       if (response && response.success && response.data) {
@@ -89,6 +92,7 @@ export const HRProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   }, []);
 
   const fetchLeaveApplications = useCallback(async () => {
+    if (!token || !isAuthenticated) return;
     try {
       const normalizeLeaveStatus = (st: string | undefined): LeaveApplication["status"] => {
         if (!st) return "Pending";
@@ -142,6 +146,7 @@ export const HRProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   }, []);
 
   const fetchSalaryStructures = useCallback(async () => {
+    if (!token || !isAuthenticated) return;
     try {
       const response = await fetchSalaryStructuresApi();
       if (response && response.success && response.data) {
@@ -153,6 +158,7 @@ export const HRProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   }, []);
 
   const fetchSalaryAssignments = useCallback(async () => {
+    if (!token || !isAuthenticated) return;
     try {
       const response = await fetchSalaryAssignmentsApi();
       if (response && response.success && response.data) {
@@ -164,11 +170,30 @@ export const HRProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   }, []);
 
   useEffect(() => {
+    if (!token || !isAuthenticated) {
+      setLeaveTypes([]);
+      setLeaveApplications([]);
+      setSalaryStructures([]);
+      setEmployeeSalaryAssignments([]);
+      return;
+    }
     fetchLeaveTypes();
     fetchLeaveApplications();
     fetchSalaryStructures();
     fetchSalaryAssignments();
-  }, [fetchLeaveTypes, fetchLeaveApplications, fetchSalaryStructures, fetchSalaryAssignments]);
+  }, [token, isAuthenticated, fetchLeaveTypes, fetchLeaveApplications, fetchSalaryStructures, fetchSalaryAssignments]);
+
+  useEffect(() => {
+    const handleLogout = () => {
+      setLeaveTypes([]);
+      setLeaveApplications([]);
+      setSalaryStructures([]);
+      setEmployeeSalaryAssignments([]);
+      setPayrollRuns([]);
+    };
+    window.addEventListener('auth_logout', handleLogout);
+    return () => window.removeEventListener('auth_logout', handleLogout);
+  }, []);
 
   // Leave Types CRUD
   const addLeaveType = async (tData: Omit<LeaveType, "id">) => {

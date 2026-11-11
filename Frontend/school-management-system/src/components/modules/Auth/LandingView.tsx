@@ -130,62 +130,12 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
           address: savedAddr || prev.address
         }));
       }
-
-      fetchSchoolSettingsApi()
-        .then((res: any) => {
-          if (!isMounted) return;
-          const data = res?.data || res;
-          if (data) {
-            const backendLogo = data.logoUrl || data.logo || '';
-            const effectiveLogo = backendLogo || savedLogo || schoolInfo.logoUrl;
-
-            const updated: DynamicSchoolInfo = {
-              name: data.schoolName || data.name || savedName || 'Pirnav School',
-              logoUrl: effectiveLogo,
-              address: data.address || data.schoolAddress || savedAddr || '',
-              email: data.email || data.contactEmail || 'contact@pirnavschool.edu.in',
-              phone: data.phone || data.contactPhone || '+91 98765 43210',
-              website: data.website || 'www.pirnavschool.edu.in',
-              tagline: data.tagline || data.motto || 'Nurturing character, academic excellence, and ethical leadership in every student.',
-              affiliation: data.affiliation || data.board || 'CBSE Affiliated',
-            };
-            setSchoolInfo(updated);
-            if (updated.name) localStorage.setItem('school_name', updated.name);
-            if (updated.logoUrl) {
-              localStorage.setItem('school_logo', updated.logoUrl);
-              localStorage.setItem('logoUrl', updated.logoUrl);
-              localStorage.setItem('schoolLogo', updated.logoUrl);
-            }
-            if (updated.address) localStorage.setItem('school_address', updated.address);
-          }
-        })
-        .catch(() => {});
     };
 
     loadSchoolSettings();
 
     window.addEventListener('school_profile_updated', loadSchoolSettings);
     window.addEventListener('storage', loadSchoolSettings);
-
-    const token = localStorage.getItem('auth_token');
-    if (token && token !== 'null' && token !== 'undefined') {
-      fetchNotificationsApi()
-        .then((res: any) => {
-          if (!isMounted) return;
-          const list = res?.data || (Array.isArray(res) ? res : []);
-          if (Array.isArray(list) && list.length > 0) {
-            const formatted: NoticeItem[] = list.slice(0, 4).map((item: any, index: number) => ({
-              id: item.id || index,
-              date: item.createdAt ? new Date(item.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase() : 'TODAY',
-              badge: item.type || item.category || 'Notice',
-              title: item.title || item.subject || 'School Notice',
-              desc: item.content || item.message || item.description || 'Log into portal to read full details.',
-            }));
-            setNotices(formatted);
-          }
-        })
-        .catch(() => {});
-    }
 
     return () => {
       isMounted = false;

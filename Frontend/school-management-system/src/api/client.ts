@@ -9,6 +9,27 @@ export const setActiveAcademicYearHeader = (ay: string) => {
   activeAcademicYearHeader = ay || '';
 };
 
+// Set of active abort controllers for pending requests
+const activeAbortControllers = new Set<AbortController>();
+
+/**
+ * Cancels all currently in-flight requests (e.g., during logout or session expiration).
+ */
+export const cancelPendingRequests = () => {
+  for (const controller of activeAbortControllers) {
+    try {
+      controller.abort();
+    } catch {}
+  }
+  activeAbortControllers.clear();
+};
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('auth_logout', cancelPendingRequests);
+}
+
+let isHandlingSessionExpiry = false;
+
 export const apiClient = async <T = any>(endpoint: string, options: RequestInit = {}): Promise<T> => {
   const token = localStorage.getItem('auth_token');
   const branch = activeBranchHeader;
@@ -27,13 +48,17 @@ export const apiClient = async <T = any>(endpoint: string, options: RequestInit 
     // Ignore parsing errors
   }
 
+  const isAuthEndpoint = endpoint.includes('/auth/') || endpoint.includes('/superadmin/login');
+
   const headers = new Headers(options.headers || {});
-  headers.set('Content-Type', 'application/json');
+  if (!headers.has('Content-Type') && !(options.body instanceof FormData)) {
+    headers.set('Content-Type', 'application/json');
+  }
   headers.set('ngrok-skip-browser-warning', 'true');
   if (userRole) {
     headers.set('X-User-Role', userRole);
   }
-  if (token && token !== 'null' && token !== 'undefined' && !headers.has('Authorization')) {
+  if (!isAuthEndpoint && token && token !== 'null' && token !== 'undefined' && !headers.has('Authorization')) {
     headers.set('Authorization', `Bearer ${token}`);
   }
   if (branch && branch !== 'All Branches' && branch !== 'All') {
@@ -59,7 +84,6 @@ export const apiClient = async <T = any>(endpoint: string, options: RequestInit 
   // Primary URL is always based on the configured VITE_API_URL
   let primaryUrl = endpoint.startsWith('http') ? endpoint : ((baseUrl && !isLocalHost) ? `${baseUrl}${cleanEndpoint}` : cleanEndpoint);
   let fallbackUrl = '';
-  const isTunnel = baseUrl.includes('ngrok') || baseUrl.includes('trycloudflare') || baseUrl.includes('cloudflare');
 
   // When running locally on localhost, always prioritize local direct/proxy endpoint to ensure real-time local DB access
   if (endpoint.startsWith('http')) {
@@ -74,45 +98,64 @@ export const apiClient = async <T = any>(endpoint: string, options: RequestInit 
     primaryUrl = `${baseUrl}${cleanEndpoint}`;
   }
 
+  // Setup abort controller if one wasn't passed in options
+  let internalController: AbortController | null = null;
+  let signal = options.signal;
+  if (!signal) {
+    internalController = new AbortController();
+    signal = internalController.signal;
+    activeAbortControllers.add(internalController);
+  }
+
   let response: Response;
   try {
-    response = await fetch(primaryUrl, {
-      ...options,
-      headers,
-    });
-  } catch (fetchError: any) {
-    if (fallbackUrl) {
+    try {
+      response = await fetch(primaryUrl, {
+        ...options,
+        headers,
+        signal,
+      });
+    } catch (fetchError: any) {
+      if (fetchError?.name === 'AbortError') {
+        throw fetchError;
+      }
+      if (fallbackUrl && fallbackUrl !== primaryUrl) {
+        try {
+          response = await fetch(fallbackUrl, {
+            ...options,
+            headers,
+            signal,
+          });
+        } catch (fallbackError: any) {
+          throw fallbackError || fetchError;
+        }
+      } else {
+        throw fetchError;
+      }
+    }
+
+    if (!response.ok && (response.status === 502 || response.status === 503 || response.status === 504 || response.status === 530) && fallbackUrl && fallbackUrl !== primaryUrl) {
       try {
-        response = await fetch(fallbackUrl, {
+        const fallbackRes = await fetch(fallbackUrl, {
           ...options,
           headers,
+          signal,
         });
-      } catch (fallbackError: any) {
-        throw fallbackError || fetchError;
-      }
-    } else {
-      throw fetchError;
+        if (fallbackRes.ok) {
+          response = fallbackRes;
+        }
+      } catch { }
+    }
+  } finally {
+    if (internalController) {
+      activeAbortControllers.delete(internalController);
     }
   }
 
-  if (!response.ok && (response.status === 502 || response.status === 503 || response.status === 504) && fallbackUrl) {
-    try {
-      const fallbackRes = await fetch(fallbackUrl, {
-        ...options,
-        headers,
-      });
-      if (fallbackRes.ok) {
-        response = fallbackRes;
-      }
-    } catch { }
-  }
-
   if (!response.ok) {
-    if (response.status === 401 && !endpoint.includes('/auth/')) {
-      // Only treat 401 as session expiration if the user actually had an active auth_token.
-      // If there was no token, this was an unauthenticated request (e.g. public landing page),
-      // so do not wipe session or redirect to login.
-      if (token && token !== 'null' && token !== 'undefined') {
+    if (response.status === 401 && !isAuthEndpoint) {
+      if (token && token !== 'null' && token !== 'undefined' && !isHandlingSessionExpiry) {
+        isHandlingSessionExpiry = true;
         try {
           const currentMod = localStorage.getItem('active_module');
           if (currentMod && currentMod !== 'dashboard') {
@@ -128,12 +171,21 @@ export const apiClient = async <T = any>(endpoint: string, options: RequestInit 
           window.dispatchEvent(new CustomEvent('auth_unauthorized'));
           window.dispatchEvent(new CustomEvent('session_expired'));
         } catch (e) {}
+        setTimeout(() => {
+          isHandlingSessionExpiry = false;
+        }, 1000);
       }
     }
+
     let errorMessage = `HTTP error! status: ${response.status}`;
-    if (response.status === 502) {
-      errorMessage = `Gateway Error (502 Bad Gateway): The proxy server could not reach the backend API. Please make sure your backend dotnet server is running.`;
+    if (response.status === 530) {
+      errorMessage = `Backend Service Unavailable (HTTP 530): The proxy tunnel or backend server is unreachable. Please ensure the backend server is running on port 5151.`;
+    } else if (response.status === 502) {
+      errorMessage = `Gateway Error (502 Bad Gateway): The proxy server could not reach the backend API. Please make sure your backend dotnet server is running on port 5151.`;
+    } else if (response.status === 503) {
+      errorMessage = `Service Unavailable (503): Backend service is currently unavailable or restarting.`;
     }
+
     try {
       const errorBody = await response.text();
       const errorJson = JSON.parse(errorBody);
