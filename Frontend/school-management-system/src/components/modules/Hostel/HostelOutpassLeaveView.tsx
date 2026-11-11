@@ -304,7 +304,7 @@ export const HostelOutpassLeaveView: React.FC = () => {
       return;
     }
 
-    if (new Date(returnDate) < new Date(departureDate)) {
+    if (new Date(returnDate) <= new Date(departureDate)) {
       addToast('Expected return date and time must be after departure.', 'warning');
       return;
     }
@@ -654,7 +654,7 @@ export const HostelOutpassLeaveView: React.FC = () => {
                     onChange={e => {
                       const newDep = e.target.value;
                       setDepartureDate(newDep);
-                      if (returnDate < newDep) setReturnDate(newDep);
+                      // Keep Expected Return unchanged until explicitly selected by the user.
                     }}
                     className="w-full px-3 py-2 rounded-xl bg-sky-50/50 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-800 font-mono text-[11px] text-sky-950 dark:text-sky-100 outline-none focus:border-sky-500"
                     required
