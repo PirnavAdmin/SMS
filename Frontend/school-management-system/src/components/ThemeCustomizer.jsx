@@ -118,7 +118,7 @@ export const ThemeCustomizer = ({ className = '', onClose = undefined }) => {
     }
 
     if (addToast) {
-      addToast('success', 'Theme Applied', 'New theme colors are now active across the application.');
+      addToast('success', 'Theme Applied', 'New theme colors are now active.');
     }
 
     if (onClose) {

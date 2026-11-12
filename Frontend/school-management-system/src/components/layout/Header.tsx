@@ -476,13 +476,13 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
           <div className="relative animate-in fade-in" ref={branchRef}>
             <button
               onClick={() => setShowBranchMenu(!showBranchMenu)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-brand-50/80 dark:bg-brand-950/60 border border-brand-200/70 dark:border-brand-800 text-brand-700 dark:text-brand-300 text-xs font-bold hover:bg-brand-100 dark:hover:bg-brand-900 transition-colors h-9"
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white dark:bg-slate-800 border border-sky-200 dark:border-sky-800 text-xs hover:bg-sky-50/50 dark:hover:bg-slate-700 transition-colors h-9 cursor-pointer"
             >
-              <Building2 className="w-4 h-4 text-brand-600 dark:text-brand-400 shrink-0" />
-              <span className="max-w-32 truncate text-brand-900 dark:text-brand-100">
+              <Building2 className="w-4 h-4 text-sky-600 dark:text-sky-400 shrink-0" />
+              <span className="max-w-32 truncate font-bold text-slate-900 dark:text-white">
                 {selectedBranch || (authorizedBranches.length > 0 ? authorizedBranches[0] : "Select Campus")}
               </span>
-              <ChevronDown className="w-3.5 h-3.5 shrink-0" />
+              <ChevronDown className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400 shrink-0" />
             </button>
 
             {showBranchMenu && (
