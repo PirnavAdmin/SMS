@@ -137,10 +137,21 @@ export const WardenMasterView: React.FC<WardenMasterViewProps> = ({
         (h.hostelId && w.hostelId && Number(h.hostelId) === Number(w.hostelId))
       );
 
-      const name = w.wardenName || w.staffName || matchedStaff?.staffName || matchedHostel?.wardenName || 'Assigned Warden';
-      const mobile = w.mobileNumber || w.phone || matchedStaff?.phone || matchedHostel?.primaryMobileNumber || 'N/A';
-      const mail = w.emailAddress || w.email || matchedStaff?.email || matchedHostel?.email || 'N/A';
-      const empId = w.employeeId || matchedStaff?.employeeId || `EMP-${w.wardenId || '1001'}`;
+      const isDummyPhone = (val?: string) => {
+        const s = (val || '').trim().toLowerCase();
+        return !s || /^[0\s+-]+$/.test(s) || s === '9999999999' || s === 'n/a' || s === 'null';
+      };
+      const isDummyEmail = (val?: string) => {
+        const s = (val || '').trim().toLowerCase();
+        return !s || s === 'no-email@school.edu' || s === 'n/a' || s === 'null';
+      };
+
+      const name = w.wardenName || w.staffName || matchedStaff?.staffName || matchedHostel?.wardenName || 'N/A';
+      const rawMobile = [w.mobileNumber, w.phone, matchedStaff?.phone, matchedHostel?.primaryMobileNumber].find(v => !isDummyPhone(v));
+      const rawMail = [w.emailAddress, w.email, matchedStaff?.email, matchedHostel?.email].find(v => !isDummyEmail(v));
+      const mobile = rawMobile || 'N/A';
+      const mail = rawMail || 'N/A';
+      const empId = w.employeeId || matchedStaff?.employeeId || 'N/A';
 
       return {
         ...w,
@@ -264,8 +275,9 @@ export const WardenMasterView: React.FC<WardenMasterViewProps> = ({
         staffId: Number(selectedStaffId),
         employeeId: staffMember.employeeId,
         wardenName: staffMember.staffName,
-        mobileNumber: staffMember.phone || '0000000000',
-        emailAddress: staffMember.email || 'no-email@school.edu',
+        mobileNumber: staffMember.phone || '',
+        emailAddress: staffMember.email || '',
+        effectiveDate: assignmentDate,
         assignedDate: assignmentDate
       });
       addToast('success', 'Hostel Warden Assigned', `Assigned ${staffMember.staffName} successfully.`);

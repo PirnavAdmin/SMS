@@ -21,6 +21,22 @@ const ENTERPRISE_HOSTEL_REPORTS = [
   'Student Hostel Report'
 ];
 
+const isPlaceholderPhone = (val?: string | null): boolean => {
+  const s = (val || '').trim().toLowerCase();
+  return !s || /^[0\s+-]+$/.test(s) || s === '9999999999' || s === 'n/a' || s === 'null' || s === 'not available';
+};
+
+const isPlaceholderEmail = (val?: string | null): boolean => {
+  const s = (val || '').trim().toLowerCase();
+  return !s || s === 'no-email@school.edu' || s === 'n/a' || s === 'null' || s === 'not available';
+};
+
+const formatValidPhone = (val?: string | null, fallback = 'N/A'): string =>
+  isPlaceholderPhone(val) ? fallback : formatPhoneNumber(String(val).trim());
+
+const formatValidEmail = (val?: string | null, fallback = 'N/A'): string =>
+  isPlaceholderEmail(val) ? fallback : String(val).trim();
+
 export const HostelReportsView: React.FC = () => {
   const { addToast } = useToast();
   const { user, role, selectedAcademicYear } = useAuth();
@@ -230,11 +246,11 @@ export const HostelReportsView: React.FC = () => {
             (w.hostelId && b.hostelId && String(w.hostelId) === String(b.hostelId))
           );
 
-          let rawMobile = (b.primaryMobileNumber || matchedWarden?.mobileNumber || user?.phone || '').trim();
-          const isDummyMobile = !rawMobile || /^[0\s-]+$/.test(rawMobile) || rawMobile.toLowerCase() === 'n/a' || rawMobile.toLowerCase() === 'null';
+          const rawMobile = [b.primaryMobileNumber, matchedWarden?.mobileNumber, matchedWarden?.phone]
+            .find(v => !isPlaceholderPhone(v));
 
           const wardenName = isWarden ? (user?.name || b.wardenName || 'Not Assigned') : (isAssigned ? b.wardenName : 'Not Assigned');
-          const primaryMobile = (isAssigned || isWarden) && !isDummyMobile ? formatPhoneNumber(rawMobile) : 'Not Available';
+          const primaryMobile = (isAssigned || isWarden) ? formatValidPhone(rawMobile, 'Not Available') : 'Not Available';
 
           // Clean Location display
           const rawLocation = (b.address || (b as any).location || '').trim();
@@ -254,44 +270,28 @@ export const HostelReportsView: React.FC = () => {
       }
 
       case 'Warden Report': {
-        if (isWarden) {
-          const assignedBlock = targetBlocks[0];
-          const blockName = assignedBlock?.hostelName || 'N/A';
-          const empId = (user as any)?.employeeId || (user as any)?.empId || (assignedBlock?.hostelId ? `EMP-${assignedBlock.hostelId}` : 'N/A');
-          const phone = user?.phone || (user as any)?.mobileNumber || assignedBlock?.primaryMobileNumber || 'Not Available';
-          const email = user?.email || assignedBlock?.email || 'Not Available';
+        if (wardens.length === 0) return [];
+        const filteredWardens = isWarden
+          ? wardens.filter(w => {
+              const wBlock = (w.hostelName || '').toLowerCase().trim();
+              const wEmail = (w.emailAddress || w.email || '').toLowerCase().trim();
+              const uEmail = (user?.email || '').toLowerCase().trim();
+              return (wBlock && reportBlockNames.has(wBlock)) || (uEmail && wEmail && wEmail === uEmail);
+            })
+          : wardens;
 
-          return [{
-            'Warden Name': user?.name || 'Assigned Warden',
-            'Employee ID': empId,
-            'Assigned Block': blockName,
-            'Mobile Number': phone !== 'N/A' && phone !== 'Not Available' && !/^[0\s-]+$/.test(phone) ? formatPhoneNumber(phone) : 'Not Available',
-            'Email': email,
-            'Assignment Date': 'Active'
-          }];
-        }
-
-        if (wardens.length === 0 && reportBlocks.length === 0) return [];
-        if (wardens.length > 0) {
-          const filteredWardens = isWarden
-            ? wardens.filter(w => reportBlockNames.has((w.hostelName || '').toLowerCase().trim()))
-            : wardens;
-          return filteredWardens.map(w => ({
-            'Warden Name': w.wardenName || 'Warden',
-            'Employee ID': w.employeeId || 'N/A',
-            'Assigned Block': w.hostelName || 'N/A',
-            'Mobile Number': w.mobileNumber ? formatPhoneNumber(w.mobileNumber) : 'N/A',
-            'Email': w.emailAddress || 'N/A',
-            'Assignment Date': w.createdAt ? w.createdAt.split('T')[0] : 'Active'
-          }));
-        }
-        return reportBlocks.filter(b => b.wardenName && b.wardenName !== 'Unassigned').map(b => ({
-          'Warden Name': b.wardenName,
-          'Employee ID': `EMP-${b.hostelId}`,
-          'Assigned Block': b.hostelName,
-          'Mobile Number': b.primaryMobileNumber ? formatPhoneNumber(b.primaryMobileNumber) : 'N/A',
-          'Email': b.email || 'N/A',
-          'Assignment Date': 'Active'
+        return filteredWardens.map(w => ({
+          'Warden Name': w.wardenName || w.staffName || 'N/A',
+          'Employee ID': w.employeeId || 'N/A',
+          'Assigned Block': w.hostelName || 'N/A',
+          'Mobile Number': formatValidPhone(w.mobileNumber || w.phone),
+          'Email': formatValidEmail(w.emailAddress || w.email),
+          'Assignment Date':
+            w.effectiveDateString ||
+            (w.effectiveDate ? w.effectiveDate.split('T')[0] : '') ||
+            w.assignedDate ||
+            (w.createdAt ? w.createdAt.split('T')[0] : '') ||
+            'N/A'
         }));
       }
 

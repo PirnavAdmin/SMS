@@ -472,16 +472,15 @@ public class HostelService : IHostelService
         if (string.IsNullOrWhiteSpace(wardenName))
             wardenName = "Assigned Warden";
 
-        string mobileNumber = dto.MobileNumber?.Trim() ?? string.Empty;
-        if (string.IsNullOrWhiteSpace(mobileNumber) && staff != null)
-            mobileNumber = staff.Phone ?? string.Empty;
+        string rawMobile = dto.MobileNumber?.Trim() ?? string.Empty;
+        string mobileNumber = !IsPlaceholderPhone(rawMobile)
+            ? rawMobile
+            : (!IsPlaceholderPhone(staff?.Phone) ? staff!.Phone!.Trim() : string.Empty);
 
-        if (string.IsNullOrWhiteSpace(mobileNumber))
-            mobileNumber = "9999999999";
-
-        string? emailAddress = dto.EmailAddress?.Trim();
-        if (string.IsNullOrWhiteSpace(emailAddress) && staff != null)
-            emailAddress = staff.Email;
+        string? rawEmail = dto.EmailAddress?.Trim();
+        string? emailAddress = !IsPlaceholderEmail(rawEmail)
+            ? rawEmail
+            : (!IsPlaceholderEmail(staff?.Email) ? staff!.Email!.Trim() : null);
 
         var warden = new HostelWarden
         {
@@ -499,7 +498,7 @@ public class HostelService : IHostelService
 
         // Sync primary warden name & phone onto HostelBlock entity
         hostel.WardenName = warden.WardenName;
-        hostel.PrimaryMobileNumber = warden.MobileNumber;
+        hostel.PrimaryMobileNumber = string.IsNullOrWhiteSpace(warden.MobileNumber) ? null : warden.MobileNumber;
         hostel.AlternateMobileNumber = warden.AlternateMobile;
         hostel.Email = warden.EmailAddress;
 
@@ -515,8 +514,31 @@ public class HostelService : IHostelService
         var warden = await _hostelRepo.GetWardenByIdAsync(wardenId)
             ?? throw new NotFoundException($"Warden with ID '{wardenId}' not found.");
 
+        int hostelId = warden.HostelId;
         _hostelRepo.RemoveWarden(warden);
         await _hostelRepo.SaveChangesAsync();
+
+        var remainingWardens = await _hostelRepo.GetAllWardensAsync(hostelId, null);
+        var hostel = await _hostelRepo.GetHostelBlockByIdAsync(hostelId);
+        if (hostel != null)
+        {
+            var nextWarden = remainingWardens.FirstOrDefault();
+            if (nextWarden != null)
+            {
+                hostel.WardenName = nextWarden.WardenName;
+                hostel.PrimaryMobileNumber = IsPlaceholderPhone(nextWarden.MobileNumber) ? null : nextWarden.MobileNumber;
+                hostel.AlternateMobileNumber = nextWarden.AlternateMobile;
+                hostel.Email = IsPlaceholderEmail(nextWarden.EmailAddress) ? null : nextWarden.EmailAddress;
+            }
+            else
+            {
+                hostel.WardenName = null;
+                hostel.PrimaryMobileNumber = null;
+                hostel.AlternateMobileNumber = null;
+                hostel.Email = null;
+            }
+            await _hostelRepo.SaveChangesAsync();
+        }
         return true;
     }
 
@@ -1302,8 +1324,8 @@ public class HostelService : IHostelService
                 WardenName = w.WardenName ?? (w.Staff != null ? $"{w.Staff.FirstName} {w.Staff.LastName}".Trim() : ""),
                 EmployeeId = w.Staff?.EmployeeId ?? "N/A",
                 HostelName = w.Hostel?.HostelName ?? "",
-                MobileNumber = !string.IsNullOrWhiteSpace(w.MobileNumber) ? w.MobileNumber : (w.Staff?.Phone ?? "N/A"),
-                Email = !string.IsNullOrWhiteSpace(w.EmailAddress) ? w.EmailAddress : (w.Staff?.Email ?? "N/A"),
+                MobileNumber = ResolveValidPhone(w.MobileNumber, w.Staff?.Phone) is { Length: > 0 } p ? p : "N/A",
+                Email = ResolveValidEmail(w.EmailAddress, w.Staff?.Email) is { Length: > 0 } e ? e : "N/A",
                 JoiningDate = w.EffectiveDate?.ToString("yyyy-MM-dd") ?? w.CreatedAt?.ToString("yyyy-MM-dd") ?? "",
                 Status = "Active"
             }).ToList();
@@ -1386,9 +1408,9 @@ public class HostelService : IHostelService
             HostelType = b.HostelType ?? "",
             TotalFloors = b.TotalFloors > 0 ? b.TotalFloors : 1,
             WardenName = b.WardenName,
-            PrimaryMobileNumber = b.PrimaryMobileNumber,
-            AlternateMobileNumber = b.AlternateMobileNumber,
-            Email = b.Email,
+            PrimaryMobileNumber = IsPlaceholderPhone(b.PrimaryMobileNumber) ? null : b.PrimaryMobileNumber,
+            AlternateMobileNumber = IsPlaceholderPhone(b.AlternateMobileNumber) ? null : b.AlternateMobileNumber,
+            Email = IsPlaceholderEmail(b.Email) ? null : b.Email,
             Status = b.Status ?? "",
             Address = b.Address,
             CreatedAt = b.CreatedAt ?? DateTime.UtcNow,
@@ -1433,6 +1455,35 @@ public class HostelService : IHostelService
         };
     }
 
+    private static bool IsPlaceholderPhone(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return true;
+        var s = value.Trim().ToLowerInvariant();
+        if (s is "n/a" or "null" or "not available" or "-" or "9999999999") return true;
+        return s.All(c => c is '0' or '+' or '-' or ' ');
+    }
+
+    private static bool IsPlaceholderEmail(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return true;
+        var s = value.Trim().ToLowerInvariant();
+        return s is "no-email@school.edu" or "n/a" or "null" or "not available" or "-";
+    }
+
+    private static string ResolveValidPhone(string? primary, string? fallback)
+    {
+        if (!IsPlaceholderPhone(primary)) return primary!.Trim();
+        if (!IsPlaceholderPhone(fallback)) return fallback!.Trim();
+        return string.Empty;
+    }
+
+    private static string ResolveValidEmail(string? primary, string? fallback)
+    {
+        if (!IsPlaceholderEmail(primary)) return primary!.Trim();
+        if (!IsPlaceholderEmail(fallback)) return fallback!.Trim();
+        return string.Empty;
+    }
+
     private static HostelWardenDto MapToHostelWardenDto(HostelWarden w) => new()
     {
         WardenId = w.WardenId,
@@ -1441,9 +1492,9 @@ public class HostelService : IHostelService
         StaffId = w.StaffId,
         EmployeeId = w.Staff?.EmployeeId,
         WardenName = w.Staff != null ? $"{w.Staff.FirstName} {w.Staff.LastName}".Trim() : (w.WardenName ?? ""),
-        MobileNumber = !string.IsNullOrWhiteSpace(w.MobileNumber) ? w.MobileNumber : (w.Staff?.Phone ?? string.Empty),
+        MobileNumber = ResolveValidPhone(w.MobileNumber, w.Staff?.Phone),
         AlternateMobile = w.AlternateMobile,
-        EmailAddress = !string.IsNullOrWhiteSpace(w.EmailAddress) ? w.EmailAddress : (w.Staff?.Email ?? string.Empty),
+        EmailAddress = ResolveValidEmail(w.EmailAddress, w.Staff?.Email),
         CreatedAt = w.CreatedAt ?? DateTime.UtcNow
     };
 

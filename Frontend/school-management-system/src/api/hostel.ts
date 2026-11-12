@@ -81,6 +81,9 @@ export interface WardenRecord {
   hostelId: number;
   hostelName: string;
   assignedDate: string;
+  effectiveDate?: string;
+  effectiveDateString?: string;
+  createdAt?: string;
   status: string;
 }
 
