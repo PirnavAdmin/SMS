@@ -1,7 +1,54 @@
 import { apiClient } from './client';
 
+const HOSTEL_CACHE_TTL_MS = 3000;
+const hostelGetCache = new Map<string, { data: any; expiresAt: number }>();
+const hostelInFlight = new Map<string, Promise<any>>();
+
+export const invalidateHostelCache = () => {
+  hostelGetCache.clear();
+  hostelInFlight.clear();
+};
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('auth_logout', invalidateHostelCache);
+  window.addEventListener('hostel_allocations_updated', invalidateHostelCache);
+  window.addEventListener('hostel_outpasses_updated', invalidateHostelCache);
+  window.addEventListener('hostel_wardens_updated', invalidateHostelCache);
+  window.addEventListener('room_types_updated', invalidateHostelCache);
+  window.addEventListener('residential_students_updated', invalidateHostelCache);
+}
+
+const cachedHostelGet = async <T>(key: string, fetcher: () => Promise<T>): Promise<T> => {
+  const now = Date.now();
+  const cached = hostelGetCache.get(key);
+  if (cached && cached.expiresAt > now) {
+    return cached.data as T;
+  }
+
+  const existing = hostelInFlight.get(key);
+  if (existing) {
+    return existing as Promise<T>;
+  }
+
+  const promise = fetcher()
+    .then((data) => {
+      hostelGetCache.set(key, { data, expiresAt: Date.now() + HOSTEL_CACHE_TTL_MS });
+      return data;
+    })
+    .finally(() => {
+      hostelInFlight.delete(key);
+    });
+
+  hostelInFlight.set(key, promise);
+  return promise;
+};
+
 const hostelApiClient = async (endpoint: string, options?: RequestInit) => {
+  const method = (options?.method || 'GET').toUpperCase();
   const res = await apiClient(endpoint, options);
+  if (method !== 'GET') {
+    invalidateHostelCache();
+  }
   if (res && typeof res === 'object' && 'data' in res) {
     return res.data;
   }
@@ -203,7 +250,7 @@ export const formatRoomNumber = (roomNumber?: string | number | null): string =>
 };
 
 // 1. Hostel Blocks Master API
-export const getHostelBlocks = async (search?: string, type?: string, signal?: AbortSignal): Promise<HostelBlock[]> => {
+export const getHostelBlocks = async (search?: string, type?: string, _signal?: AbortSignal): Promise<HostelBlock[]> => {
   const params = new URLSearchParams();
   if (search) params.append('search', search);
   if (type && type !== 'All') params.append('type', type);
@@ -227,19 +274,21 @@ export const getHostelBlocks = async (search?: string, type?: string, signal?: A
     totalFloors: Number(b?.totalFloors) || 4
   });
 
-  try {
-    const res = await hostelApiClient(`/api/hostel/blocks${query ? `?${query}` : ''}`, { signal });
-    const arrayData = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : (res && Array.isArray(res.blocks) ? res.blocks : null));
-    if (arrayData) return (arrayData as any[]).map((b: any, idx: number) => sanitizeBlock(b, idx));
-  } catch (err) {
+  return cachedHostelGet(`blocks:${query}`, async () => {
     try {
-      const resFallback = await hostelApiClient(`/api/hostels/blocks${query ? `?${query}` : ''}`, { signal });
-      const arrayDataFallback = Array.isArray(resFallback) ? resFallback : (resFallback && Array.isArray(resFallback.data) ? resFallback.data : null);
-      if (arrayDataFallback) return (arrayDataFallback as any[]).map((b: any, idx: number) => sanitizeBlock(b, idx));
-    } catch {}
-  }
+      const res = await hostelApiClient(`/api/hostel/blocks${query ? `?${query}` : ''}`);
+      const arrayData = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : (res && Array.isArray(res.blocks) ? res.blocks : null));
+      if (arrayData) return (arrayData as any[]).map((b: any, idx: number) => sanitizeBlock(b, idx));
+    } catch (err) {
+      try {
+        const resFallback = await hostelApiClient(`/api/hostels/blocks${query ? `?${query}` : ''}`);
+        const arrayDataFallback = Array.isArray(resFallback) ? resFallback : (resFallback && Array.isArray(resFallback.data) ? resFallback.data : null);
+        if (arrayDataFallback) return (arrayDataFallback as any[]).map((b: any, idx: number) => sanitizeBlock(b, idx));
+      } catch {}
+    }
 
-  return [];
+    return [];
+  });
 };
 
 export const createHostelBlock = async (data: Partial<HostelBlock>) => {
@@ -286,19 +335,21 @@ export const deleteHostelBlock = async (id: number | string, _code?: string, _na
 
 // 2. Room Type Configurations API
 export const getRoomTypes = async (): Promise<RoomType[]> => {
-  try {
-    const res = await hostelApiClient('/api/hostel/room-types');
-    const arrayData = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : null);
-    if (arrayData) return arrayData;
-  } catch (e) {}
+  return cachedHostelGet('room-types', async () => {
+    try {
+      const res = await hostelApiClient('/api/hostel/room-types');
+      const arrayData = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : null);
+      if (arrayData) return arrayData;
+    } catch (e) {}
 
-  try {
-    const res = await hostelApiClient('/api/hostels/room-types');
-    const arrayData = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : null);
-    if (arrayData) return arrayData;
-  } catch (e) {}
+    try {
+      const res = await hostelApiClient('/api/hostels/room-types');
+      const arrayData = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : null);
+      if (arrayData) return arrayData;
+    } catch (e) {}
 
-  return [];
+    return [];
+  });
 };
 
 export const createRoomType = async (data: Partial<RoomType>) => {
@@ -351,19 +402,21 @@ export const getRooms = async (hostelId?: number, floor?: string, roomTypeId?: n
   if (roomTypeId) params.append('roomTypeId', roomTypeId.toString());
   const query = params.toString();
 
-  try {
-    const res = await hostelApiClient(`/api/hostel/rooms${query ? `?${query}` : ''}`);
-    const arrayData = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : null);
-    if (arrayData) return arrayData;
-  } catch (e) {}
+  return cachedHostelGet(`rooms:${query}`, async () => {
+    try {
+      const res = await hostelApiClient(`/api/hostel/rooms${query ? `?${query}` : ''}`);
+      const arrayData = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : null);
+      if (arrayData) return arrayData;
+    } catch (e) {}
 
-  try {
-    const res = await hostelApiClient(`/api/hostels/rooms${query ? `?${query}` : ''}`);
-    const arrayData = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : null);
-    if (arrayData) return arrayData;
-  } catch (e) {}
+    try {
+      const res = await hostelApiClient(`/api/hostels/rooms${query ? `?${query}` : ''}`);
+      const arrayData = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : null);
+      if (arrayData) return arrayData;
+    } catch (e) {}
 
-  return [];
+    return [];
+  });
 };
 
 export const createRoom = async (data: Partial<HostelRoom>) => {
@@ -411,19 +464,21 @@ export const deleteRoom = async (id: number) => {
 // 4. Staff Candidates & Wardens API
 export const getStaffCandidates = async (search?: string): Promise<StaffCandidate[]> => {
   const query = search ? `?search=${encodeURIComponent(search)}` : '';
-  try {
-    const res = await hostelApiClient(`/api/hostel/wardens/candidates${query}`);
-    const arrayData = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : null);
-    if (arrayData && arrayData.length > 0) return arrayData;
-  } catch (e) {}
+  return cachedHostelGet(`staff-candidates:${query}`, async () => {
+    try {
+      const res = await hostelApiClient(`/api/hostel/wardens/candidates${query}`);
+      const arrayData = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : null);
+      if (arrayData) return arrayData;
+    } catch (e) {}
 
-  try {
-    const res = await hostelApiClient(`/api/hostels/staff-candidates${query}`);
-    const arrayData = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : null);
-    if (arrayData && arrayData.length > 0) return arrayData;
-  } catch (e) {}
+    try {
+      const res = await hostelApiClient(`/api/hostels/staff-candidates${query}`);
+      const arrayData = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : null);
+      if (arrayData) return arrayData;
+    } catch (e) {}
 
-  return [];
+    return [];
+  });
 };
 
 export const getWardens = async (hostelId?: number, search?: string): Promise<WardenRecord[]> => {
@@ -432,19 +487,21 @@ export const getWardens = async (hostelId?: number, search?: string): Promise<Wa
   if (search) params.append('search', search);
   const query = params.toString();
 
-  try {
-    const res = await hostelApiClient(`/api/hostel/wardens${query ? `?${query}` : ''}`);
-    const arrayData = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : null);
-    if (arrayData) return arrayData;
-  } catch (e) {}
+  return cachedHostelGet(`wardens:${query}`, async () => {
+    try {
+      const res = await hostelApiClient(`/api/hostel/wardens${query ? `?${query}` : ''}`);
+      const arrayData = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : null);
+      if (arrayData) return arrayData;
+    } catch (e) {}
 
-  try {
-    const res = await hostelApiClient(`/api/hostels/wardens${query ? `?${query}` : ''}`);
-    const arrayData = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : null);
-    if (arrayData) return arrayData;
-  } catch (e) {}
+    try {
+      const res = await hostelApiClient(`/api/hostels/wardens${query ? `?${query}` : ''}`);
+      const arrayData = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : null);
+      if (arrayData) return arrayData;
+    } catch (e) {}
 
-  return [];
+    return [];
+  });
 };
 
 export const assignWarden = async (data: Partial<WardenRecord>) => {
@@ -476,20 +533,21 @@ export const deleteWarden = async (id: number) => {
 
 // 5. Eligible Students & Bed Allocations API
 export const getEligibleStudentsForAllocation = async (search?: string): Promise<EligibleHostelStudent[]> => {
-  try {
-    const query = search ? `?search=${encodeURIComponent(search)}` : '';
-    const res = await hostelApiClient(`/api/hostel/eligible-students${query}`);
-    const arrayData = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : null);
-    if (arrayData) return arrayData;
-  } catch (e) {
+  const query = search ? `?search=${encodeURIComponent(search)}` : '';
+  return cachedHostelGet(`eligible-students:${query}`, async () => {
     try {
-      const query = search ? `?search=${encodeURIComponent(search)}` : '';
-      const res = await hostelApiClient(`/api/hostels/eligible-students${query}`);
+      const res = await hostelApiClient(`/api/hostel/eligible-students${query}`);
       const arrayData = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : null);
       if (arrayData) return arrayData;
-    } catch {}
-  }
-  return [];
+    } catch (e) {
+      try {
+        const res = await hostelApiClient(`/api/hostels/eligible-students${query}`);
+        const arrayData = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : null);
+        if (arrayData) return arrayData;
+      } catch {}
+    }
+    return [];
+  });
 };
 
 export const getAllocations = async (hostelId?: number, roomId?: number, search?: string): Promise<BedAllocation[]> => {
@@ -499,23 +557,25 @@ export const getAllocations = async (hostelId?: number, roomId?: number, search?
   if (search) params.append('search', search);
   const query = params.toString();
 
-  try {
-    const res = await hostelApiClient(`/api/hostel/allocations${query ? `?${query}` : ''}`);
-    const arrayData = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : null);
-    if (arrayData) {
-      return (arrayData as any[]).filter((a: any) => a && a.status !== 'Vacated' && a.status !== 'Inactive');
-    }
-  } catch (e) {}
+  return cachedHostelGet(`allocations:${query}`, async () => {
+    try {
+      const res = await hostelApiClient(`/api/hostel/allocations${query ? `?${query}` : ''}`);
+      const arrayData = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : null);
+      if (arrayData) {
+        return (arrayData as any[]).filter((a: any) => a && a.status !== 'Vacated' && a.status !== 'Inactive');
+      }
+    } catch (e) {}
 
-  try {
-    const res = await hostelApiClient(`/api/hostels/allocations${query ? `?${query}` : ''}`);
-    const arrayData = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : null);
-    if (arrayData) {
-      return (arrayData as any[]).filter((a: any) => a && a.status !== 'Vacated' && a.status !== 'Inactive');
-    }
-  } catch (e) {}
+    try {
+      const res = await hostelApiClient(`/api/hostels/allocations${query ? `?${query}` : ''}`);
+      const arrayData = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : null);
+      if (arrayData) {
+        return (arrayData as any[]).filter((a: any) => a && a.status !== 'Vacated' && a.status !== 'Inactive');
+      }
+    } catch (e) {}
 
-  return [];
+    return [];
+  });
 };
 
 export const createAllocation = async (data: Partial<BedAllocation>) => {
@@ -592,19 +652,21 @@ export const getNightAttendance = async (date: string, hostelId: number, floor?:
   if (roomId) params.append('roomId', roomId.toString());
   const query = params.toString();
 
-  try {
-    const res = await hostelApiClient(`/api/hostel/attendance?${query}`);
-    const arrayData = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : null);
-    if (arrayData) return arrayData;
-  } catch (e) {}
+  return cachedHostelGet(`attendance:${query}`, async () => {
+    try {
+      const res = await hostelApiClient(`/api/hostel/attendance?${query}`);
+      const arrayData = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : null);
+      if (arrayData) return arrayData;
+    } catch (e) {}
 
-  try {
-    const res = await hostelApiClient(`/api/hostels/attendance?${query}`);
-    const arrayData = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : null);
-    if (arrayData) return arrayData;
-  } catch (e) {}
+    try {
+      const res = await hostelApiClient(`/api/hostels/attendance?${query}`);
+      const arrayData = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : null);
+      if (arrayData) return arrayData;
+    } catch (e) {}
 
-  return [];
+    return [];
+  });
 };
 
 export const saveNightAttendance = async (data: { date: string; hostelId: number; floorLevel?: string; records: any[] }) => {
@@ -622,12 +684,14 @@ export const saveNightAttendance = async (data: { date: string; hostelId: number
 };
 
 // 7. Executive Dashboard Metrics API
-export const getHostelDashboardMetrics = async (signal?: AbortSignal): Promise<DashboardMetrics> => {
-  try {
-    return await hostelApiClient('/api/hostel/dashboard', { signal });
-  } catch (e) {
-    return await hostelApiClient('/api/hostels/dashboard', { signal });
-  }
+export const getHostelDashboardMetrics = async (_signal?: AbortSignal): Promise<DashboardMetrics> => {
+  return cachedHostelGet('dashboard', async () => {
+    try {
+      return await hostelApiClient('/api/hostel/dashboard');
+    } catch (e) {
+      return await hostelApiClient('/api/hostels/dashboard');
+    }
+  });
 };
 
 // 8. Outpass & Leave API (Dynamic Server Integration)
@@ -637,31 +701,33 @@ export const getOutpasses = async (search?: string, status?: string): Promise<Ou
   if (status && status !== 'All') params.append('status', status);
   const query = params.toString();
 
-  try {
-    const res = await hostelApiClient(`/api/hostel/outpasses${query ? `?${query}` : ''}`);
-    const arrayData = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : null);
-    if (arrayData) {
-      return arrayData.map((o: any) => ({
-        id: o.outpassId ?? o.id,
-        studentId: o.studentId,
-        studentName: o.studentName || 'Student',
-        admissionNo: o.admissionNo || '',
-        hostelName: o.hostelName || '',
-        roomNumber: o.roomNumber || '',
-        outpassType: o.requestType || o.outpassType || 'Local Outpass',
-        departureDate: o.outDate ? new Date(o.outDate).toISOString().split('T')[0] : (o.departureDate || ''),
-        returnDate: o.expectedReturnDate ? new Date(o.expectedReturnDate).toISOString().split('T')[0] : (o.returnDate || ''),
-        reason: o.reason || '',
-        status: o.status || 'Pending',
-        approvedBy: o.approvedBy,
-        remarks: o.remarks,
-        createdAt: o.createdAt
-      }));
+  return cachedHostelGet(`outpasses:${query}`, async () => {
+    try {
+      const res = await hostelApiClient(`/api/hostel/outpasses${query ? `?${query}` : ''}`);
+      const arrayData = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : null);
+      if (arrayData) {
+        return arrayData.map((o: any) => ({
+          id: o.outpassId ?? o.id,
+          studentId: o.studentId,
+          studentName: o.studentName || 'Student',
+          admissionNo: o.admissionNo || '',
+          hostelName: o.hostelName || '',
+          roomNumber: o.roomNumber || '',
+          outpassType: o.requestType || o.outpassType || 'Local Outpass',
+          departureDate: o.outDate ? new Date(o.outDate).toISOString().split('T')[0] : (o.departureDate || ''),
+          returnDate: o.expectedReturnDate ? new Date(o.expectedReturnDate).toISOString().split('T')[0] : (o.returnDate || ''),
+          reason: o.reason || '',
+          status: o.status || 'Pending',
+          approvedBy: o.approvedBy,
+          remarks: o.remarks,
+          createdAt: o.createdAt
+        }));
+      }
+    } catch (e) {
+      console.warn('Failed to fetch outpasses from server:', e);
     }
-  } catch (e) {
-    console.warn('Failed to fetch outpasses from server:', e);
-  }
-  return [];
+    return [];
+  });
 };
 
 export const createOutpass = async (data: any): Promise<any> => {
@@ -704,36 +770,38 @@ export const getTransferVacateRequests = async (search?: string, actionType?: st
   if (actionType && actionType !== 'All') params.append('actionType', actionType);
   const query = params.toString();
 
-  try {
-    const res = await hostelApiClient(`/api/hostel/transfers${query ? `?${query}` : ''}`);
-    const arrayData = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : null);
-    if (arrayData) {
-      return arrayData.map((t: any) => ({
-        id: t.id ?? t.requestId,
-        requestId: t.id ?? t.requestId,
-        studentId: t.studentId,
-        studentName: t.studentName || t.student || 'Student',
-        admissionNo: t.admissionNo || t.admNo || '',
-        actionType: (t.actionType && t.actionType.toLowerCase().includes('vacate')) ? 'Bed Vacate' : 'Room Transfer',
-        fromHostel: t.currentRoom ? t.currentRoom.split(' - ')[0] || t.currentRoom : (t.fromHostel || 'Hostel Block'),
-        fromRoom: t.currentRoom ? t.currentRoom.split(' - ')[1] || t.currentRoom : (t.fromRoom || ''),
-        toHostel: t.destinationHostelName || t.toHostel || 'N/A',
-        toRoom: t.destinationRoomNumber || t.toRoom || 'N/A',
-        requestDate: t.createdAt ? new Date(t.createdAt).toISOString().split('T')[0] : (t.requestDate || new Date().toISOString().split('T')[0]),
-        reason: t.reason || '',
-        status: t.status || 'Completed',
-        totalFeePaid: t.totalFeePaid,
-        monthsStayed: t.monthsStayed,
-        feeUtilized: t.feeUtilized,
-        refundableBalance: t.refundableBalance,
-        feeAdjustmentMode: t.feeAdjustmentMode,
-        createdAt: t.createdAt
-      }));
+  return cachedHostelGet(`transfers:${query}`, async () => {
+    try {
+      const res = await hostelApiClient(`/api/hostel/transfers${query ? `?${query}` : ''}`);
+      const arrayData = Array.isArray(res) ? res : (res && Array.isArray(res.data) ? res.data : null);
+      if (arrayData) {
+        return arrayData.map((t: any) => ({
+          id: t.id ?? t.requestId,
+          requestId: t.id ?? t.requestId,
+          studentId: t.studentId,
+          studentName: t.studentName || t.student || 'Student',
+          admissionNo: t.admissionNo || t.admNo || '',
+          actionType: (t.actionType && t.actionType.toLowerCase().includes('vacate')) ? 'Bed Vacate' : 'Room Transfer',
+          fromHostel: t.currentRoom ? t.currentRoom.split(' - ')[0] || t.currentRoom : (t.fromHostel || 'Hostel Block'),
+          fromRoom: t.currentRoom ? t.currentRoom.split(' - ')[1] || t.currentRoom : (t.fromRoom || ''),
+          toHostel: t.destinationHostelName || t.toHostel || 'N/A',
+          toRoom: t.destinationRoomNumber || t.toRoom || 'N/A',
+          requestDate: t.createdAt ? new Date(t.createdAt).toISOString().split('T')[0] : (t.requestDate || new Date().toISOString().split('T')[0]),
+          reason: t.reason || '',
+          status: t.status || 'Completed',
+          totalFeePaid: t.totalFeePaid,
+          monthsStayed: t.monthsStayed,
+          feeUtilized: t.feeUtilized,
+          refundableBalance: t.refundableBalance,
+          feeAdjustmentMode: t.feeAdjustmentMode,
+          createdAt: t.createdAt
+        }));
+      }
+    } catch (e) {
+      console.warn('Failed to fetch transfers from server:', e);
     }
-  } catch (e) {
-    console.warn('Failed to fetch transfers from server:', e);
-  }
-  return [];
+    return [];
+  });
 };
 
 export const createTransferVacateRequest = async (data: any): Promise<any> => {

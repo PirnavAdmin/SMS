@@ -280,7 +280,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       window.removeEventListener('branches_updated', handleSync);
       window.removeEventListener('academic_years_updated', handleSync);
     };
-  }, [token, user]);
+  }, [token, user?.id, user?.email]);
 
   const handleSetBranch = (branch: string) => {
     setSelectedBranchState(branch);
