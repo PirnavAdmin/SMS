@@ -690,77 +690,81 @@ namespace SMS.Api.Repositories.Implementations.Parent
                 var studentIdStr = request.StudentId.ToString();
                 var student = await _context.Students.AsNoTracking().FirstOrDefaultAsync(s => s.StudentId == request.StudentId);
 
-                await using var tx = _context.Database.IsRelational()
-                    ? await _context.Database.BeginTransactionAsync()
-                    : null;
-
-                // Record payment in feepayments so Finance module, receipts, and fee profiles see it
-                var feePayment = new FeePayment
+                var strategy = _context.Database.CreateExecutionStrategy();
+                await strategy.ExecuteAsync(async () =>
                 {
-                    ReceiptNo = receiptNo,
-                    StudentId = studentIdStr,
-                    Amount = request.AmountPaid,
-                    PaymentDate = DateTime.UtcNow,
-                    PaymentMethod = request.PaymentMode ?? "Online (Credit Card)",
-                    Status = "Completed",
-                    TermName = resolvedTerm.Length > 100 ? resolvedTerm[..100] : resolvedTerm,
-                    FeeHeadName = resolvedHeadName.Length > 100 ? resolvedHeadName[..100] : resolvedHeadName,
-                    Remarks = $"Online fee payment by Parent. Mode: {request.PaymentMode ?? "Online"}"
-                };
-                await _context.FeePayments.AddAsync(feePayment);
+                    await using var tx = _context.Database.IsRelational()
+                        ? await _context.Database.BeginTransactionAsync()
+                        : null;
 
-                // Sync to General Ledger & FinancialAccount
-                var targetAccount = await _context.FinancialAccounts
-                    .FirstOrDefaultAsync(a => a.Status == "Active" && a.Type != "Cash" && a.Type != "Petty Cash")
-                    ?? await _context.FinancialAccounts.FirstOrDefaultAsync(a => a.Status == "Active");
-
-                if (targetAccount != null)
-                {
-                    targetAccount.CurrentBalance += request.AmountPaid;
-                }
-
-                _context.LedgerEntries.Add(new LedgerEntry
-                {
-                    TransactionDate = feePayment.PaymentDate,
-                    TransactionType = "Fee Payment",
-                    Category = "Income",
-                    ReferenceNo = receiptNo,
-                    FinancialAccountId = targetAccount?.Id,
-                    StudentId = request.StudentId,
-                    AdmissionNo = student?.AdmissionNumber ?? studentIdStr,
-                    Credit = request.AmountPaid,
-                    Debit = 0m,
-                    Balance = targetAccount?.CurrentBalance ?? 0m,
-                    Particulars = $"Online Fee Payment by Parent ({resolvedHeadName}) — Receipt {receiptNo}",
-                    AcademicYearId = student?.AcademicYearId ?? 0,
-                    BranchId = student?.BranchId ?? 0
-                });
-
-                // Update matching StudentFeeAssignments
-                var feeAssignments = await _context.StudentFeeAssignments
-                    .Where(f => f.StudentId == studentIdStr && (f.Status == "Active" || string.IsNullOrEmpty(f.Status)))
-                    .ToListAsync();
-
-                if (feeAssignments.Any())
-                {
-                    decimal remPay = request.AmountPaid;
-                    foreach (var assignment in feeAssignments)
+                    // Record payment in feepayments so Finance module, receipts, and fee profiles see it
+                    var feePayment = new FeePayment
                     {
-                        if (assignment.DueAmount > 0 && remPay > 0)
+                        ReceiptNo = receiptNo,
+                        StudentId = studentIdStr,
+                        Amount = request.AmountPaid,
+                        PaymentDate = DateTime.UtcNow,
+                        PaymentMethod = request.PaymentMode ?? "Online (Credit Card)",
+                        Status = "Completed",
+                        TermName = resolvedTerm.Length > 100 ? resolvedTerm[..100] : resolvedTerm,
+                        FeeHeadName = resolvedHeadName.Length > 100 ? resolvedHeadName[..100] : resolvedHeadName,
+                        Remarks = $"Online fee payment by Parent. Mode: {request.PaymentMode ?? "Online"}"
+                    };
+                    await _context.FeePayments.AddAsync(feePayment);
+
+                    // Sync to General Ledger & FinancialAccount
+                    var targetAccount = await _context.FinancialAccounts
+                        .FirstOrDefaultAsync(a => a.Status == "Active" && a.Type != "Cash" && a.Type != "Petty Cash")
+                        ?? await _context.FinancialAccounts.FirstOrDefaultAsync(a => a.Status == "Active");
+
+                    if (targetAccount != null)
+                    {
+                        targetAccount.CurrentBalance += request.AmountPaid;
+                    }
+
+                    _context.LedgerEntries.Add(new LedgerEntry
+                    {
+                        TransactionDate = feePayment.PaymentDate,
+                        TransactionType = "Fee Payment",
+                        Category = "Income",
+                        ReferenceNo = receiptNo,
+                        FinancialAccountId = targetAccount?.Id,
+                        StudentId = request.StudentId,
+                        AdmissionNo = student?.AdmissionNumber ?? studentIdStr,
+                        Credit = request.AmountPaid,
+                        Debit = 0m,
+                        Balance = targetAccount?.CurrentBalance ?? 0m,
+                        Particulars = $"Online Fee Payment by Parent ({resolvedHeadName}) — Receipt {receiptNo}",
+                        AcademicYearId = student?.AcademicYearId ?? 0,
+                        BranchId = student?.BranchId ?? 0
+                    });
+
+                    // Update matching StudentFeeAssignments
+                    var feeAssignments = await _context.StudentFeeAssignments
+                        .Where(f => f.StudentId == studentIdStr && (f.Status == "Active" || string.IsNullOrEmpty(f.Status)))
+                        .ToListAsync();
+
+                    if (feeAssignments.Any())
+                    {
+                        decimal remPay = request.AmountPaid;
+                        foreach (var assignment in feeAssignments)
                         {
-                            var payAmount = Math.Min(assignment.DueAmount, remPay);
-                            assignment.PaidAmount += payAmount;
-                            assignment.DueAmount = Math.Max(0m, assignment.DueAmount - payAmount);
-                            remPay -= payAmount;
+                            if (assignment.DueAmount > 0 && remPay > 0)
+                            {
+                                var payAmount = Math.Min(assignment.DueAmount, remPay);
+                                assignment.PaidAmount += payAmount;
+                                assignment.DueAmount = Math.Max(0m, assignment.DueAmount - payAmount);
+                                remPay -= payAmount;
+                            }
                         }
                     }
-                }
 
-                await _context.SaveChangesAsync();
-                if (tx != null)
-                {
-                    await tx.CommitAsync();
-                }
+                    await _context.SaveChangesAsync();
+                    if (tx != null)
+                    {
+                        await tx.CommitAsync();
+                    }
+                });
 
                 return new ParentFeePaymentResponseDto
                 {

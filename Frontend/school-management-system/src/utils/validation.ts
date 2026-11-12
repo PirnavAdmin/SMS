@@ -4,7 +4,7 @@ import { VALID_INDIAN_STATES, COUNTRY_DIAL_CODES } from './postalLookup';
 export const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'] as const;
 export const CASTE_CATEGORIES = ['General', 'OBC', 'BC', 'SC', 'ST', 'EWS', 'Others'] as const;
 export const BRANCHES: readonly string[] = [];
-export const RELIGIONS = ['Hinduism', 'Islam', 'Christianity', 'Sikhism', 'Buddhism', 'Jainism', 'Zoroastrianism', 'Judaism', 'Other'] as const;
+export const RELIGIONS = ['Hindu', 'Muslim', 'Christian', 'Sikh', 'Buddhist', 'Jain', 'Zoroastrian', 'Jewish', 'Other'] as const;
 export const MARITAL_STATUSES = ['Married', 'Unmarried'] as const;
 
 function checkMobileNumberRules(cleaned: string): { isValid: boolean; error?: string } {

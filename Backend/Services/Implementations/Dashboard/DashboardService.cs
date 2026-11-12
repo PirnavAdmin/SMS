@@ -65,8 +65,30 @@ public class DashboardService : IDashboardService
             else
             {
                 var cleanYear = academicYearContext.Trim();
-                var ayObj = await _context.AcademicYears.AsNoTracking()
-                    .FirstOrDefaultAsync(a => !a.IsDeleted && (a.AcademicYearName == cleanYear || a.AcademicYearName.Contains(cleanYear) || cleanYear.Contains(a.AcademicYearName)), cancellationToken);
+                var cleanYearNoSpace = cleanYear.Replace(" ", "");
+                var yearMatch = System.Text.RegularExpressions.Regex.Match(cleanYearNoSpace, @"^(\d{4})(?:[-–/](\d{2,4}))?");
+                string startYear = yearMatch.Success ? yearMatch.Groups[1].Value : (cleanYearNoSpace.Length >= 4 ? cleanYearNoSpace.Substring(0, 4) : cleanYearNoSpace);
+                string endYear2 = yearMatch.Success && yearMatch.Groups[2].Success
+                    ? (yearMatch.Groups[2].Value.Length == 4 ? yearMatch.Groups[2].Value.Substring(2, 2) : yearMatch.Groups[2].Value)
+                    : string.Empty;
+
+                var activeYears = await _context.AcademicYears.AsNoTracking()
+                    .Where(a => !a.IsDeleted)
+                    .ToListAsync(cancellationToken);
+
+                var ayObj = activeYears.FirstOrDefault(a =>
+                    string.Equals(a.AcademicYearName.Trim(), cleanYear, StringComparison.OrdinalIgnoreCase) ||
+                    a.AcademicYearName.Contains(cleanYear, StringComparison.OrdinalIgnoreCase) ||
+                    cleanYear.Contains(a.AcademicYearName, StringComparison.OrdinalIgnoreCase))
+                    ?? activeYears.FirstOrDefault(a =>
+                    {
+                        var norm = (a.AcademicYearName ?? string.Empty).Replace(" ", "");
+                        if (string.IsNullOrEmpty(startYear) || !norm.StartsWith(startYear, StringComparison.OrdinalIgnoreCase))
+                            return false;
+                        if (string.IsNullOrEmpty(endYear2))
+                            return true;
+                        return norm.EndsWith(endYear2, StringComparison.OrdinalIgnoreCase);
+                    });
                 effectiveYearId = ayObj?.AcademicYearId;
             }
         }

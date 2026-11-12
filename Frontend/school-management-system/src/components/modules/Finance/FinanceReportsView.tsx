@@ -165,45 +165,83 @@ export const FinanceReportsView: React.FC = () => {
         Number(p.amountPaid ?? p.amount ?? 0) > 0
     );
     const normalizeDateStr = (val?: string) => (val ? String(val).slice(0, 10) : '');
+    const resolvePaymentStudent = (p: any) => {
+      const sid = String(p.studentId || '').trim();
+      const adm = String(p.admissionNo || '').trim().toLowerCase();
+      return students.find(
+        (s: any) =>
+          String(s.id) === sid ||
+          String((s as any).studentId) === sid ||
+          (s.admissionNo && (s.admissionNo.toLowerCase() === sid.toLowerCase() || (adm && s.admissionNo.toLowerCase() === adm)))
+      );
+    };
+    const getPaymentDisplay = (p: any) => {
+      const st = resolvePaymentStudent(p);
+      const studentId =
+        st?.admissionNo ||
+        p.admissionNo ||
+        (p.studentId ? String(p.studentId) : '') ||
+        '-';
+      const studentName =
+        p.studentName ||
+        (st ? `${st.firstName || ''} ${st.lastName || ''}`.trim() || (st as any).studentName : '') ||
+        (p.studentId ? `Student #${p.studentId}` : '-');
+      const classSection =
+        p.className ||
+        (st ? `${st.className || ''}${st.section ? `-${st.section}` : ''}` : '');
+      return { studentId, studentName, classSection };
+    };
 
     switch (selectedReport) {
       case 'Daily Collection':
         result = validPayments
           .filter((p: any) => (filterStartDate || filterEndDate ? true : normalizeDateStr(p.paymentDate) === todayStr))
-          .map((p: any) => ({
-            receiptNo: p.receiptNo,
-            studentName: p.studentName,
-            classSection: p.className,
-            paymentMode: p.paymentMode,
-            paymentDate: normalizeDateStr(p.paymentDate),
-            amount: Number(p.amountPaid ?? p.amount ?? 0),
-          }));
+          .map((p: any) => {
+            const { studentId, studentName, classSection } = getPaymentDisplay(p);
+            return {
+              receiptNo: p.receiptNo,
+              studentId,
+              studentName,
+              classSection,
+              paymentMode: p.paymentMode,
+              paymentDate: normalizeDateStr(p.paymentDate),
+              amount: Number(p.amountPaid ?? p.amount ?? 0),
+            };
+          });
         break;
       case 'Monthly Collection':
         result = validPayments
           .filter((p: any) => (filterStartDate || filterEndDate ? true : normalizeDateStr(p.paymentDate).startsWith(thisMonthStr)))
-          .map((p: any) => ({
-            receiptNo: p.receiptNo,
-            studentName: p.studentName,
-            classSection: p.className,
-            paymentMode: p.paymentMode,
-            paymentDate: normalizeDateStr(p.paymentDate),
-            amount: Number(p.amountPaid ?? p.amount ?? 0),
-          }));
+          .map((p: any) => {
+            const { studentId, studentName, classSection } = getPaymentDisplay(p);
+            return {
+              receiptNo: p.receiptNo,
+              studentId,
+              studentName,
+              classSection,
+              paymentMode: p.paymentMode,
+              paymentDate: normalizeDateStr(p.paymentDate),
+              amount: Number(p.amountPaid ?? p.amount ?? 0),
+            };
+          });
         break;
       case 'Yearly Collection':
       case 'Academic Year Collection':
         result = validPayments
           .filter((p: any) => !activeYear || !p.academicYear || p.academicYear === activeYear)
-          .map((p: any) => ({
-            receiptNo: p.receiptNo,
-            studentName: p.studentName,
-            classSection: p.className,
-            academicYear: p.academicYear || activeYear,
-            paymentMode: p.paymentMode,
-            paymentDate: normalizeDateStr(p.paymentDate),
-            amount: Number(p.amountPaid ?? p.amount ?? 0),
-          }));
+          .map((p: any) => {
+            const { studentId, studentName, classSection } = getPaymentDisplay(p);
+            return {
+              receiptNo: p.receiptNo,
+              studentId,
+              studentName,
+              classSection,
+              academicYear: p.academicYear || activeYear,
+              paymentMode: p.paymentMode,
+              paymentDate: normalizeDateStr(p.paymentDate),
+              amount: Number(p.amountPaid ?? p.amount ?? 0),
+            };
+          });
         break;
       case 'Head-wise Collection':
         {
@@ -396,14 +434,18 @@ export const FinanceReportsView: React.FC = () => {
         }));
         break;
       default:
-        result = validPayments.map((p: any) => ({
-          receiptNo: p.receiptNo,
-          studentName: p.studentName,
-          classSection: p.className,
-          amount: Number(p.amountPaid ?? p.amount ?? 0),
-          paymentMode: p.paymentMode,
-          paymentDate: normalizeDateStr(p.paymentDate),
-        }));
+        result = validPayments.map((p: any) => {
+          const { studentId, studentName, classSection } = getPaymentDisplay(p);
+          return {
+            receiptNo: p.receiptNo,
+            studentId,
+            studentName,
+            classSection,
+            amount: Number(p.amountPaid ?? p.amount ?? 0),
+            paymentMode: p.paymentMode,
+            paymentDate: normalizeDateStr(p.paymentDate),
+          };
+        });
         break;
     }
 

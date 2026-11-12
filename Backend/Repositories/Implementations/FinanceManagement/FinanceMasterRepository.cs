@@ -304,58 +304,65 @@ public class FinanceMasterRepository : IFinanceMasterRepository
         bool isExpense = string.Equals(request.Type, "Expense", StringComparison.OrdinalIgnoreCase);
         string refNo = $"REF-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..5].ToUpper()}";
 
-        await using var tx = _context.Database.IsRelational()
-            ? await _context.Database.BeginTransactionAsync()
-            : null;
-
-        if (targetAccount != null)
-        {
-            targetAccount.CurrentBalance += isExpense ? -request.Amount : request.Amount;
-        }
-
-        var ledgerEntry = new LedgerEntry
-        {
-            TransactionDate = txnDate,
-            TransactionType = string.IsNullOrWhiteSpace(request.SourceModule) ? "Manual" : request.SourceModule,
-            Category = !string.IsNullOrWhiteSpace(request.Category) ? request.Category : (isExpense ? "Expense" : "Income"),
-            Particulars = !string.IsNullOrWhiteSpace(request.Description) ? request.Description : "Manual Transaction",
-            FinancialAccountId = targetAccount?.Id,
-            Credit = isExpense ? 0m : request.Amount,
-            Debit = isExpense ? request.Amount : 0m,
-            Balance = targetAccount?.CurrentBalance ?? 0m,
-            ReferenceNo = refNo,
-            AdmissionNo = targetAccount?.Name ?? request.Account ?? "Main Bank Account",
-            BranchId = branchId
-        };
-
-        _context.LedgerEntries.Add(ledgerEntry);
-
         Expense? createdExpense = null;
-        if (isExpense)
-        {
-            createdExpense = new Expense
-            {
-                ExpenseNo = $"EXP-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..4].ToUpper()}",
-                Date = txnDate,
-                Category = !string.IsNullOrWhiteSpace(request.Category) ? request.Category : "General",
-                Vendor = !string.IsNullOrWhiteSpace(request.Description) ? request.Description : "General Vendor",
-                Description = !string.IsNullOrWhiteSpace(request.Description) ? request.Description : "Manual Expense Entry",
-                Amount = request.Amount,
-                FinancialAccountId = targetAccount?.Id,
-                PaymentMethod = request.PaymentMode ?? "Bank Transfer",
-                ReferenceNo = refNo,
-                Status = "Approved",
-                BranchId = branchId,
-                CreatedAt = DateTime.UtcNow
-            };
-            _context.Expenses.Add(createdExpense);
-        }
+        LedgerEntry ledgerEntry = null!;
 
-        await _context.SaveChangesAsync();
-        if (tx != null)
+        var strategy = _context.Database.CreateExecutionStrategy();
+        await strategy.ExecuteAsync(async () =>
         {
-            await tx.CommitAsync();
-        }
+            await using var tx = _context.Database.IsRelational()
+                ? await _context.Database.BeginTransactionAsync()
+                : null;
+
+            if (targetAccount != null)
+            {
+                targetAccount.CurrentBalance += isExpense ? -request.Amount : request.Amount;
+            }
+
+            ledgerEntry = new LedgerEntry
+            {
+                TransactionDate = txnDate,
+                TransactionType = string.IsNullOrWhiteSpace(request.SourceModule) ? "Manual" : request.SourceModule,
+                Category = !string.IsNullOrWhiteSpace(request.Category) ? request.Category : (isExpense ? "Expense" : "Income"),
+                Particulars = !string.IsNullOrWhiteSpace(request.Description) ? request.Description : "Manual Transaction",
+                FinancialAccountId = targetAccount?.Id,
+                Credit = isExpense ? 0m : request.Amount,
+                Debit = isExpense ? request.Amount : 0m,
+                Balance = targetAccount?.CurrentBalance ?? 0m,
+                ReferenceNo = refNo,
+                AdmissionNo = targetAccount?.Name ?? request.Account ?? "Main Bank Account",
+                BranchId = branchId
+            };
+
+            _context.LedgerEntries.Add(ledgerEntry);
+
+            createdExpense = null;
+            if (isExpense)
+            {
+                createdExpense = new Expense
+                {
+                    ExpenseNo = $"EXP-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..4].ToUpper()}",
+                    Date = txnDate,
+                    Category = !string.IsNullOrWhiteSpace(request.Category) ? request.Category : "General",
+                    Vendor = !string.IsNullOrWhiteSpace(request.Description) ? request.Description : "General Vendor",
+                    Description = !string.IsNullOrWhiteSpace(request.Description) ? request.Description : "Manual Expense Entry",
+                    Amount = request.Amount,
+                    FinancialAccountId = targetAccount?.Id,
+                    PaymentMethod = request.PaymentMode ?? "Bank Transfer",
+                    ReferenceNo = refNo,
+                    Status = "Approved",
+                    BranchId = branchId,
+                    CreatedAt = DateTime.UtcNow
+                };
+                _context.Expenses.Add(createdExpense);
+            }
+
+            await _context.SaveChangesAsync();
+            if (tx != null)
+            {
+                await tx.CommitAsync();
+            }
+        });
 
         return new FinanceTransactionDto
         {
@@ -381,141 +388,147 @@ public class FinanceMasterRepository : IFinanceMasterRepository
 
     public async Task<bool> ReverseTransactionAsync(int id, ReverseTransactionRequestDto request)
     {
-        await using var tx = _context.Database.IsRelational()
-            ? await _context.Database.BeginTransactionAsync()
-            : null;
-
-        if (id >= 10000 && id < 20000)
+        bool result = false;
+        var strategy = _context.Database.CreateExecutionStrategy();
+        await strategy.ExecuteAsync(async () =>
         {
-            int realId = id - 10000;
-            var entry = await _context.LedgerEntries.FirstOrDefaultAsync(l => l.Id == realId);
-            if (entry == null) return false;
-            if ((entry.Particulars ?? "").Contains("[Reversed", StringComparison.OrdinalIgnoreCase)) return false;
+            await using var tx = _context.Database.IsRelational()
+                ? await _context.Database.BeginTransactionAsync()
+                : null;
 
-            entry.Particulars = $"{entry.Particulars} [Reversed: {request.ReversalReason} by {request.AuthorizedBy}]".Trim();
-
-            var acct = entry.FinancialAccountId.HasValue
-                ? await _context.FinancialAccounts.FirstOrDefaultAsync(a => a.Id == entry.FinancialAccountId.Value)
-                : await ResolveFinancialAccountAsync(entry.AdmissionNo, null);
-            if (acct != null)
+            if (id >= 10000 && id < 20000)
             {
-                acct.CurrentBalance += entry.Debit - entry.Credit;
-            }
+                int realId = id - 10000;
+                var entry = await _context.LedgerEntries.FirstOrDefaultAsync(l => l.Id == realId);
+                if (entry == null) { result = false; return; }
+                if ((entry.Particulars ?? "").Contains("[Reversed", StringComparison.OrdinalIgnoreCase)) { result = false; return; }
 
-            _context.LedgerEntries.Add(new LedgerEntry
-            {
-                TransactionDate = DateTime.UtcNow,
-                TransactionType = "Reversal",
-                Category = entry.Category,
-                ReferenceNo = $"REV-{entry.ReferenceNo}",
-                FinancialAccountId = acct?.Id,
-                StudentId = entry.StudentId,
-                AdmissionNo = entry.AdmissionNo,
-                Credit = entry.Debit,
-                Debit = entry.Credit,
-                Balance = acct?.CurrentBalance ?? 0m,
-                Particulars = $"Contra Reversal for TXN-LED-{realId:D4} ({request.ReversalReason})",
-                AcademicYearId = entry.AcademicYearId,
-                BranchId = entry.BranchId
-            });
+                entry.Particulars = $"{entry.Particulars} [Reversed: {request.ReversalReason} by {request.AuthorizedBy}]".Trim();
 
-            if (!string.IsNullOrWhiteSpace(entry.ReferenceNo))
-            {
-                var pairedExp = await _context.Expenses.FirstOrDefaultAsync(e => e.ReferenceNo == entry.ReferenceNo && e.Status != "Reversed");
-                if (pairedExp != null) pairedExp.Status = "Reversed";
-            }
-
-            await _context.SaveChangesAsync();
-            if (tx != null) await tx.CommitAsync();
-            return true;
-        }
-        else if (id >= 20000)
-        {
-            int realId = id - 20000;
-            var exp = await _context.Expenses.FirstOrDefaultAsync(e => e.Id == realId);
-            if (exp == null || exp.Status == "Reversed" || exp.Status == "Cancelled") return false;
-
-            exp.Status = "Reversed";
-            var acct = exp.FinancialAccountId.HasValue
-                ? await _context.FinancialAccounts.FirstOrDefaultAsync(a => a.Id == exp.FinancialAccountId.Value)
-                : await ResolveFinancialAccountAsync(null, exp.PaymentMethod);
-            if (acct != null)
-            {
-                acct.CurrentBalance += exp.Amount;
-            }
-
-            if (!string.IsNullOrWhiteSpace(exp.ReferenceNo))
-            {
-                var pairedLedgers = await _context.LedgerEntries
-                    .Where(l => l.ReferenceNo == exp.ReferenceNo && !(l.Particulars ?? "").Contains("[Reversed"))
-                    .ToListAsync();
-                foreach (var pl in pairedLedgers)
+                var acct = entry.FinancialAccountId.HasValue
+                    ? await _context.FinancialAccounts.FirstOrDefaultAsync(a => a.Id == entry.FinancialAccountId.Value)
+                    : await ResolveFinancialAccountAsync(entry.AdmissionNo, null);
+                if (acct != null)
                 {
-                    pl.Particulars = $"{pl.Particulars} [Reversed: {request.ReversalReason} by {request.AuthorizedBy}]".Trim();
+                    acct.CurrentBalance += entry.Debit - entry.Credit;
                 }
+
+                _context.LedgerEntries.Add(new LedgerEntry
+                {
+                    TransactionDate = DateTime.UtcNow,
+                    TransactionType = "Reversal",
+                    Category = entry.Category,
+                    ReferenceNo = $"REV-{entry.ReferenceNo}",
+                    FinancialAccountId = acct?.Id,
+                    StudentId = entry.StudentId,
+                    AdmissionNo = entry.AdmissionNo,
+                    Credit = entry.Debit,
+                    Debit = entry.Credit,
+                    Balance = acct?.CurrentBalance ?? 0m,
+                    Particulars = $"Contra Reversal for TXN-LED-{realId:D4} ({request.ReversalReason})",
+                    AcademicYearId = entry.AcademicYearId,
+                    BranchId = entry.BranchId
+                });
+
+                if (!string.IsNullOrWhiteSpace(entry.ReferenceNo))
+                {
+                    var pairedExp = await _context.Expenses.FirstOrDefaultAsync(e => e.ReferenceNo == entry.ReferenceNo && e.Status != "Reversed");
+                    if (pairedExp != null) pairedExp.Status = "Reversed";
+                }
+
+                await _context.SaveChangesAsync();
+                if (tx != null) await tx.CommitAsync();
+                result = true;
             }
-
-            _context.LedgerEntries.Add(new LedgerEntry
+            else if (id >= 20000)
             {
-                TransactionDate = DateTime.UtcNow,
-                TransactionType = "Reversal",
-                Category = exp.Category,
-                ReferenceNo = $"REV-{(!string.IsNullOrWhiteSpace(exp.ExpenseNo) ? exp.ExpenseNo : exp.Id.ToString())}",
-                FinancialAccountId = acct?.Id,
-                Credit = exp.Amount,
-                Debit = 0m,
-                Balance = acct?.CurrentBalance ?? 0m,
-                Particulars = $"Expense Reversal ({exp.ExpenseNo}): {request.ReversalReason}",
-                AcademicYearId = exp.AcademicYearId,
-                BranchId = exp.BranchId
-            });
+                int realId = id - 20000;
+                var exp = await _context.Expenses.FirstOrDefaultAsync(e => e.Id == realId);
+                if (exp == null || exp.Status == "Reversed" || exp.Status == "Cancelled") { result = false; return; }
 
-            await _context.SaveChangesAsync();
-            if (tx != null) await tx.CommitAsync();
-            return true;
-        }
-        else
-        {
-            var p = await _context.FeePayments.FirstOrDefaultAsync(fp => fp.Id == id);
-            if (p == null || p.Status == "Cancelled" || p.Status == "Reversed") return false;
+                exp.Status = "Reversed";
+                var acct = exp.FinancialAccountId.HasValue
+                    ? await _context.FinancialAccounts.FirstOrDefaultAsync(a => a.Id == exp.FinancialAccountId.Value)
+                    : await ResolveFinancialAccountAsync(null, exp.PaymentMethod);
+                if (acct != null)
+                {
+                    acct.CurrentBalance += exp.Amount;
+                }
 
-            p.Status = "Cancelled";
-            p.Remarks = $"{p.Remarks} [Reversed: {request.ReversalReason} by {request.AuthorizedBy}]".Trim();
+                if (!string.IsNullOrWhiteSpace(exp.ReferenceNo))
+                {
+                    var pairedLedgers = await _context.LedgerEntries
+                        .Where(l => l.ReferenceNo == exp.ReferenceNo && !(l.Particulars ?? "").Contains("[Reversed"))
+                        .ToListAsync();
+                    foreach (var pl in pairedLedgers)
+                    {
+                        pl.Particulars = $"{pl.Particulars} [Reversed: {request.ReversalReason} by {request.AuthorizedBy}]".Trim();
+                    }
+                }
 
-            var assignment = await _context.StudentFeeAssignments
-                .FirstOrDefaultAsync(a => a.StudentId == p.StudentId && (a.Status == "Active" || string.IsNullOrEmpty(a.Status)));
-            if (assignment != null && p.Amount > 0)
-            {
-                assignment.PaidAmount = Math.Max(0m, assignment.PaidAmount - p.Amount);
-                assignment.DueAmount = Math.Max(0m, assignment.TotalAmount - assignment.PaidAmount);
+                _context.LedgerEntries.Add(new LedgerEntry
+                {
+                    TransactionDate = DateTime.UtcNow,
+                    TransactionType = "Reversal",
+                    Category = exp.Category,
+                    ReferenceNo = $"REV-{(!string.IsNullOrWhiteSpace(exp.ExpenseNo) ? exp.ExpenseNo : exp.Id.ToString())}",
+                    FinancialAccountId = acct?.Id,
+                    Credit = exp.Amount,
+                    Debit = 0m,
+                    Balance = acct?.CurrentBalance ?? 0m,
+                    Particulars = $"Expense Reversal ({exp.ExpenseNo}): {request.ReversalReason}",
+                    AcademicYearId = exp.AcademicYearId,
+                    BranchId = exp.BranchId
+                });
+
+                await _context.SaveChangesAsync();
+                if (tx != null) await tx.CommitAsync();
+                result = true;
             }
-
-            var acct = await ResolveFinancialAccountAsync(null, p.PaymentMethod);
-            if (acct != null && p.Amount > 0)
+            else
             {
-                acct.CurrentBalance -= p.Amount;
+                var p = await _context.FeePayments.FirstOrDefaultAsync(fp => fp.Id == id);
+                if (p == null || p.Status == "Cancelled" || p.Status == "Reversed") { result = false; return; }
+
+                p.Status = "Cancelled";
+                p.Remarks = $"{p.Remarks} [Reversed: {request.ReversalReason} by {request.AuthorizedBy}]".Trim();
+
+                var assignment = await _context.StudentFeeAssignments
+                    .FirstOrDefaultAsync(a => a.StudentId == p.StudentId && (a.Status == "Active" || string.IsNullOrEmpty(a.Status)));
+                if (assignment != null && p.Amount > 0)
+                {
+                    assignment.PaidAmount = Math.Max(0m, assignment.PaidAmount - p.Amount);
+                    assignment.DueAmount = Math.Max(0m, assignment.TotalAmount - assignment.PaidAmount);
+                }
+
+                var acct = await ResolveFinancialAccountAsync(null, p.PaymentMethod);
+                if (acct != null && p.Amount > 0)
+                {
+                    acct.CurrentBalance -= p.Amount;
+                }
+
+                int.TryParse(p.StudentId, out int sId);
+                _context.LedgerEntries.Add(new LedgerEntry
+                {
+                    TransactionDate = DateTime.UtcNow,
+                    TransactionType = "Reversal",
+                    Category = "Tuition & Academic Fees",
+                    ReferenceNo = $"REV-{p.ReceiptNo}",
+                    FinancialAccountId = acct?.Id,
+                    StudentId = sId > 0 ? sId : null,
+                    AdmissionNo = p.StudentId,
+                    Debit = p.Amount > 0 ? p.Amount : 0m,
+                    Credit = 0m,
+                    Balance = acct?.CurrentBalance ?? 0m,
+                    Particulars = $"Receipt Reversal ({p.ReceiptNo}): {request.ReversalReason}"
+                });
+
+                await _context.SaveChangesAsync();
+                if (tx != null) await tx.CommitAsync();
+                result = true;
             }
-
-            int.TryParse(p.StudentId, out int sId);
-            _context.LedgerEntries.Add(new LedgerEntry
-            {
-                TransactionDate = DateTime.UtcNow,
-                TransactionType = "Reversal",
-                Category = "Tuition & Academic Fees",
-                ReferenceNo = $"REV-{p.ReceiptNo}",
-                FinancialAccountId = acct?.Id,
-                StudentId = sId > 0 ? sId : null,
-                AdmissionNo = p.StudentId,
-                Debit = p.Amount > 0 ? p.Amount : 0m,
-                Credit = 0m,
-                Balance = acct?.CurrentBalance ?? 0m,
-                Particulars = $"Receipt Reversal ({p.ReceiptNo}): {request.ReversalReason}"
-            });
-
-            await _context.SaveChangesAsync();
-            if (tx != null) await tx.CommitAsync();
-            return true;
-        }
+        });
+        return result;
     }
 
     // =========================================================================
@@ -1047,49 +1060,53 @@ public class FinanceMasterRepository : IFinanceMasterRepository
         bool alreadyDisbursed = await _context.LedgerEntries.AsNoTracking()
             .AnyAsync(l => l.ReferenceNo == entity.RefundNo && l.TransactionType == "Refund");
 
-        await using var tx = _context.Database.IsRelational()
-            ? await _context.Database.BeginTransactionAsync()
-            : null;
-
-        entity.Status = targetStatus;
-        entity.ApprovedBy = string.IsNullOrWhiteSpace(request.ProcessedBy) ? "Admin" : request.ProcessedBy.Trim();
-        entity.ProcessedDate = DateTime.UtcNow;
-        if (!string.IsNullOrWhiteSpace(request.Remarks))
+        var strategy = _context.Database.CreateExecutionStrategy();
+        await strategy.ExecuteAsync(async () =>
         {
-            entity.Remarks = string.IsNullOrWhiteSpace(entity.Remarks)
-                ? request.Remarks.Trim()
-                : $"{entity.Remarks} | {request.Remarks.Trim()}";
-        }
+            await using var tx = _context.Database.IsRelational()
+                ? await _context.Database.BeginTransactionAsync()
+                : null;
 
-        if ((targetStatus.Equals("Approved", StringComparison.OrdinalIgnoreCase) ||
-             targetStatus.Equals("Disbursed", StringComparison.OrdinalIgnoreCase)) &&
-            !alreadyDisbursed &&
-            entity.RefundAmount > 0)
-        {
-            var acct = await ResolveFinancialAccountAsync(null, entity.PaymentMode);
-            if (acct != null)
+            entity.Status = targetStatus;
+            entity.ApprovedBy = string.IsNullOrWhiteSpace(request.ProcessedBy) ? "Admin" : request.ProcessedBy.Trim();
+            entity.ProcessedDate = DateTime.UtcNow;
+            if (!string.IsNullOrWhiteSpace(request.Remarks))
             {
-                acct.CurrentBalance -= entity.RefundAmount;
+                entity.Remarks = string.IsNullOrWhiteSpace(entity.Remarks)
+                    ? request.Remarks.Trim()
+                    : $"{entity.Remarks} | {request.Remarks.Trim()}";
             }
 
-            _context.LedgerEntries.Add(new LedgerEntry
+            if ((targetStatus.Equals("Approved", StringComparison.OrdinalIgnoreCase) ||
+                 targetStatus.Equals("Disbursed", StringComparison.OrdinalIgnoreCase)) &&
+                !alreadyDisbursed &&
+                entity.RefundAmount > 0)
             {
-                TransactionDate = DateTime.UtcNow,
-                TransactionType = "Refund",
-                Category = "Fee Refund",
-                Particulars = $"Fee Refund ({entity.RefundNo}) to {entity.StudentName} ({entity.ClassName}) — {entity.Reason}",
-                Debit = entity.RefundAmount,
-                Credit = 0m,
-                Balance = acct?.CurrentBalance ?? 0m,
-                ReferenceNo = entity.RefundNo,
-                FinancialAccountId = acct?.Id,
-                StudentId = entity.StudentId > 0 ? entity.StudentId : null,
-                AdmissionNo = entity.AdmissionNo
-            });
-        }
+                var acct = await ResolveFinancialAccountAsync(null, entity.PaymentMode);
+                if (acct != null)
+                {
+                    acct.CurrentBalance -= entity.RefundAmount;
+                }
 
-        await _context.SaveChangesAsync();
-        if (tx != null) await tx.CommitAsync();
+                _context.LedgerEntries.Add(new LedgerEntry
+                {
+                    TransactionDate = DateTime.UtcNow,
+                    TransactionType = "Refund",
+                    Category = "Fee Refund",
+                    Particulars = $"Fee Refund ({entity.RefundNo}) to {entity.StudentName} ({entity.ClassName}) — {entity.Reason}",
+                    Debit = entity.RefundAmount,
+                    Credit = 0m,
+                    Balance = acct?.CurrentBalance ?? 0m,
+                    ReferenceNo = entity.RefundNo,
+                    FinancialAccountId = acct?.Id,
+                    StudentId = entity.StudentId > 0 ? entity.StudentId : null,
+                    AdmissionNo = entity.AdmissionNo
+                });
+            }
+
+            await _context.SaveChangesAsync();
+            if (tx != null) await tx.CommitAsync();
+        });
         return true;
     }
 
@@ -2292,6 +2309,11 @@ public class FinanceMasterRepository : IFinanceMasterRepository
         var existingHead = await _context.FeeHeads.FirstOrDefaultAsync(f => f.Category == "Hostel" && f.Name == headName);
         if (existingHead == null)
         {
+            string resolvedEligibility = string.Equals(entity.FeePlan, "Annual", StringComparison.OrdinalIgnoreCase) || string.Equals(entity.FeePlan, "One Time", StringComparison.OrdinalIgnoreCase)
+                ? "One-Time Only"
+                : string.Equals(entity.FeePlan, "Both One-Time and Term-Wise", StringComparison.OrdinalIgnoreCase)
+                    ? "Both One-Time and Term-Wise"
+                    : "Term-Wise Allowed";
             _context.FeeHeads.Add(new FeeHead
             {
                 Name = headName,
@@ -2299,7 +2321,13 @@ public class FinanceMasterRepository : IFinanceMasterRepository
                 Category = "Hostel",
                 Frequency = entity.FeePlan,
                 DefaultAmount = entity.HostelFee,
-                Status = "Active"
+                Status = "Active",
+                HostelConfigJson = JsonSerializer.Serialize(new
+                {
+                    applicableBranches = new[] { string.IsNullOrWhiteSpace(entity.Branch) ? "All Branches" : entity.Branch },
+                    paymentEligibility = resolvedEligibility,
+                    applicableTerms = Array.Empty<string>()
+                })
             });
             await _context.SaveChangesAsync();
         }

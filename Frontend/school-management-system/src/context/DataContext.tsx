@@ -6331,86 +6331,94 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           uniqueApiTxns.push(item);
         }
 
-        setFinanceTransactions(
-          uniqueApiTxns.map((item: any) => {
-            const tId = item.transactionId || `TXN-${item.id}`;
-            return {
-              id: String(item.id || tId),
-              transactionId: tId,
-              date:
-                item.date ||
-                (item.transactionDate
-                  ? String(item.transactionDate).split("T")[0]
-                  : new Date().toISOString().split("T")[0]),
-              time: item.time || "10:00 AM",
+        if (txnsRes.status === "fulfilled") {
+          setFinanceTransactions(
+            uniqueApiTxns.map((item: any) => {
+              const tId = item.transactionId || `TXN-${item.id}`;
+              return {
+                id: String(item.id || tId),
+                transactionId: tId,
+                date:
+                  item.date ||
+                  (item.transactionDate
+                    ? String(item.transactionDate).split("T")[0]
+                    : new Date().toISOString().split("T")[0]),
+                time: item.time || "10:00 AM",
+                type: item.type === "Expense" ? "Expense" : "Income",
+                category: item.category || "General",
+                sourceModule: item.sourceModule || "Manual",
+                referenceNumber: item.referenceNumber || "",
+                description: item.description || "",
+                amount: Number(item.amount || 0),
+                paymentMode: item.paymentMode || "Bank Transfer",
+                account: item.account || "Main Bank Account",
+                branch: item.branch || selectedBranch || "",
+                academicYear: item.academicYear || selectedAcademicYear || "",
+                status: item.status || "Completed",
+                createdBy: item.createdBy || "Finance Admin",
+                approvedBy: item.approvedBy || "Chief Accountant",
+                notes: item.notes || "",
+                attachments: item.attachmentName
+                  ? [item.attachmentName]
+                  : item.attachments || [],
+              };
+            }),
+          );
+        }
+
+        if (accountsRes.status === "fulfilled") {
+          setFinancialAccounts(
+            apiAccounts.map((item: any) => ({
+              id: String(item.id || "ACC-" + Date.now()),
+              accountName: item.accountName,
+              accountType: item.accountType || "Main Bank Account",
+              accountNumber: item.accountNumber || "",
+              bankName: item.bankName || "",
+              branchName: item.branchName || "",
+              currentBalance: Number(item.currentBalance || 0),
+              currency: item.currency || "INR",
+              status: item.status === "Inactive" ? "Inactive" : "Active",
+            })),
+          );
+        }
+
+        if (catsRes.status === "fulfilled") {
+          setFinancialCategories(
+            apiCats.map((item: any) => ({
+              id: String(item.id || "CAT-" + Date.now()),
+              name: item.name,
               type: item.type === "Expense" ? "Expense" : "Income",
-              category: item.category || "General",
               sourceModule: item.sourceModule || "Manual",
-              referenceNumber: item.referenceNumber || "",
-              description: item.description || "",
-              amount: Number(item.amount || 0),
-              paymentMode: item.paymentMode || "Bank Transfer",
-              account: item.account || "Main Bank Account",
-              branch: item.branch || selectedBranch || "",
-              academicYear: item.academicYear || selectedAcademicYear || "",
-              status: item.status || "Completed",
-              createdBy: item.createdBy || "Finance Admin",
-              approvedBy: item.approvedBy || "Chief Accountant",
-              notes: item.notes || "",
-              attachments: item.attachmentName
-                ? [item.attachmentName]
-                : item.attachments || [],
-            };
-          }),
-        );
+              status: item.status === "Inactive" ? "Inactive" : "Active",
+              isSystem:
+                typeof item.isSystem === "boolean" ? item.isSystem : false,
+            })),
+          );
+        }
 
-        setFinancialAccounts(
-          apiAccounts.map((item: any) => ({
-            id: String(item.id || "ACC-" + Date.now()),
-            accountName: item.accountName,
-            accountType: item.accountType || "Main Bank Account",
-            accountNumber: item.accountNumber || "",
-            bankName: item.bankName || "",
-            branchName: item.branchName || "",
-            currentBalance: Number(item.currentBalance || 0),
-            currency: item.currency || "INR",
-            status: item.status === "Inactive" ? "Inactive" : "Active",
-          })),
-        );
-
-        setFinancialCategories(
-          apiCats.map((item: any) => ({
-            id: String(item.id || "CAT-" + Date.now()),
-            name: item.name,
-            type: item.type === "Expense" ? "Expense" : "Income",
-            sourceModule: item.sourceModule || "Manual",
-            status: item.status === "Inactive" ? "Inactive" : "Active",
-            isSystem:
-              typeof item.isSystem === "boolean" ? item.isSystem : false,
-          })),
-        );
-
-        setFinancialBudgets(
-          apiBudgets.map((item: any) => {
-            const bName = item.categoryName || item.department || "";
-            const alloc = Number(
-              item.allocatedAmount || item.allocatedBudget || 0,
-            );
-            const cons = Number(
-              item.consumedAmount || item.utilizedBudget || 0,
-            );
-            return {
-              id: String(item.id || "BDG-" + Date.now()),
-              categoryName: bName,
-              academicYear: item.academicYear || selectedAcademicYear || "",
-              branch: item.branch || selectedBranch || "",
-              allocatedAmount: alloc,
-              consumedAmount: cons,
-              remainingAmount: Math.max(0, alloc - cons),
-              status: cons > alloc ? "Exceeded" : item.status || "Active",
-            };
-          }),
-        );
+        if (budgetsRes.status === "fulfilled") {
+          setFinancialBudgets(
+            apiBudgets.map((item: any) => {
+              const bName = item.categoryName || item.department || "";
+              const alloc = Number(
+                item.allocatedAmount || item.allocatedBudget || 0,
+              );
+              const cons = Number(
+                item.consumedAmount || item.utilizedBudget || 0,
+              );
+              return {
+                id: String(item.id || "BDG-" + Date.now()),
+                categoryName: bName,
+                academicYear: item.academicYear || selectedAcademicYear || "",
+                branch: item.branch || selectedBranch || "",
+                allocatedAmount: alloc,
+                consumedAmount: cons,
+                remainingAmount: Math.max(0, alloc - cons),
+                status: cons > alloc ? "Exceeded" : item.status || "Active",
+              };
+            }),
+          );
+        }
       } catch (err) {
         console.warn("Failed to fetch finance data from API", err);
       } finally {
@@ -6419,7 +6427,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     })();
     activeRequests.current["finance-data"] = promise;
     return promise;
-  }, [role, user?.role]);
+  }, [isAuthenticated, token, role, user?.role, selectedBranch, selectedAcademicYear]);
 
   const fetchFacultyTrainingData = useCallback(async () => {
     if (!isAuthenticated || !token) return;
@@ -11175,7 +11183,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       selectedAcademicYear || financeSettings?.academicYear || "";
 
     const currentLedger = getStudentFeeLedger(paymentData.studentId, activeAY);
-    const maxDueAllowed = currentLedger.dueBalance ?? Math.max(0, (currentLedger.totalPayable || 0) - (currentLedger.paidAmount || 0));
+    const maxDueAllowed =
+      (paymentData as any).totalOutstanding > 0
+        ? (paymentData as any).totalOutstanding
+        : currentLedger.dueBalance ?? Math.max(0, (currentLedger.totalPayable || 0) - (currentLedger.paidAmount || 0));
     if (maxDueAllowed <= 0 && (currentLedger.totalPayable || 0) > 0) {
       console.warn("Attempted to collect payment for fully paid student, aborted");
       return null as any;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   FileSpreadsheet, ArrowUpRight, ArrowDownLeft, Plus, Search, Filter, Calendar,
   Building2, CreditCard, Eye, RotateCcw, AlertTriangle, ShieldCheck, CheckCircle2,
@@ -14,6 +14,7 @@ import { useToast } from '../../../context/ToastContext';
 import { exportToExcel } from '../../../utils/excelExport';
 import { validateSearchQuery } from '../../../utils/validation';
 import { ValidatedSearchInput } from '../../common/ValidatedSearchInput';
+import { fetchFinanceTransactionsSummaryApi } from '../../../api/finance';
 
 interface TransactionsMasterLedgerViewProps {
   filterType?: string;
@@ -43,11 +44,33 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
     }
   }, [initialSubTab]);
 
+  const hasAttemptedFinanceFetchRef = useRef(false);
+  const [summaryStats, setSummaryStats] = useState<{
+    totalInflow?: number;
+    totalOutflow?: number;
+    netBalance?: number;
+    todayInflow?: number;
+  } | null>(null);
+
   useEffect(() => {
+    if (hasAttemptedFinanceFetchRef.current) return;
     if ((!financialAccounts || financialAccounts.length === 0 || !financialCategories || financialCategories.length === 0) && fetchFinanceData) {
+      hasAttemptedFinanceFetchRef.current = true;
       fetchFinanceData().catch(() => {});
     }
   }, [financialAccounts, financialCategories, fetchFinanceData]);
+
+  useEffect(() => {
+    let active = true;
+    fetchFinanceTransactionsSummaryApi()
+      .then((res) => {
+        if (active && res && typeof res === 'object') {
+          setSummaryStats(res);
+        }
+      })
+      .catch(() => {});
+    return () => { active = false; };
+  }, [selectedBranch, selectedAcademicYear, financeTransactions.length]);
 
   // Filter States
   const [searchQuery, setSearchQuery] = useState('');
@@ -369,20 +392,29 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
     return matchBranch && matchAy;
   });
 
-  const totalIncome = uniqueFinanceTransactions
+  const computedTotalIncome = uniqueFinanceTransactions
     .filter(t => t.type === 'Income' && t.status === 'Completed')
     .reduce((sum, t) => sum + t.amount, 0);
 
-  const totalExpenses = uniqueFinanceTransactions
+  const computedTotalExpenses = uniqueFinanceTransactions
     .filter(t => t.type === 'Expense' && t.status === 'Completed')
     .reduce((sum, t) => sum + t.amount, 0);
 
-  const netBalance = totalIncome - totalExpenses;
+  const useServerSummary = Boolean(summaryStats && (uniqueFinanceTransactions.length === 0 || uniqueFinanceTransactions.length >= 100));
+  const totalIncome = useServerSummary ? Number(summaryStats?.totalInflow ?? computedTotalIncome) : computedTotalIncome;
+  const totalExpenses = useServerSummary ? Number(summaryStats?.totalOutflow ?? computedTotalExpenses) : computedTotalExpenses;
+
+  const netBalance = useServerSummary && summaryStats?.netBalance !== undefined
+    ? Number(summaryStats.netBalance)
+    : totalIncome - totalExpenses;
 
   const todayStr = new Date().toISOString().split('T')[0];
-  const todayIncome = uniqueFinanceTransactions
+  const computedTodayIncome = uniqueFinanceTransactions
     .filter(t => t.type === 'Income' && t.status === 'Completed' && t.date === todayStr)
     .reduce((sum, t) => sum + t.amount, 0);
+  const todayIncome = useServerSummary && summaryStats?.todayInflow !== undefined
+    ? Number(summaryStats.todayInflow)
+    : computedTodayIncome;
 
   const todayExpenses = uniqueFinanceTransactions
     .filter(t => t.type === 'Expense' && t.status === 'Completed' && t.date === todayStr)

@@ -413,7 +413,12 @@ const exportData = useMemo(() => {
         const targetBlock = formData.hostelBlockName || 
           (liveHostelBlocks || []).find((b: any) => formData.name?.toLowerCase().includes((b.hostelName || b.name || "").toLowerCase()))?.hostelName ||
           "All";
-        const feePlan = formData.paymentEligibility === 'One-Time Only' ? 'Annual' : 'Term-wise';
+        const feePlan =
+          formData.paymentEligibility === 'One-Time Only'
+            ? 'Annual'
+            : formData.paymentEligibility === 'Both One-Time and Term-Wise'
+              ? 'Both One-Time and Term-Wise'
+              : 'Term-wise';
         const applicableTerms = formData.paymentEligibility === 'One-Time Only' 
           ? [] 
           : (formData.applicableTerms && formData.applicableTerms.length > 0 ? formData.applicableTerms : [...availableAcademicTerms]);
@@ -761,13 +766,32 @@ const exportData = useMemo(() => {
                             });
                           }}
                           className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                            formData.paymentEligibility === "Term-Wise Allowed" || formData.paymentEligibility === "Both One-Time and Term-Wise"
+                            formData.paymentEligibility === "Term-Wise Allowed"
                               ? "bg-amber-600 text-white border-amber-600 shadow-sm"
                               : "bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-amber-300"
                           }`}
                         >
                           <Calculator className="w-3.5 h-3.5" />
                           Term-wise
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFormData({
+                              ...formData,
+                              paymentEligibility: "Both One-Time and Term-Wise",
+                              frequency: "Term-wise",
+                              applicableTerms: formData.applicableTerms && formData.applicableTerms.length > 0 ? formData.applicableTerms : [...availableAcademicTerms],
+                            });
+                          }}
+                          className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1.5 cursor-pointer col-span-2 ${
+                            formData.paymentEligibility === "Both One-Time and Term-Wise"
+                              ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
+                              : "bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-indigo-300"
+                          }`}
+                        >
+                          <Calculator className="w-3.5 h-3.5" />
+                          Both (One-time &amp; Term-wise)
                         </button>
                       </div>
                     </div>

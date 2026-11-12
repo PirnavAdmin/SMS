@@ -55,7 +55,7 @@ public class HostelFeeConfig
     public string? Branch { get; set; } = string.Empty;
 
     [MaxLength(50)]
-    public string FeePlan { get; set; } = "Annual"; // "Monthly", "Quarterly", "Half Yearly", "Annual", "Term-wise"
+    public string FeePlan { get; set; } = "Annual"; // "Monthly", "Quarterly", "Half Yearly", "Annual", "Term-wise", "Both One-Time and Term-Wise"
 
     [Column(TypeName = "decimal(18,2)")]
     public decimal HostelFee { get; set; } = 40000m;

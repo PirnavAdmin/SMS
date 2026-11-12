@@ -487,7 +487,10 @@ export const FinanceHostelConfigView: React.FC = () => {
       if (matchedHead.paymentEligibility === "One-Time Only") {
         initialFeePlan = "Annual";
         initialTerms = [];
-      } else if (matchedHead.paymentEligibility === "Term-Wise Allowed" || matchedHead.paymentEligibility === "Both One-Time and Term-Wise") {
+      } else if (matchedHead.paymentEligibility === "Both One-Time and Term-Wise") {
+        initialFeePlan = "Both One-Time and Term-Wise";
+        initialTerms = matchedHead.applicableTerms && matchedHead.applicableTerms.length > 0 ? matchedHead.applicableTerms : [...availableScheduleTerms];
+      } else if (matchedHead.paymentEligibility === "Term-Wise Allowed") {
         initialFeePlan = "Term-wise";
         initialTerms = matchedHead.applicableTerms && matchedHead.applicableTerms.length > 0 ? matchedHead.applicableTerms : [...availableScheduleTerms];
       }
@@ -1148,6 +1151,14 @@ export const FinanceHostelConfigView: React.FC = () => {
                             ? c.applicableTerms
                             : (matchedHead?.applicableTerms && matchedHead.applicableTerms.length > 0 ? matchedHead.applicableTerms : availableScheduleTerms);
 
+                          if (resolvedPlan === "Both One-Time and Term-Wise") {
+                            return (
+                              <span className="px-2.5 py-1 rounded-full bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300 font-extrabold text-[10px] border border-indigo-200 dark:border-indigo-800 inline-flex items-center gap-1 shadow-xs">
+                                Both (One-time &amp; Term-wise) ({terms.length} Terms)
+                              </span>
+                            );
+                          }
+
                           return (
                             <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-extrabold text-[10px] border border-emerald-200 dark:border-emerald-800 inline-flex items-center gap-1 shadow-xs">
                               Term-wise ({terms.length} Terms)
@@ -1257,7 +1268,10 @@ export const FinanceHostelConfigView: React.FC = () => {
                         if (matchedHead.paymentEligibility === "One-Time Only") {
                           newPlan = "Annual";
                           newTerms = [];
-                        } else if (matchedHead.paymentEligibility === "Term-Wise Allowed" || matchedHead.paymentEligibility === "Both One-Time and Term-Wise") {
+                        } else if (matchedHead.paymentEligibility === "Both One-Time and Term-Wise") {
+                          newPlan = "Both One-Time and Term-Wise";
+                          newTerms = matchedHead.applicableTerms && matchedHead.applicableTerms.length > 0 ? matchedHead.applicableTerms : [...availableScheduleTerms];
+                        } else if (matchedHead.paymentEligibility === "Term-Wise Allowed") {
                           newPlan = "Term-wise";
                           newTerms = matchedHead.applicableTerms && matchedHead.applicableTerms.length > 0 ? matchedHead.applicableTerms : [...availableScheduleTerms];
                         }
@@ -1499,7 +1513,11 @@ export const FinanceHostelConfigView: React.FC = () => {
                         if (!matched) return null;
                         return (
                           <span className="text-[10px] font-bold text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950 px-2 py-0.5 rounded-full border border-sky-200 dark:border-sky-800">
-                            Fee Head: {matched.paymentEligibility === 'One-Time Only' ? 'Annual' : 'Term-wise'}
+                            Fee Head: {matched.paymentEligibility === 'One-Time Only'
+                              ? 'Annual'
+                              : matched.paymentEligibility === 'Both One-Time and Term-Wise'
+                                ? 'Both (One-time & Term-wise)'
+                                : 'Term-wise'}
                           </span>
                         );
                       })()}
@@ -1514,6 +1532,7 @@ export const FinanceHostelConfigView: React.FC = () => {
                       <option value="" disabled hidden>Select Payment Frequency</option>
                       <option value="Annual">Annual (Full Session)</option>
                       <option value="Term-wise">Term-wise</option>
+                      <option value="Both One-Time and Term-Wise">Both (One-time &amp; Term-wise)</option>
                       <option value="Half Yearly">Half Yearly</option>
                       <option value="Quarterly">Quarterly</option>
                       <option value="Monthly">Monthly</option>
@@ -1541,8 +1560,8 @@ export const FinanceHostelConfigView: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Term Selection Checkboxes (for Term-wise) */}
-                {form.feePlan === "Term-wise" && (
+                {/* Term Selection Checkboxes (for Term-wise or Both) */}
+                {(form.feePlan === "Term-wise" || form.feePlan === "Both One-Time and Term-Wise") && (
                   <div className="p-3 rounded-xl bg-sky-50 dark:bg-sky-950/30 border border-sky-200/60 dark:border-sky-800/60 space-y-2">
                     <span className="font-bold text-xs text-sky-900 dark:text-sky-200 block">
                       Applicable Terms:

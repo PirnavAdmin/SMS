@@ -1231,7 +1231,8 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     setIsProcessingPayment(true);
     setShowPaymentConfirmModal(false);
 
-    const numericAmount = amountPaying;
+    try {
+      const numericAmount = amountPaying;
 
     let remainingPaid = numericAmount;
     const paymentAllocations = selectedInstallments.map((id) => {
@@ -1318,6 +1319,15 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
       selectedInstallmentIds: selectedInstallments,
       paymentAllocation: paymentAllocations,
     });
+
+    if (!payment) {
+      addToast(
+        "error",
+        "Payment Blocked",
+        "Could not initialize payment record. Please refresh the student fee profile and try again.",
+      );
+      return;
+    }
 
     const receiptNumber = payment?.receiptNo || "";
 
@@ -1521,10 +1531,15 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     setRemarks("");
     setFineAmountInput("0");
     setFineReason("");
-    setSelectedConcessionId("");
-    setDiscountAmountInput("0");
-    setCustomAmountReceived("");
-    setIsProcessingPayment(false);
+      setSelectedConcessionId("");
+      setDiscountAmountInput("0");
+      setCustomAmountReceived("");
+    } catch (err: any) {
+      console.error("Error in executeProcessPayment:", err);
+      addToast("error", "Payment Error", err?.message || "An unexpected error occurred while processing payment.");
+    } finally {
+      setIsProcessingPayment(false);
+    }
   };
 
   useEffect(() => {

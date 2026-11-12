@@ -96,4 +96,29 @@ public class DashboardServiceTests
         Assert.Contains(summary.ClassWiseStrength, c => c.ClassName == "Class 1" && c.StudentCount == 2);
         Assert.Contains(summary.ClassWiseStrength, c => c.ClassName == "Class 2" && c.StudentCount == 1);
     }
+
+    [Fact]
+    public async Task GetDashboardSummaryAsync_ResolvesShortAcademicYearFormatAgainstLongFormat()
+    {
+        using var context = CreateDbContext();
+
+        context.Branches.Add(new Branch { BranchId = 1, BranchName = "Capital Park" });
+        context.AcademicYears.Add(new AcademicYear { AcademicYearId = 1, AcademicYearName = "2026-2027", IsDeleted = false });
+        context.Classes.Add(new ClassGrade { ClassId = 1, ClassName = "Grade 1", CampusLocation = "Capital Park", AcademicYear = "2026-2027", Status = "Active" });
+        context.Students.AddRange(
+            new Student { StudentId = 1, AdmissionNumber = "CP-01", RollNumber = "1", StudentName = "Student One", BranchId = 1, AcademicYearId = 1, ClassId = 1, Status = "Active", IsDeleted = false },
+            new Student { StudentId = 2, AdmissionNumber = "CP-02", RollNumber = "2", StudentName = "Student Two", BranchId = 1, AcademicYearId = 1, ClassId = 1, Status = "Active", IsDeleted = false }
+        );
+        context.Staff.Add(new Staff { StaffId = 1, FirstName = "Jane", LastName = "Doe", BranchName = "Capital Park", Department = "Teaching", IsActive = true });
+
+        await context.SaveChangesAsync();
+
+        var service = new DashboardService(context);
+
+        var summary = await service.GetDashboardSummaryAsync("Capital Park", null, "2026-27");
+
+        Assert.Equal(2, summary.TotalStudents);
+        Assert.Equal(1, summary.TeachingStaff);
+        Assert.Equal(1, summary.TotalClasses);
+    }
 }

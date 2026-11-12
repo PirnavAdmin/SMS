@@ -55,6 +55,7 @@ import { useAuth } from "../../../context/AuthContext";
 import * as FinanceAPI from "../../../api/finance";
 import { ConfirmModal } from "../../common/ConfirmModal";
 import { DateInput } from "../../common/DateInput";
+import { AdvancedDatePicker } from "../../common/AdvancedDatePicker";
 import { Pagination } from "../../common/Pagination";
 import { SchoolPrintHeader } from "../../common/SchoolPrintHeader";
 import { lookupPostalCode, getOfflinePostalInfo } from "../../../utils/postalLookup";
@@ -3628,27 +3629,24 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
                       Date of Birth <span className="text-rose-500 font-bold ml-0.5">*</span>
                     </label>
-                    <input
-                      type="date"
+                    <AdvancedDatePicker
                       required
                       value={
                         formData.dob
                           ? formatToISO(formData.dob) || formData.dob
                           : ""
                       }
-                      onChange={(e) => {
-                        const val = e.target.value;
+                      onChange={(val) => {
                         if (val) {
                           handleDOBChange(formatToDDMMYYYY(val, "/"));
                         } else {
                           handleDOBChange("");
                         }
                       }}
-                      className={`w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono text-slate-900 dark:text-white outline-none ${
-                        dobError
-                          ? "border-rose-500"
-                          : "border-slate-200 dark:border-slate-700"
-                      }`}
+                      maxDate={new Date().toISOString().split("T")[0]}
+                      minYear={1990}
+                      maxYear={new Date().getFullYear()}
+                      error={Boolean(dobError)}
                     />
                     {dobError && (
                       <p className="text-[10px] text-rose-500 mt-0.5 font-bold">
@@ -3769,8 +3767,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                     <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
                       Date of Admission <span className="text-rose-500 font-bold ml-0.5">*</span>
                     </label>
-                    <input
-                      type="date"
+                    <AdvancedDatePicker
                       required
                       value={
                         formData.admissionDate
@@ -3779,14 +3776,12 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                             ? formatToISO(formData.joiningDate) || formData.joiningDate
                             : ""
                       }
-                      onChange={(e) => {
-                        handleAdmissionDateChange(e.target.value);
+                      onChange={(val) => {
+                        handleAdmissionDateChange(val);
                       }}
-                      className={`w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono text-slate-900 dark:text-white outline-none ${
-                        admissionDateError
-                          ? "border-rose-500"
-                          : "border-slate-200 dark:border-slate-700"
-                      }`}
+                      minYear={2000}
+                      maxYear={new Date().getFullYear() + 2}
+                      error={Boolean(admissionDateError)}
                     />
                     {admissionDateError && (
                       <p className="text-[10px] text-rose-500 mt-0.5 font-bold">

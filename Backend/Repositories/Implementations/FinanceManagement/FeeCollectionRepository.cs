@@ -1407,49 +1407,53 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             PaidItemsJson = itemsJson
         };
 
-        await using var transaction = _context.Database.IsRelational()
-            ? await _context.Database.BeginTransactionAsync()
-            : null;
-
-        _context.FeePayments.Add(payment);
-
-        string canonicalStr = canonicalStudentId.ToString();
-        var matchingAssignment = await _context.StudentFeeAssignments
-            .FirstOrDefaultAsync(a => a.StudentId == canonicalStr && (a.Status == "Active" || string.IsNullOrEmpty(a.Status)));
-        if (matchingAssignment != null)
+        var strategy = _context.Database.CreateExecutionStrategy();
+        await strategy.ExecuteAsync(async () =>
         {
-            matchingAssignment.PaidAmount += request.TotalAmountPaid;
-            matchingAssignment.DueAmount = Math.Max(0m, matchingAssignment.TotalAmount - matchingAssignment.PaidAmount - request.ConcessionDiscountAmount);
-        }
+            await using var transaction = _context.Database.IsRelational()
+                ? await _context.Database.BeginTransactionAsync()
+                : null;
 
-        var acct = await ResolveActiveAccountForModeAsync(payment.PaymentMethod);
-        if (acct != null)
-        {
-            acct.CurrentBalance += payment.Amount;
-        }
+            _context.FeePayments.Add(payment);
 
-        _context.LedgerEntries.Add(new LedgerEntry
-        {
-            TransactionDate = payment.PaymentDate,
-            TransactionType = "Fee Collection",
-            Category = "Tuition & Academic Fees",
-            ReferenceNo = receiptNo,
-            FinancialAccountId = acct?.Id,
-            StudentId = canonicalStudentId,
-            AdmissionNo = student?.AdmissionNumber ?? canonicalStr,
-            AcademicYearId = student?.AcademicYearId ?? 1,
-            BranchId = student?.BranchId ?? 1,
-            Debit = 0m,
-            Credit = payment.Amount,
-            Balance = acct?.CurrentBalance ?? 0m,
-            Particulars = $"Fee Collection Receipt ({receiptNo}) - {payment.FeeHeadName}"
+            string canonicalStr = canonicalStudentId.ToString();
+            var matchingAssignment = await _context.StudentFeeAssignments
+                .FirstOrDefaultAsync(a => a.StudentId == canonicalStr && (a.Status == "Active" || string.IsNullOrEmpty(a.Status)));
+            if (matchingAssignment != null)
+            {
+                matchingAssignment.PaidAmount += request.TotalAmountPaid;
+                matchingAssignment.DueAmount = Math.Max(0m, matchingAssignment.TotalAmount - matchingAssignment.PaidAmount - request.ConcessionDiscountAmount);
+            }
+
+            var acct = await ResolveActiveAccountForModeAsync(payment.PaymentMethod);
+            if (acct != null)
+            {
+                acct.CurrentBalance += payment.Amount;
+            }
+
+            _context.LedgerEntries.Add(new LedgerEntry
+            {
+                TransactionDate = payment.PaymentDate,
+                TransactionType = "Fee Collection",
+                Category = "Tuition & Academic Fees",
+                ReferenceNo = receiptNo,
+                FinancialAccountId = acct?.Id,
+                StudentId = canonicalStudentId,
+                AdmissionNo = student?.AdmissionNumber ?? canonicalStr,
+                AcademicYearId = student?.AcademicYearId ?? 1,
+                BranchId = student?.BranchId ?? 1,
+                Debit = 0m,
+                Credit = payment.Amount,
+                Balance = acct?.CurrentBalance ?? 0m,
+                Particulars = $"Fee Collection Receipt ({receiptNo}) - {payment.FeeHeadName}"
+            });
+
+            await _context.SaveChangesAsync();
+            if (transaction != null)
+            {
+                await transaction.CommitAsync();
+            }
         });
-
-        await _context.SaveChangesAsync();
-        if (transaction != null)
-        {
-            await transaction.CommitAsync();
-        }
 
         var profile = await GetStudentFeeProfileAsync(canonicalStudentId, request.AcademicYear);
         decimal remaining = profile != null ? profile.TotalOutstandingBalance : 0m;
@@ -2086,50 +2090,54 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             .FirstOrDefaultAsync(p => p.ReceiptNo == receiptNo || ($"REC-{p.PaymentDate.Year}-{p.Id:D4}") == receiptNo || ($"REC-2026-{p.Id:D4}") == receiptNo);
         if (payment == null || payment.Status == "Cancelled" || payment.Status == "Reversed") return false;
 
-        await using var transaction = _context.Database.IsRelational()
-            ? await _context.Database.BeginTransactionAsync()
-            : null;
-
-        payment.Status = "Cancelled";
-        payment.Remarks = string.IsNullOrWhiteSpace(payment.Remarks)
-            ? $"Cancelled: {reason}"
-            : $"{payment.Remarks} [Cancelled: {reason}]";
-
-        var assignment = await _context.StudentFeeAssignments
-            .FirstOrDefaultAsync(a => a.StudentId == payment.StudentId && (a.Status == "Active" || string.IsNullOrEmpty(a.Status)));
-        if (assignment != null && payment.Amount > 0)
+        var strategy = _context.Database.CreateExecutionStrategy();
+        await strategy.ExecuteAsync(async () =>
         {
-            assignment.PaidAmount = Math.Max(0m, assignment.PaidAmount - payment.Amount);
-            assignment.DueAmount = Math.Max(0m, assignment.TotalAmount - assignment.PaidAmount);
-        }
+            await using var transaction = _context.Database.IsRelational()
+                ? await _context.Database.BeginTransactionAsync()
+                : null;
 
-        var acct = await ResolveActiveAccountForModeAsync(payment.PaymentMethod);
-        if (acct != null && payment.Amount > 0)
-        {
-            acct.CurrentBalance -= payment.Amount;
-        }
+            payment.Status = "Cancelled";
+            payment.Remarks = string.IsNullOrWhiteSpace(payment.Remarks)
+                ? $"Cancelled: {reason}"
+                : $"{payment.Remarks} [Cancelled: {reason}]";
 
-        int.TryParse(payment.StudentId, out int sId);
-        _context.LedgerEntries.Add(new LedgerEntry
-        {
-            TransactionDate = DateTime.UtcNow,
-            TransactionType = "Reversal",
-            Category = "Tuition & Academic Fees",
-            ReferenceNo = $"REV-{(!string.IsNullOrWhiteSpace(payment.ReceiptNo) ? payment.ReceiptNo : receiptNo)}",
-            FinancialAccountId = acct?.Id,
-            StudentId = sId > 0 ? sId : null,
-            AdmissionNo = payment.StudentId,
-            Debit = payment.Amount > 0 ? payment.Amount : 0m,
-            Credit = 0m,
-            Balance = acct?.CurrentBalance ?? 0m,
-            Particulars = $"Cancelled Receipt {(!string.IsNullOrWhiteSpace(payment.ReceiptNo) ? payment.ReceiptNo : receiptNo)}: {reason}"
+            var assignment = await _context.StudentFeeAssignments
+                .FirstOrDefaultAsync(a => a.StudentId == payment.StudentId && (a.Status == "Active" || string.IsNullOrEmpty(a.Status)));
+            if (assignment != null && payment.Amount > 0)
+            {
+                assignment.PaidAmount = Math.Max(0m, assignment.PaidAmount - payment.Amount);
+                assignment.DueAmount = Math.Max(0m, assignment.TotalAmount - assignment.PaidAmount);
+            }
+
+            var acct = await ResolveActiveAccountForModeAsync(payment.PaymentMethod);
+            if (acct != null && payment.Amount > 0)
+            {
+                acct.CurrentBalance -= payment.Amount;
+            }
+
+            int.TryParse(payment.StudentId, out int sId);
+            _context.LedgerEntries.Add(new LedgerEntry
+            {
+                TransactionDate = DateTime.UtcNow,
+                TransactionType = "Reversal",
+                Category = "Tuition & Academic Fees",
+                ReferenceNo = $"REV-{(!string.IsNullOrWhiteSpace(payment.ReceiptNo) ? payment.ReceiptNo : receiptNo)}",
+                FinancialAccountId = acct?.Id,
+                StudentId = sId > 0 ? sId : null,
+                AdmissionNo = payment.StudentId,
+                Debit = payment.Amount > 0 ? payment.Amount : 0m,
+                Credit = 0m,
+                Balance = acct?.CurrentBalance ?? 0m,
+                Particulars = $"Cancelled Receipt {(!string.IsNullOrWhiteSpace(payment.ReceiptNo) ? payment.ReceiptNo : receiptNo)}: {reason}"
+            });
+
+            await _context.SaveChangesAsync();
+            if (transaction != null)
+            {
+                await transaction.CommitAsync();
+            }
         });
-
-        await _context.SaveChangesAsync();
-        if (transaction != null)
-        {
-            await transaction.CommitAsync();
-        }
         return true;
     }
 
@@ -3880,63 +3888,67 @@ public class FeeCollectionRepository : IFeeCollectionRepository
 
         decimal netRefund = Math.Max(0m, request.RefundAmount - request.DeductionAmount);
 
-        await using var transaction = _context.Database.IsRelational()
-            ? await _context.Database.BeginTransactionAsync()
-            : null;
-
-        var acct = await ResolveActiveAccountForModeAsync(request.PaymentMode);
-        if (acct != null && netRefund > 0)
+        var strategy = _context.Database.CreateExecutionStrategy();
+        await strategy.ExecuteAsync(async () =>
         {
-            acct.CurrentBalance -= netRefund;
-        }
+            await using var transaction = _context.Database.IsRelational()
+                ? await _context.Database.BeginTransactionAsync()
+                : null;
 
-        string refNo = $"REF-HST-DEP-{canonicalStudentId}-{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}";
+            var acct = await ResolveActiveAccountForModeAsync(request.PaymentMode);
+            if (acct != null && netRefund > 0)
+            {
+                acct.CurrentBalance -= netRefund;
+            }
 
-        var ledger = new LedgerEntry
-        {
-            TransactionDate = DateTime.UtcNow,
-            TransactionType = "Refund",
-            Category = "Fee Refund",
-            ReferenceNo = refNo,
-            FinancialAccountId = acct?.Id,
-            StudentId = canonicalStudentId,
-            AdmissionNo = admNo,
-            Debit = netRefund,
-            Credit = 0m,
-            Balance = acct?.CurrentBalance ?? 0m,
-            Particulars = $"Refund of Hostel Security Deposit (Gross: {request.RefundAmount:C}, Deductions: {request.DeductionAmount:C} for {request.DeductionReason ?? "None"}). Authorized by: {request.AuthorizedBy ?? "Admin"}",
-            AcademicYearId = student?.AcademicYearId ?? 1,
-            BranchId = student?.BranchId ?? 1
-        };
-        _context.LedgerEntries.Add(ledger);
+            string refNo = $"REF-HST-DEP-{canonicalStudentId}-{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}";
 
-        _context.FeeRefundRequests.Add(new FeeRefundRequest
-        {
-            RefundNo = refNo,
-            ReceiptNo = refNo,
-            StudentId = canonicalStudentId,
-            AdmissionNo = admNo,
-            StudentName = student?.StudentName ?? $"Student #{canonicalStudentId}",
-            ClassName = student?.ClassGrade?.ClassName ?? string.Empty,
-            Section = student?.ClassSection?.SectionName ?? string.Empty,
-            RefundAmount = netRefund,
-            Reason = string.IsNullOrWhiteSpace(request.DeductionReason)
-                ? "Hostel Security Deposit Refund"
-                : $"Hostel Security Deposit Refund (Deduction: {request.DeductionReason})",
-            Status = "Disbursed",
-            RequestedBy = request.AuthorizedBy ?? "Admin",
-            ApprovedBy = request.AuthorizedBy ?? "Admin",
-            RequestedDate = DateTime.UtcNow,
-            ProcessedDate = DateTime.UtcNow,
-            PaymentMode = request.PaymentMode ?? "Bank Transfer",
-            Remarks = request.Remarks ?? string.Empty
+            var ledger = new LedgerEntry
+            {
+                TransactionDate = DateTime.UtcNow,
+                TransactionType = "Refund",
+                Category = "Fee Refund",
+                ReferenceNo = refNo,
+                FinancialAccountId = acct?.Id,
+                StudentId = canonicalStudentId,
+                AdmissionNo = admNo,
+                Debit = netRefund,
+                Credit = 0m,
+                Balance = acct?.CurrentBalance ?? 0m,
+                Particulars = $"Refund of Hostel Security Deposit (Gross: {request.RefundAmount:C}, Deductions: {request.DeductionAmount:C} for {request.DeductionReason ?? "None"}). Authorized by: {request.AuthorizedBy ?? "Admin"}",
+                AcademicYearId = student?.AcademicYearId ?? 1,
+                BranchId = student?.BranchId ?? 1
+            };
+            _context.LedgerEntries.Add(ledger);
+
+            _context.FeeRefundRequests.Add(new FeeRefundRequest
+            {
+                RefundNo = refNo,
+                ReceiptNo = refNo,
+                StudentId = canonicalStudentId,
+                AdmissionNo = admNo,
+                StudentName = student?.StudentName ?? $"Student #{canonicalStudentId}",
+                ClassName = student?.ClassGrade?.ClassName ?? string.Empty,
+                Section = student?.ClassSection?.SectionName ?? string.Empty,
+                RefundAmount = netRefund,
+                Reason = string.IsNullOrWhiteSpace(request.DeductionReason)
+                    ? "Hostel Security Deposit Refund"
+                    : $"Hostel Security Deposit Refund (Deduction: {request.DeductionReason})",
+                Status = "Disbursed",
+                RequestedBy = request.AuthorizedBy ?? "Admin",
+                ApprovedBy = request.AuthorizedBy ?? "Admin",
+                RequestedDate = DateTime.UtcNow,
+                ProcessedDate = DateTime.UtcNow,
+                PaymentMode = request.PaymentMode ?? "Bank Transfer",
+                Remarks = request.Remarks ?? string.Empty
+            });
+
+            await _context.SaveChangesAsync();
+            if (transaction != null)
+            {
+                await transaction.CommitAsync();
+            }
         });
-
-        await _context.SaveChangesAsync();
-        if (transaction != null)
-        {
-            await transaction.CommitAsync();
-        }
         return true;
     }
 
