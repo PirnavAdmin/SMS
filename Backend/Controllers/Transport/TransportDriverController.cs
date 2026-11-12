@@ -10,7 +10,7 @@ namespace SMS.Api.Controllers
 {
     [ApiController]
     [Route("api/transport/drivers")]
-    [AllowAnonymous]
+    [Authorize]
     public class TransportDriverController : ControllerBase
     {
         private readonly ITransportDriverService _service;

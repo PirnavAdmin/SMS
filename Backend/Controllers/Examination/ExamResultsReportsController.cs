@@ -23,7 +23,7 @@ public class ExamResultsReportsController : ControllerBase
     /// Get dropdown options for Results & Reports (Classes, Sections, Exams, Status Filters)
     /// </summary>
     [HttpGet("options")]
-    [AllowAnonymous]
+    [Authorize]
     public async Task<IActionResult> GetOptions()
     {
         try
@@ -41,7 +41,7 @@ public class ExamResultsReportsController : ControllerBase
     /// Sub-tab 1: Calculate Results for a Class, Section & Exam (Clicking "Calculate Results" button - Screenshot 1 & 2)
     /// </summary>
     [HttpPost("calculate")]
-    [AllowAnonymous]
+    [Authorize]
     public async Task<IActionResult> CalculateResults([FromBody] CalculateResultsRequestDto request)
     {
         try
@@ -67,7 +67,7 @@ public class ExamResultsReportsController : ControllerBase
     /// </summary>
     [HttpPost("publish")]
     [HttpPost("save-bulk")]
-    [AllowAnonymous]
+    [Authorize]
     public async Task<IActionResult> PublishResults([FromBody] BulkSaveExamResultsDto request)
     {
         try
@@ -92,7 +92,7 @@ public class ExamResultsReportsController : ControllerBase
     /// Update calculated result details for a student (PUT /api/examination-new/results-reports/update-results)
     /// </summary>
     [HttpPut("update-results")]
-    [AllowAnonymous]
+    [Authorize]
     public async Task<IActionResult> UpdateResult(
         [FromBody] StudentReportCardRowDto request,
         [FromQuery] string className = "",
@@ -120,7 +120,7 @@ public class ExamResultsReportsController : ControllerBase
     /// Sub-tab 2: Get Student Report Cards List (Report Cards tab - Screenshot 3 & 4)
     /// </summary>
     [HttpGet("report-cards")]
-    [AllowAnonymous]
+    [Authorize]
     public async Task<IActionResult> GetReportCardsList(
         [FromQuery] string? className = null,
         [FromQuery] string? sectionName = null,
@@ -142,7 +142,7 @@ public class ExamResultsReportsController : ControllerBase
     /// Get Printable Individual Report Card by Student ID (Clicking "View / Print Card" - Screenshot 5)
     /// </summary>
     [HttpGet("print-card/{studentId:int}")]
-    [AllowAnonymous]
+    [Authorize]
     public async Task<IActionResult> GetPrintableReportCard(
         int studentId,
         [FromQuery] string? className = "",
@@ -164,7 +164,7 @@ public class ExamResultsReportsController : ControllerBase
     /// Clear calculated results for a Class & Section (DELETE /api/examination-new/results-reports/clear-results)
     /// </summary>
     [HttpDelete("clear-results")]
-    [AllowAnonymous]
+    [Authorize]
     public async Task<IActionResult> ClearResults([FromQuery] string className, [FromQuery] string sectionName)
     {
         try

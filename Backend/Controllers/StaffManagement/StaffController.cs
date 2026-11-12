@@ -21,7 +21,7 @@ public class StaffController : ControllerBase
     }
 
     [HttpGet("next-emp-id")]
-    [AllowAnonymous]
+    [Authorize]
     public async Task<IActionResult> GetNextEmployeeId([FromQuery] string? category) =>
         Ok(new { success = true, data = new { nextEmployeeId = await _staffService.GetNextEmployeeIdAsync(category) } });
 
@@ -51,7 +51,7 @@ public class StaffController : ControllerBase
         Ok(new { success = true, data = await _staffService.GetTeachersForDropdownAsync(search) });
 
     [HttpPost]
-    [Authorize(Roles = "SuperAdmin,Admin,Principal")]
+    [Authorize(Roles = "SuperAdmin,Super Admin,Admin,Principal,HR")]
     public async Task<IActionResult> CreateStaff([FromBody] StaffCreateDto dto) =>
         Ok(new { success = true, message = "Staff member created successfully.", data = await _staffService.CreateStaffAsync(dto) });
 
@@ -60,8 +60,13 @@ public class StaffController : ControllerBase
     public async Task<IActionResult> UpdateStaff(int id, [FromBody] StaffCreateDto dto) =>
         Ok(new { success = true, message = "Staff member updated successfully.", data = await _staffService.UpdateStaffAsync(id, dto) });
 
+    [HttpPatch("{id:int}")]
+    [Authorize(Roles = "SuperAdmin,Super Admin,Admin,Principal,HR")]
+    public async Task<IActionResult> UpdateStaffStatus(int id, [FromBody] StaffStatusPatchDto dto) =>
+        Ok(new { success = true, message = "Staff status updated successfully.", data = await _staffService.UpdateStaffStatusAsync(id, dto) });
+
     [HttpDelete("{id:int}")]
-    [Authorize(Roles = "SuperAdmin,Admin,Principal")]
+    [Authorize(Roles = "SuperAdmin,Super Admin,Admin,Principal,HR")]
     public async Task<IActionResult> DeleteStaff(int id)
     {
         try
@@ -77,9 +82,9 @@ public class StaffController : ControllerBase
                 message = "Cannot delete this staff member. They are currently assigned to active classes, timetable slots, or other records. Please remove those assignments first."
             });
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            return StatusCode(500, new { success = false, message = ex.Message });
+            return StatusCode(500, new { success = false, message = "Failed to delete staff member." });
         }
     }
 }

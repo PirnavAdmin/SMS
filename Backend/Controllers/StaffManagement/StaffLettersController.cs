@@ -13,6 +13,7 @@ using SMS.Api.Dtos;
 using SMS.Api.Models;
 
 [ApiController]
+[Authorize(Roles = "SuperAdmin,Super Admin,Admin,Principal,HR")]
 [Route("api/staff-letters")]
 public class StaffLettersController : ControllerBase
 {
@@ -81,7 +82,7 @@ public class StaffLettersController : ControllerBase
 
     // GET: api/staff-letters
     [HttpGet]
-    [AllowAnonymous]
+    [Authorize]
     public async Task<IActionResult> GetAllLetters()
     {
         try
@@ -137,7 +138,7 @@ public class StaffLettersController : ControllerBase
 
     // GET: api/staff-letters/{id}
     [HttpGet("{id}")]
-    [AllowAnonymous]
+    [Authorize]
     public async Task<IActionResult> GetLetterById(string id)
     {
         try
@@ -190,7 +191,7 @@ public class StaffLettersController : ControllerBase
 
     // POST: api/staff-letters
     [HttpPost]
-    [AllowAnonymous]
+    [Authorize]
     public async Task<IActionResult> CreateOrSaveLetter([FromBody] CreateStaffLetterDto dto)
     {
         if (dto == null) return BadRequest("Invalid letter payload.");
@@ -282,7 +283,7 @@ public class StaffLettersController : ControllerBase
 
     // PUT: api/staff-letters/{id}
     [HttpPut("{id}")]
-    [AllowAnonymous]
+    [Authorize]
     public async Task<IActionResult> UpdateLetter(string id, [FromBody] CreateStaffLetterDto dto)
     {
         if (dto == null) return BadRequest("Invalid letter payload.");
@@ -344,7 +345,7 @@ public class StaffLettersController : ControllerBase
 
     // DELETE: api/staff-letters/{id}
     [HttpDelete("{id}")]
-    [AllowAnonymous]
+    [Authorize]
     public async Task<IActionResult> DeleteLetter(string id)
     {
         try
@@ -374,7 +375,7 @@ public class StaffLettersController : ControllerBase
 
     // GET: api/staff-letters/settings
     [HttpGet("settings")]
-    [AllowAnonymous]
+    [Authorize]
     public async Task<IActionResult> GetGlobalSettings()
     {
         try
@@ -441,7 +442,7 @@ public class StaffLettersController : ControllerBase
     // POST: api/staff-letters/settings
     [HttpPost("settings")]
     [HttpPut("settings")]
-    [AllowAnonymous]
+    [Authorize]
     public async Task<IActionResult> SaveGlobalSettings([FromBody] GlobalLetterSettingsDto dto)
     {
         if (dto == null) return BadRequest("Invalid settings payload.");

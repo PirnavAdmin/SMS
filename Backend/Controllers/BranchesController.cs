@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,6 +12,7 @@ using SMS.Api.Models;
 namespace SMS.Api.Controllers
 {
     [ApiController]
+    [Authorize]
 [Route("api/branches")]
     public class BranchesController : ControllerBase
     {

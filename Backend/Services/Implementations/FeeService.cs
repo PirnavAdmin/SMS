@@ -70,8 +70,9 @@ public class FeeService : IFeeService
         var cls = await _context.Classes.AsNoTracking().FirstOrDefaultAsync(c => c.ClassId == student.ClassId);
         string className = cls?.ClassName ?? string.Empty;
 
+        var targetStudentIdStr = student.StudentId.ToString();
         var assignment = await _context.StudentFeeAssignments.AsNoTracking()
-            .FirstOrDefaultAsync(a => a.StudentId == student.StudentId.ToString() && (a.Status == "Active" || string.IsNullOrEmpty(a.Status)));
+            .FirstOrDefaultAsync(a => a.StudentId == targetStudentIdStr && (a.Status == "Active" || string.IsNullOrEmpty(a.Status)));
 
         DynamicFeeStructure? matchedStructure = null;
         if (assignment != null && assignment.DynamicFeeStructureId.HasValue)

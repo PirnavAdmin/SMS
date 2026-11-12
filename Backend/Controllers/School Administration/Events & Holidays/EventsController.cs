@@ -13,7 +13,7 @@ using System.Threading.Tasks;
 
 [ApiController]
 [Route("api/events")]
-[AllowAnonymous]
+[Authorize]
 [Tags("Events & Holidays Calendar")]
 public class EventsController : ControllerBase
 {
@@ -29,7 +29,7 @@ public class EventsController : ControllerBase
     // =========================================================
 
     [HttpGet("options")]
-    public IActionResult GetEventsOptions()
+    public async Task<IActionResult> GetEventsOptions()
     {
         var legendCategories = new List<EventCategoryLegendDto>
         {
@@ -42,7 +42,14 @@ public class EventsController : ControllerBase
 
         var holidayTypes = new List<string> { "All Types", "National", "Gazetted", "Festival", "Vacation", "Optional" };
         var eventCategories = new List<string> { "Sports Day", "Science Exhibition", "Parent Teacher Meeting", "Cultural Fest", "Workshop & Seminar", "Academic" };
-        var academicYears = new List<string> { "2027-28", "2026-27", "2025-26" };
+        var academicYears = await _context.AcademicYears
+            .AsNoTracking()
+            .Where(a => !a.IsDeleted && !string.IsNullOrEmpty(a.AcademicYearName))
+            .OrderByDescending(a => a.IsCurrent)
+            .ThenByDescending(a => a.AcademicYearId)
+            .Select(a => a.AcademicYearName)
+            .Distinct()
+            .ToListAsync();
 
         return Ok(new
         {
@@ -358,22 +365,7 @@ public class EventsController : ControllerBase
             return Ok(new { success = true, message = "School event updated successfully in database.", data = MapSchoolEventToDto(e) });
         }
 
-        return Ok(new
-        {
-            success = true,
-            message = "School event updated successfully.",
-            data = new
-            {
-                id = id,
-                title = dto.Title,
-                category = dto.Category,
-                venue = dto.Venue,
-                startDate = dto.StartDate,
-                endDate = dto.EndDate,
-                description = dto.Description,
-                status = dto.Status
-            }
-        });
+        return NotFound(new { success = false, message = $"School event '{id}' not found." });
     }
 
     [HttpDelete("school-events/{id}")]
@@ -385,11 +377,13 @@ public class EventsController : ControllerBase
         int.TryParse(cleanedId, out numericId);
 
         var e = await _context.SchoolEvents.FirstOrDefaultAsync(x => x.EventId == numericId || x.EventId.ToString() == id);
-        if (e != null)
+        if (e == null)
         {
-            _context.SchoolEvents.Remove(e);
-            await _context.SaveChangesAsync();
+            return NotFound(new { success = false, message = $"School event '{id}' not found." });
         }
+
+        _context.SchoolEvents.Remove(e);
+        await _context.SaveChangesAsync();
 
         return Ok(new { success = true, message = "School event deleted successfully from database." });
     }
@@ -541,20 +535,7 @@ public class EventsController : ControllerBase
             return Ok(new { success = true, message = "Holiday updated successfully in database.", data = MapHolidayToDto(h) });
         }
 
-        return Ok(new
-        {
-            success = true,
-            message = "Holiday updated successfully.",
-            data = new
-            {
-                id = id,
-                name = dto.HolidayName,
-                type = dto.HolidayType,
-                startDate = dto.StartDate,
-                endDate = dto.EndDate,
-                description = dto.Description
-            }
-        });
+        return NotFound(new { success = false, message = $"Holiday '{id}' not found." });
     }
 
     [HttpDelete("holidays/{id}")]
@@ -568,11 +549,13 @@ public class EventsController : ControllerBase
         int.TryParse(cleanedId, out numericId);
 
         var h = await _context.HolidayCalendars.FirstOrDefaultAsync(x => x.HolidayId == numericId || x.HolidayId.ToString() == id);
-        if (h != null)
+        if (h == null)
         {
-            _context.HolidayCalendars.Remove(h);
-            await _context.SaveChangesAsync();
+            return NotFound(new { success = false, message = $"Holiday '{id}' not found." });
         }
+
+        _context.HolidayCalendars.Remove(h);
+        await _context.SaveChangesAsync();
 
         return Ok(new { success = true, message = "Holiday deleted successfully from database." });
     }

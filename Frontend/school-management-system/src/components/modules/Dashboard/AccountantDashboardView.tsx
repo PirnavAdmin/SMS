@@ -40,7 +40,7 @@ interface AccountantDashboardViewProps {
 }
 
 export const AccountantDashboardView: React.FC<AccountantDashboardViewProps> = ({ onNavigate }) => {
-  const { user } = useAuth();
+  const { user, selectedBranch, selectedAcademicYear } = useAuth();
   const {
     students = [],
     feePayments = [],
@@ -53,31 +53,43 @@ export const AccountantDashboardView: React.FC<AccountantDashboardViewProps> = (
 
   const { addToast } = useToast();
   const [apiStats, setApiStats] = useState<any>(null);
+  const [apiError, setApiError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
 
   const loadDashboardData = useCallback(async (isManual = false) => {
     setIsLoading(true);
+    setApiError(null);
     try {
       const [dashRes] = await Promise.allSettled([
-        FinanceAPI.fetchFinanceDashboardStatsApi(),
+        FinanceAPI.fetchFinanceDashboardStatsApi(selectedBranch, selectedAcademicYear),
         fetchFinanceData ? fetchFinanceData() : Promise.resolve(),
       ]);
 
       if (dashRes.status === "fulfilled" && dashRes.value?.data) {
         setApiStats(dashRes.value.data);
+      } else if (dashRes.status === "rejected") {
+        const msg = dashRes.reason?.message || "Failed to load live finance dashboard metrics.";
+        setApiError(msg);
+        if (isManual) {
+          addToast("error", "Refresh Failed", msg);
+        }
       }
       setLastUpdated(new Date());
-      if (isManual) {
+      if (isManual && dashRes.status === "fulfilled") {
         addToast("success", "Dashboard Refreshed", "Loaded latest financial metrics and transactions.");
       }
-    } catch (err) {
-      console.warn("Failed to load accountant dashboard metrics:", err);
+    } catch (err: any) {
+      const msg = err?.message || "Failed to load accountant dashboard metrics.";
+      setApiError(msg);
+      if (isManual) {
+        addToast("error", "Refresh Failed", msg);
+      }
     } finally {
       setIsLoading(false);
     }
-  }, [fetchFinanceData, addToast]);
+  }, [fetchFinanceData, addToast, selectedBranch, selectedAcademicYear]);
 
   useEffect(() => {
     loadDashboardData(false);
@@ -192,6 +204,22 @@ export const AccountantDashboardView: React.FC<AccountantDashboardViewProps> = (
           </button>
         </div>
       </div>
+
+      {apiError && (
+        <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 flex items-center justify-between gap-3 text-sm text-rose-700 dark:text-rose-300 font-bold">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+            <span>{apiError}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => loadDashboardData(true)}
+            className="px-3 py-1 rounded-lg bg-rose-100 dark:bg-rose-900/50 hover:bg-rose-200 text-xs font-extrabold cursor-pointer"
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
       {/* Top 4 KPI Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

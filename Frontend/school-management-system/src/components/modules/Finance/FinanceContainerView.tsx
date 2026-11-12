@@ -113,6 +113,7 @@ export const FinanceContainerView: React.FC<FinanceContainerViewProps> = ({ init
         return (
           <FeeCollectionContainerView
             initialStudent={selectedStudentForCollect}
+            initialSubTab={activeTab === 'fee-receipts' ? 'receipts' : undefined}
             onPrintReceipt={(payment) => setReceiptToPrint(payment)}
           />
         );
@@ -139,6 +140,7 @@ export const FinanceContainerView: React.FC<FinanceContainerViewProps> = ({ init
         return (
           <FeeCollectionContainerView
             initialStudent={selectedStudentForCollect}
+            initialSubTab={activeTab === 'fee-receipts' ? 'receipts' : undefined}
             onPrintReceipt={(payment) => setReceiptToPrint(payment)}
           />
         );

@@ -27,6 +27,11 @@ namespace SMS.Api.Services.Implementations.Parent
             return await _parentRepository.IsStudentAssociatedWithParentAsync(parentUserId, studentId);
         }
 
+        public async Task<int?> GetStudentIdForUserAsync(int userId)
+        {
+            return await _parentRepository.GetStudentIdForUserAsync(userId);
+        }
+
         public async Task<List<ParentChildDto>> GetChildrenAsync(string parentIdentifier)
         {
             var students = await _parentRepository.GetChildrenByParentIdentifierAsync(parentIdentifier);

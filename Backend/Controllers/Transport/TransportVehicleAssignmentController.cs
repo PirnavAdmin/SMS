@@ -7,7 +7,7 @@ namespace SMS.Api.Controllers
 {
     [ApiController]
     [Route("api/transport/vehicle-assignments")]
-    [AllowAnonymous]
+    [Authorize]
     public class TransportVehicleAssignmentController : ControllerBase
     {
         private readonly ITransportVehicleAssignmentService _service;

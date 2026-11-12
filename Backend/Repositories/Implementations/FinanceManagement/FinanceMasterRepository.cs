@@ -1075,18 +1075,56 @@ public class FinanceMasterRepository : IFinanceMasterRepository
     public async Task<FinanceSettingsDto> GetFinanceSettingsAsync()
     {
         var activeAy = await _context.AcademicYears.AsNoTracking().FirstOrDefaultAsync(a => !a.IsDeleted && a.IsActive);
+        string activeAyName = activeAy?.AcademicYearName ?? string.Empty;
+
+        var settingsRow = await _context.SchoolSettings.AsNoTracking().FirstOrDefaultAsync();
+        if (settingsRow != null && !string.IsNullOrWhiteSpace(settingsRow.FinanceSettingsJson))
+        {
+            try
+            {
+                var saved = JsonSerializer.Deserialize<FinanceSettingsDto>(settingsRow.FinanceSettingsJson);
+                if (saved != null)
+                {
+                    if (string.IsNullOrWhiteSpace(saved.AcademicYear) && !string.IsNullOrEmpty(activeAyName))
+                    {
+                        saved.AcademicYear = activeAyName;
+                    }
+                    if (string.IsNullOrWhiteSpace(saved.ActiveAcademicYear) && !string.IsNullOrEmpty(activeAyName))
+                    {
+                        saved.ActiveAcademicYear = activeAyName;
+                    }
+                    return saved;
+                }
+            }
+            catch { }
+        }
+
         return new FinanceSettingsDto
         {
-            AcademicYear = activeAy?.AcademicYearName ?? "2026-2027",
+            AcademicYear = activeAyName,
+            ActiveAcademicYear = activeAyName,
+            FinancialYear = activeAyName,
             Currency = "INR",
-            ReceiptPrefix = "REC-2026-",
+            DefaultCurrency = "INR",
+            ReceiptPrefix = $"REC-{DateTime.UtcNow.Year}-",
+            InvoicePrefix = $"INV-{DateTime.UtcNow.Year}-",
             AutoReceiptNo = true
         };
     }
 
     public async Task<bool> UpdateFinanceSettingsAsync(FinanceSettingsDto settings)
     {
-        return await Task.FromResult(true);
+        var row = await _context.SchoolSettings.FirstOrDefaultAsync();
+        if (row == null)
+        {
+            row = new SchoolSettings { Id = 1 };
+            _context.SchoolSettings.Add(row);
+        }
+
+        row.FinanceSettingsJson = JsonSerializer.Serialize(settings);
+        row.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+        return true;
     }
 
     // =========================================================================
@@ -1130,7 +1168,10 @@ public class FinanceMasterRepository : IFinanceMasterRepository
     {
         DateTime targetDate = DateTime.TryParse(date, out var dt) ? dt.Date : DateTime.UtcNow.Date;
 
-        var payments = await _context.FeePayments.AsNoTracking().ToListAsync();
+        var payments = await _context.FeePayments.AsNoTracking()
+            .Where(p => p.Status != "Cancelled" && p.PaymentDate >= targetDate && p.PaymentDate < targetDate.AddDays(1))
+            .OrderByDescending(p => p.PaymentDate)
+            .ToListAsync();
         var students = await _context.Students.AsNoTracking().Include(s => s.ClassGrade).ToListAsync();
 
         var rows = new List<DailyCollectionReportRowDto>();
@@ -1169,7 +1210,7 @@ public class FinanceMasterRepository : IFinanceMasterRepository
     {
         var classes = await _context.Classes.AsNoTracking().ToListAsync();
         var students = await _context.Students.AsNoTracking().Where(s => !s.IsDeleted && s.Status == "Active").ToListAsync();
-        var payments = await _context.FeePayments.AsNoTracking().ToListAsync();
+        var payments = await _context.FeePayments.AsNoTracking().Where(p => p.Status != "Cancelled").ToListAsync();
         var structures = await _context.DynamicFeeStructures.AsNoTracking()
             .Where(s => s.Status == "Active" || string.IsNullOrEmpty(s.Status))
             .ToListAsync();

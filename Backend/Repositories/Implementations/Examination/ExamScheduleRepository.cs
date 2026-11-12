@@ -25,13 +25,15 @@ public class ExamScheduleRepository : IExamScheduleRepository
     {
         try
         {
+            var classLower = (className ?? string.Empty).Trim().ToLower();
+            var sectionLower = (sectionName ?? string.Empty).Trim().ToLower();
             var query = _context.NewExamTimetableSlots.AsNoTracking();
             if (examId.HasValue && examId.Value > 0)
             {
                 query = query.Where(s => s.ExamId == examId.Value);
             }
             var dbSlots = await query
-                .Where(s => (s.ClassName ?? "").Equals(className, StringComparison.OrdinalIgnoreCase) && (s.SectionName ?? "").Equals(sectionName, StringComparison.OrdinalIgnoreCase))
+                .Where(s => (s.ClassName ?? "").ToLower() == classLower && (s.SectionName ?? "").ToLower() == sectionLower)
                 .ToListAsync();
 
             if (dbSlots != null && dbSlots.Any())
@@ -61,8 +63,10 @@ public class ExamScheduleRepository : IExamScheduleRepository
     {
         try
         {
+            var classLower = (className ?? string.Empty).Trim().ToLower();
+            var sectionLower = (sectionName ?? string.Empty).Trim().ToLower();
             var query = _context.NewExamTimetableSlots
-                .Where(s => (s.ClassName ?? "").Equals(className, StringComparison.OrdinalIgnoreCase) && (s.SectionName ?? "").Equals(sectionName, StringComparison.OrdinalIgnoreCase));
+                .Where(s => (s.ClassName ?? "").ToLower() == classLower && (s.SectionName ?? "").ToLower() == sectionLower);
 
             if (examId.HasValue && examId.Value > 0)
             {
@@ -163,8 +167,10 @@ public class ExamScheduleRepository : IExamScheduleRepository
 
         try
         {
+            var classLower = (className ?? string.Empty).Trim().ToLower();
+            var sectionLower = (sectionName ?? string.Empty).Trim().ToLower();
             var query = _context.NewExamTimetableSlots
-                .Where(s => (s.ClassName ?? "").Equals(className, StringComparison.OrdinalIgnoreCase) && (s.SectionName ?? "").Equals(sectionName, StringComparison.OrdinalIgnoreCase));
+                .Where(s => (s.ClassName ?? "").ToLower() == classLower && (s.SectionName ?? "").ToLower() == sectionLower);
 
             if (examId.HasValue && examId.Value > 0)
             {

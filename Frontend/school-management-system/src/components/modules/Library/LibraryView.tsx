@@ -587,8 +587,8 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
   const [modalData, setModalData] = useState<any>(null);
   const [deletingItem, setDeletingItem] = useState<{ type: string; id: string; title: string } | null>(null);
   const [selectedRackForInspect, setSelectedRackForInspect] = useState<BookRack | null>(null);
-  const [confirmReturnIssue, setConfirmReturnIssue] = useState<BookIssueRecord | null>(null);
-  const [confirmRenewIssue, setConfirmRenewIssue] = useState<BookIssueRecord | null>(null);
+  const [confirmReturnIssue, setConfirmReturnIssue] = useState<BookIssue | null>(null);
+  const [confirmRenewIssue, setConfirmRenewIssue] = useState<BookIssue | null>(null);
 
   const getRackCapacityInfo = (r: BookRack, booksList: BookItem[]) => {
     const rackKey = `${r.rackNo} (${r.shelfNo})`.toLowerCase().trim();
@@ -665,40 +665,45 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
     if (!deletingItem) return;
     const { type, id, title } = deletingItem;
 
-    if (type === 'book') {
-      try { await LibraryAPI.deleteBookApi(id); } catch (e) {}
-      deleteBook(id);
-      await loadBackendData();
-      addToast('success', 'Book Deleted', `Removed "${title}" from library catalog.`);
-    } else if (type === 'category') {
-      try { await LibraryAPI.deleteCategoryApi(id); } catch (e) {}
-      saveCategories(categories.filter(c => c.id !== id));
-      addToast('success', 'Category Deleted', `Removed category "${title}"`);
-    } else if (type === 'author') {
-      try { await LibraryAPI.deleteAuthorApi(id); } catch (e) {}
-      saveAuthors(authors.filter(a => a.id !== id));
-      addToast('success', 'Author Deleted', `Removed author "${title}"`);
-    } else if (type === 'rack') {
-      try { await LibraryAPI.deleteRackApi(id); } catch (e) {}
-      saveRacks(racks.filter(r => r.id !== id));
-      addToast('success', 'Rack Location Deleted', `Removed rack location "${title}"`);
-    } else if (type === 'member') {
-      try { await LibraryAPI.deleteMemberApi(id); } catch (e) {}
-      saveMembers(members.filter(m => m.id !== id && m.memberId !== id));
-      addToast('success', 'Member Removed', `Removed library member "${title}"`);
-    } else if (type === 'reservation') {
-      try { await LibraryAPI.deleteReservationApi(id); } catch (e) {}
-      saveReservations(reservations.filter(r => r.id !== id));
-      addToast('success', 'Reservation Cancelled', `Removed reservation for "${title}"`);
-    } else if (type === 'fine') {
-      saveFines(fineRecords.filter(f => f.id !== id));
-      addToast('success', 'Fine Record Removed', `Removed fine record for "${title}"`);
-    } else if (type === 'lostDamaged') {
-      try { await LibraryAPI.deleteLostDamagedApi(id); } catch (e) {}
-      saveLostDamaged(lostDamagedList.filter(ld => ld.id !== id));
-      addToast('success', 'Report Removed', `Removed report for "${title}"`);
+    try {
+      if (type === 'book') {
+        await LibraryAPI.deleteBookApi(id);
+        deleteBook(id);
+        await loadBackendData();
+        addToast('success', 'Book Deleted', `Removed "${title}" from library catalog.`);
+      } else if (type === 'category') {
+        await LibraryAPI.deleteCategoryApi(id);
+        saveCategories(categories.filter(c => c.id !== id));
+        addToast('success', 'Category Deleted', `Removed category "${title}"`);
+      } else if (type === 'author') {
+        await LibraryAPI.deleteAuthorApi(id);
+        saveAuthors(authors.filter(a => a.id !== id));
+        addToast('success', 'Author Deleted', `Removed author "${title}"`);
+      } else if (type === 'rack') {
+        await LibraryAPI.deleteRackApi(id);
+        saveRacks(racks.filter(r => r.id !== id));
+        addToast('success', 'Rack Location Deleted', `Removed rack location "${title}"`);
+      } else if (type === 'member') {
+        await LibraryAPI.deleteMemberApi(id);
+        saveMembers(members.filter(m => m.id !== id && m.memberId !== id));
+        addToast('success', 'Member Removed', `Removed library member "${title}"`);
+      } else if (type === 'reservation') {
+        await LibraryAPI.deleteReservationApi(id);
+        saveReservations(reservations.filter(r => r.id !== id));
+        addToast('success', 'Reservation Cancelled', `Removed reservation for "${title}"`);
+      } else if (type === 'fine') {
+        saveFines(fineRecords.filter(f => f.id !== id));
+        addToast('success', 'Fine Record Removed', `Removed fine record for "${title}"`);
+      } else if (type === 'lostDamaged') {
+        await LibraryAPI.deleteLostDamagedApi(id);
+        saveLostDamaged(lostDamagedList.filter(ld => ld.id !== id));
+        addToast('success', 'Report Removed', `Removed report for "${title}"`);
+      }
+    } catch (err: any) {
+      addToast('error', 'Delete Failed', err?.message || `Failed to delete "${title}" from server.`);
+    } finally {
+      setDeletingItem(null);
     }
-    setDeletingItem(null);
   };
 
   // Quick Stats for Dashboard
@@ -2739,11 +2744,15 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                 description: cDesc,
                 totalBooksCount: 0
               };
-              try { await LibraryAPI.createCategoryApi(newC); } catch (err) {}
-              saveCategories([...categories, newC]);
-              const displayCatName = cName.length > 30 ? cName.slice(0, 30) + '...' : cName;
-              addToast('success', 'Category Created', `Added category "${displayCatName}"`);
-              setModalType(null);
+              try {
+                await LibraryAPI.createCategoryApi(newC);
+                saveCategories([...categories, newC]);
+                const displayCatName = cName.length > 30 ? cName.slice(0, 30) + '...' : cName;
+                addToast('success', 'Category Created', `Added category "${displayCatName}"`);
+                setModalType(null);
+              } catch (err: any) {
+                addToast('error', 'Creation Failed', err?.message || 'Unable to save category on server.');
+              }
             }} className="space-y-3 text-xs">
               <div><label className="block font-bold mb-1">Category Name <span className="text-rose-500 font-bold ml-0.5">*</span></label><input type="text" name="name" required minLength={2} maxLength={35} placeholder="e.g. Computer Science" className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-bold" /></div>
               <div><label className="block font-bold mb-1">Category Code <span className="text-rose-500 font-bold ml-0.5">*</span></label><input type="text" name="code" required maxLength={15} placeholder="e.g. CS" className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-mono font-bold" /></div>
@@ -2802,11 +2811,15 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                 biography: aBio,
                 booksCount: 0
               };
-              try { await LibraryAPI.createAuthorApi(newA); } catch (err) {}
-              saveAuthors([...authors, newA]);
-              const displayAuthorName = aName.length > 30 ? aName.slice(0, 30) + '...' : aName;
-              addToast('success', 'Author Added', `Added "${displayAuthorName}"`);
-              setModalType(null);
+              try {
+                await LibraryAPI.createAuthorApi(newA);
+                saveAuthors([...authors, newA]);
+                const displayAuthorName = aName.length > 30 ? aName.slice(0, 30) + '...' : aName;
+                addToast('success', 'Author Added', `Added "${displayAuthorName}"`);
+                setModalType(null);
+              } catch (err: any) {
+                addToast('error', 'Save Failed', err?.message || 'Unable to save author record on server.');
+              }
             }} className="space-y-3 text-xs">
               <div><label className="block font-bold mb-1">Author Name <span className="text-rose-500 font-bold ml-0.5">*</span></label><input type="text" name="name" required minLength={2} maxLength={40} placeholder="e.g. R.D. Sharma" className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-bold" /></div>
               <div><label className="block font-bold mb-1">Publisher <span className="text-rose-500 font-bold ml-0.5">*</span></label><input type="text" name="publisher" required minLength={2} maxLength={50} placeholder="e.g. Oxford Press" className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-bold" /></div>
@@ -2879,10 +2892,14 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                 capacity: rCap,
                 occupiedCount: 0
               };
-              try { await LibraryAPI.createRackApi(newR); } catch (err) {}
-              saveRacks([...racks, newR]);
-              addToast('success', 'Rack Added', `Added ${newR.rackNo} (${newR.shelfNo})`);
-              setModalType(null);
+              try {
+                await LibraryAPI.createRackApi(newR);
+                saveRacks([...racks, newR]);
+                addToast('success', 'Rack Added', `Added ${newR.rackNo} (${newR.shelfNo})`);
+                setModalType(null);
+              } catch (err: any) {
+                addToast('error', 'Save Failed', err?.message || 'Unable to save rack location on server.');
+              }
             }} className="space-y-3 text-xs">
               <div><label className="block font-bold mb-1">Rack Number <span className="text-rose-500 font-bold ml-0.5">*</span></label><input type="text" name="rackNo" required minLength={2} maxLength={20} placeholder="e.g. Rack E-05" className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-bold" /></div>
               <div><label className="block font-bold mb-1">Shelf Number <span className="text-rose-500 font-bold ml-0.5">*</span></label><input type="text" name="shelfNo" required maxLength={20} placeholder="e.g. Shelf 1" className="w-full px-3 py-2 rounded-xl bg-slate-50 border font-bold" /></div>
@@ -2962,10 +2979,14 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                 joinedDate: new Date().toISOString().split('T')[0],
                 status: 'Active'
               };
-              try { await LibraryAPI.createMemberApi(newM); } catch (err) {}
-              saveMembers([...members, newM]);
-              addToast('success', 'Member Registered', `Registered ${newM.name} (${newM.memberId})`);
-              setModalType(null);
+              try {
+                await LibraryAPI.createMemberApi(newM);
+                saveMembers([...members, newM]);
+                addToast('success', 'Member Registered', `Registered ${newM.name} (${newM.memberId})`);
+                setModalType(null);
+              } catch (err: any) {
+                addToast('error', 'Registration Failed', err?.message || 'Unable to register library member on server.');
+              }
             }} className="space-y-3 text-xs">
 
               <div>
@@ -3114,10 +3135,14 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                 requestDate: new Date().toISOString().split('T')[0],
                 status: 'Pending'
               };
-              try { await LibraryAPI.createReservationApi(newRes); } catch (err) {}
-              saveReservations([...reservations, newRes]);
-              addToast('success', 'Book Reserved', `Reserved "${newRes.bookTitle}" for ${newRes.memberName}`);
-              setModalType(null);
+              try {
+                await LibraryAPI.createReservationApi(newRes);
+                saveReservations([...reservations, newRes]);
+                addToast('success', 'Book Reserved', `Reserved "${newRes.bookTitle}" for ${newRes.memberName}`);
+                setModalType(null);
+              } catch (err: any) {
+                addToast('error', 'Reservation Failed', err?.message || 'Unable to save book reservation on server.');
+              }
             }} className="space-y-4 text-xs">
 
               {/* Searchable Member Input with Filters Container (Matching 2nd Screenshot) */}
@@ -3328,10 +3353,14 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
                 reportDate: new Date().toISOString().split('T')[0],
                 status: 'Pending'
               };
-              try { await LibraryAPI.createLostDamagedApi(newLD); } catch (err) {}
-              saveLostDamaged([...lostDamagedList, newLD]);
-              addToast('success', 'Issue Logged', `Logged ${newLD.issueType} report for "${newLD.bookTitle}"`);
-              setModalType(null);
+              try {
+                await LibraryAPI.createLostDamagedApi(newLD);
+                saveLostDamaged([...lostDamagedList, newLD]);
+                addToast('success', 'Issue Logged', `Logged ${newLD.issueType} report for "${newLD.bookTitle}"`);
+                setModalType(null);
+              } catch (err: any) {
+                addToast('error', 'Report Failed', err?.message || 'Unable to log lost/damaged report on server.');
+              }
             }} className="space-y-4 text-xs">
 
               {/* Searchable Member Input with Auto-complete Dropdown */}
@@ -3855,31 +3884,36 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
           onConfirm={async () => {
             const iss = confirmReturnIssue;
             setConfirmReturnIssue(null);
-            try { await LibraryAPI.returnBookApi(iss.id); } catch (err) {}
-            contextReturnBook(iss.id);
-            await loadBackendData();
-            const isOverdue = new Date(iss.dueDate) < new Date();
-            const lateDays = isOverdue ? Math.max(1, Math.floor((Date.now() - new Date(iss.dueDate).getTime()) / 86400000)) : 0;
-            const ruleForRole = rules.find(r => r.userRole.toLowerCase() === (iss.borrowerRole || 'Student').toLowerCase()) || rules[0];
-            const dailyRate = ruleForRole ? ruleForRole.dailyFineRate : 5;
-            const calculatedFine = lateDays * dailyRate;
-            if (calculatedFine > 0) {
-              const newFine: LibraryFineRecord = {
-                id: `FIN-${Date.now()}`,
-                issueId: iss.id,
-                memberId: iss.borrowerId,
-                memberName: iss.borrowerName,
-                memberRole: iss.borrowerRole,
-                bookTitle: iss.bookTitle,
-                overdueDays: lateDays,
-                fineAmount: calculatedFine,
-                paymentStatus: 'Unpaid',
-                createdDate: new Date().toISOString().split('T')[0],
-                remarks: `Late return fine for ${lateDays} days`
-              };
-              saveFines([newFine, ...fineRecords]);
+            try {
+              await LibraryAPI.returnBookApi(iss.id);
+              contextReturnBook(iss.id);
+              await loadBackendData();
+              const dueTime = iss.dueDate ? new Date(iss.dueDate).getTime() : NaN;
+              const isOverdue = !Number.isNaN(dueTime) && dueTime < Date.now();
+              const lateDays = isOverdue ? Math.max(1, Math.floor((Date.now() - dueTime) / 86400000)) : 0;
+              const ruleForRole = rules.find(r => (r.userRole || '').toLowerCase() === (iss.borrowerRole || 'Student').toLowerCase()) || rules[0];
+              const dailyRate = ruleForRole ? ruleForRole.dailyFineRate : 5;
+              const calculatedFine = lateDays * dailyRate;
+              if (calculatedFine > 0) {
+                const newFine: LibraryFineRecord = {
+                  id: `FIN-${Date.now()}`,
+                  issueId: iss.id,
+                  memberId: iss.borrowerId,
+                  memberName: iss.borrowerName,
+                  memberRole: iss.borrowerRole,
+                  bookTitle: iss.bookTitle,
+                  overdueDays: lateDays,
+                  fineAmount: calculatedFine,
+                  paymentStatus: 'Unpaid',
+                  createdDate: new Date().toISOString().split('T')[0],
+                  remarks: `Late return fine for ${lateDays} days`
+                };
+                saveFines([newFine, ...fineRecords]);
+              }
+              addToast('success', 'Book Returned', `Marked "${iss.bookTitle}" as returned.${calculatedFine > 0 ? ` Overdue fine of ${formatCurrency(calculatedFine)} added.` : ''}`);
+            } catch (err: any) {
+              addToast('error', 'Return Failed', err?.message || `Unable to return "${iss.bookTitle}" on server.`);
             }
-            addToast('success', 'Book Returned', `Marked "${iss.bookTitle}" as returned.${calculatedFine > 0 ? ` Overdue fine of ${formatCurrency(calculatedFine)} added.` : ''}`);
           }}
           title="Confirm Book Return"
           message={`Are you sure you want to return "${confirmReturnIssue.bookTitle}" borrowed by ${confirmReturnIssue.borrowerName}?`}
@@ -3896,12 +3930,29 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
           onConfirm={async () => {
             const iss = confirmRenewIssue;
             setConfirmRenewIssue(null);
-            const newDueDate = new Date(new Date(iss.dueDate).getTime() + 14 * 86400000).toISOString().split('T')[0];
-            try { await LibraryAPI.renewBookApi(iss.id, 14); } catch (err) {}
-            iss.dueDate = newDueDate;
-            iss.renewCount = (iss.renewCount || 0) + 1;
-            iss.status = 'Renewed';
-            addToast('success', 'Issue Renewed', `Extended due date for "${iss.bookTitle}" to ${newDueDate}`);
+            const baseTime = iss.dueDate && !Number.isNaN(new Date(iss.dueDate).getTime())
+              ? new Date(iss.dueDate).getTime()
+              : Date.now();
+            const newDueDate = new Date(baseTime + 14 * 86400000).toISOString().split('T')[0];
+            try {
+              await LibraryAPI.renewBookApi(iss.id, 14);
+              setBookIssues(prev =>
+                prev.map(item =>
+                  item.id === iss.id
+                    ? {
+                        ...item,
+                        dueDate: newDueDate,
+                        renewCount: (item.renewCount || 0) + 1,
+                        status: 'Renewed',
+                      }
+                    : item
+                )
+              );
+              await loadBackendData();
+              addToast('success', 'Issue Renewed', `Extended due date for "${iss.bookTitle}" to ${newDueDate}`);
+            } catch (err: any) {
+              addToast('error', 'Renewal Failed', err?.message || `Unable to renew "${iss.bookTitle}" on server.`);
+            }
           }}
           title="Confirm Issue Renewal"
           message={`Are you sure you want to renew "${confirmRenewIssue.bookTitle}" for ${confirmRenewIssue.borrowerName} and extend the due date by 14 days?`}

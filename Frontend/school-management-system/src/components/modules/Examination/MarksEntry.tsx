@@ -240,20 +240,24 @@ export const MarksEntry: React.FC<MarksEntryProps> = ({
     });
   };
 
-  const handleSaveDraft = () => {
+  const handleSaveDraft = async () => {
     if (!exam || !selectedClass || !selectedSection || !selectedSubject) return;
-    saveRosterMarksDraft(exam.id, selectedClass, selectedSection, selectedSubject, marksState);
-    setMarksState(prev => {
-      const next: Record<string, RosterMarkRowState> = {};
-      Object.entries(prev).forEach(([k, v]) => {
-        next[k] = { ...v, status: 'In Progress' };
+    try {
+      await saveRosterMarksDraft(exam.id, selectedClass, selectedSection, selectedSubject, marksState);
+      setMarksState(prev => {
+        const next: Record<string, RosterMarkRowState> = {};
+        Object.entries(prev).forEach(([k, v]) => {
+          next[k] = { ...v, status: 'In Progress' };
+        });
+        return next;
       });
-      return next;
-    });
-    addToast('success', 'Draft Saved', 'Marks entry draft has been saved locally.');
+      addToast('success', 'Draft Saved', 'Marks entry draft has been saved to server.');
+    } catch (err: any) {
+      addToast('error', 'Save Failed', err?.message || 'Unable to save marks draft.');
+    }
   };
 
-  const handleSubmitMarks = () => {
+  const handleSubmitMarks = async () => {
     if (!exam || !selectedClass || !selectedSection || !selectedSubject) return;
     
     // Check validation of marks boundaries
@@ -268,15 +272,19 @@ export const MarksEntry: React.FC<MarksEntryProps> = ({
       return;
     }
 
-    submitRosterMarks(exam.id, selectedClass, selectedSection, selectedSubject, marksState, maxMarks, passMarks);
-    setMarksState(prev => {
-      const next: Record<string, RosterMarkRowState> = {};
-      Object.entries(prev).forEach(([k, v]) => {
-        next[k] = { ...v, status: 'Submitted' };
+    try {
+      await submitRosterMarks(exam.id, selectedClass, selectedSection, selectedSubject, marksState, maxMarks, passMarks);
+      setMarksState(prev => {
+        const next: Record<string, RosterMarkRowState> = {};
+        Object.entries(prev).forEach(([k, v]) => {
+          next[k] = { ...v, status: 'Submitted' };
+        });
+        return next;
       });
-      return next;
-    });
-    addToast('success', 'Marks Submitted', 'Successfully submitted student marks for verification.');
+      addToast('success', 'Marks Submitted', 'Successfully submitted student marks for verification.');
+    } catch (err: any) {
+      addToast('error', 'Submission Failed', err?.message || 'Unable to submit marks.');
+    }
   };
 
   const handleVerifyMarks = () => {

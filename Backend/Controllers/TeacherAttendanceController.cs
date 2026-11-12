@@ -8,7 +8,7 @@ using SMS.Api.Services.Interfaces;
 
 [ApiController]
 [Route("api/teacher/attendance")]
-[Authorize]
+[Authorize(Roles = "SuperAdmin,Super Admin,Admin,Principal,Teacher,Hostel Warden,Driver,Librarian,Staff,Accountant,Receptionist,HR")]
 public class TeacherAttendanceController : ControllerBase
 {
     private readonly ITeacherAttendanceService _service;

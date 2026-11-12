@@ -6,7 +6,7 @@ namespace SMS.Api.Controllers.Transport
 {
     [ApiController]
     [Route("api/transport/dashboard")]
-    [AllowAnonymous]
+    [Authorize]
     public class TransportDashboardController : ControllerBase
     {
         private readonly ITransportDashboardService _service;
@@ -18,7 +18,7 @@ namespace SMS.Api.Controllers.Transport
         }
 
         [HttpGet]
-        [AllowAnonymous]
+        [Authorize]
         public async Task<IActionResult> GetDashboard()
         {
             try
@@ -58,7 +58,7 @@ namespace SMS.Api.Controllers.Transport
         }
 
         [HttpGet("operations/{assignmentId}")]
-        [AllowAnonymous]
+        [Authorize]
         public async Task<IActionResult> GetOperationDetails(long assignmentId)
         {
             try

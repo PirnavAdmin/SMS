@@ -64,13 +64,23 @@ public class StudentAttendanceController : ControllerBase
         else if (string.Equals(userRole, "Student", StringComparison.OrdinalIgnoreCase))
         {
             int? studentId = null;
-            if (int.TryParse(userId, out int parsedStuId))
+            if (int.TryParse(userId, out int parsedUserId) && parsedUserId > 0)
             {
-                studentId = parsedStuId;
+                var usr = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.UserId == parsedUserId);
+                if (usr != null)
+                {
+                    var mob = usr.MobileNumber?.Trim() ?? "";
+                    var em = usr.Email?.Trim().ToLowerInvariant() ?? "";
+                    var stu = await _context.Students.AsNoTracking().FirstOrDefaultAsync(s =>
+                        !s.IsDeleted &&
+                        ((mob.Length > 0 && (s.RollNumber == mob || s.AdmissionNumber == mob)) ||
+                         (em.Length > 0 && s.Email != null && s.Email.ToLower() == em)));
+                    if (stu != null) studentId = stu.StudentId;
+                }
             }
-            else if (!string.IsNullOrWhiteSpace(userEmail))
+            if (!studentId.HasValue && !string.IsNullOrWhiteSpace(userEmail))
             {
-                var stu = await _context.Students.AsNoTracking().FirstOrDefaultAsync(s => s.Email != null && s.Email.ToLower() == userEmail.ToLower());
+                var stu = await _context.Students.AsNoTracking().FirstOrDefaultAsync(s => !s.IsDeleted && s.Email != null && s.Email.ToLower() == userEmail.ToLower());
                 if (stu != null) studentId = stu.StudentId;
             }
 
@@ -125,13 +135,23 @@ public class StudentAttendanceController : ControllerBase
         else if (string.Equals(userRole, "Student", StringComparison.OrdinalIgnoreCase))
         {
             int? studentId = null;
-            if (int.TryParse(userId, out int parsedStuId))
+            if (int.TryParse(userId, out int parsedUserId) && parsedUserId > 0)
             {
-                studentId = parsedStuId;
+                var usr = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.UserId == parsedUserId);
+                if (usr != null)
+                {
+                    var mob = usr.MobileNumber?.Trim() ?? "";
+                    var em = usr.Email?.Trim().ToLowerInvariant() ?? "";
+                    var stu = await _context.Students.AsNoTracking().FirstOrDefaultAsync(s =>
+                        !s.IsDeleted &&
+                        ((mob.Length > 0 && (s.RollNumber == mob || s.AdmissionNumber == mob)) ||
+                         (em.Length > 0 && s.Email != null && s.Email.ToLower() == em)));
+                    if (stu != null) studentId = stu.StudentId;
+                }
             }
-            else if (!string.IsNullOrWhiteSpace(userEmail))
+            if (!studentId.HasValue && !string.IsNullOrWhiteSpace(userEmail))
             {
-                var stu = await _context.Students.AsNoTracking().FirstOrDefaultAsync(s => s.Email != null && s.Email.ToLower() == userEmail.ToLower());
+                var stu = await _context.Students.AsNoTracking().FirstOrDefaultAsync(s => !s.IsDeleted && s.Email != null && s.Email.ToLower() == userEmail.ToLower());
                 if (stu != null) studentId = stu.StudentId;
             }
 

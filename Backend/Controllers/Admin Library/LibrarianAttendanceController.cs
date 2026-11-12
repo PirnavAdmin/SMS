@@ -14,7 +14,7 @@ using System.Threading.Tasks;
 [ApiController]
 [Route("api/librarian-attendance")]
 [Route("api/library/librarian-attendance")]
-[AllowAnonymous]
+[Authorize(Roles = "SuperAdmin,Super Admin,Admin,Principal,Librarian")]
 [Tags("Librarian Attendance Management")]
 public class LibrarianAttendanceController : ControllerBase
 {

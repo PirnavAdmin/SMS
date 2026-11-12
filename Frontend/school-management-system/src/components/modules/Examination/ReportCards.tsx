@@ -602,7 +602,7 @@ export const ReportCards: React.FC<ReportCardsProps> = ({
 
                             <td className={`${tdClass} whitespace-nowrap min-w-[5.5rem]`}>
                               <span className="font-mono font-black text-sky-600 dark:text-sky-400">
-                                {res.percentage.toFixed(1)}%
+                                {Number(res.percentage || 0).toFixed(1)}%
                               </span>
                             </td>
 

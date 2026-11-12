@@ -123,19 +123,6 @@ namespace SMS.Api.Controllers.AcademicManagement
 
             var classes = await query.ToListAsync();
 
-            if (classes.Count == 0 && (!string.IsNullOrEmpty(campus) || !string.IsNullOrEmpty(academicYear)))
-            {
-                // Fallback to all classes if filtering by specific campus or academic year produced 0 classes
-                classes = await _context.Classes
-                    .AsNoTracking()
-                    .Include(c => c.Sections)
-                    .Include(c => c.SubjectMappings)
-                        .ThenInclude(cs => cs.Subject)
-                    .Include(c => c.TeacherAssignments)
-                        .ThenInclude(ta => ta.Teacher)
-                    .ToListAsync();
-            }
-
             var response = classes.Select(c => new ClassGradeResponseDto
             {
                 ClassId = c.ClassId,

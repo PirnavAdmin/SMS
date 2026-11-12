@@ -190,8 +190,7 @@ export const ResultsManagement: React.FC<ResultsManagementProps> = ({
 
   const handlePublish = async () => {
     if (!exam?.id || !selectedClass || !selectedSection || visibleResults.length === 0) return;
-    updateResultStatus(exam.id, selectedClass, selectedSection, 'Published');
-    
+
     try {
       await publishExamResultsApi({
         examId: Number(exam.id) || 1,
@@ -221,16 +220,15 @@ export const ResultsManagement: React.FC<ResultsManagementProps> = ({
           }))
         }))
       });
-    } catch (err) {
-      console.warn('Backend publish results sync note:', err);
+      updateResultStatus(exam.id, selectedClass, selectedSection, 'Published');
+      try {
+        window.dispatchEvent(new Event('results_published'));
+        window.dispatchEvent(new Event('refresh_released_results'));
+      } catch (e) {}
+      addToast('success', 'Results Released', 'Results have been published and saved to database.');
+    } catch (err: any) {
+      addToast('error', 'Publish Failed', err?.message || 'Failed to publish exam results to database.');
     }
-
-    try {
-      window.dispatchEvent(new Event('results_published'));
-      window.dispatchEvent(new Event('refresh_released_results'));
-    } catch (e) {}
-
-    addToast('success', 'Results Released', 'Results have been published and saved to database. Now visible on all machines.');
   };
 
   // Stats calculation
@@ -462,7 +460,7 @@ export const ResultsManagement: React.FC<ResultsManagementProps> = ({
                             <td className="px-4 py-3 font-mono font-black text-amber-600 text-sm">#{r.rank}</td>
                             <td className="px-4 py-3 font-mono font-bold text-slate-500 whitespace-nowrap min-w-[5.5rem]">{r.rollNo || 'N/A'}</td>
                             <td className="px-4 py-3 font-extrabold text-slate-900 dark:text-white">{r.studentName}</td>
-                            <td className="px-4 py-3 font-mono font-bold text-slate-800 dark:text-slate-200">{r.percentage.toFixed(1)}%</td>
+                            <td className="px-4 py-3 font-mono font-bold text-slate-800 dark:text-slate-200">{Number(r.percentage || 0).toFixed(1)}%</td>
                             <td className="px-4 py-3 font-black text-indigo-600 dark:text-indigo-400">{r.finalGrade}</td>
                             <td className="px-4 py-3 font-mono font-bold text-slate-700 dark:text-slate-300">{r.gpa || '-'}</td>
                             <td className="px-4 py-3">

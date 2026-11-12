@@ -3,6 +3,8 @@ namespace SMS.Api.Controllers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SMS.Api.Services.Interfaces;
+using SMS.Api.Services.Interfaces.Parent;
+using System.Security.Claims;
 using System.Threading.Tasks;
 
 [ApiController]
@@ -12,10 +14,12 @@ using System.Threading.Tasks;
 public class StudentHostelController : ControllerBase
 {
     private readonly IStudentHostelService _hostelService;
+    private readonly IParentService _parentService;
 
-    public StudentHostelController(IStudentHostelService hostelService)
+    public StudentHostelController(IStudentHostelService hostelService, IParentService parentService)
     {
         _hostelService = hostelService;
+        _parentService = parentService;
     }
 
     /// <summary>
@@ -35,10 +39,30 @@ public class StudentHostelController : ControllerBase
     [HttpGet("details")]
     [Authorize(Roles = "Admin,Teacher,Student,Parent")]
     public async Task<IActionResult> GetStudentHostelDetails(
-        [FromQuery] int? studentId = 1,
-        [FromQuery] string? academicYear = "2027-28")
+        [FromQuery] int? studentId = null,
+        [FromQuery] string? academicYear = null)
     {
-        var result = await _hostelService.GetStudentHostelDetailsAsync(studentId, academicYear);
+        int? targetStudentId = studentId;
+        if (User.IsInRole("Student") || User.IsInRole("Parent"))
+        {
+            var idClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+            if (!int.TryParse(idClaim, out int userId) || userId <= 0) return Forbid();
+
+            if (User.IsInRole("Student"))
+            {
+                var ownId = await _parentService.GetStudentIdForUserAsync(userId);
+                if (!ownId.HasValue) return Forbid();
+                if (studentId.HasValue && studentId.Value > 0 && studentId.Value != ownId.Value) return Forbid();
+                targetStudentId = ownId.Value;
+            }
+            else
+            {
+                if (!studentId.HasValue || studentId.Value <= 0) return Forbid();
+                if (!await _parentService.IsStudentAssociatedWithParentAsync(userId, studentId.Value)) return Forbid();
+            }
+        }
+
+        var result = await _hostelService.GetStudentHostelDetailsAsync(targetStudentId, academicYear);
         return Ok(new { success = true, data = result });
     }
 }

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SMS.Api.Dtos;
 using SMS.Api.Services.Interfaces;
@@ -5,6 +6,7 @@ using SMS.Api.Services.Interfaces;
 namespace SMS.Api.Controllers;
 
 [ApiController]
+    [Authorize]
 [Route("api/v1/students")]
 public class StudentController : ControllerBase
 {

@@ -166,7 +166,7 @@ export const ResultDetails: React.FC<ResultDetailsProps> = ({
               </div>
               <div className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-sky-100 dark:border-sky-900/50">
                 <span className="text-[10px] font-black uppercase text-sky-600 block">Percentage</span>
-                <span className="text-sm font-black text-sky-600 dark:text-sky-400">{data.percentage.toFixed(1)}%</span>
+                <span className="text-sm font-black text-sky-600 dark:text-sky-400">{Number(data?.percentage || 0).toFixed(1)}%</span>
               </div>
               <div className="p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-sky-100 dark:border-sky-900/50">
                 <span className="text-[10px] font-black uppercase text-indigo-600 block">Overall Grade</span>

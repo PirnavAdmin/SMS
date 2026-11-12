@@ -363,14 +363,10 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab, 
 
     try {
       setSaving(true);
-      try {
-        await apiClient(`/api/payroll/configuration/${activeConfig.id}/${configTab}`, {
-          method: 'PUT',
-          body: JSON.stringify(payload)
-        });
-      } catch (apiErr) {
-        console.warn("Backend update failed, persisting changes locally", apiErr);
-      }
+      await apiClient(`/api/payroll/configuration/${activeConfig.id}/${configTab}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload)
+      });
 
       const oldVal = JSON.stringify(
         configTab === 'leave' ? activeConfig.leaveRules :

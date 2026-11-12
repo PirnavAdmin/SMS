@@ -17,6 +17,7 @@ import { LibrarianDashboardView } from './LibrarianDashboardView';
 import { WardenDashboardView } from './WardenDashboardView';
 import { DriverDashboardView } from './DriverDashboardView';
 import { FinanceDashboardView } from '../Finance/FinanceDashboardView';
+import { TransportDashboardView } from '../Transport/TransportDashboardView';
 import { DashboardShimmer } from '../../common/DashboardShimmer';
 
 interface DashboardViewProps {
@@ -239,7 +240,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
     ['librarian', 'library'].includes(userRole) ||
     userRole.includes('warden') ||
     ['driver', 'bus driver', 'chauffeur'].includes(userRole) ||
-    ['accountant', 'accounts', 'finance'].includes(userRole);
+    ['accountant', 'accounts', 'finance'].includes(userRole) ||
+    ['transport manager', 'transport_manager', 'transport'].includes(userRole);
   const [loading, setLoading] = useState<boolean>(() => {
     return (students || []).length === 0 && (staff || []).length === 0 && (academicClasses || []).length === 0;
   });
@@ -834,6 +836,21 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
   if (userRole.includes('warden') || userRole === 'hostel warden') return <WardenDashboardView onNavigate={onNavigate} />;
   if (['driver', 'bus driver', 'chauffeur'].includes(userRole)) return <DriverDashboardView onNavigate={onNavigate} />;
   if (['accountant', 'accounts', 'finance'].includes(userRole)) return <FinanceDashboardView />;
+  if (['transport manager', 'transport_manager', 'transport'].includes(userRole)) {
+    return (
+      <TransportDashboardView
+        onNavigateToSection={(s) =>
+          onNavigate(
+            s === 'setup'
+              ? 'transport-masters'
+              : s === 'reports'
+              ? 'transport-reports'
+              : 'transport-operations'
+          )
+        }
+      />
+    );
+  }
 
   if (loading) {
     return <DashboardShimmer />;

@@ -314,7 +314,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
 
     const overviewItems = classList.map(clsObj => {
       const realClassStudents = branchFilteredStudents.filter(
-        s => s.className.toLowerCase() === clsObj.className.toLowerCase()
+        s => (s.className || '').toLowerCase() === (clsObj.className || '').toLowerCase()
       );
 
       // Combine configured sections with any sections present in student records

@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Authorization;
 
 [ApiController]
 [Route("api/admissions")]
-[Authorize(Roles = "Admin")]
+[Authorize(Roles = "SuperAdmin,Super Admin,Admin,Principal,Staff,Receptionist")]
 [Tags("Admission Applications")]
 public class AdmissionsController : ControllerBase
 {
@@ -20,7 +20,6 @@ public class AdmissionsController : ControllerBase
     }
 
     [HttpGet]
-    [AllowAnonymous]
     public async Task<IActionResult> GetApplications(
         [FromQuery] string? search = null,
         [FromQuery] string? branch = null,
@@ -39,23 +38,17 @@ public class AdmissionsController : ControllerBase
         {
             var cleanYear = effectiveAcademicYear.Trim().ToLower().Replace(" ", "");
             var startYear = cleanYear.Length >= 4 ? cleanYear.Substring(0, 4) : cleanYear;
-            var filtered = apps.Where(a => !string.IsNullOrWhiteSpace(a.AcademicYear) &&
+            apps = apps.Where(a => !string.IsNullOrWhiteSpace(a.AcademicYear) &&
                                    (a.AcademicYear.ToLower().Replace(" ", "") == cleanYear ||
                                     a.AcademicYear.ToLower().Replace(" ", "").Contains(cleanYear) ||
                                     cleanYear.Contains(a.AcademicYear.ToLower().Replace(" ", "")) ||
                                     a.AcademicYear.StartsWith(startYear))).ToList();
-
-            if (filtered.Count > 0)
-            {
-                apps = filtered;
-            }
         }
 
         return Ok(new { success = true, data = apps });
     }
 
     [HttpGet("{id}")]
-    [AllowAnonymous]
     public async Task<IActionResult> GetApplicationById(string id)
     {
         var app = await _schoolService.GetApplicationByIdentifierAsync(id);
@@ -68,7 +61,6 @@ public class AdmissionsController : ControllerBase
     }
 
     [HttpPost]
-    [AllowAnonymous]
     public async Task<IActionResult> SubmitApplication(
         [FromBody] SubmitAdmissionDto dto,
         [FromHeader(Name = "X-Branch-Id")] string? headerBranch = null,
@@ -89,7 +81,6 @@ public class AdmissionsController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    [AllowAnonymous]
     public async Task<IActionResult> UpdateApplication(string id, [FromBody] SubmitAdmissionDto dto)
     {
         var app = await _schoolService.GetApplicationByIdentifierAsync(id);
@@ -102,7 +93,6 @@ public class AdmissionsController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [AllowAnonymous]
     public async Task<IActionResult> DeleteApplication(string id)
     {
         var app = await _schoolService.GetApplicationByIdentifierAsync(id);
@@ -118,7 +108,6 @@ public class AdmissionsController : ControllerBase
     [HttpPost("{id}/status")]
     [HttpPatch("{id}/status")]
     [HttpPut("{id}/status")]
-    [AllowAnonymous]
     public async Task<IActionResult> UpdateStatusByRegistrationNo(string id, [FromBody] StatusUpdateDto dto)
     {
         var app = await _schoolService.GetApplicationByIdentifierAsync(id);
@@ -162,7 +151,6 @@ public class AdmissionsController : ControllerBase
     }
 
     [HttpPost("{id}/reject")]
-    [AllowAnonymous]
     public async Task<IActionResult> RejectApplication(string id)
     {
         var app = await _schoolService.GetApplicationByIdentifierAsync(id);
@@ -176,7 +164,6 @@ public class AdmissionsController : ControllerBase
     }
 
     [HttpPost("{id}/enroll")]
-    [AllowAnonymous]
     public async Task<IActionResult> EnrollStudent(string id)
     {
         var app = await _schoolService.GetApplicationByIdentifierAsync(id);
@@ -204,7 +191,6 @@ public class AdmissionsController : ControllerBase
     }
 
     [HttpPost("{id}/resend-welcome-email")]
-    [AllowAnonymous]
     public async Task<IActionResult> ResendWelcomeEmail(string id)
     {
         var result = await _schoolService.ResendParentWelcomeEmailAsync(id);

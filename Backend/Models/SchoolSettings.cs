@@ -43,6 +43,8 @@ namespace SMS.Api.Models
 
         public string? UserProfileJson { get; set; } = null;
 
+        public string? FinanceSettingsJson { get; set; } = null;
+
         [MaxLength(100)]
         public string? BoardType { get; set; } = null;
 

@@ -1,5 +1,5 @@
 // @ts-nocheck
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   CalendarCheck, Plus, FileText, Activity, Layers,
   CheckCircle2, XCircle, Clock, Send, X, AlertCircle
@@ -11,7 +11,7 @@ import { Badge } from '../../common/Badge';
 import { LeaveApplication, LeaveType } from '../../../types';
 
 export const DriverLeaveView: React.FC = () => {
-  const { user } = useAuth();
+  const { user, selectedBranch } = useAuth();
   const {
     staff = [],
     driverMasters = [],
@@ -275,7 +275,7 @@ export const DriverLeaveView: React.FC = () => {
         addLeaveApplication(newApp);
       }
 
-      addToast('success', 'Leave Submitted', `Applied for ${durationDays} day(s) of ${selectedType.name}. Synced with Admin approval queue.`);
+      addToast('success', 'Leave Submitted', `Applied for ${durationDays} day(s) of ${selectedType?.name || 'Leave'}. Synced with Admin approval queue.`);
       setIsApplyModalOpen(false);
       setReason('');
       setFromDate('');
@@ -343,7 +343,7 @@ export const DriverLeaveView: React.FC = () => {
           <div className="w-full bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden">
             <div
               className="bg-sky-500 h-full rounded-full transition-all"
-              style={{ width: `${Math.min(100, (leaveBalances.casual.remaining / leaveBalances.casual.total) * 100)}%` }}
+              style={{ width: `${leaveBalances.casual.total > 0 ? Math.min(100, (leaveBalances.casual.remaining / leaveBalances.casual.total) * 100) : 0}%` }}
             />
           </div>
         </div>
@@ -365,7 +365,7 @@ export const DriverLeaveView: React.FC = () => {
           <div className="w-full bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden">
             <div
               className="bg-emerald-500 h-full rounded-full transition-all"
-              style={{ width: `${Math.min(100, (leaveBalances.sick.remaining / leaveBalances.sick.total) * 100)}%` }}
+              style={{ width: `${leaveBalances.sick.total > 0 ? Math.min(100, (leaveBalances.sick.remaining / leaveBalances.sick.total) * 100) : 0}%` }}
             />
           </div>
         </div>
@@ -387,7 +387,7 @@ export const DriverLeaveView: React.FC = () => {
           <div className="w-full bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden">
             <div
               className="bg-amber-500 h-full rounded-full transition-all"
-              style={{ width: `${Math.min(100, (leaveBalances.paid.remaining / leaveBalances.paid.total) * 100)}%` }}
+              style={{ width: `${leaveBalances.paid.total > 0 ? Math.min(100, (leaveBalances.paid.remaining / leaveBalances.paid.total) * 100) : 0}%` }}
             />
           </div>
         </div>

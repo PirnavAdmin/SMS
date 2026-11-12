@@ -54,7 +54,7 @@ public class StudentHostelService : IStudentHostelService
             var allocation = await _context.StudentBedAllocations.AsNoTracking()
                 .Include(b => b.Hostel)
                 .Include(b => b.Room)
-                .FirstOrDefaultAsync(b => (b.StudentId == targetStudentId || (student != null && !string.IsNullOrEmpty(student.AdmissionNumber) && b.RegistrationNo == student.AdmissionNumber)) && b.Status != null && b.Status.Equals("Active", StringComparison.OrdinalIgnoreCase));
+                .FirstOrDefaultAsync(b => (b.StudentId == targetStudentId || (student != null && !string.IsNullOrEmpty(student.AdmissionNumber) && b.RegistrationNo == student.AdmissionNumber)) && b.Status != null && b.Status.ToLower() == "active");
 
             if (allocation != null)
             {

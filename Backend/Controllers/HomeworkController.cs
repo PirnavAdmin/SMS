@@ -12,8 +12,8 @@ using System.Linq;
 using System.Threading.Tasks;
 
 [ApiController]
+[Authorize]
 [Route("api/homework")]
-[AllowAnonymous]
 [Tags("Homework & Assignments")]
 public class HomeworkController : ControllerBase
 {

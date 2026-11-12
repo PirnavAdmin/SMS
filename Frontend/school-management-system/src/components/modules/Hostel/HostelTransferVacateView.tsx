@@ -4,7 +4,7 @@ import { validateSearchQuery } from '../../../utils/validation';
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
-import { getHostelBlocks, getRooms, getAllocations, vacateAllocation, createAllocation, updateStudentAllocationBlock, vacateStudentAllocation, getTransferVacateRequests, createTransferVacateRequest, deleteTransferVacateRequest } from '../../../api/hostel';
+import { getHostelBlocks, getRooms, getAllocations, vacateAllocation, createAllocation, updateStudentAllocationBlock, vacateStudentAllocation, getTransferVacateRequests, createTransferVacateRequest, deleteTransferVacateRequest, updateTransferVacateStatus } from '../../../api/hostel';
 import { SearchableSelect } from '../../common/SearchableSelect';
 import { ConfirmModal } from '../../common/ConfirmModal';
 import { Pagination } from '../../common/Pagination';
@@ -416,14 +416,18 @@ export const HostelTransferVacateView: React.FC = () => {
         reason: reason || (actionType === 'Bed Vacate' ? 'Opted out to Non-Residential' : 'Personal request')
       });
       await loadTransfers();
-    } catch (e) {
-      setRecords(prev => [newRecord, ...prev]);
+    } catch (e: any) {
+      addToast(e?.message || 'Failed to submit transfer/vacate request on server.', 'error');
+      setIsSubmitting(false);
+      return;
     }
 
     try {
       const freshAllocs = await getAllocations();
       setAllocations(freshAllocs);
-    } catch (e) {}
+    } catch (e) {
+      console.warn('Could not refresh allocations:', e);
+    }
 
     addToast(`${actionType} request processed. ${actionType === 'Bed Vacate' ? 'Bed released to available. Fee adjusted: ₹' + refundableBalance.toLocaleString() : 'Transferred to ' + targetBlock}`, 'success');
     setIsSubmitting(false);
@@ -431,27 +435,37 @@ export const HostelTransferVacateView: React.FC = () => {
     setActionType('');
   };
 
-  const handleApprove = (id: number | string) => {
-    setRecords(prev => prev.map(r => r.id === id ? { ...r, status: 'Completed' as const } : r));
-    addToast('Transfer/Vacate request completed successfully. Bed released to available status.', 'success');
+  const handleApprove = async (id: number | string) => {
+    try {
+      await updateTransferVacateStatus(id, 'Completed');
+      setRecords(prev => prev.map(r => r.id === id ? { ...r, status: 'Completed' as const } : r));
+      addToast('Transfer/Vacate request completed successfully. Bed released to available status.', 'success');
+      await loadTransfers();
+    } catch (e: any) {
+      addToast(e?.message || 'Failed to complete transfer/vacate request on server.', 'error');
+    }
   };
 
   const handleDelete = async () => {
     if (!deletingRecord) return;
     try {
       await deleteTransferVacateRequest(deletingRecord.id);
-    } catch (e) {}
-    setRecords(prev => prev.filter(r => r.id !== deletingRecord.id));
-    addToast('Record removed.', 'success');
-    setDeletingRecord(null);
+      setRecords(prev => prev.filter(r => r.id !== deletingRecord.id));
+      addToast('Record removed.', 'success');
+    } catch (e: any) {
+      addToast(e?.message || 'Failed to delete transfer/vacate record on server.', 'error');
+    } finally {
+      setDeletingRecord(null);
+    }
   };
 
   const filtered = records.filter(r => {
     if (searchError) return false;
+    const q = (searchQuery || '').toLowerCase();
     const matchesSearch =
-      r.studentName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      r.admissionNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      r.fromRoom.toLowerCase().includes(searchQuery.toLowerCase());
+      (r.studentName || '').toLowerCase().includes(q) ||
+      (r.admissionNo || '').toLowerCase().includes(q) ||
+      (r.fromRoom || '').toLowerCase().includes(q);
     const matchesAction = filterAction === 'All' || !filterAction || r.actionType === filterAction;
     return matchesSearch && matchesAction;
   });

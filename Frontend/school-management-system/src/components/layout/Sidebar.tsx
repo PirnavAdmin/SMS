@@ -342,9 +342,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     activeModule.startsWith("parent-hostel-") ||
     activeModule === "room-allocation" ||
     activeModule === "outpass" ||
-    activeModule === "student-hostel" ||
-    activeModule === "warden-attendance" ||
-    activeModule === "hostel-warden-attendance";
+    activeModule === "student-hostel";
   const isTransportActive =
     activeModule.startsWith("transport-") ||
     activeModule === "transport" ||
@@ -356,7 +354,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     activeModule === "uniform";
   const isLibraryActive =
     activeModule.startsWith("library") ||
-    (safeRole.includes("librarian") ? false : activeModule === "librarian-attendance");
+    activeModule === "librarian-attendance";
   const isStaffActive =
     activeModule.startsWith("staff-") ||
     activeModule === "staff" ||
@@ -532,6 +530,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
             icon: UserPlus,
           },
           {
+            id: "warden-attendance",
+            label: "Warden Attendance",
+            icon: Clock,
+          },
+          {
             id: "hostel-reports",
             label: "Hostel Reports",
             icon: FileSpreadsheet,
@@ -597,11 +600,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
       : safeRole.includes("librarian")
       ? [
           { id: "library", label: "Digital Library", icon: Library },
+          { id: "librarian-attendance", label: "Librarian Attendance", icon: CalendarCheck },
           { id: "library-timetable", label: "Library Timetable", icon: Clock },
         ]
       : [
           { id: "library", label: "Digital Library", icon: Library },
-          { id: "librarian-attendance", label: "Librarian Attendance", icon: CalendarCheck },
           { id: "library-timetable", label: "Library Timetable", icon: Clock },
         ];
 
@@ -700,9 +703,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       title: "Core Operations",
       items: [
         { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-        ...(safeRole === 'admin' || safeRole === 'super admin' ? [
-          { id: "warden-attendance", label: "Warden Attendance", icon: Clock }
-        ] : []),
         {
           id: "staff",
           label:
@@ -775,9 +775,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       isFinanceSection: true,
       items: [
         { id: "library", label: "Library", icon: Library },
-        ...(safeRole.includes('librarian') ? [] : [
-          { id: "librarian-attendance", label: "Librarian Attendance", icon: CalendarCheck }
-        ]),
         { id: "library-timetable", label: "Library Timetable", icon: Clock },
         { id: "inventory", label: "Inventory", icon: Package },
       ],

@@ -15,7 +15,7 @@ namespace SMS.Api.Controllers
     [ApiController]
     [Route("api/student-promotion")]
     [Route("api/v1/student-promotion")]
-    [AllowAnonymous]
+    [Authorize]
     [Tags("Student Promotion Module")]
     public class StudentPromotionController : ControllerBase
     {

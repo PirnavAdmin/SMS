@@ -73,6 +73,45 @@ namespace SMS.Api.Repositories.Implementations.Parent
             }
         }
 
+        public async Task<int?> GetStudentIdForUserAsync(int userId)
+        {
+            if (userId <= 0) return null;
+
+            var user = await _context.Users.AsNoTracking().FirstOrDefaultAsync(u => u.UserId == userId);
+            if (user == null)
+            {
+                var directStu = await _context.Students.AsNoTracking().FirstOrDefaultAsync(s => s.StudentId == userId && !s.IsDeleted);
+                return directStu?.StudentId;
+            }
+
+            var mobile = user.MobileNumber?.Trim() ?? string.Empty;
+            var emailLower = user.Email?.Trim().ToLowerInvariant() ?? string.Empty;
+
+            if (!string.IsNullOrEmpty(mobile))
+            {
+                var byCode = await _context.Students.AsNoTracking()
+                    .FirstOrDefaultAsync(s => !s.IsDeleted && (s.RollNumber == mobile || s.AdmissionNumber == mobile));
+                if (byCode != null) return byCode.StudentId;
+            }
+
+            if (!string.IsNullOrEmpty(emailLower))
+            {
+                var byEmail = await _context.Students.AsNoTracking()
+                    .FirstOrDefaultAsync(s => !s.IsDeleted && s.Email != null && s.Email.ToLower() == emailLower);
+                if (byEmail != null) return byEmail.StudentId;
+            }
+
+            if (!string.IsNullOrEmpty(mobile) && !string.IsNullOrWhiteSpace(user.FullName))
+            {
+                var nameLower = user.FullName.Trim().ToLowerInvariant();
+                var byMobileAndName = await _context.Students.AsNoTracking()
+                    .FirstOrDefaultAsync(s => !s.IsDeleted && s.MobileNumber == mobile && s.StudentName != null && s.StudentName.ToLower() == nameLower);
+                if (byMobileAndName != null) return byMobileAndName.StudentId;
+            }
+
+            return null;
+        }
+
         public async Task<List<Student>> GetChildrenByParentIdentifierAsync(string identifier)
         {
             try

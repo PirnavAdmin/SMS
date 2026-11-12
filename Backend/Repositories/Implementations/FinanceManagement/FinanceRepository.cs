@@ -186,8 +186,9 @@ public class FinanceRepository : IFinanceRepository
         var allAssignments = await _context.StudentFeeAssignments.ToListAsync();
         string sId = assignment.StudentId?.Trim().ToLower() ?? "";
         
+        bool hasNumericId = int.TryParse(sId, out var numericStudentId);
         var student = await _context.Students.AsNoTracking()
-            .FirstOrDefaultAsync(s => s.StudentId.ToString() == sId || (s.AdmissionNumber != null && s.AdmissionNumber.ToLower() == sId));
+            .FirstOrDefaultAsync(s => (hasNumericId && s.StudentId == numericStudentId) || (s.AdmissionNumber != null && s.AdmissionNumber.ToLower() == sId));
 
         var existing = allAssignments.FirstOrDefault(x =>
             (x.StudentId != null && x.StudentId.Trim().ToLower() == sId) ||

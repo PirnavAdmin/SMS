@@ -991,22 +991,22 @@ export const SettingsView: React.FC = () => {
   };
 
   const handleSaveCertificateTemplates = async () => {
-    localStorage.setItem(
-      "edu_db_certificate_templates",
-      JSON.stringify(certificateTemplates),
-    );
-    addToast(
-      "success",
-      "Certificate Template Configured",
-      `Saved layout and branding configurations for ${currentTemplate?.certificateType || "all certificates"}.`,
-    );
-
     try {
       await updateCertificateTemplatesApi(certificateTemplates);
-    } catch (err) {
-      console.warn(
-        "Failed to sync certificate templates to backend database:",
-        err,
+      localStorage.setItem(
+        "edu_db_certificate_templates",
+        JSON.stringify(certificateTemplates),
+      );
+      addToast(
+        "success",
+        "Certificate Template Configured",
+        `Saved layout and branding configurations for ${currentTemplate?.certificateType || "all certificates"}.`,
+      );
+    } catch (err: any) {
+      addToast(
+        "error",
+        "Save Failed",
+        err?.message || "Failed to sync certificate templates to backend database.",
       );
     }
   };

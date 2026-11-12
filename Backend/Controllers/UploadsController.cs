@@ -31,17 +31,25 @@ namespace SMS.Api.Controllers
 
             var cleanPath = subpath.Replace('/', Path.DirectorySeparatorChar).TrimStart('\\', '/');
 
+            static string? ResolveSafePath(string rootDir, string relativePath)
+            {
+                var fullRoot = Path.GetFullPath(rootDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                    + Path.DirectorySeparatorChar;
+                var candidate = Path.GetFullPath(Path.Combine(fullRoot, relativePath));
+                return candidate.StartsWith(fullRoot, StringComparison.OrdinalIgnoreCase) ? candidate : null;
+            }
+
             // 1. Check in wwwroot/uploads
-            var fileInWwwroot = Path.Combine(_wwwrootPath, cleanPath);
-            if (System.IO.File.Exists(fileInWwwroot))
+            var fileInWwwroot = ResolveSafePath(_wwwrootPath, cleanPath);
+            if (fileInWwwroot != null && System.IO.File.Exists(fileInWwwroot))
             {
                 var contentType = GetContentType(fileInWwwroot);
                 return PhysicalFile(fileInWwwroot, contentType);
             }
 
             // 2. Check in content root /uploads
-            var fileInContentRoot = Path.Combine(_contentRootUploadsPath, cleanPath);
-            if (System.IO.File.Exists(fileInContentRoot))
+            var fileInContentRoot = ResolveSafePath(_contentRootUploadsPath, cleanPath);
+            if (fileInContentRoot != null && System.IO.File.Exists(fileInContentRoot))
             {
                 var contentType = GetContentType(fileInContentRoot);
                 return PhysicalFile(fileInContentRoot, contentType);
@@ -50,8 +58,9 @@ namespace SMS.Api.Controllers
             // 3. Check in Frontend public /uploads
             try
             {
-                var frontendPath = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "..", "Frontend", "school-management-system", "public", "uploads", cleanPath));
-                if (System.IO.File.Exists(frontendPath))
+                var frontendRoot = Path.Combine(Directory.GetCurrentDirectory(), "..", "Frontend", "school-management-system", "public", "uploads");
+                var frontendPath = ResolveSafePath(frontendRoot, cleanPath);
+                if (frontendPath != null && System.IO.File.Exists(frontendPath))
                 {
                     var contentType = GetContentType(frontendPath);
                     return PhysicalFile(frontendPath, contentType);

@@ -291,7 +291,7 @@ export const VehicleMasterView: React.FC = () => {
                       <span className="text-emerald-600">{cap.assignedCount} / {v.capacity} Seats ({cap.availableSeats} Left)</span>
                     </div>
                     <div className="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
-                      <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${Math.min(100, (cap.assignedCount / v.capacity) * 100)}%` }} />
+                      <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${v.capacity > 0 ? Math.min(100, (cap.assignedCount / v.capacity) * 100) : 0}%` }} />
                     </div>
                   </div>
 

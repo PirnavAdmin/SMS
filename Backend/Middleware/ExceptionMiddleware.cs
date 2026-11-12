@@ -60,7 +60,7 @@ public class ExceptionMiddleware
         context.Response.ContentType = "application/json";
 
         var statusCode = HttpStatusCode.InternalServerError;
-        var message = !string.IsNullOrWhiteSpace(exception.Message) ? exception.Message : "An internal server error occurred.";
+        var message = "An internal server error occurred. Please try again later.";
 
         if (exception is AppException appException)
         {
@@ -86,9 +86,13 @@ public class ExceptionMiddleware
             {
                 message = "This operation could not be completed because this record is referenced by other items in the database (e.g., classes, assignments, or student records).";
             }
+            else if (innerMsg.Contains("Duplicate entry", StringComparison.OrdinalIgnoreCase))
+            {
+                message = "A record with the same unique value already exists.";
+            }
             else
             {
-                message = innerMsg;
+                message = "The database update could not be completed due to a data constraint or invalid input.";
             }
         }
 
@@ -99,7 +103,6 @@ public class ExceptionMiddleware
             success = false,
             statusCode = context.Response.StatusCode,
             message,
-            innerException = exception.InnerException?.Message,
             timestamp = DateTime.UtcNow
         };
 

@@ -1,4 +1,5 @@
-﻿namespace SMS.Api.Controllers.Auth;
+using Microsoft.AspNetCore.Authorization;
+namespace SMS.Api.Controllers.Auth;
 
 using Microsoft.AspNetCore.Mvc;
 using SMS.Api.Dtos;
@@ -7,6 +8,7 @@ using System;
 using System.Threading.Tasks;
 
 [ApiController]
+    [Authorize]
 [Route("api/hostels")]
 public class HostelsController : ControllerBase
 {

@@ -1,6 +1,6 @@
 // @ts-nocheck
 import React from "react";
-import { CertificateTemplateConfig, SchoolProfile } from "../../../types";
+import { CertificateTemplateConfig, GeneratedCertificateRecord, SchoolProfile } from "../../../types";
 import { formatDateDDMMYYYY } from "../../../utils/dateValidation";
 import { resolveMediaUrl } from "../../../utils/mediaUtils";
 

@@ -588,7 +588,7 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
   const passCount = releasedResults.filter(r => r.passStatus === 'Pass').length;
   const failCount = releasedResults.filter(r => r.passStatus === 'Fail').length;
   const avgPercentage = totalCount > 0 
-    ? (releasedResults.reduce((acc, curr) => acc + curr.percentage, 0) / totalCount).toFixed(1) 
+    ? (releasedResults.reduce((acc, curr) => acc + Number(curr.percentage || 0), 0) / totalCount).toFixed(1) 
     : '0.0';
 
   // Pagination calculation
@@ -1244,7 +1244,7 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
                       <td className="px-4 py-3 text-center border-r border-slate-100 dark:border-slate-800/80 whitespace-nowrap min-w-[5.5rem]">
                         <div className="inline-flex flex-col items-center">
                           <span className="font-mono font-black text-sky-600 dark:text-sky-400 text-xs">
-                            {res.percentage.toFixed(1)}%
+                            {Number(res.percentage || 0).toFixed(1)}%
                           </span>
                         </div>
                       </td>

@@ -595,6 +595,15 @@ using (var scope = app.Services.CreateScope())
                         System.Console.WriteLine("[Database Schema Upgrade] Added column `UserProfileJson` to `SchoolSettings`.");
                     }
 
+                    cmd.CommandText = $"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '{dbName}' AND TABLE_NAME = 'SchoolSettings' AND COLUMN_NAME = 'FinanceSettingsJson';";
+                    var finSettingsExists = System.Convert.ToInt32(cmd.ExecuteScalar());
+                    if (finSettingsExists == 0)
+                    {
+                        cmd.CommandText = "ALTER TABLE `SchoolSettings` ADD COLUMN `FinanceSettingsJson` longtext NULL;";
+                        cmd.ExecuteNonQuery();
+                        System.Console.WriteLine("[Database Schema Upgrade] Added column `FinanceSettingsJson` to `SchoolSettings`.");
+                    }
+
                     // Upgrade admins table to add Avatar column if not exists
                     try
                     {
@@ -1438,9 +1447,7 @@ using (var scope = app.Services.CreateScope())
                 CONSTRAINT `fk_hw_submissions_homework` FOREIGN KEY (`HomeworkId`) REFERENCES `homeworks` (`HomeworkId`) ON DELETE CASCADE
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
 
-            @"DROP TABLE IF EXISTS `payroll_runs`;",
-
-            @"CREATE TABLE `payroll_runs` (
+            @"CREATE TABLE IF NOT EXISTS `payroll_runs` (
                 `Id` INT AUTO_INCREMENT PRIMARY KEY,
                 `EmployeeId` VARCHAR(100) NOT NULL,
                 `EmployeeName` VARCHAR(255) NULL,
@@ -1785,6 +1792,7 @@ using (var scope = app.Services.CreateScope())
         EnsureColumnExists("admission_applications", "SecurityDepositAmount", "decimal(18,2) NOT NULL DEFAULT 0.00");
         EnsureColumnExists("admission_applications", "SecurityDepositReceiptNo", "varchar(100) NULL");
         EnsureColumnExists("admission_applications", "AcademicYear", "varchar(100) NULL");
+        EnsureColumnExists("admissions", "academic_year", "varchar(100) NULL");
         EnsureColumnExists("admission_applications", "BranchName", "varchar(100) NULL");
         EnsureColumnExists("admissions", "academic_year", "varchar(100) NULL");
         EnsureColumnExists("uniform_fee_configs", "Branch", "varchar(100) NULL");
@@ -1957,7 +1965,6 @@ using (var scope = app.Services.CreateScope())
             context.Database.ExecuteSqlRaw("UPDATE `staff` SET `EmployeeCategory` = 'Non-Teaching Staff' WHERE `EmployeeCategory` IS NULL OR `EmployeeCategory` = '';");
             context.Database.ExecuteSqlRaw("UPDATE `subjects` SET `SubjectCode` = CONCAT('SUB', `SubjectId`) WHERE `SubjectCode` IS NULL OR `SubjectCode` = '';");
             context.Database.ExecuteSqlRaw("UPDATE `subjects` SET `SubjectName` = 'General Subject' WHERE `SubjectName` IS NULL OR `SubjectName` = '';");
-            try { context.Database.ExecuteSqlRaw("UPDATE `admissions` SET `branch_id` = 6 WHERE `branch_id` = 1;"); } catch { }
         }
         catch { }
 

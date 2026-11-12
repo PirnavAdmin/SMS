@@ -9,6 +9,7 @@ namespace SMS.Api.Repositories.Interfaces.Parent
     {
         Task<List<Student>> GetChildrenByParentUserIdAsync(int parentUserId);
         Task<bool> IsStudentAssociatedWithParentAsync(int parentUserId, int studentId);
+        Task<int?> GetStudentIdForUserAsync(int userId);
         Task<List<Student>> GetChildrenByParentIdentifierAsync(string identifier);
         Task<Student?> GetStudentByIdAsync(int studentId);
         Task<ParentDashboardSummaryDto> GetDashboardSummaryAsync(int studentId);

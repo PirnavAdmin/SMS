@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { installGlobalInputValidation } from "./utils/validation";
+import { hasModuleAccess } from "./utils/rbac";
 import { ThemeProvider } from "./context/ThemeContext";
 import { ToastProvider } from "./context/ToastContext";
 import { AuthProvider, useAuth } from "./context/AuthContext";
@@ -360,12 +361,18 @@ const MainLayout: React.FC = () => {
     }
 
     if (activeModule.startsWith("finance-")) {
-      return userRole === "parent" || userRole === "student" ? (
-        <ParentFinanceView
-          activeTab="parent-fee-dues"
-          onTabChange={setActiveModule}
-        />
-      ) : (
+      if (userRole === "parent" || userRole === "student") {
+        return (
+          <ParentFinanceView
+            activeTab="parent-fee-dues"
+            onTabChange={setActiveModule}
+          />
+        );
+      }
+      if (!hasModuleAccess(role || userRole, "fees")) {
+        return <DashboardView onNavigate={(mod) => setActiveModule(mod)} />;
+      }
+      return (
         <FinanceContainerView
           initialTab={activeModule}
           onTabChange={setActiveModule}
@@ -374,9 +381,16 @@ const MainLayout: React.FC = () => {
     }
 
     if (activeModule.startsWith("transport-")) {
-      return userRole === "parent" || userRole === "student" ? (
-        <ParentBusInfoView />
-      ) : (
+      if (userRole === "parent" || userRole === "student") {
+        return <ParentBusInfoView />;
+      }
+      if (userRole === "driver") {
+        return <DriverTransportPortalView onNavigate={setActiveModule} />;
+      }
+      if (!hasModuleAccess(role || userRole, "transport")) {
+        return <DashboardView onNavigate={(mod) => setActiveModule(mod)} />;
+      }
+      return (
         <TransportContainerView
           initialTab={activeModule}
           onTabChange={setActiveModule}
@@ -385,9 +399,13 @@ const MainLayout: React.FC = () => {
     }
 
     if (activeModule.startsWith("hostel-")) {
-      return userRole === "parent" || userRole === "student" ? (
-        <ParentHostelView />
-      ) : (
+      if (userRole === "parent" || userRole === "student") {
+        return <ParentHostelView />;
+      }
+      if (!hasModuleAccess(role || userRole, "hostel")) {
+        return <DashboardView onNavigate={(mod) => setActiveModule(mod)} />;
+      }
+      return (
         <HostelContainerView
           initialTab={activeModule}
           onTabChange={setActiveModule}
@@ -396,9 +414,10 @@ const MainLayout: React.FC = () => {
     }
 
     if (activeModule.startsWith("uniform-")) {
-      return userRole === "parent" || userRole === "student" ? (
-        <DashboardView onNavigate={(mod) => setActiveModule(mod)} />
-      ) : (
+      if (userRole === "parent" || userRole === "student" || !hasModuleAccess(role || userRole, "uniforms")) {
+        return <DashboardView onNavigate={(mod) => setActiveModule(mod)} />;
+      }
+      return (
         <UniformContainerView
           initialTab={activeModule}
           onTabChange={setActiveModule}
@@ -409,7 +428,9 @@ const MainLayout: React.FC = () => {
     if (activeModule.startsWith("staff-payroll")) {
       if (userRole === "parent" || userRole === "student")
         return <ParentTeacherInfoView />;
-      if (userRole === "teacher") return <TeacherPayslipsView />;
+      if (userRole === "driver") return <DriverPayslipsView />;
+      if (["teacher", "hostel warden", "warden", "librarian", "staff"].includes(userRole))
+        return <TeacherPayslipsView />;
       return (
         <PayrollModuleView
           initialTab={activeModule}
@@ -423,26 +444,26 @@ const MainLayout: React.FC = () => {
         return <DashboardView onNavigate={(mod) => setActiveModule(mod)} />;
       case "students":
       case "student-directory":
-        return userRole === "parent" || userRole === "student" ? (
+        return !hasModuleAccess(role || userRole, "students") ? (
           <DashboardView onNavigate={(mod) => setActiveModule(mod)} />
         ) : (
           <StudentList onNavigate={(mod) => setActiveModule(mod)} />
         );
       case "academic-history":
-        return userRole === "parent" || userRole === "student" ? (
+        return !hasModuleAccess(role || userRole, "academic-history") ? (
           <DashboardView onNavigate={(mod) => setActiveModule(mod)} />
         ) : (
           <AcademicHistoryView />
         );
       case "student-promotion":
-        return userRole === "parent" || userRole === "student" ? (
+        return !hasModuleAccess(role || userRole, "student-promotion") ? (
           <DashboardView onNavigate={(mod) => setActiveModule(mod)} />
         ) : (
           <StudentPromotionView />
         );
       case "certificates":
       case "transfer-certificates":
-        return userRole === "parent" || userRole === "student" ? (
+        return !hasModuleAccess(role || userRole, "certificates") ? (
           <DashboardView onNavigate={(mod) => setActiveModule(mod)} />
         ) : (
           <CertificatesView
@@ -450,7 +471,7 @@ const MainLayout: React.FC = () => {
           />
         );
       case "alumni":
-        return userRole === "parent" || userRole === "student" ? (
+        return !hasModuleAccess(role || userRole, "alumni") ? (
           <DashboardView onNavigate={(mod) => setActiveModule(mod)} />
         ) : (
           <AlumniView />
@@ -458,11 +479,11 @@ const MainLayout: React.FC = () => {
       case "driver-profile":
         return <DriverProfileView />;
       case "driver-attendance":
-        return <StaffAttendanceView onNavigate={(mod) => setActiveModule(mod)} />;
+        return <DriverAttendanceView />;
       case "driver-leave":
-        return <LeaveManagementView />;
+        return <DriverLeaveView />;
       case "driver-payslips":
-        return <TeacherPayslipsView />;
+        return <DriverPayslipsView />;
       case "warden-profile":
       case "teacher-profile":
       case "teacher-my-profile":
@@ -472,17 +493,17 @@ const MainLayout: React.FC = () => {
       case "staff-directory":
         if (userRole === "parent" || userRole === "student")
           return <ParentTeacherInfoView />;
-        if (userRole === "teacher" || userRole === "hostel warden" || userRole === "warden" || userRole === "accountant" || userRole === "finance" || userRole === "librarian") return <TeacherProfileView />;
+        if (userRole === "teacher" || userRole === "hostel warden" || userRole === "warden" || userRole === "accountant" || userRole === "finance" || userRole === "librarian" || userRole === "staff") return <TeacherProfileView />;
         if (userRole === "driver") return <DriverProfileView />;
         return <StaffList onNavigate={setActiveModule} />;
       case "staff-letters":
         if (userRole === "parent" || userRole === "student")
           return <ParentTeacherInfoView />;
-        if (userRole === "teacher" || userRole === "hostel warden" || userRole === "warden" || userRole === "accountant" || userRole === "finance" || userRole === "librarian") return <TeacherProfileView />;
+        if (userRole === "teacher" || userRole === "hostel warden" || userRole === "warden" || userRole === "accountant" || userRole === "finance" || userRole === "librarian" || userRole === "staff") return <TeacherProfileView />;
         if (userRole === "driver") return <DriverProfileView />;
         return <StaffLettersManagementView onNavigate={setActiveModule} />;
       case "staff-non-teaching":
-        if (userRole === "teacher") return <TeacherProfileView />;
+        if (["teacher", "librarian", "hostel warden", "warden", "accountant", "finance", "staff"].includes(userRole)) return <TeacherProfileView />;
         if (userRole === "driver") return <DriverProfileView />;
         return userRole === "parent" || userRole === "student" ? (
           <ParentTeacherInfoView />
@@ -490,7 +511,7 @@ const MainLayout: React.FC = () => {
           <StaffList initialCategory="Staff" onNavigate={setActiveModule} />
         );
       case "staff-add":
-        if (userRole === "teacher") return <TeacherProfileView />;
+        if (["teacher", "librarian", "hostel warden", "warden", "accountant", "finance", "staff"].includes(userRole)) return <TeacherProfileView />;
         if (userRole === "driver") return <DriverProfileView />;
         return userRole === "parent" || userRole === "student" ? (
           <ParentTeacherInfoView />
@@ -500,19 +521,22 @@ const MainLayout: React.FC = () => {
       case "staff-attendance":
         if (userRole === "parent" || userRole === "student")
           return <ParentTeacherInfoView />;
+        if (userRole === "driver") return <DriverAttendanceView />;
         return <StaffAttendanceView onNavigate={(mod) => setActiveModule(mod)} />;
       case "staff-leave":
         if (userRole === "parent" || userRole === "student")
           return <ParentTeacherInfoView />;
+        if (userRole === "driver") return <DriverLeaveView />;
         return <LeaveManagementView />;
       case "staff-my-payslips":
       case "teacher-payslips":
         if (userRole === "parent" || userRole === "student")
           return <ParentTeacherInfoView />;
+        if (userRole === "driver") return <DriverPayslipsView />;
         return <TeacherPayslipsView />;
       case "admissions":
       case "admissions-add":
-        return userRole === "parent" || userRole === "student" ? (
+        return !hasModuleAccess(role || userRole, "admissions") ? (
           <DashboardView onNavigate={(mod) => setActiveModule(mod)} />
         ) : (
           <AdmissionsView
@@ -524,6 +548,8 @@ const MainLayout: React.FC = () => {
       case "academic-dashboard":
         return userRole === "parent" || userRole === "student" ? (
           <ParentTimetableView />
+        ) : !hasModuleAccess(role || userRole, "academics") ? (
+          <DashboardView onNavigate={(mod) => setActiveModule(mod)} />
         ) : (
           <AcademicDashboardView
             onNavigate={setActiveModule}
@@ -545,6 +571,9 @@ const MainLayout: React.FC = () => {
       case "academic-publish": {
         if (userRole === "parent" || userRole === "student") {
           return <ParentTimetableView />;
+        }
+        if (!hasModuleAccess(role || userRole, "academics")) {
+          return <DashboardView onNavigate={(mod) => setActiveModule(mod)} />;
         }
         let targetTab = classWorkspaceTab;
         if (activeModule === "academic-subjects") targetTab = "subjects";
@@ -570,12 +599,16 @@ const MainLayout: React.FC = () => {
       case "subjects":
         return userRole === "parent" || userRole === "student" ? (
           <ParentTimetableView />
+        ) : !hasModuleAccess(role || userRole, "subjects") ? (
+          <DashboardView onNavigate={(mod) => setActiveModule(mod)} />
         ) : (
           <SubjectsView />
         );
       case "warden-attendance":
       case "hostel-warden-attendance":
-        return <WardenAttendanceView />;
+        return (userRole === "hostel warden" || userRole === "warden")
+          ? <WardenAttendanceView />
+          : <DashboardView onNavigate={(mod) => setActiveModule(mod)} />;
       case "attendance":
         return userRole === "parent" || userRole === "student" ? (
           <ParentAttendanceView />
@@ -585,6 +618,8 @@ const MainLayout: React.FC = () => {
       case "timetable":
         return userRole === "parent" || userRole === "student" ? (
           <ParentTimetableView />
+        ) : !hasModuleAccess(role || userRole, "timetable") ? (
+          <DashboardView onNavigate={(mod) => setActiveModule(mod)} />
         ) : (
           <TimetableView onNavigate={(mod) => setActiveModule(mod)} />
         );
@@ -598,6 +633,8 @@ const MainLayout: React.FC = () => {
       case "teacher-marks-entry":
       case "examination-marks":
       case "examination-marks-entry":
+        if (userRole === "parent" || userRole === "student") return <ParentExaminationView />;
+        if (!hasModuleAccess(role || userRole, "marks-entry")) return <DashboardView onNavigate={(mod) => setActiveModule(mod)} />;
         return <ClassTeacherMarksEntryView onNavigate={setActiveModule} />;
       case "report-cards":
       case "examination-report-cards":
@@ -613,19 +650,25 @@ const MainLayout: React.FC = () => {
           <HomeworkView />
         );
       case "fees":
-        return userRole === "parent" || userRole === "student" ? (
-          <ParentFinanceView
-            activeTab="parent-fee-dues"
-            onTabChange={setActiveModule}
-          />
-        ) : (
+        if (userRole === "parent" || userRole === "student") {
+          return (
+            <ParentFinanceView
+              activeTab="parent-fee-dues"
+              onTabChange={setActiveModule}
+            />
+          );
+        }
+        if (!hasModuleAccess(role || userRole, "fees")) {
+          return <DashboardView onNavigate={(mod) => setActiveModule(mod)} />;
+        }
+        return (
           <FinanceContainerView
             initialTab="fee-collection"
             onTabChange={setActiveModule}
           />
         );
       case "uniforms":
-        return userRole === "parent" || userRole === "student" ? (
+        return !hasModuleAccess(role || userRole, "uniforms") ? (
           <DashboardView onNavigate={(mod) => setActiveModule(mod)} />
         ) : (
           <UniformContainerView
@@ -634,19 +677,38 @@ const MainLayout: React.FC = () => {
           />
         );
       case "library":
-        return <LibraryView initialPhase="phase1" initialTab="dashboard" />;
+        return !hasModuleAccess(role || userRole, "library") ? (
+          <DashboardView onNavigate={(mod) => setActiveModule(mod)} />
+        ) : (
+          <LibraryView initialPhase="phase1" initialTab="dashboard" />
+        );
       case "library-books":
-        return <LibraryView initialPhase="phase1" initialTab="books" />;
+        return !hasModuleAccess(role || userRole, "library") ? (
+          <DashboardView onNavigate={(mod) => setActiveModule(mod)} />
+        ) : (
+          <LibraryView initialPhase="phase1" initialTab="books" />
+        );
       case "library-issue":
-        return <LibraryView initialPhase="phase2" initialTab="issue" />;
       case "library-return":
-        return <LibraryView initialPhase="phase2" initialTab="return" />;
       case "library-fines":
-        return <LibraryView initialPhase="phase3" initialTab="fines" />;
+        if (userRole === "parent" || userRole === "student" || !hasModuleAccess(role || userRole, "library")) {
+          return <DashboardView onNavigate={(mod) => setActiveModule(mod)} />;
+        }
+        return activeModule === "library-issue"
+          ? <LibraryView initialPhase="phase2" initialTab="issue" />
+          : activeModule === "library-return"
+          ? <LibraryView initialPhase="phase2" initialTab="return" />
+          : <LibraryView initialPhase="phase3" initialTab="fines" />;
       case "librarian-attendance":
       case "library-attendance":
+        if (userRole !== "librarian") {
+          return <DashboardView onNavigate={(mod) => setActiveModule(mod)} />;
+        }
         return <LibrarianAttendanceView />;
       case "library-timetable":
+        if (userRole === "parent" || !hasModuleAccess(role || userRole, "library")) {
+          return <DashboardView onNavigate={(mod) => setActiveModule(mod)} />;
+        }
         return <LibraryTimetableView />;
       case "transport":
         if (userRole === "parent" || userRole === "student") {
@@ -654,6 +716,9 @@ const MainLayout: React.FC = () => {
         }
         if (userRole === "driver") {
           return <DriverTransportPortalView onNavigate={setActiveModule} />;
+        }
+        if (!hasModuleAccess(role || userRole, "transport")) {
+          return <DashboardView onNavigate={(mod) => setActiveModule(mod)} />;
         }
         return (
           <TransportContainerView
@@ -677,16 +742,20 @@ const MainLayout: React.FC = () => {
       case "outpass":
       case "room-allocation":
       case "student-hostel":
-        return userRole === "parent" || userRole === "student" ? (
-          <ParentHostelView />
-        ) : (
+        if (userRole === "parent" || userRole === "student") {
+          return <ParentHostelView />;
+        }
+        if (!hasModuleAccess(role || userRole, "hostel")) {
+          return <DashboardView onNavigate={(mod) => setActiveModule(mod)} />;
+        }
+        return (
           <HostelContainerView
             initialTab={activeModule}
             onTabChange={setActiveModule}
           />
         );
       case "inventory":
-        return userRole === "parent" || userRole === "student" ? (
+        return !hasModuleAccess(role || userRole, "inventory") ? (
           <DashboardView onNavigate={(mod) => setActiveModule(mod)} />
         ) : (
           <InventoryView />
@@ -696,26 +765,26 @@ const MainLayout: React.FC = () => {
       case "events":
         return <EventsView />;
       case "training":
-        return userRole === "parent" || userRole === "student" ? (
+        return !hasModuleAccess(role || userRole, "training") ? (
           <DashboardView onNavigate={(mod) => setActiveModule(mod)} />
         ) : (
           <TrainingContainerView />
         );
       case "reports":
-        return userRole === "parent" || userRole === "student" ? (
+        return !hasModuleAccess(role || userRole, "reports") ? (
           <DashboardView onNavigate={(mod) => setActiveModule(mod)} />
         ) : (
           <ReportsView />
         );
       case "users":
       case "roles":
-        return userRole === "parent" || userRole === "student" ? (
+        return !hasModuleAccess(role || userRole, "users") ? (
           <DashboardView onNavigate={(mod) => setActiveModule(mod)} />
         ) : (
           <UserManagementView />
         );
       case "settings":
-        return userRole === "parent" || userRole === "student" ? (
+        return !hasModuleAccess(role || userRole, "settings") ? (
           <DashboardView onNavigate={(mod) => setActiveModule(mod)} />
         ) : (
           <SettingsView />
@@ -754,7 +823,9 @@ const MainLayout: React.FC = () => {
           collapsed ? "ml-20" : "ml-56"
         }`}
       >
-        {renderModuleContent()}
+        <ErrorBoundary key={activeModule}>
+          {renderModuleContent()}
+        </ErrorBoundary>
       </main>
 
       <GlobalSearchModal

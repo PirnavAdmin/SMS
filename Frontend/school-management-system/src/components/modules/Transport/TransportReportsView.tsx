@@ -121,7 +121,8 @@ export const TransportReportsView: React.FC<TransportReportsViewProps> = ({ init
   };
 
   const handlePdfExport = () => {
-    addToast('success', 'PDF Report Generated', `Downloaded PDF for ${getSelectedReportLabel(selectedReport)}`);
+    addToast('info', 'Print / Save PDF', `Use your browser print dialog ("Save as PDF") for ${getSelectedReportLabel(selectedReport)}.`);
+    window.print();
   };
 
   const selectedReportLabel = getSelectedReportLabel(selectedReport);
@@ -283,7 +284,7 @@ export const TransportReportsView: React.FC<TransportReportsViewProps> = ({ init
       case 'vehicle-reports':
         return vehicleMasters.map(vehicle => {
           const cap = checkVehicleCapacity(vehicle.id);
-          const utilization = Math.round((cap.assignedCount / vehicle.capacity) * 100);
+          const utilization = vehicle.capacity > 0 ? Math.round((cap.assignedCount / vehicle.capacity) * 100) : 0;
           const activeAssignment = vehicleAssignments.find(va => va.vehicleId === vehicle.id && va.status === 'Active')
             || vehicleAssignments.find(va => va.vehicleNumber === vehicle.vehicleNumber && va.status === 'Active');
 

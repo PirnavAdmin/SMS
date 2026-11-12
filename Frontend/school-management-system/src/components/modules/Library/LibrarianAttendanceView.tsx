@@ -543,8 +543,9 @@ export const LibrarianAttendanceView: React.FC = () => {
                     if (res?.success && res?.data) {
                       newRec.id = String(res.data.id || `ATT-LIB-${res.data.attendanceId}`);
                     }
-                  } catch (e) {
-                    console.warn("Check-in API notice:", e);
+                  } catch (e: any) {
+                    addToast('error', 'Check-In Failed', e?.message || 'Unable to log librarian check-in on server.');
+                    return;
                   }
 
                   saveLibrarianAttendance([newRec, ...librarianAttendance.filter(r => r.date !== todayStr || (r.staffId !== currentStaffId && r.staffName !== currentStaffName))]);
@@ -590,6 +591,23 @@ export const LibrarianAttendanceView: React.FC = () => {
                     remarks: updatedRemarks
                   };
 
+                  try {
+                    await LibraryAPI.updateLibrarianAttendanceApi(todayRecord.id, {
+                      date: todayRecord.date,
+                      staffId: todayRecord.staffId,
+                      staffName: todayRecord.staffName,
+                      checkInTime: todayRecord.checkInTime,
+                      checkOutTime: timeStr,
+                      status: todayRecord.status,
+                      remarks: updatedRemarks,
+                      dutyRemarks: updatedRemarks,
+                      workingHours: calcHours
+                    });
+                  } catch (e: any) {
+                    addToast('error', 'Check-Out Failed', e?.message || 'Unable to log librarian check-out on server.');
+                    return;
+                  }
+
                   const updatedList = librarianAttendance.map(r => r.id === todayRecord.id ? updatedRec : r);
                   saveLibrarianAttendance(updatedList);
 
@@ -610,26 +628,12 @@ export const LibrarianAttendanceView: React.FC = () => {
                           remarks: updatedRemarks
                         }
                       ]);
-                    } catch (err) {}
+                    } catch (err) {
+                      console.warn('DataContext markAttendance check-out sync notice:', err);
+                    }
                   }
 
                   addToast('success', 'Checked Out', `Successfully checked out at ${timeStr}`);
-
-                  try {
-                    await LibraryAPI.updateLibrarianAttendanceApi(todayRecord.id, {
-                      date: todayRecord.date,
-                      staffId: todayRecord.staffId,
-                      staffName: todayRecord.staffName,
-                      checkInTime: todayRecord.checkInTime,
-                      checkOutTime: timeStr,
-                      status: todayRecord.status,
-                      remarks: updatedRemarks,
-                      dutyRemarks: updatedRemarks,
-                      workingHours: calcHours
-                    });
-                  } catch (e) {
-                    console.warn("Check-out API notice:", e);
-                  }
                 }}
                 className="w-full md:w-auto px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-extrabold text-xs shadow-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
               >

@@ -77,11 +77,6 @@ public class FinanceController : ControllerBase
                                                                          c.Replace("Class ", "", System.StringComparison.OrdinalIgnoreCase).Trim().Equals(normClass, System.StringComparison.OrdinalIgnoreCase))));
             }
 
-            if (!result.Any() && allResult.Any())
-            {
-                result = allResult;
-            }
-
             return Ok(new { success = true, data = result });
         }
         catch (Exception ex)
@@ -197,11 +192,6 @@ public class FinanceController : ControllerBase
                                        x.Branch.Equals(branch, System.StringComparison.OrdinalIgnoreCase) ||
                                        x.Branch.ToLower().Contains(branch.ToLower()) ||
                                        branch.ToLower().Contains(x.Branch.ToLower()));
-            }
-
-            if (!list.Any() && allList.Any())
-            {
-                list = allList;
             }
 
             return Ok(new { success = true, data = list });

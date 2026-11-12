@@ -181,16 +181,72 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                 (st.RollNumber != null && st.RollNumber.ToLower().Contains(s)));
         }
 
-        int totalRecords = await query.CountAsync();
         int safePage = page <= 0 ? 1 : page;
         int safePageSize = pageSize <= 0 ? 50 : pageSize;
+        bool hasStudentTypeFilter = !string.IsNullOrWhiteSpace(studentType) && !studentType.Equals("ALL", StringComparison.OrdinalIgnoreCase);
 
-        var students = await query
-            .OrderBy(s => s.ClassGrade != null ? s.ClassGrade.ClassName : "")
-            .ThenBy(s => s.StudentName)
-            .Skip((safePage - 1) * safePageSize)
-            .Take(safePageSize)
-            .ToListAsync();
+        int totalRecords;
+        List<Student> students;
+        List<StudentBedAllocation> hostelAllocations;
+        List<AdmissionApplication> hostelApps;
+
+        if (hasStudentTypeFilter)
+        {
+            var allQueryStudents = await query
+                .OrderBy(s => s.ClassGrade != null ? s.ClassGrade.ClassName : "")
+                .ThenBy(s => s.StudentName)
+                .ToListAsync();
+
+            var allQueryStudentIds = allQueryStudents.Select(s => s.StudentId).ToList();
+            hostelAllocations = await _context.StudentBedAllocations.AsNoTracking()
+                .Include(b => b.Room)
+                .ThenInclude(r => r!.RoomType)
+                .Include(b => b.Hostel)
+                .Where(b => b.StudentId.HasValue && allQueryStudentIds.Contains(b.StudentId.Value) && (b.Status == "Active" || b.Status == "Occupied" || string.IsNullOrEmpty(b.Status)))
+                .ToListAsync();
+
+            hostelApps = await _context.AdmissionApplications.AsNoTracking()
+                .Where(a => !a.IsDeleted && a.StudentType == "Residential" && a.Status != "Rejected" && a.Status != "Deleted" && a.Status != "Withdrawn")
+                .ToListAsync();
+
+            string targetType = studentType!.Trim();
+            var filteredByType = allQueryStudents.Where(st =>
+            {
+                var alloc = hostelAllocations.FirstOrDefault(b => b.StudentId == st.StudentId || (st.AdmissionNumber != null && b.RegistrationNo == st.AdmissionNumber));
+                var hApp = hostelApps.FirstOrDefault(a => st.AdmissionNumber != null && (a.AdmissionNo == st.AdmissionNumber || a.RegistrationNo == st.AdmissionNumber));
+                bool isHosteller = (hApp != null && hApp.StudentType == "Residential") || (alloc != null && (alloc.Status == "Active" || alloc.Status == "Occupied"));
+                string stType = isHosteller ? "Hosteller" : "Day Scholar";
+                return stType.Equals(targetType, StringComparison.OrdinalIgnoreCase);
+            }).ToList();
+
+            totalRecords = filteredByType.Count;
+            students = filteredByType
+                .Skip((safePage - 1) * safePageSize)
+                .Take(safePageSize)
+                .ToList();
+        }
+        else
+        {
+            totalRecords = await query.CountAsync();
+            students = await query
+                .OrderBy(s => s.ClassGrade != null ? s.ClassGrade.ClassName : "")
+                .ThenBy(s => s.StudentName)
+                .Skip((safePage - 1) * safePageSize)
+                .Take(safePageSize)
+                .ToListAsync();
+
+            var pagedIds = students.Select(s => s.StudentId).ToList();
+            hostelAllocations = await _context.StudentBedAllocations.AsNoTracking()
+                .Include(b => b.Room)
+                .ThenInclude(r => r!.RoomType)
+                .Include(b => b.Hostel)
+                .Where(b => b.StudentId.HasValue && pagedIds.Contains(b.StudentId.Value) && (b.Status == "Active" || b.Status == "Occupied" || string.IsNullOrEmpty(b.Status)))
+                .ToListAsync();
+
+            hostelApps = await _context.AdmissionApplications.AsNoTracking()
+                .Where(a => !a.IsDeleted && a.StudentType == "Residential" && a.Status != "Rejected" && a.Status != "Deleted" && a.Status != "Withdrawn")
+                .ToListAsync();
+        }
 
         var studentIdsStr = students.Select(s => s.StudentId.ToString()).ToList();
         var admNos = students.Where(s => !string.IsNullOrEmpty(s.AdmissionNumber)).Select(s => s.AdmissionNumber!).ToList();
@@ -208,7 +264,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
         }
 
         var rawPayments = await _context.FeePayments.AsNoTracking()
-            .Where(p => allStudentKeys.Contains(p.StudentId))
+            .Where(p => allStudentKeys.Contains(p.StudentId) && p.Status != "Cancelled")
             .ToListAsync();
 
         var payments = rawPayments
@@ -217,18 +273,6 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             .ToList();
 
         var feeStructures = await _context.DynamicFeeStructures.AsNoTracking().ToListAsync();
-
-        var studentIntIds = students.Select(s => s.StudentId).ToList();
-        var hostelAllocations = await _context.StudentBedAllocations.AsNoTracking()
-            .Include(b => b.Room)
-            .ThenInclude(r => r!.RoomType)
-            .Include(b => b.Hostel)
-            .Where(b => b.StudentId.HasValue && studentIntIds.Contains(b.StudentId.Value) && (b.Status == "Active" || b.Status == "Occupied" || string.IsNullOrEmpty(b.Status)))
-            .ToListAsync();
-
-        var hostelApps = await _context.AdmissionApplications.AsNoTracking()
-            .Where(a => !a.IsDeleted && a.StudentType == "Residential" && a.Status != "Rejected" && a.Status != "Deleted" && a.Status != "Withdrawn")
-            .ToListAsync();
 
         var allHostelConfigs = await _context.HostelFeeConfigs.AsNoTracking()
             .Where(h => h.Status == "Active" || string.IsNullOrEmpty(h.Status))
@@ -535,12 +579,13 @@ public class FeeCollectionRepository : IFeeCollectionRepository
         var scheduleTerms = schedule?.Terms?.OrderBy(t => t.Sequence).ToList() ?? new List<FeeScheduleTerm>();
         if (scheduleTerms.Count == 0)
         {
+            int nextYr = int.TryParse(yearPrefix, out int parsedYr) ? parsedYr + 1 : DateTime.UtcNow.Year + 1;
             scheduleTerms = new List<FeeScheduleTerm>
             {
                 new FeeScheduleTerm { Id = "term-1", TermName = "Term 1", Sequence = 1, DueDate = $"{yearPrefix}-06-15", PercentageShare = 25m },
                 new FeeScheduleTerm { Id = "term-2", TermName = "Term 2", Sequence = 2, DueDate = $"{yearPrefix}-09-15", PercentageShare = 25m },
                 new FeeScheduleTerm { Id = "term-3", TermName = "Term 3", Sequence = 3, DueDate = $"{yearPrefix}-12-15", PercentageShare = 25m },
-                new FeeScheduleTerm { Id = "term-4", TermName = "Term 4", Sequence = 4, DueDate = $"{int.Parse(yearPrefix) + 1}-03-15", PercentageShare = 25m },
+                new FeeScheduleTerm { Id = "term-4", TermName = "Term 4", Sequence = 4, DueDate = $"{nextYr}-03-15", PercentageShare = 25m },
             };
         }
         string defaultDueDate = !string.IsNullOrEmpty(schedule?.AnnualDueDate)
@@ -790,15 +835,17 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             var route = ta?.Route;
             if (route == null && appRecord != null && !string.IsNullOrEmpty(appRecord.BusRoute))
             {
+                bool hasRouteId = int.TryParse(appRecord.BusRoute, out int parsedRouteId);
                 route = await _context.TransportRoutes.AsNoTracking()
-                    .FirstOrDefaultAsync(r => r.RouteName == appRecord.BusRoute || r.RouteId.ToString() == appRecord.BusRoute);
+                    .FirstOrDefaultAsync(r => r.RouteName == appRecord.BusRoute || (hasRouteId && r.RouteId == parsedRouteId));
             }
 
             var pickup = ta?.PickupPoint;
             if (pickup == null && appRecord != null && !string.IsNullOrEmpty(appRecord.PickupPoint))
             {
+                bool hasPickupId = int.TryParse(appRecord.PickupPoint, out int parsedPickupId);
                 pickup = await _context.PickupPoints.AsNoTracking()
-                    .FirstOrDefaultAsync(p => p.PickupPointName == appRecord.PickupPoint || p.PickupPointId.ToString() == appRecord.PickupPoint);
+                    .FirstOrDefaultAsync(p => p.PickupPointName == appRecord.PickupPoint || (hasPickupId && p.PickupPointId == parsedPickupId));
             }
 
             decimal distance = pickup?.DistanceFromStart ?? (route?.DistanceKm ?? 0m);
@@ -1243,8 +1290,26 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             PaidItemsJson = itemsJson
         };
 
+        await using var transaction = _context.Database.IsRelational()
+            ? await _context.Database.BeginTransactionAsync()
+            : null;
+
         _context.FeePayments.Add(payment);
+
+        string canonicalStr = canonicalStudentId.ToString();
+        var matchingAssignment = await _context.StudentFeeAssignments
+            .FirstOrDefaultAsync(a => a.StudentId == canonicalStr && (a.Status == "Active" || string.IsNullOrEmpty(a.Status)));
+        if (matchingAssignment != null)
+        {
+            matchingAssignment.PaidAmount += request.TotalAmountPaid;
+            matchingAssignment.DueAmount = Math.Max(0m, matchingAssignment.TotalAmount - matchingAssignment.PaidAmount - request.ConcessionDiscountAmount);
+        }
+
         await _context.SaveChangesAsync();
+        if (transaction != null)
+        {
+            await transaction.CommitAsync();
+        }
 
         var profile = await GetStudentFeeProfileAsync(canonicalStudentId, request.AcademicYear);
         decimal remaining = profile != null ? profile.TotalOutstandingBalance : 0m;
@@ -2596,12 +2661,13 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             }
             else
             {
+                int nextYr = int.TryParse(yearPrefix, out int parsedYr) ? parsedYr + 1 : DateTime.UtcNow.Year + 1;
                 scheduleTerms = new List<FeeScheduleTerm>
                 {
                     new FeeScheduleTerm { TermName = "Term 1", Sequence = 1, DueDate = $"{yearPrefix}-06-15", PercentageShare = 25m },
                     new FeeScheduleTerm { TermName = "Term 2", Sequence = 2, DueDate = $"{yearPrefix}-09-15", PercentageShare = 25m },
                     new FeeScheduleTerm { TermName = "Term 3", Sequence = 3, DueDate = $"{yearPrefix}-12-15", PercentageShare = 25m },
-                    new FeeScheduleTerm { TermName = "Term 4", Sequence = 4, DueDate = $"{int.Parse(yearPrefix) + 1}-03-15", PercentageShare = 25m },
+                    new FeeScheduleTerm { TermName = "Term 4", Sequence = 4, DueDate = $"{nextYr}-03-15", PercentageShare = 25m },
                 };
             }
         }
@@ -3303,13 +3369,15 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             var route = transportAssignment?.Route;
             if (route == null && app != null && !string.IsNullOrEmpty(app.BusRoute))
             {
-                route = await _context.TransportRoutes.FirstOrDefaultAsync(r => r.RouteName == app.BusRoute || r.RouteId.ToString() == app.BusRoute);
+                bool hasRouteId = int.TryParse(app.BusRoute, out int parsedRouteId);
+                route = await _context.TransportRoutes.FirstOrDefaultAsync(r => r.RouteName == app.BusRoute || (hasRouteId && r.RouteId == parsedRouteId));
             }
 
             var pickup = transportAssignment?.PickupPoint;
             if (pickup == null && app != null && !string.IsNullOrEmpty(app.PickupPoint))
             {
-                pickup = await _context.PickupPoints.FirstOrDefaultAsync(p => p.PickupPointName == app.PickupPoint || p.PickupPointId.ToString() == app.PickupPoint);
+                bool hasPickupId = int.TryParse(app.PickupPoint, out int parsedPickupId);
+                pickup = await _context.PickupPoints.FirstOrDefaultAsync(p => p.PickupPointName == app.PickupPoint || (hasPickupId && p.PickupPointId == parsedPickupId));
             }
 
             decimal distance = pickup?.DistanceFromStart ?? (route?.DistanceKm ?? 0m);

@@ -3,8 +3,7 @@
     "argv": [
       "C:\\Program Files\\nodejs\\node.exe",
       "C:\\Users\\ADMIN\\source\\repos\\SMS\\automation\\node_modules\\@playwright\\test\\cli.js",
-      "test",
-      "e2e/test_fee_collection.spec.ts"
+      "test"
     ],
     "configFile": "C:\\Users\\ADMIN\\source\\repos\\SMS\\automation\\playwright.config.ts",
     "rootDir": "C:/Users/ADMIN/source/repos/SMS/automation/e2e",
@@ -73,6 +72,397 @@
   },
   "suites": [
     {
+      "title": "academic-students-staff.spec.ts",
+      "file": "academic-students-staff.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Academic, Students & Staff E2E Suite",
+          "file": "academic-students-staff.spec.ts",
+          "line": 3,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should render Admissions application workflow components",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 28107,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-11T12:17:22.568Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b25bbb200aae6399fac2-9b20015aee535e855510",
+              "file": "academic-students-staff.spec.ts",
+              "line": 4,
+              "column": 7
+            },
+            {
+              "title": "should render Staff Management with sequential employee ID support",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 8946,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-11T12:17:54.133Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b25bbb200aae6399fac2-de99b2fd82837e18f067",
+              "file": "academic-students-staff.spec.ts",
+              "line": 15,
+              "column": 7
+            },
+            {
+              "title": "should render Timetable generator & Examination scheduling",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 8026,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-11T12:18:03.153Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "b25bbb200aae6399fac2-fd91ac6d9435f79560e3",
+              "file": "academic-students-staff.spec.ts",
+              "line": 26,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "auth.spec.ts",
+      "file": "auth.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Authentication & Navigation E2E Suite",
+          "file": "auth.spec.ts",
+          "line": 3,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should render login page with role selections and input fields",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 11235,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-11T12:18:11.331Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-5fb51fb12fde7573a818",
+              "file": "auth.spec.ts",
+              "line": 4,
+              "column": 7
+            },
+            {
+              "title": "should display validation or error for invalid credentials",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 8152,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-11T12:18:22.668Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-5ce1fab88f1cbe5b5eff",
+              "file": "auth.spec.ts",
+              "line": 19,
+              "column": 7
+            },
+            {
+              "title": "should support quick login or demo login navigation",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 9178,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-11T12:18:30.889Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-e24a558875b03dff9aab",
+              "file": "auth.spec.ts",
+              "line": 38,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "finance.spec.ts",
+      "file": "finance.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Finance & Fee Management E2E Suite",
+          "file": "finance.spec.ts",
+          "line": 3,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should verify Fee Setup Schedule section term options and due date rules",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 8286,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-11T12:18:40.178Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "1d1b0b311adfe43979fc-9fcda282937e776d9b8a",
+              "file": "finance.spec.ts",
+              "line": 9,
+              "column": 7
+            },
+            {
+              "title": "should verify 12 Terms Monthly Billing hides duplicate monthly due date configuration",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 7536,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-11T12:18:48.512Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "1d1b0b311adfe43979fc-9ccfab656a2fbeb07d89",
+              "file": "finance.spec.ts",
+              "line": 22,
+              "column": 7
+            },
+            {
+              "title": "should display dynamic Fee Schedule term details without hardcoded year/date defaults",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 11516,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-11T12:18:56.113Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "1d1b0b311adfe43979fc-64869adb3070ba89ab8f",
+              "file": "finance.spec.ts",
+              "line": 28,
+              "column": 7
+            },
+            {
+              "title": "should load Student Fee Assignment and Fee Collection views",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 45000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 13535,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-11-11T12:19:07.702Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "1d1b0b311adfe43979fc-d6e1e464dcdaa532f16f",
+              "file": "finance.spec.ts",
+              "line": 34,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
       "title": "test_fee_collection.spec.ts",
       "file": "test_fee_collection.spec.ts",
       "column": 0,
@@ -94,7 +484,7 @@
                   "workerIndex": 0,
                   "parallelIndex": 0,
                   "status": "passed",
-                  "duration": 13860,
+                  "duration": 14523,
                   "errors": [],
                   "stdout": [
                     {
@@ -110,7 +500,160 @@
                       "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
                     },
                     {
-                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
+                      "text": "BROWSER LOG: Uniform API call failed for /api/Uniform/categories: AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Uniform API call failed for /api/Uniform/sizes: AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Uniform API call failed for /api/Uniform/suppliers: AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Uniform API call failed for /api/Uniform/types: AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Uniform API call failed for /api/Uniform/distributions: AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to fetch branches from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to fetch students from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to fetch branches from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Error fetching admissions AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to fetch branches from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to fetch announcements from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to fetch school events from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to fetch holidays from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to fetch announcements from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to fetch meetings from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to fetch homework from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Error fetching student attendance: AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to fetch grading scale rules in DataContext: AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to fetch staff from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Error fetching subjects AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Error fetching periods AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to fetch all timetables from backend AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to fetch departments AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to fetch designations AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to fetch payroll configurations from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to fetch payroll components from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to fetch payroll runs from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to fetch payslips from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to fetch leave applications from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to fetch leave types from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to fetch leave balances from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Error fetching staff attendance: AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to fetch school branding from backend database: AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Initial released exam results load note: AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to fetch leave types from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to fetch leave applications from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to fetch salary structures from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to fetch salary assignments from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to load examination options: AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to fetch branches from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to fetch branches from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to fetch branches from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to fetch announcements from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to fetch school branding from backend database: AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Initial released exam results load note: AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to fetch leave types from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to fetch leave applications from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to fetch salary structures from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to fetch salary assignments from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to load examination options: AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Some Transport API fetches failed [Object, Object, Object, Object, Object, Object, Object, Object]\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Some Transport API fetches failed [Object, Object, Object, Object, Object, Object, Object, Object]\n"
                     },
                     {
                       "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
@@ -122,130 +665,25 @@
                       "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
                     },
                     {
-                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
+                      "text": "BROWSER LOG: Error fetching classes Error: HTTP error! status: 401\n    at apiClient (http://localhost:5173/src/api/client.ts:174:17)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
                     },
                     {
                       "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
                     },
                     {
-                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
+                      "text": "BROWSER LOG: Failed to fetch announcements from API Error: HTTP error! status: 401\n    at apiClient (http://localhost:5173/src/api/client.ts:174:17)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:2854:21\n    at async loadSettingsData (http://localhost:5173/src/components/layout/Header.tsx?t=1794398308148:130:29)\n"
                     },
                     {
-                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to fetch staff from API Error: HTTP error! status: 401\n    at apiClient (http://localhost:5173/src/api/client.ts:112:17)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1792125484163:2448:22\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Error fetching classes Error: HTTP error! status: 401\n    at apiClient (http://localhost:5173/src/api/client.ts:112:17)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1792125484163:2031:28\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Error fetching subjects Error: HTTP error! status: 401\n    at apiClient (http://localhost:5173/src/api/client.ts:112:17)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1792125484163:2148:17\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Error fetching periods Error: HTTP error! status: 401\n    at apiClient (http://localhost:5173/src/api/client.ts:112:17)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1792125484163:2167:17\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to fetch all timetables from backend Error: HTTP error! status: 401\n    at apiClient (http://localhost:5173/src/api/client.ts:112:17)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1792125484163:2216:17\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to fetch designations Error: HTTP error! status: 401\n    at apiClient (http://localhost:5173/src/api/client.ts:112:17)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1792125484163:2404:21\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to fetch departments Error: HTTP error! status: 401\n    at apiClient (http://localhost:5173/src/api/client.ts:112:17)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1792125484163:2385:21\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Error fetching subjects Error: HTTP error! status: 401\n    at apiClient (http://localhost:5173/src/api/client.ts:112:17)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1792125484163:2148:17\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Error fetching periods Error: HTTP error! status: 401\n    at apiClient (http://localhost:5173/src/api/client.ts:112:17)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1792125484163:2167:17\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to fetch all timetables from backend Error: HTTP error! status: 401\n    at apiClient (http://localhost:5173/src/api/client.ts:112:17)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1792125484163:2216:17\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to fetch designations Error: HTTP error! status: 401\n    at apiClient (http://localhost:5173/src/api/client.ts:112:17)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1792125484163:2404:21\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to fetch departments Error: HTTP error! status: 401\n    at apiClient (http://localhost:5173/src/api/client.ts:112:17)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1792125484163:2385:21\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
-                    },
-                    {
-                      "text": "Current URL: http://localhost:5173/\n"
+                      "text": "Current URL: http://localhost:5173/#login\n"
                     },
                     {
                       "text": "Has Fee Collection: \u001b[33mfalse\u001b[39m\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
+                    },
+                    {
+                      "text": "BROWSER LOG: Failed to fetch announcements from API Error: HTTP error! status: 401\n    at apiClient (http://localhost:5173/src/api/client.ts:174:17)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:2854:21\n    at async loadSettingsData (http://localhost:5173/src/components/layout/Header.tsx?t=1794398308148:130:29)\n"
                     },
                     {
                       "text": "Veera Garikapati not found directly.\n"
@@ -259,7 +697,7 @@
                   ],
                   "stderr": [],
                   "retry": 0,
-                  "startTime": "2026-10-16T05:40:29.284Z",
+                  "startTime": "2026-11-11T12:19:21.699Z",
                   "annotations": [],
                   "attachments": []
                 }
@@ -277,9 +715,9 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2026-10-16T05:40:28.357Z",
-    "duration": 15331.898,
-    "expected": 1,
+    "startTime": "2026-11-11T12:17:21.419Z",
+    "duration": 137376.33000000002,
+    "expected": 11,
     "skipped": 0,
     "unexpected": 0,
     "flaky": 0

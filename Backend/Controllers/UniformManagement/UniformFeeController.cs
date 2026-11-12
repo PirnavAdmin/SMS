@@ -15,7 +15,7 @@ using System.Threading.Tasks;
 [Route("api/uniform/fee-configs")]
 [Route("api/uniform-fee")]
 [Route("api/uniform/fees")]
-[AllowAnonymous]
+[Authorize]
 [Tags("Uniform Fee Configurations")]
 public class UniformFeeController : ControllerBase
 {

@@ -33,7 +33,7 @@ import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { ExamSetup, Student, GradeConfig, SubjectItem, ProcessedResult, ExamMark } from '../../../types';
-import { calculateGrade, determinePassFail } from './utils/resultCalculation';
+import { calculateGrade } from './utils/resultCalculation';
 import { publishExamResultsApi, submitMarksEntryApi, saveMarksEntryDraftApi, fetchExamSubjectsApi, fetchExamOptionsApi, fetchExamByIdApi, fetchClassMarksApi } from '../../../api/examination';
 import { validateSearchQuery } from '../../../utils/validation';
 
@@ -1117,18 +1117,14 @@ export const ClassTeacherMarksEntryView: React.FC<ClassTeacherMarksEntryViewProp
         });
 
         if (subStudentRows.length > 0) {
-          try {
-            await saveMarksEntryDraftApi({
-              examId: Number(currentExam?.id) || 1,
-              className: selectedClass,
-              sectionName: selectedSection,
-              subjectCode: sub.code || sub.id,
-              students: subStudentRows,
-              isFinalSubmit: false
-            });
-          } catch (apiErr) {
-            // Silently fall back to frontend/local storage
-          }
+          await saveMarksEntryDraftApi({
+            examId: Number(currentExam?.id) || 1,
+            className: selectedClass,
+            sectionName: selectedSection,
+            subjectCode: sub.code || sub.id,
+            students: subStudentRows,
+            isFinalSubmit: false
+          });
         }
       }
 
@@ -1242,30 +1238,26 @@ export const ClassTeacherMarksEntryView: React.FC<ClassTeacherMarksEntryViewProp
       saveProcessedResults(processedList);
 
       // 4. Post dynamically to backend API
-      try {
-        await publishExamResultsApi({
-          examId: Number(currentExam.id) || 1,
-          className: selectedClass,
-          sectionName: selectedSection,
-          results: processedList.map(r => ({
-            studentId: Number(r.studentId) || 0,
-            rollNo: r.rollNo || '',
-            studentName: r.studentName,
-            admissionNo: r.admissionNo,
-            className: r.className,
-            sectionName: r.section,
-            totalMarksObtained: r.totalMarks,
-            totalMaxMarks: r.totalMaxMarks,
-            percentage: r.percentage,
-            grade: r.grade,
-            rank: r.rank,
-            resultStatus: r.result,
-            subjectMarks: (r as any).subjectMarks
-          }))
-        });
-      } catch (apiErr) {
-        console.warn('Backend publish call notice (frontend and local cache updated):', apiErr);
-      }
+      await publishExamResultsApi({
+        examId: Number(currentExam.id) || 1,
+        className: selectedClass,
+        sectionName: selectedSection,
+        results: processedList.map(r => ({
+          studentId: Number(r.studentId) || 0,
+          rollNo: r.rollNo || '',
+          studentName: r.studentName,
+          admissionNo: r.admissionNo,
+          className: r.className,
+          sectionName: r.section,
+          totalMarksObtained: r.totalMarks,
+          totalMaxMarks: r.totalMaxMarks,
+          percentage: r.percentage,
+          grade: r.grade,
+          rank: r.rank,
+          resultStatus: r.result,
+          subjectMarks: (r as any).subjectMarks
+        }))
+      });
 
       // 6. Dispatch events for Parent & Student Portal immediate refresh
       window.dispatchEvent(new Event('results_published'));

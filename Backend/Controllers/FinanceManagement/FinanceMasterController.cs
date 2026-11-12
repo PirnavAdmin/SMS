@@ -281,7 +281,7 @@ public class FinanceMasterController : ControllerBase
 
     [HttpGet("reports/summary")]
     [Authorize(Roles = ReadRoles)]
-    public async Task<IActionResult> GetReportsSummary([FromQuery] string? academicYear = "2025-2026")
+    public async Task<IActionResult> GetReportsSummary([FromQuery] string? academicYear = null)
     {
         var result = await _masterService.GetReportsSummaryAsync(academicYear);
         return Ok(new { success = true, data = result });

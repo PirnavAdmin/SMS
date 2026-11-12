@@ -13,7 +13,7 @@ using System.Threading.Tasks;
 
 [ApiController]
 [Route("api/library")]
-[AllowAnonymous]
+[Authorize]
 [Tags("Digital Library Catalog & Circulation Desk")]
 public class LibraryController : ControllerBase
 {

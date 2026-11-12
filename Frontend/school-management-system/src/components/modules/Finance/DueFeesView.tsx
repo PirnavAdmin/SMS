@@ -114,8 +114,8 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({
         await fetchFinanceData();
       }
       addToast("success", "Dues Refreshed", "Synchronized live student dues and payments from database.");
-    } catch {
-      addToast("info", "Dues Updated", "Live dues data refreshed.");
+    } catch (err: any) {
+      addToast("error", "Refresh Failed", err?.message || "Failed to refresh live dues from backend.");
     } finally {
       setIsRefreshing(false);
     }

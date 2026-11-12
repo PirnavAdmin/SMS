@@ -482,13 +482,18 @@ public class TeacherStudentAttendanceRepository
         string secName = section?.SectionName ?? "";
         var cleanSec = secName.Replace("Section", "", StringComparison.OrdinalIgnoreCase).Trim().ToLower();
 
-        bool isCT = await _context.TeacherAssignments.AsNoTracking().AnyAsync(ta =>
-            ta.TeacherId == staffId &&
-            ta.ClassId == classId &&
-            ta.Role == "Class Teacher" &&
-            ta.Status == "Active" &&
-            (ta.SectionLetter.Trim().ToLower() == secName.ToLower() ||
-             ta.SectionLetter.Replace("Section", "", StringComparison.OrdinalIgnoreCase).Trim().ToLower() == cleanSec));
+        var ctAssigns = await _context.TeacherAssignments.AsNoTracking()
+            .Where(ta =>
+                ta.TeacherId == staffId &&
+                ta.ClassId == classId &&
+                ta.Role == "Class Teacher" &&
+                ta.Status == "Active")
+            .ToListAsync();
+
+        bool isCT = ctAssigns.Any(ta =>
+            string.IsNullOrEmpty(ta.SectionLetter) ||
+            ta.SectionLetter.Trim().Equals(secName, StringComparison.OrdinalIgnoreCase) ||
+            ta.SectionLetter.Replace("Section", "", StringComparison.OrdinalIgnoreCase).Trim().ToLower() == cleanSec);
 
         return isCT;
     }

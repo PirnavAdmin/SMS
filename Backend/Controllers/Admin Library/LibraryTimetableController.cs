@@ -14,7 +14,7 @@ using System.Threading.Tasks;
 [ApiController]
 [Route("api/library-timetable")]
 [Route("api/library/timetable")]
-[AllowAnonymous]
+[Authorize]
 [Tags("Library Timetable Management")]
 public class LibraryTimetableController : ControllerBase
 {

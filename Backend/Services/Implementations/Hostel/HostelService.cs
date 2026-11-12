@@ -1132,26 +1132,10 @@ public class HostelService : IHostelService
         var allAllocations = await _hostelRepo.GetAllBedAllocationsAsync(null, null, null);
         if (!allAllocations.Any())
         {
-            var defaultBlock = (await _hostelRepo.GetAllHostelBlocksAsync(null, null)).FirstOrDefault();
-            var defaultRoom = (await _hostelRepo.GetAllRoomsAsync(null, null, null, null)).FirstOrDefault();
-            var newAlloc = new StudentBedAllocation
-            {
-                StudentName = "Resident Student",
-                RegistrationNo = "REG-1001",
-                HostelId = defaultBlock?.HostelId ?? 1,
-                RoomId = defaultRoom?.RoomId ?? 1,
-                BedNumber = "BED-1",
-                JoiningDate = DateTime.UtcNow,
-                Status = "Active",
-                CreatedAt = DateTime.UtcNow
-            };
-            await _hostelRepo.AddBedAllocationAsync(newAlloc);
-            await _hostelRepo.SaveChangesAsync();
-            allAllocations = await _hostelRepo.GetAllBedAllocationsAsync(null, null, null);
+            throw new InvalidOperationException("No active bed allocations found to record hostel night attendance.");
         }
 
         var validAllocIds = allAllocations.Select(a => a.AllocationId).ToHashSet();
-        var defaultAllocId = allAllocations.First().AllocationId;
 
         var existing = await _hostelRepo.GetAttendanceForDateAsync(dto.Date, dto.HostelId, dto.FloorLevel, dto.RoomId);
         var existingDict = existing.GroupBy(e => e.AllocationId).ToDictionary(g => g.Key, g => g.First());
@@ -1169,7 +1153,7 @@ public class HostelService : IHostelService
 
             if (!validAllocIds.Contains(allocId))
             {
-                allocId = defaultAllocId;
+                throw new NotFoundException($"Hostel bed allocation ID '{allocId}' not found.");
             }
 
             if (processedAllocIds.Contains(allocId)) continue;
@@ -1532,14 +1516,16 @@ public class HostelService : IHostelService
             activeAlloc = await _hostelRepo.GetActiveAllocationByStudentIdAsync(dto.StudentId);
         }
 
-        if (activeAlloc == null)
+        if (activeAlloc == null && !string.IsNullOrWhiteSpace(dto.StudentName))
         {
             var allAlloc = await _hostelRepo.GetAllBedAllocationsAsync(null, null, null);
-            if (!string.IsNullOrWhiteSpace(dto.StudentName))
-            {
-                activeAlloc = allAlloc.FirstOrDefault(a => a.StudentName != null && a.StudentName.Contains(dto.StudentName.Trim(), StringComparison.OrdinalIgnoreCase));
-            }
-            if (activeAlloc == null) activeAlloc = allAlloc.FirstOrDefault();
+            activeAlloc = allAlloc.FirstOrDefault(a => a.StudentName != null &&
+                a.StudentName.Equals(dto.StudentName.Trim(), StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (activeAlloc == null)
+        {
+            throw new NotFoundException("No active hostel bed allocation found for the specified student.");
         }
 
         var targetStudentId = activeAlloc?.StudentId ?? dto.StudentId;
@@ -1686,32 +1672,95 @@ public class HostelService : IHostelService
         if (actionType.Equals("Bed Vacate", StringComparison.OrdinalIgnoreCase) && activeAlloc != null)
         {
             activeAlloc.Status = "Vacated";
+            if (activeAlloc.StudentId.HasValue)
+            {
+                var studentApp = await _schoolRepo.GetApplicationByIdAsync(activeAlloc.StudentId.Value);
+                if (studentApp != null)
+                {
+                    studentApp.StudentType = "Non-Residential";
+                    studentApp.HostelBlock = null;
+                    studentApp.HostelRoom = null;
+                    studentApp.AllocatedBedId = null;
+                    studentApp.AvailableBed = null;
+                }
+            }
         }
         else if (actionType.Equals("Room Transfer", StringComparison.OrdinalIgnoreCase) && activeAlloc != null)
         {
+            HostelBlock? targetHostel = null;
             if (dto.DestinationHostelId.HasValue && dto.DestinationHostelId.Value > 0)
             {
-                activeAlloc.HostelId = dto.DestinationHostelId.Value;
+                targetHostel = await _hostelRepo.GetHostelBlockByIdAsync(dto.DestinationHostelId.Value);
             }
+            else if (!string.IsNullOrWhiteSpace(dto.DestinationHostelName))
+            {
+                targetHostel = (await _hostelRepo.GetAllHostelBlocksAsync(dto.DestinationHostelName.Trim(), null)).FirstOrDefault();
+            }
+
+            int targetHostelId = targetHostel?.HostelId ?? activeAlloc.HostelId;
+            RoomMaster? targetRoomEntity = null;
             if (dto.DestinationRoomId.HasValue && dto.DestinationRoomId.Value > 0)
             {
-                activeAlloc.RoomId = dto.DestinationRoomId.Value;
+                targetRoomEntity = await _hostelRepo.GetRoomByIdAsync(dto.DestinationRoomId.Value);
             }
             else if (!string.IsNullOrWhiteSpace(dto.DestinationRoomNumber))
             {
-                var targetRoomEntity = (await _hostelRepo.GetAllRoomsAsync(activeAlloc.HostelId, null, null, dto.DestinationRoomNumber.Trim())).FirstOrDefault();
-                if (targetRoomEntity != null)
+                targetRoomEntity = (await _hostelRepo.GetAllRoomsAsync(targetHostelId, null, null, dto.DestinationRoomNumber.Trim())).FirstOrDefault();
+            }
+
+            if (targetRoomEntity != null && targetRoomEntity.RoomId != activeAlloc.RoomId)
+            {
+                int targetCapacity = targetRoomEntity.RoomType?.BedCapacity ?? 1;
+                int targetOccupied = await _hostelRepo.GetOccupiedBedCountForRoomAsync(targetRoomEntity.RoomId);
+                if (targetOccupied >= targetCapacity)
                 {
-                    activeAlloc.RoomId = targetRoomEntity.RoomId;
+                    throw new InvalidOperationException($"Destination Room #{targetRoomEntity.RoomNumber} has reached maximum bed capacity ({targetCapacity} beds).");
                 }
+            }
+
+            if (targetHostel != null)
+            {
+                activeAlloc.HostelId = targetHostel.HostelId;
+                req.DestinationHostelId = targetHostel.HostelId;
+                req.DestinationHostelName = targetHostel.HostelName;
+            }
+            if (targetRoomEntity != null)
+            {
+                activeAlloc.RoomId = targetRoomEntity.RoomId;
+                req.DestinationRoomId = targetRoomEntity.RoomId;
+                req.DestinationRoomNumber = targetRoomEntity.RoomNumber;
             }
             if (!string.IsNullOrWhiteSpace(dto.DestinationBedNumber))
             {
                 activeAlloc.BedNumber = dto.DestinationBedNumber.Trim();
             }
+
+            if (activeAlloc.StudentId.HasValue)
+            {
+                var studentApp = await _schoolRepo.GetApplicationByIdAsync(activeAlloc.StudentId.Value);
+                if (studentApp != null)
+                {
+                    if (targetHostel != null) studentApp.HostelBlock = targetHostel.HostelName;
+                    if (targetRoomEntity != null) studentApp.HostelRoom = targetRoomEntity.RoomNumber;
+                    if (!string.IsNullOrWhiteSpace(dto.DestinationBedNumber)) studentApp.AllocatedBedId = dto.DestinationBedNumber.Trim();
+                }
+            }
         }
 
         await _hostelRepo.AddTransferVacateRequestAsync(req);
+        await _hostelRepo.SaveChangesAsync();
+        return MapToHostelTransferVacateDto(req);
+    }
+
+    public async Task<HostelTransferVacateDto> UpdateTransferVacateStatusAsync(int id, string status)
+    {
+        var req = await _hostelRepo.GetTransferVacateRequestByIdAsync(id)
+            ?? throw new NotFoundException($"Transfer/vacate request with ID '{id}' not found.");
+
+        if (string.IsNullOrWhiteSpace(status))
+            throw new BadRequestException("A valid status is required.");
+
+        req.Status = status.Trim();
         await _hostelRepo.SaveChangesAsync();
         return MapToHostelTransferVacateDto(req);
     }

@@ -190,11 +190,6 @@ public class ExamResultsReportsService : IExamResultsReportsService
         var results = await _repository.GetExamResultsAsync(cName, sName);
         var studentResult = results.FirstOrDefault(r => r.StudentId == studentId || r.RollNo == studentId.ToString());
 
-        if (studentResult == null && results.Any())
-        {
-            studentResult = results.First();
-        }
-
         if (studentResult == null) return null;
 
         var allMarks = await _marksRepository.GetAllMarksForClassSectionAsync(studentResult.ClassName, studentResult.SectionName);

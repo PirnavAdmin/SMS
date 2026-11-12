@@ -822,6 +822,13 @@ export const createTransferVacateRequest = async (data: any): Promise<any> => {
   });
 };
 
+export const updateTransferVacateStatus = async (id: number | string, status: string): Promise<any> => {
+  const query = new URLSearchParams({ status }).toString();
+  return hostelApiClient(`/api/hostel/transfers/${id}/status?${query}`, {
+    method: 'PUT'
+  });
+};
+
 export const deleteTransferVacateRequest = async (id: number | string): Promise<boolean> => {
   await hostelApiClient(`/api/hostel/transfers/${id}`, {
     method: 'DELETE'

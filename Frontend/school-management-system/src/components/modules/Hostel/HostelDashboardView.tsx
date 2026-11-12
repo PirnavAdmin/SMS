@@ -757,7 +757,7 @@ export const HostelDashboardView: React.FC<HostelDashboardViewProps> = ({
                     b.wardenName || (b as any).warden || "Not Assigned";
                   const phoneVal =
                     b.primaryMobileNumber || (b as any).contactNumber || "N/A";
-                  const addressVal = b.address || "Main Campus";
+                  const addressVal = b.address || (b as any).branch || "";
                   const blockRooms = rooms.filter(
                     (r) => String(r.hostelId) === String(b.hostelId),
                   );

@@ -128,25 +128,12 @@ export const fetchUserProfileApi = async (userEmailOrId?: string) => {
 
 export const updateUserProfileApi = async (profileData: Partial<UserProfileData>) => {
   const key = getActiveUserKey(profileData.email);
-
-  // Always persist locally for this specific user first
+  const res = await apiClient('/api/Settings/profile', {
+    method: 'POST',
+    body: JSON.stringify(profileData),
+  });
   saveLocalUserProfile(profileData, key);
-
-  // Try saving to backend profile endpoint if available
-  try {
-    const res = await apiClient('/api/Settings/profile', {
-      method: 'POST',
-      body: JSON.stringify(profileData),
-    });
-    return res || { success: true, data: profileData };
-  } catch (err: any) {
-    // CRITICAL: DO NOT fallback to /api/Settings!
-    // That would overwrite the school's principal name, school email, and school branding.
-    return {
-      success: true,
-      data: profileData,
-    };
-  }
+  return res;
 };
 
 export const uploadUserProfileImageApi = async (file: File): Promise<{ success: boolean; avatarUrl: string }> => {

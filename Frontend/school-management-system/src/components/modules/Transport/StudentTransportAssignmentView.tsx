@@ -58,7 +58,7 @@ export const StudentTransportAssignmentView: React.FC = () => {
   const {
     students, studentTransports, routeMasters, pickupPoints, vehicleAssignments,
     vehicleMasters, driverMasters, assignStudentTransport, removeStudentTransport, checkVehicleCapacity,
-    academicClasses, financeTransportConfigs, busAttendants, academicYearFeeSchedules
+    academicClasses, financeTransportConfigs, busAttendants, academicYearFeeSchedules, staff = []
   } = useData();
   const { selectedAcademicYear, selectedBranch } = useAuth();
   const { addToast } = useToast();

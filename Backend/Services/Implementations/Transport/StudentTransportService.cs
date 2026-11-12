@@ -35,7 +35,7 @@ public class StudentTransportService : IStudentTransportService
         {
             // Check if student is an active Hosteller in database
             isHosteller = await _context.StudentBedAllocations.AsNoTracking()
-                .AnyAsync(b => b.StudentId == targetStudentId && b.Status != null && b.Status.Equals("Active", StringComparison.OrdinalIgnoreCase));
+                .AnyAsync(b => b.StudentId == targetStudentId && b.Status != null && b.Status.ToLower() == "active");
         }
         catch
         {

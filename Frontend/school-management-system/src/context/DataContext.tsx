@@ -1564,9 +1564,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             k.startsWith("fee_heads") ||
             k.startsWith("student_discounts") ||
             k.startsWith("student_fee_") ||
-            k.startsWith("route_slab_") ||
-            k === "selected_branch" ||
-            k === "selected_academic_year")
+            k.startsWith("route_slab_"))
         ) {
           keysToRemove.push(k);
         }
@@ -3688,10 +3686,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             };
           });
 
-          const localStoredTransports: StudentTransport[] = JSON.parse(
-            localStorage.getItem("edu_db_student_transports") || "[]",
-          );
-
           const activeRoutes = routes || routeMasters || [];
           const validRouteIds = new Set<string>(activeRoutes.map((r: any) => String(r.id || r.routeId)));
           const validRouteNames = new Set<string>(activeRoutes.map((r: any) => (r.routeName || '').trim().toLowerCase()));
@@ -3704,19 +3698,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
           const validMappedTransports = mappedTransports.filter(isValidRouteForTransport);
 
-          // If backend provided student transports, use validMappedTransports directly
-          let finalTransports: StudentTransport[];
-          if (validMappedTransports.length > 0) {
-            finalTransports = validMappedTransports;
-          } else {
-            finalTransports = localStoredTransports.filter(isValidRouteForTransport);
-          }
-
-          setStudentTransports(finalTransports);
-          localStorage.setItem(
-            "edu_db_student_transports",
-            JSON.stringify(finalTransports),
-          );
+          setStudentTransports(validMappedTransports);
         }
 
         if (results.some((r) => r.status === "rejected")) {
@@ -3730,7 +3712,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       }
     };
     fetchTransportData();
-  }, [isAuthenticated, token]);
+  }, [isAuthenticated, token, selectedBranch, selectedAcademicYear]);
 
   // Finance Transport Config & Ledger Effects
 
@@ -4338,6 +4320,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const fetchAdmissions = useCallback(async () => {
     if (!isAuthenticated || !token) return;
+    const currentRole = String(user?.role || role || "").toLowerCase().trim();
+    if (currentRole === "parent" || currentRole === "student") return;
     if (activeRequests.current["admissions"]) {
       return activeRequests.current["admissions"];
     }
@@ -4618,7 +4602,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       } catch (err: any) {
         console.error("Error fetching admissions", err);
         // Don't show toast for 404 errors as it might just mean the backend endpoint isn't ready
-        if (err.status !== 404) {
+        if (err.status !== 404 && err.status !== 403) {
           addToast(
             "error",
             "Network Error",
@@ -4633,7 +4617,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     })();
     activeRequests.current["admissions"] = promise;
     return promise;
-  }, [addToast, selectedBranch, selectedAcademicYear]);
+  }, [isAuthenticated, token, role, user?.role, addToast, selectedBranch, selectedAcademicYear]);
 
   const fetchDepartments = useCallback(async () => {
     if (!isAuthenticated || !token) return;
@@ -6200,7 +6184,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               : apiItem.applicableClasses
                 ? apiItem.applicableClasses.split(",")
                 : [],
-            academicYear: apiItem.academicYear || "2025-2026",
+            academicYear: apiItem.academicYear || "",
             branch: apiItem.branch || "",
             feePlan: apiItem.feePlan || "Annual",
             hostelFee: Number(apiItem.hostelFee || 0),
@@ -6671,8 +6655,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       fetchUniformData().catch(() => {});
       fetchFacultyTrainingData().catch(() => {});
       fetchFinanceData().catch(() => {});
+      fetchAdmissions().catch(() => {});
     }
-    fetchAdmissions();
   }, [isAuthenticated, token, role, user?.role, selectedBranch, selectedAcademicYear]);
 
   // Handle logout: clear in-memory module data and reset initialization
@@ -7098,7 +7082,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       );
       clearInterval(syncInterval);
     };
-  }, [isAuthenticated, token]);
+  }, [isAuthenticated, token, selectedBranch, selectedAcademicYear]);
 
   const addStudent = (
     stData: Omit<Student, "id">,
@@ -9328,7 +9312,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         lastName: createdApp.applicantName
           ? createdApp.applicantName.split(" ").slice(1).join(" ")
           : "",
-        className: createdApp.appliedClass || (academicClasses && academicClasses[0] ? academicClasses[0].name : ""),
+        className: createdApp.appliedClass || "",
         section: (createdApp as any).section || "",
         gender: (createdApp.gender as any) || "",
         dob: createdApp.dob || "",
@@ -9766,7 +9750,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             registrationNo: matchedSt.admissionNo || String(matchedSt.id),
             applicantName:
               `${matchedSt.firstName || ""} ${matchedSt.lastName || ""}`.trim(),
-            appliedClass: matchedSt.className || (academicClasses && academicClasses[0] ? academicClasses[0].name : ""),
+            appliedClass: matchedSt.className || "",
             gender: matchedSt.gender || "",
             status: matchedSt.status === "Inactive" ? "Rejected" : "Enrolled",
             phone: matchedSt.phone || (matchedSt as any).fatherPhone || "",
@@ -13769,7 +13753,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       applicableClasses: Array.isArray(newC.applicableClasses)
         ? newC.applicableClasses.join(",")
         : newC.applicableClasses || "",
-      academicYear: newC.academicYear || "2025-2026",
+      academicYear: newC.academicYear || "",
       branch: newC.branch || "",
       feePlan: newC.feePlan,
       hostelFee: newC.hostelFee,
@@ -15825,7 +15809,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       student?.className ||
       (optStudent as any)?.appliedClass ||
       (optStudent as any)?.className ||
-      (academicClasses && academicClasses[0] ? academicClasses[0].name : "");
+      "";
     const secName =
       admApp?.section || student?.section || (optStudent as any)?.section || "";
     const admNo =
@@ -17168,7 +17152,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 (matchedAdm as any).appliedClassGrade ||
                 matchedAdm.targetClass ||
                 matchedAdm.className ||
-                (academicClasses && academicClasses[0] ? academicClasses[0].name : ""),
+                "",
               section: matchedAdm.section || "",
               gender: matchedAdm.gender || "",
               studentType:
@@ -17921,7 +17905,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           student?.className ||
           (admApp as any)?.appliedClass ||
           (admApp as any)?.className ||
-          (academicClasses && academicClasses[0] ? academicClasses[0].name : "");
+          "";
 
         const candidateConfigs = (financeHostelConfigs || []).filter((c) => {
           if (c.status !== "Active") return false;
@@ -18437,7 +18421,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             (adm as any).appliedClassGrade ||
             adm.targetClass ||
             adm.className ||
-            (academicClasses && academicClasses[0] ? academicClasses[0].name : ""),
+            "",
           section: adm.section || "",
           gender: adm.gender || "",
           studentType:
@@ -21175,7 +21159,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             (adm as any).appliedClassGrade ||
             adm.targetClass ||
             adm.className ||
-            (academicClasses && academicClasses[0] ? academicClasses[0].name : ""),
+            "",
           section: adm.section || "",
           gender: adm.gender || "",
           studentType:
@@ -26192,9 +26176,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           branchMatch =
             itemB === "all branches" ||
             itemB === "all" ||
-            itemB === selB ||
-            selB.includes(itemB) ||
-            itemB.includes(selB);
+            itemB === selB;
         }
       }
 
@@ -26246,13 +26228,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   */
   const filteredStudents = useMemo(() => {
-    const list = filterByBranch(students);
-    return list.length > 0 ? list : students;
+    return filterByBranch(students);
   }, [students, selectedBranch, selectedAcademicYear]);
 
   useEffect(() => {
     setTotalStudentCount(filteredStudents.length);
-  }, [students.length, selectedBranch, selectedAcademicYear]);
+  }, [filteredStudents.length]);
 
   const filteredStaff = useMemo(
     () => filterByBranch(staff),
@@ -26264,9 +26245,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   );
   const filteredClasses = useMemo(() => {
     const list = filterByBranch(academicClasses);
-    const sorted = [...list].sort((a, b) => compareClassesAscending(a, b));
-    if (sorted.length > 0) return sorted;
-    return [...academicClasses].sort((a, b) => compareClassesAscending(a, b));
+    return [...list].sort((a, b) => compareClassesAscending(a, b));
   }, [academicClasses, selectedBranch, selectedAcademicYear]);
   const filteredSubjects = useMemo(
     () => filterByBranch(subjects),

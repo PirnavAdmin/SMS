@@ -12,8 +12,8 @@ using System.Linq;
 using System.Threading.Tasks;
 
 [ApiController]
+[Authorize]
 [Route("api/academic-calendar")]
-[AllowAnonymous]
 [Tags("Academic Calendar & Events")]
 public class AcademicCalendarController : ControllerBase
 {

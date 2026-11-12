@@ -45,17 +45,10 @@ export const markBulkStaffAttendanceApi = async (payload: {
     outTime?: string;
   }>;
 }) => {
-  try {
-    return await apiClient('/api/staff/attendance/bulk', {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    });
-  } catch (err: any) {
-    if (err?.status === 403 || err?.status === 401 || err?.status === 404) {
-      return { success: true, localOnly: true };
-    }
-    throw err;
-  }
+  return await apiClient('/api/staff/attendance/bulk', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
 };
 
 // ============================
@@ -264,47 +257,24 @@ export const fetchTeacherTodayAttendanceApi = async () => {
 };
 
 export const teacherCheckInApi = async (remarks?: string) => {
-  try {
-    return await apiClient('/api/teacher/attendance/check-in', {
-      method: 'POST',
-      body: JSON.stringify({ remarks: remarks || '' })
-    });
-  } catch (err: any) {
-    if (err?.status === 403 || err?.status === 401 || err?.status === 404) {
-      console.warn('Backend endpoint returned HTTP', err?.status, '- storing check-in locally.');
-      return { success: true, localOnly: true };
-    }
-    throw err;
-  }
+  return await apiClient('/api/teacher/attendance/check-in', {
+    method: 'POST',
+    body: JSON.stringify({ remarks: remarks || '' })
+  });
 };
 
 export const teacherCheckOutApi = async (remarks?: string) => {
-  try {
-    return await apiClient('/api/teacher/attendance/check-out', {
-      method: 'POST',
-      body: JSON.stringify({ remarks: remarks || '' })
-    });
-  } catch (err: any) {
-    if (err?.status === 403 || err?.status === 401 || err?.status === 404) {
-      console.warn('Backend endpoint returned HTTP', err?.status, '- storing check-out locally.');
-      return { success: true, localOnly: true };
-    }
-    throw err;
-  }
+  return await apiClient('/api/teacher/attendance/check-out', {
+    method: 'POST',
+    body: JSON.stringify({ remarks: remarks || '' })
+  });
 };
 
 export const createAttendanceCorrectionApi = async (payload: { date: string; requestType: string; reason: string; actualTime?: string }) => {
-  try {
-    return await apiClient('/api/teacher/attendance/corrections', {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    });
-  } catch (err: any) {
-    if (err?.status === 403 || err?.status === 401 || err?.status === 404) {
-      return { success: true, localOnly: true };
-    }
-    throw err;
-  }
+  return await apiClient('/api/teacher/attendance/corrections', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
 };
 
 export const fetchAttendanceCorrectionsApi = async () => {

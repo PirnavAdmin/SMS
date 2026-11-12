@@ -44,6 +44,9 @@ export const HostelProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const refreshHostelData = useCallback(async () => {
     if (!token || !isAuthenticated) {
+      setBlocks([]);
+      setRooms([]);
+      setAllocations([]);
       return;
     }
     try {
@@ -61,7 +64,7 @@ export const HostelProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, isAuthenticated]);
 
   useEffect(() => {
     refreshHostelData();

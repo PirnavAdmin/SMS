@@ -334,24 +334,29 @@ public class StudentAttendanceRepository : IStudentAttendanceRepository
                 var secName = student.ClassSection?.SectionName ?? "";
                 var cleanSec = secName.Replace("Section", "", StringComparison.OrdinalIgnoreCase).Trim().ToLower();
 
-                bool isCT = await _context.TeacherAssignments.AsNoTracking().AnyAsync(ta =>
-                    ta.TeacherId == callerStaff.StaffId &&
-                    ta.ClassId == classId &&
-                    ta.Status == "Active" &&
-                    (ta.Role == null || ta.Role.Contains("Teacher") || ta.Role.Contains("Class")) &&
-                    (string.IsNullOrEmpty(ta.SectionLetter) ||
-                     ta.SectionLetter.Trim().ToLower() == secName.ToLower() ||
-                     ta.SectionLetter.Replace("Section", "", StringComparison.OrdinalIgnoreCase).Trim().ToLower() == cleanSec ||
-                     secName.Replace("Section", "", StringComparison.OrdinalIgnoreCase).Trim().ToLower() == ta.SectionLetter.Trim().ToLower()));
+                var teacherAssigns = await _context.TeacherAssignments.AsNoTracking()
+                    .Where(ta =>
+                        ta.TeacherId == callerStaff.StaffId &&
+                        ta.ClassId == classId &&
+                        ta.Status == "Active" &&
+                        (ta.Role == null || ta.Role.Contains("Teacher") || ta.Role.Contains("Class")))
+                    .ToListAsync();
+
+                bool isCT = teacherAssigns.Any(ta =>
+                    string.IsNullOrEmpty(ta.SectionLetter) ||
+                    ta.SectionLetter.Trim().Equals(secName, StringComparison.OrdinalIgnoreCase) ||
+                    ta.SectionLetter.Replace("Section", "", StringComparison.OrdinalIgnoreCase).Trim().ToLower() == cleanSec ||
+                    cleanSec == ta.SectionLetter.Trim().ToLower());
 
                 if (!isCT)
                 {
                     string tFullName = $"{callerStaff.FirstName} {callerStaff.LastName}".Trim().ToLower();
                     string tFirst = (callerStaff.FirstName ?? "").Trim().ToLower();
+                    string cleanRecClass = (rec.ClassName ?? "").ToLower().Replace("class", "").Trim();
                     isCT = await _context.SubjectTeacherAllocations.AsNoTracking().AnyAsync(sta =>
                         sta.Status == "Active" &&
                         (sta.TeacherName.ToLower() == tFullName || (tFirst.Length > 2 && sta.TeacherName.ToLower().Contains(tFirst))) &&
-                        (string.IsNullOrEmpty(rec.ClassName) || sta.ClassName.ToLower().Contains(rec.ClassName.ToLower().Replace("class", "").Trim())));
+                        (string.IsNullOrEmpty(cleanRecClass) || sta.ClassName.ToLower().Contains(cleanRecClass)));
                 }
 
                 if (!isCT)

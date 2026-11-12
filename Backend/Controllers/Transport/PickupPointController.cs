@@ -7,7 +7,7 @@ namespace SMS.Api.Controllers
 {
     [ApiController]
     [Route("api/transport/pickup-points")]
-    [AllowAnonymous]
+    [Authorize]
     public class PickupPointController : ControllerBase
     {
         private readonly IPickupPointService _service;

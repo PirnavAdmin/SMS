@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 [ApiController]
 [Route("api/examination-new")]
-[AllowAnonymous]
+[Authorize]
 [Tags("Examination Module - New Setup")]
 public class ExamNewController : ControllerBase
 {
@@ -23,7 +23,7 @@ public class ExamNewController : ControllerBase
     /// Get dropdown options for Exam Configuration (Assessment Types, Academic Terms, Classes, Existing Exams)
     /// </summary>
     [HttpGet("options")]
-    [AllowAnonymous]
+    [Authorize]
     public async Task<IActionResult> GetExamOptions()
     {
         try
@@ -41,7 +41,7 @@ public class ExamNewController : ControllerBase
     /// Get exam details by Exam ID (Screen 1: Exam Details Tab)
     /// </summary>
     [HttpGet("exams/{id:int}")]
-    [AllowAnonymous]
+    [Authorize]
     public async Task<IActionResult> GetExamDetails(int id)
     {
         try
@@ -60,7 +60,7 @@ public class ExamNewController : ControllerBase
     /// Step 1: Create or Save Exam Details (Clicking "Save & Continue" redirects to Step 2: Subjects & Marks)
     /// </summary>
     [HttpPost("save-details")]
-    [AllowAnonymous]
+    [Authorize]
     public async Task<IActionResult> SaveExamDetails([FromBody] SaveExamDetailsRequestDto request)
     {
         try
@@ -94,7 +94,7 @@ public class ExamNewController : ControllerBase
     /// Update existing Exam Details by Exam ID (PUT /api/examination-new/exams/{id})
     /// </summary>
     [HttpPut("exams/{id:int}")]
-    [AllowAnonymous]
+    [Authorize]
     public async Task<IActionResult> UpdateExamDetails(int id, [FromBody] SaveExamDetailsRequestDto request)
     {
         try
@@ -128,7 +128,7 @@ public class ExamNewController : ControllerBase
     /// Step 2: Get Subjects and Marks configuration for an Exam (Screen 2: Subjects & Marks Tab)
     /// </summary>
     [HttpGet("subjects/{examId:int}")]
-    [AllowAnonymous]
+    [Authorize]
     public async Task<IActionResult> GetSubjectsForExam(int examId, [FromQuery] string? className = "")
     {
         try
@@ -147,7 +147,7 @@ public class ExamNewController : ControllerBase
     /// Step 2: Save Subjects & Marks and Proceed to Schedule (Clicking "Save & Proceed to Schedule")
     /// </summary>
     [HttpPost("save-subjects")]
-    [AllowAnonymous]
+    [Authorize]
     public async Task<IActionResult> SaveSubjectsAndProceed([FromBody] SaveSubjectsAndMarksRequestDto request)
     {
         try
@@ -173,7 +173,7 @@ public class ExamNewController : ControllerBase
     /// Update Subjects & Marks configuration for an Exam (PUT /api/examination-new/subjects/{examId})
     /// </summary>
     [HttpPut("subjects/{examId:int}")]
-    [AllowAnonymous]
+    [Authorize]
     public async Task<IActionResult> UpdateSubjects(int examId, [FromBody] SaveSubjectsAndMarksRequestDto request)
     {
         try
@@ -199,7 +199,7 @@ public class ExamNewController : ControllerBase
     /// Delete Exam Configuration (Clicking the red trash icon button 🗑️)
     /// </summary>
     [HttpDelete("exams/{id:int}")]
-    [AllowAnonymous]
+    [Authorize]
     public async Task<IActionResult> DeleteExam(int id)
     {
         try

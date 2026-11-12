@@ -7,8 +7,8 @@ using SMS.Api.Services.Interfaces;
 using System.Threading.Tasks;
 
 [ApiController]
+[Authorize]
 [Route("api/hr")]
-[AllowAnonymous]
 [Tags("Leave & HR Management")]
 public class LeaveManagementController : ControllerBase
 {

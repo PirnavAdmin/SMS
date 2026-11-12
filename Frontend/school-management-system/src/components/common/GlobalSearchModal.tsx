@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Search, UserCheck, Users, BookOpen, Layers, X, ArrowRight } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
+import { hasModuleAccess } from '../../utils/rbac';
 
 interface GlobalSearchModalProps {
   isOpen: boolean;
@@ -145,7 +146,10 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ isOpen, on
     { name: 'Academics \u2192 Class Management', module: 'academic-class' },
     { name: 'Academics \u2192 Subject Management', module: 'subjects' },
     { name: 'Academics \u2192 Time Table', module: 'timetable' }
-  ]).filter(m => m.name.toLowerCase().includes(query.toLowerCase())).slice(0, 10);
+  ]).filter(m =>
+    (isStudentOrParent || hasModuleAccess(user?.role || userRole, m.module)) &&
+    m.name.toLowerCase().includes(query.toLowerCase())
+  ).slice(0, 10);
 
   return (
     <div 

@@ -35,6 +35,7 @@ interface StudentDocumentItem {
   size: string;
   uploadDate: string;
   fileUrl?: string;
+  url?: string;
   status: 'Verified' | 'Pending Review';
 }
 
@@ -360,17 +361,21 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
   };
 
   const handleDownloadDoc = (doc: StudentDocumentItem) => {
-    addToast('success', 'Download Started', `Downloading ${doc.name}...`);
-    const dummyContent = `Official document: ${doc.name}\nCategory: ${doc.category}\nStudent: ${student.firstName} ${student.lastName}\nAdmission No: ${student.admissionNo}`;
-    const blob = new Blob([dummyContent], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
+    const targetUrl = doc.url || doc.fileUrl;
+    if (!targetUrl) {
+      addToast('warning', 'Document Unavailable', `No downloadable file URL is stored for ${doc.name}.`);
+      return;
+    }
+    const resolved = resolveMediaUrl(targetUrl);
+    addToast('info', 'Download Started', `Downloading ${doc.name}...`);
     const a = document.createElement('a');
-    a.href = url;
+    a.href = resolved;
     a.download = doc.name;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    URL.revokeObjectURL(url);
   };
 
   const isHosteller =

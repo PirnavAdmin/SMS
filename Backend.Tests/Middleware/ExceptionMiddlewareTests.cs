@@ -86,7 +86,8 @@ namespace Backend.Tests.Middleware
 
             Assert.False(root.GetProperty("success").GetBoolean());
             Assert.Equal(500, root.GetProperty("statusCode").GetInt32());
-            Assert.Equal("Unhandled DB Error", root.GetProperty("message").GetString());
+            Assert.Equal("An internal server error occurred. Please try again later.", root.GetProperty("message").GetString());
+            Assert.DoesNotContain("Unhandled DB Error", responseBody);
         }
     }
 }

@@ -1049,11 +1049,14 @@ namespace SMS.Api.Services.Implementations
                 return hash == plainPassword;
             }
 
-            // Gather candidate identifiers from explicit input or JWT claims
+            // Gather candidate identifiers from token claims first; only fall back to dto.EmailOrPhone when no claim exists
             var candidates = new List<string>();
-            if (!string.IsNullOrWhiteSpace(dto.EmailOrPhone)) candidates.Add(dto.EmailOrPhone.Trim());
             if (!string.IsNullOrWhiteSpace(userEmailFromToken)) candidates.Add(userEmailFromToken.Trim());
             if (!string.IsNullOrWhiteSpace(userNameFromToken)) candidates.Add(userNameFromToken.Trim());
+            if (string.IsNullOrWhiteSpace(userIdFromToken) && candidates.Count == 0 && !string.IsNullOrWhiteSpace(dto.EmailOrPhone))
+            {
+                candidates.Add(dto.EmailOrPhone.Trim());
+            }
 
             Admin? admin = null;
             User? user = null;
@@ -1173,12 +1176,10 @@ namespace SMS.Api.Services.Implementations
 
             if (!string.IsNullOrWhiteSpace(admin?.Email)) emailsToSync.Add(admin.Email.Trim());
             if (!string.IsNullOrWhiteSpace(user?.Email)) emailsToSync.Add(user.Email.Trim());
-            if (!string.IsNullOrWhiteSpace(userEmailFromToken)) emailsToSync.Add(userEmailFromToken.Trim());
-            if (!string.IsNullOrWhiteSpace(dto.EmailOrPhone) && dto.EmailOrPhone.Contains('@')) emailsToSync.Add(dto.EmailOrPhone.Trim());
+            if (!string.IsNullOrWhiteSpace(userEmailFromToken) && string.IsNullOrWhiteSpace(userIdFromToken)) emailsToSync.Add(userEmailFromToken.Trim());
 
             if (!string.IsNullOrWhiteSpace(admin?.MobileNumber)) phonesToSync.Add(admin.MobileNumber.Trim());
             if (!string.IsNullOrWhiteSpace(user?.MobileNumber)) phonesToSync.Add(user.MobileNumber.Trim());
-            if (!string.IsNullOrWhiteSpace(dto.EmailOrPhone) && !dto.EmailOrPhone.Contains('@')) phonesToSync.Add(dto.EmailOrPhone.Trim());
 
             var matchedAdmins = await _dbContext.Admins.Where(a =>
                 (admin != null && a.AdminId == admin.AdminId) ||

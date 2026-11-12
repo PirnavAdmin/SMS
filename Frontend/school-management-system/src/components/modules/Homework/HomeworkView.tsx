@@ -12,14 +12,14 @@ import { ConfirmModal } from '../../common/ConfirmModal';
 import { DateInput } from '../../common/DateInput';
 
 export const HomeworkView: React.FC = () => {
-  const { homework, addHomework, updateHomework, deleteHomework, staff, academicClasses, teacherAssignments, timetable = [], students, subjects = [], schoolProfile, fetchHomeworkData } = useData();
+  const { homework, addHomework, updateHomework, deleteHomework, staff, admissions = [], academicClasses, teacherAssignments, timetable = [], students, subjects = [], schoolProfile, fetchHomeworkData } = useData();
 
   useEffect(() => {
     if (fetchHomeworkData) {
       fetchHomeworkData();
     }
   }, []);
-  const { role, user } = useAuth();
+  const { role, user, selectedAcademicYear } = useAuth();
   const { addToast } = useToast();
 
   const isTeacherRole = (role as any) === 'Teacher' || (role as any) === 'Class Teacher';
@@ -281,33 +281,35 @@ export const HomeworkView: React.FC = () => {
       const userEmail = (user?.email || '').toLowerCase().trim();
       const userPhone = (user?.phone || '').replace(/\D/g, '');
       const userId = String(user?.id || '').trim();
-      const currentStudent = students.find(s => 
+      const matchedStud = (students || []).find(s =>
         (userId && (s.admissionNo === userId || (s as any).rollNo === userId)) ||
         (userEmail && s.email && s.email.toLowerCase().trim() === userEmail) ||
         (userPhone && userPhone.length >= 10 && (
           (s.phone && s.phone.replace(/\D/g, '').endsWith(userPhone)) ||
           ((s as any).mobileNumber && (s as any).mobileNumber.replace(/\D/g, '').endsWith(userPhone))
         ))
-      ) || (admissions || []).find(a => 
+      );
+      const matchedAdm = !matchedStud ? (admissions || []).find(a =>
         (a.status !== 'Rejected' && a.status !== 'Cancelled') && (
           (userEmail && (a.email?.toLowerCase().trim() === userEmail || (a as any).studentEmail?.toLowerCase().trim() === userEmail || (a as any).parentEmail?.toLowerCase().trim() === userEmail)) ||
           (userPhone && userPhone.length >= 7 && (a.phone && a.phone.replace(/\D/g, '').endsWith(userPhone)))
         )
-      ) ? { className: (admissions || []).find(a => (a.email?.toLowerCase().trim() === userEmail || (a as any).studentEmail?.toLowerCase().trim() === userEmail || (a as any).parentEmail?.toLowerCase().trim() === userEmail))?.appliedClass || '' } : null;
+      ) : null;
+      const currentStudent = matchedStud || (matchedAdm ? { className: matchedAdm.appliedClass || (matchedAdm as any).className || '' } : null);
       if (!currentStudent) return homework;
       const sCls = cleanClassName(currentStudent.className);
       return homework.filter(h => cleanClassName(h.className) === sCls);
     }
     return homework.filter(h => {
-      const matchClass = teacherAssignedClasses.some(c => 
+      const matchClass = teacherAssignedClasses.some(c =>
         cleanClassName(c.split('-')[0]) === cleanClassName(h.className)
       );
-      const matchSubject = assignedSubjects.some(s => s.toLowerCase().trim() === h.subject.toLowerCase().trim());
-      const tFullName = `${teacher.firstName || ''} ${teacher.lastName || ''}`.toLowerCase().trim();
-      const matchTeacher = h.teacherName && (h.teacherName.toLowerCase().includes(tFullName) || tFullName.includes(h.teacherName.toLowerCase()));
+      const matchSubject = assignedSubjects.some(s => s.toLowerCase().trim() === (h.subject || '').toLowerCase().trim());
+      const tFullName = `${teacher?.firstName || ''} ${teacher?.lastName || ''}`.toLowerCase().trim();
+      const matchTeacher = Boolean(tFullName && h.teacherName && (h.teacherName.toLowerCase().includes(tFullName) || tFullName.includes(h.teacherName.toLowerCase())));
       return matchClass || matchSubject || matchTeacher;
     });
-  }, [homework, teacherAssignedClasses, assignedSubjects, role, user, teacher, students]);
+  }, [homework, teacherAssignedClasses, assignedSubjects, role, user, teacher, students, admissions]);
 
   // Filters State
   const [query, setQuery] = useState('');
@@ -1369,7 +1371,7 @@ export const HomeworkView: React.FC = () => {
                       <div className="inline-block px-3 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-[9px] font-extrabold text-brand-600 tracking-widest uppercase">
                         Homework Assignment
                       </div>
-                      <p className="text-[9px] text-slate-400 font-mono mt-1">Session {(formData as any).academicYear || '2025-2026'}</p>
+                      <p className="text-[9px] text-slate-400 font-mono mt-1">Session {(formData as any).academicYear || selectedAcademicYear || ''}</p>
                     </div>
 
                     {/* Metadata block */}

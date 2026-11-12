@@ -10,7 +10,7 @@ namespace SMS.Api.Controllers.Transport
 {
     [ApiController]
     [Route("api/transport")]
-    [AllowAnonymous]
+    [Authorize]
     [Tags("Transport Operations")]
     public class TransportOperationsController : ControllerBase
     {
@@ -27,7 +27,7 @@ namespace SMS.Api.Controllers.Transport
 
         [HttpGet("operations/{assignmentId}")]
         [HttpGet("operations/{assignmentId}/details")]
-        [AllowAnonymous]
+        [Authorize]
         public async Task<IActionResult> GetOperationDetails(long assignmentId)
         {
             try
@@ -56,7 +56,7 @@ namespace SMS.Api.Controllers.Transport
         }
 
         [HttpGet("vehicle-trips")]
-        [AllowAnonymous]
+        [Authorize]
         public async Task<IActionResult> GetVehicleTrips(
             [FromQuery] string? search,
             [FromQuery] long? routeId,
@@ -158,7 +158,7 @@ namespace SMS.Api.Controllers.Transport
         }
 
         [HttpGet("gps-tracking")]
-        [AllowAnonymous]
+        [Authorize]
         public async Task<IActionResult> GetGpsTracking([FromQuery] string? search)
         {
             try

@@ -1,5 +1,6 @@
 namespace SMS.Api.Controllers.Auth;
 
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SMS.Api.Dtos.Otp;
 using SMS.Api.Dtos;
@@ -7,6 +8,7 @@ using SMS.Api.Dtos;
 using SMS.Api.Services.Interfaces;
 
 [ApiController]
+[AllowAnonymous]
 [Route("api/auth/otp")]
 public class OtpController : ControllerBase
 {

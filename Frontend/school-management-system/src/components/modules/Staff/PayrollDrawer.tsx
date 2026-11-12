@@ -85,7 +85,7 @@ const StaffAvatar: React.FC<{ staff: Staff; className?: string }> = ({ staff, cl
 };
 
 export const PayrollDrawer: React.FC<PayrollDrawerProps> = ({ staff, isOpen, onClose }) => {
-  const { salaryStructures, employeeSalaryAssignments, payslips } = useData();
+  const { salaryStructures, employeeSalaryAssignments, payslips, schoolProfile } = useData();
   const { addToast } = useToast();
   const [activeTab, setActiveTab] = useState<DrawerTab>('overview');
 

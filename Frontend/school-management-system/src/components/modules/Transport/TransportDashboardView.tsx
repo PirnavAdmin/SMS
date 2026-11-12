@@ -425,7 +425,7 @@ export const TransportDashboardView: React.FC<TransportDashboardViewProps> = ({ 
           <div className="space-y-3">
             {vehicleMasters.map(v => {
               const cap = checkVehicleCapacity(v.id);
-              const pct = Math.min(100, Math.round((cap.assignedCount / cap.totalCapacity) * 100));
+              const pct = cap.totalCapacity > 0 ? Math.min(100, Math.round((cap.assignedCount / cap.totalCapacity) * 100)) : 0;
 
               return (
                 <div key={v.id} className="space-y-1">

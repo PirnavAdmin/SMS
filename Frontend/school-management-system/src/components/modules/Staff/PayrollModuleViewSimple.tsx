@@ -918,6 +918,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
     deleteSalaryStructure,
     cloneSalaryStructure,
     assignEmployeeSalaryStructure,
+    deleteEmployeeSalaryAssignment,
     disburseSalary,
     designations,
     fetchSalaryStructures,

@@ -113,27 +113,22 @@ public class CommunicationsController : ControllerBase
     [Authorize]
     public async Task<IActionResult> UpdateCircular(int id, [FromBody] CircularDto dto)
     {
-        try
+        var c = await _context.Circulars.FindAsync(id);
+        if (c == null)
         {
-            var c = await _context.Circulars.FindAsync(id);
-            if (c != null)
-            {
-                c.Title = dto.Title.Trim();
-                if (!string.IsNullOrWhiteSpace(dto.Category)) c.Category = dto.Category.Trim();
-                if (!string.IsNullOrWhiteSpace(dto.Content)) c.Content = dto.Content.Trim();
-                if (!string.IsNullOrWhiteSpace(dto.TargetAudience)) c.TargetAudience = dto.TargetAudience.Trim();
-                c.SmsSent = dto.SmsSent;
-                c.EmailSent = dto.EmailSent;
-                c.PushDelivered = dto.PushDelivered;
-
-                await _context.SaveChangesAsync();
-                dto.CircularId = c.CircularId;
-                return Ok(new { success = true, message = "Circular updated successfully.", data = dto });
-            }
+            return NotFound(new { success = false, message = "Circular not found in database." });
         }
-        catch { }
 
-        dto.CircularId = id;
+        c.Title = dto.Title.Trim();
+        if (!string.IsNullOrWhiteSpace(dto.Category)) c.Category = dto.Category.Trim();
+        if (!string.IsNullOrWhiteSpace(dto.Content)) c.Content = dto.Content.Trim();
+        if (!string.IsNullOrWhiteSpace(dto.TargetAudience)) c.TargetAudience = dto.TargetAudience.Trim();
+        c.SmsSent = dto.SmsSent;
+        c.EmailSent = dto.EmailSent;
+        c.PushDelivered = dto.PushDelivered;
+
+        await _context.SaveChangesAsync();
+        dto.CircularId = c.CircularId;
         return Ok(new { success = true, message = "Circular updated successfully.", data = dto });
     }
 
@@ -141,16 +136,14 @@ public class CommunicationsController : ControllerBase
     [Authorize]
     public async Task<IActionResult> DeleteCircular(int id)
     {
-        try
+        var c = await _context.Circulars.FindAsync(id);
+        if (c == null)
         {
-            var c = await _context.Circulars.FindAsync(id);
-            if (c != null)
-            {
-                _context.Circulars.Remove(c);
-                await _context.SaveChangesAsync();
-            }
+            return NotFound(new { success = false, message = "Circular not found in database." });
         }
-        catch { }
+
+        _context.Circulars.Remove(c);
+        await _context.SaveChangesAsync();
 
         return Ok(new { success = true, message = "Circular deleted successfully." });
     }
@@ -275,12 +268,8 @@ public class CommunicationsController : ControllerBase
             CreatedAt = DateTime.UtcNow
         };
 
-        try
-        {
-            await _context.Meetings.AddAsync(entity);
-            await _context.SaveChangesAsync();
-        }
-        catch { }
+        await _context.Meetings.AddAsync(entity);
+        await _context.SaveChangesAsync();
 
         return Ok(new { success = true, message = "Meeting scheduled successfully.", data = entity });
     }
@@ -289,49 +278,43 @@ public class CommunicationsController : ControllerBase
     [Authorize]
     public async Task<IActionResult> UpdateMeeting(int id, [FromBody] MeetingCreateDto dto)
     {
-        try
+        var m = await _context.Meetings.FindAsync(id);
+        if (m == null)
         {
-            var m = await _context.Meetings.FindAsync(id);
-            if (m != null)
-            {
-                m.MeetingTitle = dto.MeetingTitle.Trim();
-                if (!string.IsNullOrWhiteSpace(dto.MeetingAudience)) m.MeetingAudience = dto.MeetingAudience.Trim();
-                if (!string.IsNullOrWhiteSpace(dto.ParticipantType)) m.ParticipantType = dto.ParticipantType.Trim();
-                if (!string.IsNullOrWhiteSpace(dto.ParticipantName)) m.ParticipantName = dto.ParticipantName.Trim();
-                if (!string.IsNullOrWhiteSpace(dto.Agenda)) m.Agenda = dto.Agenda.Trim();
-                if (!string.IsNullOrWhiteSpace(dto.MeetingMode)) m.MeetingMode = dto.MeetingMode.Trim();
-                if (!string.IsNullOrWhiteSpace(dto.Building)) m.Building = dto.Building.Trim();
-                if (!string.IsNullOrWhiteSpace(dto.Floor)) m.Floor = dto.Floor.Trim();
-                if (!string.IsNullOrWhiteSpace(dto.MeetingRoom)) m.MeetingRoom = dto.MeetingRoom.Trim();
-                if (dto.RoomCapacity > 0) m.RoomCapacity = dto.RoomCapacity;
-                if (!string.IsNullOrWhiteSpace(dto.StartTime)) m.StartTime = dto.StartTime.Trim();
-                if (!string.IsNullOrWhiteSpace(dto.EndTime)) m.EndTime = dto.EndTime.Trim();
-                if (!string.IsNullOrWhiteSpace(dto.MeetingStatus)) m.MeetingStatus = dto.MeetingStatus.Trim().ToUpper();
-                if (!string.IsNullOrWhiteSpace(dto.MeetingDate) && DateTime.TryParse(dto.MeetingDate, out var d)) m.MeetingDate = d;
-
-                await _context.SaveChangesAsync();
-                return Ok(new { success = true, message = "Meeting updated successfully.", data = m });
-            }
+            return NotFound(new { success = false, message = "Meeting not found in database." });
         }
-        catch { }
 
-        return Ok(new { success = true, message = "Meeting updated successfully.", data = dto });
+        m.MeetingTitle = dto.MeetingTitle.Trim();
+        if (!string.IsNullOrWhiteSpace(dto.MeetingAudience)) m.MeetingAudience = dto.MeetingAudience.Trim();
+        if (!string.IsNullOrWhiteSpace(dto.ParticipantType)) m.ParticipantType = dto.ParticipantType.Trim();
+        if (!string.IsNullOrWhiteSpace(dto.ParticipantName)) m.ParticipantName = dto.ParticipantName.Trim();
+        if (!string.IsNullOrWhiteSpace(dto.Agenda)) m.Agenda = dto.Agenda.Trim();
+        if (!string.IsNullOrWhiteSpace(dto.MeetingMode)) m.MeetingMode = dto.MeetingMode.Trim();
+        if (!string.IsNullOrWhiteSpace(dto.Building)) m.Building = dto.Building.Trim();
+        if (!string.IsNullOrWhiteSpace(dto.Floor)) m.Floor = dto.Floor.Trim();
+        if (!string.IsNullOrWhiteSpace(dto.MeetingRoom)) m.MeetingRoom = dto.MeetingRoom.Trim();
+        if (dto.RoomCapacity > 0) m.RoomCapacity = dto.RoomCapacity;
+        if (!string.IsNullOrWhiteSpace(dto.StartTime)) m.StartTime = dto.StartTime.Trim();
+        if (!string.IsNullOrWhiteSpace(dto.EndTime)) m.EndTime = dto.EndTime.Trim();
+        if (!string.IsNullOrWhiteSpace(dto.MeetingStatus)) m.MeetingStatus = dto.MeetingStatus.Trim().ToUpper();
+        if (!string.IsNullOrWhiteSpace(dto.MeetingDate) && DateTime.TryParse(dto.MeetingDate, out var d)) m.MeetingDate = d;
+
+        await _context.SaveChangesAsync();
+        return Ok(new { success = true, message = "Meeting updated successfully.", data = m });
     }
 
     [HttpDelete("meetings/{id:int}")]
     [Authorize]
     public async Task<IActionResult> DeleteMeeting(int id)
     {
-        try
+        var m = await _context.Meetings.FindAsync(id);
+        if (m == null)
         {
-            var m = await _context.Meetings.FindAsync(id);
-            if (m != null)
-            {
-                _context.Meetings.Remove(m);
-                await _context.SaveChangesAsync();
-            }
+            return NotFound(new { success = false, message = "Meeting not found in database." });
         }
-        catch { }
+
+        _context.Meetings.Remove(m);
+        await _context.SaveChangesAsync();
 
         return Ok(new { success = true, message = "Meeting deleted successfully." });
     }

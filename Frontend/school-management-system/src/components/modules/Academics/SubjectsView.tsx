@@ -85,9 +85,9 @@ export const SubjectsView: React.FC = () => {
 
   // Filtered Subjects
   const filteredSubjects = subjects.filter(s => {
-    const q = query.toLowerCase();
-    const matchQuery = s.name.toLowerCase().includes(q) ||
-      s.subjectId.toLowerCase().includes(q) ||
+    const q = (query || '').toLowerCase();
+    const matchQuery = (s.name || '').toLowerCase().includes(q) ||
+      (s.subjectId || '').toLowerCase().includes(q) ||
       (s.code || '').toLowerCase().includes(q) ||
       (s.department || '').toLowerCase().includes(q);
     return matchQuery;
@@ -98,8 +98,8 @@ export const SubjectsView: React.FC = () => {
 
   // Filtered Departments
   const filteredDepartments = departments.filter(d => {
-    const q = deptQuery.toLowerCase();
-    return d.departmentName.toLowerCase().includes(q) ||
+    const q = (deptQuery || '').toLowerCase();
+    return (d.departmentName || '').toLowerCase().includes(q) ||
       (d.departmentCode || '').toLowerCase().includes(q) ||
       (d.description || '').toLowerCase().includes(q);
   });
@@ -113,9 +113,9 @@ export const SubjectsView: React.FC = () => {
   }, [designations]);
 
   const filteredDesignations = allDesignations.filter(d => {
-    const q = desigQuery.toLowerCase();
-    const matchesSearch = d.designationName.toLowerCase().includes(q) ||
-                          d.employeeCategory.toLowerCase().includes(q);
+    const q = (desigQuery || '').toLowerCase();
+    const matchesSearch = (d.designationName || '').toLowerCase().includes(q) ||
+                          (d.employeeCategory || '').toLowerCase().includes(q);
     const matchesCategory = desigCategoryFilter === 'All' || d.employeeCategory === desigCategoryFilter;
     return matchesSearch && matchesCategory;
   });

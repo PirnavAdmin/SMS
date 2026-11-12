@@ -12,8 +12,8 @@ using System.Linq;
 using System.Threading.Tasks;
 
 [ApiController]
+[Authorize]
 [Route("api/payroll")]
-[AllowAnonymous]
 [Tags("HR & Payroll Processing Engine")]
 public class PayrollProcessingController : ControllerBase
 {

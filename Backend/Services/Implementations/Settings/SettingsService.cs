@@ -794,11 +794,12 @@ namespace SMS.Api.Services.Implementations.Settings
             var json = JsonSerializer.Serialize(dto);
             await _repository.UpdateUserProfileAsync(json);
 
-            // Synchronize with Admin / User record in database
+            // Synchronize with matching Admin record in database (never fall back to unrelated Admins)
             try
             {
-                var admin = await _context.Admins.FirstOrDefaultAsync(a => a.Email == dto.Email || a.MobileNumber == dto.Phone)
-                            ?? await _context.Admins.FirstOrDefaultAsync();
+                var admin = await _context.Admins.FirstOrDefaultAsync(a =>
+                    (!string.IsNullOrWhiteSpace(dto.Email) && a.Email == dto.Email) ||
+                    (!string.IsNullOrWhiteSpace(dto.Phone) && a.MobileNumber == dto.Phone));
                 if (admin != null)
                 {
                     if (!string.IsNullOrWhiteSpace(dto.Name)) admin.FullName = dto.Name;

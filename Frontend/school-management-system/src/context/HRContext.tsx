@@ -55,8 +55,6 @@ interface HRContextType {
   deletePayrollRun: (id: string) => Promise<void>;
 }
 
-import { initialLeaveApplications } from '../services/mockData';
-
 const HRContext = createContext<HRContextType | undefined>(undefined);
 
 export const HRProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -89,7 +87,7 @@ export const HRProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     } catch (err: any) {
       console.warn("Failed to fetch leave types from API", err);
     }
-  }, []);
+  }, [token, isAuthenticated]);
 
   const fetchLeaveApplications = useCallback(async () => {
     if (!token || !isAuthenticated) return;
@@ -143,7 +141,7 @@ export const HRProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     } catch (err: any) {
       console.warn("Failed to fetch leave applications from API", err);
     }
-  }, []);
+  }, [token, isAuthenticated]);
 
   const fetchSalaryStructures = useCallback(async () => {
     if (!token || !isAuthenticated) return;
@@ -155,7 +153,7 @@ export const HRProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     } catch (err: any) {
       console.warn("Failed to fetch salary structures from API", err);
     }
-  }, []);
+  }, [token, isAuthenticated]);
 
   const fetchSalaryAssignments = useCallback(async () => {
     if (!token || !isAuthenticated) return;
@@ -167,7 +165,7 @@ export const HRProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     } catch (err: any) {
       console.warn("Failed to fetch salary assignments from API", err);
     }
-  }, []);
+  }, [token, isAuthenticated]);
 
   useEffect(() => {
     if (!token || !isAuthenticated) {

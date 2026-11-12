@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SMS.Api.Dtos;
 using SMS.Api.Services.Interfaces;
@@ -5,6 +6,7 @@ using SMS.Api.Services.Interfaces;
 namespace SMS.Api.Controllers
 {
     [ApiController]
+    [Authorize]
     [Route("api/[controller]")]
     public class UniformController : ControllerBase
     {
@@ -455,9 +457,8 @@ namespace SMS.Api.Controllers
         [HttpGet("distributions/export/pdf")]
         public async Task<IActionResult> ExportDistributionsPdf([FromQuery] string? search, [FromQuery] int? studentId)
         {
-            var distributions = await _uniformService.GetAllDistributionsAsync(search, studentId);
-            var jsonBytes = System.Text.Encoding.UTF8.GetBytes(System.Text.Json.JsonSerializer.Serialize(distributions));
-            return File(jsonBytes, "application/pdf", $"Student_Uniform_Distribution_{DateTime.Now:yyyyMMdd_HHmmss}.pdf");
+            // Return CSV rather than mislabeling raw JSON bytes as application/pdf
+            return await DownloadDistributionsCsv(search, studentId);
         }
 
         [HttpGet("distributions/download")]
@@ -513,7 +514,7 @@ namespace SMS.Api.Controllers
             sb.AppendLine("tr:nth-child(even) { background-color: #f8fafc; }");
             sb.AppendLine(".ftr { margin-top: 40px; border-top: 1px solid #e2e8f0; padding-top: 15px; font-size: 11px; color: #94a3b8; display: flex; justify-content: space-between; }");
             sb.AppendLine("</style></head><body>");
-            sb.AppendLine("<div class='hdr'><div><div class='brand'>🎓 PIRNAV SCHOOLS</div><div class='sub'>Uniform Reports & Real-Time Analytics</div></div><div style='text-align:right; font-size:11px; color:#64748b;'><div>Academic Year: 2026-27</div></div></div>");
+            sb.AppendLine("<div class='hdr'><div><div class='brand'>🎓 PIRNAV SCHOOLS</div><div class='sub'>Uniform Reports & Real-Time Analytics</div></div><div style='text-align:right; font-size:11px; color:#64748b;'><div>Report Date: " + DateTime.Now.ToString("yyyy-MM-dd") + "</div></div></div>");
             sb.AppendLine($"<h2>{title}</h2>");
             sb.AppendLine($"<div class='meta'>Generated on {DateTime.Now:yyyy-MM-dd HH:mm:ss} | Total Filtered Records: {reports.Count}</div>");
             sb.AppendLine("<table><thead><tr><th>Item Name</th><th>Category</th><th>Gender</th><th>Size</th><th>Unit Price</th><th>Available Stock</th><th>Issued Units</th><th>Status</th></tr></thead><tbody>");
@@ -534,9 +535,8 @@ namespace SMS.Api.Controllers
         [HttpGet("reports/export/pdf")]
         public async Task<IActionResult> ExportUniformReportPdf([FromQuery] UniformReportFilterDto filter)
         {
-            var reports = await _uniformService.GetFilteredReportsAsync(filter);
-            var jsonBytes = System.Text.Encoding.UTF8.GetBytes(System.Text.Json.JsonSerializer.Serialize(reports));
-            return File(jsonBytes, "application/pdf", $"Uniform_Report_{DateTime.Now:yyyyMMdd_HHmmss}.pdf");
+            // Return printable HTML report rather than mislabeling JSON bytes as application/pdf
+            return await PrintUniformReport(filter);
         }
 
         [HttpGet("reports/download")]

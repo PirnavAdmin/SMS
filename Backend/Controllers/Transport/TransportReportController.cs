@@ -7,7 +7,7 @@ namespace SMS.Api.Controllers
 {
     [ApiController]
     [Route("api/transport/reports")]
-    [AllowAnonymous]
+    [Authorize]
     [Tags("Transport Management Reports")]
     public class TransportReportController : ControllerBase
     {
@@ -20,7 +20,7 @@ namespace SMS.Api.Controllers
         }
 
         [HttpGet("dashboard")]
-        [AllowAnonymous]
+        [Authorize]
         public async Task<IActionResult> GetDashboardReport([FromQuery] ReportFilterDto filter)
         {
             var result = await _service.GetDashboardReportAsync(filter);
@@ -36,7 +36,7 @@ namespace SMS.Api.Controllers
         }
 
         [HttpGet("trips")]
-        [AllowAnonymous]
+        [Authorize]
         public async Task<IActionResult> GetTripReports([FromQuery] ReportFilterDto filter)
         {
             try
@@ -64,7 +64,8 @@ namespace SMS.Api.Controllers
         }
 
         [HttpGet("vehicles")]
-        [AllowAnonymous]
+        [HttpGet("vehicle-wise")]
+        [Authorize]
         public async Task<IActionResult> GetVehicleReports([FromQuery] ReportFilterDto filter)
         {
             try
@@ -85,7 +86,8 @@ namespace SMS.Api.Controllers
         }
 
         [HttpGet("drivers")]
-        [AllowAnonymous]
+        [HttpGet("driver-wise")]
+        [Authorize]
         public async Task<IActionResult> GetDriverReports([FromQuery] ReportFilterDto filter)
         {
             try
@@ -106,7 +108,8 @@ namespace SMS.Api.Controllers
         }
 
         [HttpGet("routes")]
-        [AllowAnonymous]
+        [HttpGet("route-wise")]
+        [Authorize]
         public async Task<IActionResult> GetRouteReports([FromQuery] ReportFilterDto filter)
         {
             try
@@ -127,7 +130,7 @@ namespace SMS.Api.Controllers
         }
 
         [HttpGet("students")]
-        [AllowAnonymous]
+        [Authorize]
         public async Task<IActionResult> GetStudentTransportReports([FromQuery] ReportFilterDto filter)
         {
             try
@@ -148,7 +151,7 @@ namespace SMS.Api.Controllers
         }
 
         [HttpGet("pickup-wise")]
-        [AllowAnonymous]
+        [Authorize]
         public async Task<IActionResult> GetPickupPointWise([FromQuery] ReportFilterDto filter)
         {
             try
@@ -163,7 +166,7 @@ namespace SMS.Api.Controllers
         }
 
         [HttpGet("seat-occupancy")]
-        [AllowAnonymous]
+        [Authorize]
         public async Task<IActionResult> GetSeatOccupancy([FromQuery] ReportFilterDto filter)
         {
             try
@@ -178,7 +181,7 @@ namespace SMS.Api.Controllers
         }
 
         [HttpGet("maintenance")]
-        [AllowAnonymous]
+        [Authorize]
         public async Task<IActionResult> GetMaintenance([FromQuery] ReportFilterDto filter)
         {
             try
@@ -193,7 +196,7 @@ namespace SMS.Api.Controllers
         }
 
         [HttpGet("monthly-cost")]
-        [AllowAnonymous]
+        [Authorize]
         public async Task<IActionResult> GetMonthlyCost([FromQuery] ReportFilterDto filter)
         {
             try
@@ -208,7 +211,7 @@ namespace SMS.Api.Controllers
         }
 
         [HttpGet("print")]
-        [AllowAnonymous]
+        [Authorize]
         public async Task<IActionResult> PrintReport(string? reportType, [FromQuery] ReportFilterDto filter)
         {
             try
@@ -224,23 +227,16 @@ namespace SMS.Api.Controllers
         }
 
         [HttpGet("export/pdf")]
-        [AllowAnonymous]
+        [Authorize]
         public async Task<IActionResult> ExportPdf(string? reportType, [FromQuery] ReportFilterDto filter)
         {
-            try
-            {
-                var type = !string.IsNullOrWhiteSpace(reportType) ? reportType : (filter.ReportType ?? "dashboard");
-                var bytes = await _service.GetPdfExportAsync(type, filter);
-                return File(bytes, "application/pdf", $"{type}_report_{DateTime.Now:yyyyMMdd}.pdf");
-            }
-            catch
-            {
-                return File(new byte[0], "application/pdf", $"report_{DateTime.Now:yyyyMMdd}.pdf");
-            }
+            var type = !string.IsNullOrWhiteSpace(reportType) ? reportType : (filter.ReportType ?? "dashboard");
+            var html = await _service.GetPrintHtmlAsync(type, filter);
+            return Content(html, "text/html");
         }
 
         [HttpGet("export/csv")]
-        [AllowAnonymous]
+        [Authorize]
         public async Task<IActionResult> DownloadCsv(string? reportType, [FromQuery] ReportFilterDto filter)
         {
             try

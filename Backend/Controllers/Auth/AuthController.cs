@@ -18,7 +18,7 @@ public class AuthController : ControllerBase
         _authService = authService;
     }
 
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Admin,SuperAdmin,Super Admin")]
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterRequestDto dto)
     {
@@ -34,6 +34,7 @@ public class AuthController : ControllerBase
         return Ok(result);
     }
 
+    [Authorize]
     [HttpPost("change-password")]
     public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequestDto dto)
     {

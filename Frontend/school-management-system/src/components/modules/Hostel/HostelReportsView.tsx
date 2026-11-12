@@ -444,7 +444,7 @@ export const HostelReportsView: React.FC = () => {
       downloadHostelReportPdf({
         reportTitle: selectedReport,
         data: reportData,
-        academicYear: selectedAcademicYear || '2025-2026',
+        academicYear: selectedAcademicYear || '',
         blockFilter: effectiveHostel || 'All Blocks',
         filename: `Hostel_${selectedReport.replace(/\s+/g, '_')}_Report.pdf`
       });

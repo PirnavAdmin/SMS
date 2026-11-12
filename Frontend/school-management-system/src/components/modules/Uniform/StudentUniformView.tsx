@@ -41,6 +41,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
     addFinanceTransaction,
     feePayments = [],
     getStudentFeeLedger,
+    updateUniform,
     updateUniformInventory,
     calculateStudentPayableFee,
     getStudentFeeOutstandingSummary,
@@ -1508,28 +1509,26 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
     const rawItemName = (issue.itemName || issue.itemCategory || '').replace(/\s*\(Extra\)/gi, '').trim();
     const normItemName = normalizeUniformCategoryName(rawItemName).toLowerCase().trim();
 
-    // 1. Sync uniforms state (availableStock)
-    setUniforms(prev => prev.map(u => {
-      const isIdMatch = Boolean(issue.itemId && u.id === issue.itemId);
-      const normUCat = normalizeUniformCategoryName(u.category || u.name).toLowerCase().trim();
-      const isNameMatch = normUCat === normItemName || normUCat.includes(normItemName) || normItemName.includes(normUCat);
+    // 1. Sync uniforms state (availableStock) via DataContext
+    if (updateUniform) {
+      (uniforms || []).forEach((u: any) => {
+        const isIdMatch = Boolean(issue.itemId && u.id === issue.itemId);
+        const normUCat = normalizeUniformCategoryName(u.category || u.name).toLowerCase().trim();
+        const isNameMatch = normUCat === normItemName || normUCat.includes(normItemName) || normItemName.includes(normUCat);
 
-      let isSizeMatch = true;
-      if (issue.size && (u.size || u.meterRange)) {
-        const uSizeNorm = (u.size || u.meterRange || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-        const issueSizeNorm = issue.size.toLowerCase().replace(/[^a-z0-9]/g, '');
-        isSizeMatch = uSizeNorm === issueSizeNorm || uSizeNorm.includes(issueSizeNorm) || issueSizeNorm.includes(uSizeNorm);
-      }
+        let isSizeMatch = true;
+        if (issue.size && (u.size || u.meterRange)) {
+          const uSizeNorm = (u.size || u.meterRange || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+          const issueSizeNorm = issue.size.toLowerCase().replace(/[^a-z0-9]/g, '');
+          isSizeMatch = uSizeNorm === issueSizeNorm || uSizeNorm.includes(issueSizeNorm) || issueSizeNorm.includes(uSizeNorm);
+        }
 
-      if (isIdMatch || (isNameMatch && isSizeMatch)) {
-        const curStock = u.availableStock !== undefined ? Number(u.availableStock) : (u.openingStock !== undefined ? Number(u.openingStock) : 0);
-        return {
-          ...u,
-          availableStock: curStock + qtyToRestore
-        };
-      }
-      return u;
-    }));
+        if (isIdMatch || (isNameMatch && isSizeMatch)) {
+          const curStock = u.availableStock !== undefined ? Number(u.availableStock) : (u.openingStock !== undefined ? Number(u.openingStock) : 0);
+          updateUniform(u.id, { availableStock: curStock + qtyToRestore });
+        }
+      });
+    }
 
     // 2. Sync uniformInventory state (currentStock)
     if (updateUniformInventory) {
@@ -2209,11 +2208,11 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
           status: 'Issued',
           academicYear: selectedAcademicYear || financeSettings.academicYear || '',
           type: 'Additional Purchase',
-          price: itemUnitPrice,
+          price: calculatedUnitPrice,
           notes: `Additional Purchase — Added to Fee Account (Collect from Finance & Fees)`
         });
 
-        const totalSale = itemUnitPrice * qty;
+        const totalSale = calculatedUnitPrice * qty;
         const instId2 = `FEE-UNI-EXTRA-${Date.now()}-${form.studentId.slice(-4)}`;
         setStudentFeeInstallments(prev => [...prev, {
           id: instId2,

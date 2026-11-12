@@ -54,6 +54,7 @@ const getRegisterKey = (cls: string, sec: string, d: string) => {
 export const AttendanceView = () => {
   const { user, role } = useAuth();
   const { staff = [], students: allStudents = [], academicClasses = [], studentAttendance = [], holidays = [], saveStudentAttendance, saveBulkStudentAttendance, teacherAssignments = [], timetable = [], periodSettings = [], fetchStudents, fetchStudentAttendanceData } = useData();
+  const { addToast } = useToast();
 
   const isTeacher = useMemo(() => {
     const normRole = (user?.role || role || '').toLowerCase().replace(/[_\s-]+/g, '');
@@ -1126,8 +1127,6 @@ export const AttendanceView = () => {
     };
   }, [filteredStudents, currentAttendance, attendanceRegistry, date, selectedSubject]);
 
-  const { addToast } = useToast();
-
   const handleSearchData = async () => {
     setIsSearching(true);
     try {
@@ -1177,47 +1176,52 @@ export const AttendanceView = () => {
     setIsSaving(true);
     try {
       const recordsToSave: any[] = [];
+      const registryUpdates: Array<{ key: string; studentId: string; status: AttendanceStatus }> = [];
+
+      for (const d of datesToSave) {
+        classStudents.forEach(st => {
+          const status = isMatrixMode ? getMatrixStatus(st, d) : getAttendanceStatus(st);
+          if (!status || status === 'Holiday') return;
+
+          const cleanCls = normalizeClass(st.className);
+          const cleanSec = normalizeSec(st.section);
+          const cleanSubj = (selectedSubject || '').trim().toLowerCase();
+          const cleanPrd = (selectedPeriod || '').trim().toLowerCase();
+
+          const periodKey = `${st.className}_${st.section}_${selectedSubject}_${selectedPeriod}_${d}`;
+          const normPeriodKey = `${cleanCls}_${cleanSec}_${cleanSubj}_${cleanPrd}_${d}`;
+          const specKey = `${st.className}_${st.section}_${selectedSubject}_${d}`;
+          const normSpecKey = `${cleanCls}_${cleanSec}_${cleanSubj}_${d}`;
+          const normKey = getRegisterKey(st.className, st.section, d);
+          const rawNormKey = `${st.className}_${st.section}_${d}`;
+          const legacyKey = `${selectedClass === 'All Classes' ? 'All' : selectedClass}_${selectedSection === 'All Sections' ? 'All' : selectedSection}_${selectedSubject}_${d}`;
+
+          const keysToUpdate = [periodKey, normPeriodKey, specKey, normSpecKey, normKey, rawNormKey, legacyKey];
+          for (const k of keysToUpdate) {
+            registryUpdates.push({ key: k, studentId: st.id, status });
+          }
+
+          recordsToSave.push({
+            studentId: st.id,
+            rollNo: st.rollNo,
+            admissionNo: st.admissionNo,
+            studentName: `${st.firstName} ${st.lastName}`.trim(),
+            className: st.className,
+            section: st.section,
+            date: d,
+            subject: selectedSubject,
+            period: selectedPeriod,
+            status: status,
+            remarks: getStudentRemark(st.id, d) || '',
+            markedBy: isTeacher ? teacherFullName : (user?.name || 'Administrator')
+          });
+        });
+      }
 
       setAttendanceRegistry(prev => {
         const updated = { ...prev };
-        for (const d of datesToSave) {
-          classStudents.forEach(st => {
-            const status = isMatrixMode ? getMatrixStatus(st, d) : getAttendanceStatus(st);
-            if (!status || status === 'Holiday') return;
-
-            const cleanCls = normalizeClass(st.className);
-            const cleanSec = normalizeSec(st.section);
-            const cleanSubj = (selectedSubject || '').trim().toLowerCase();
-            const cleanPrd = (selectedPeriod || '').trim().toLowerCase();
-
-            const periodKey = `${st.className}_${st.section}_${selectedSubject}_${selectedPeriod}_${d}`;
-            const normPeriodKey = `${cleanCls}_${cleanSec}_${cleanSubj}_${cleanPrd}_${d}`;
-            const specKey = `${st.className}_${st.section}_${selectedSubject}_${d}`;
-            const normSpecKey = `${cleanCls}_${cleanSec}_${cleanSubj}_${d}`;
-            const normKey = getRegisterKey(st.className, st.section, d);
-            const rawNormKey = `${st.className}_${st.section}_${d}`;
-            const legacyKey = `${selectedClass === 'All Classes' ? 'All' : selectedClass}_${selectedSection === 'All Sections' ? 'All' : selectedSection}_${selectedSubject}_${d}`;
-
-            const keysToUpdate = [periodKey, normPeriodKey, specKey, normSpecKey, normKey, rawNormKey, legacyKey];
-            for (const k of keysToUpdate) {
-              updated[k] = { ...(updated[k] || {}), [st.id]: status };
-            }
-
-            recordsToSave.push({
-              studentId: st.id,
-              rollNo: st.rollNo,
-              admissionNo: st.admissionNo,
-              studentName: `${st.firstName} ${st.lastName}`.trim(),
-              className: st.className,
-              section: st.section,
-              date: d,
-              subject: selectedSubject,
-              period: selectedPeriod,
-              status: status,
-              remarks: getStudentRemark(st.id, d) || '',
-              markedBy: isTeacher ? teacherFullName : (user?.name || 'Administrator')
-            });
-          });
+        for (const item of registryUpdates) {
+          updated[item.key] = { ...(updated[item.key] || {}), [item.studentId]: item.status };
         }
         return updated;
       });

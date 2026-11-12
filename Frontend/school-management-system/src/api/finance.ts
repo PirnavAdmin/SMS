@@ -714,8 +714,9 @@ export const updateFinanceGlobalSettingsApi = async (payload: any) => {
   });
 };
 
-export const fetchFinanceReportsSummaryApi = async (academicYear = '2025-2026') => {
-  return apiClient(`/api/finance/reports/summary?academicYear=${encodeURIComponent(academicYear)}`, { method: 'GET' });
+export const fetchFinanceReportsSummaryApi = async (academicYear?: string) => {
+  const qs = academicYear ? `?academicYear=${encodeURIComponent(academicYear)}` : '';
+  return apiClient(`/api/finance/reports/summary${qs}`, { method: 'GET' });
 };
 
 export const fetchDailyCollectionReportApi = async (date?: string) => {
@@ -723,8 +724,9 @@ export const fetchDailyCollectionReportApi = async (date?: string) => {
   return apiClient(`/api/finance/reports/daily-collection${qs}`, { method: 'GET' });
 };
 
-export const fetchClassWiseCollectionReportApi = async (academicYear = '2025-2026') => {
-  return apiClient(`/api/finance/reports/class-wise-collection?academicYear=${encodeURIComponent(academicYear)}`, { method: 'GET' });
+export const fetchClassWiseCollectionReportApi = async (academicYear?: string) => {
+  const qs = academicYear ? `?academicYear=${encodeURIComponent(academicYear)}` : '';
+  return apiClient(`/api/finance/reports/class-wise-collection${qs}`, { method: 'GET' });
 };
 
 // =========================================================================

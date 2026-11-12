@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { useData } from '../../../context/DataContext';
+import { useToast } from '../../../context/ToastContext';
 import { teacherCheckInApi, teacherCheckOutApi, fetchTeacherTodayAttendanceApi } from '../../../api/attendance';
 
 interface TeacherDashboardViewProps {
@@ -18,6 +19,7 @@ interface TeacherDashboardViewProps {
 
 export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNavigate }) => {
   const { user } = useAuth();
+  const { addToast } = useToast();
   const { 
     staff = [], 
     students = [], 
@@ -358,8 +360,8 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
             }
           }
         }
-      } catch {
-        /* Ignored */
+      } catch (err: any) {
+        console.warn('Could not load today attendance status:', err);
       }
     };
     loadTodayStatus();
@@ -381,8 +383,10 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
       if (fetchDailyAttendance) {
         await fetchDailyAttendance(todayStr);
       }
+      addToast('success', 'Checked In', 'Your check-in has been recorded.');
     } catch (err: any) {
       console.error('Teacher check-in API error:', err);
+      addToast('error', 'Check-In Failed', err?.message || 'Unable to record check-in on server.');
     }
   };
 
@@ -399,8 +403,10 @@ export const TeacherDashboardView: React.FC<TeacherDashboardViewProps> = ({ onNa
       if (fetchDailyAttendance) {
         await fetchDailyAttendance(todayStr);
       }
+      addToast('success', 'Checked Out', 'Your check-out has been recorded.');
     } catch (err: any) {
       console.error('Teacher check-out API error:', err);
+      addToast('error', 'Check-Out Failed', err?.message || 'Unable to record check-out on server.');
     }
   };
 

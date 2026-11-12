@@ -12,8 +12,8 @@ using System.Text;
 using System.Threading.Tasks;
 
 [ApiController]
+[Authorize(Roles = "SuperAdmin,Super Admin,Admin,Principal")]
 [Route("api/school-reports")]
-[AllowAnonymous]
 [Tags("School Administration Reports Hub")]
 public class SchoolReportsController : ControllerBase
 {

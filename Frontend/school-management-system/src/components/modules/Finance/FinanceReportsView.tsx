@@ -64,7 +64,7 @@ export const FinanceReportsView: React.FC = () => {
     fetchFinanceData,
   } = useData();
 
-  const { selectedAcademicYear } = useAuth();
+  const { selectedAcademicYear, selectedBranch } = useAuth();
 
   const [selectedCategory, setSelectedCategory] = useState<ReportCategory>('Collection Reports');
   const [selectedReport, setSelectedReport] = useState<string>('Daily Collection');
@@ -78,14 +78,14 @@ export const FinanceReportsView: React.FC = () => {
     if ((!feePayments || feePayments.length === 0) && fetchFinanceData) {
       fetchFinanceData().catch(() => {});
     }
-    FinanceAPI.fetchFinanceReportsSummaryApi(selectedAcademicYear || '2025-2026')
+    FinanceAPI.fetchFinanceReportsSummaryApi(selectedAcademicYear)
       .then(res => {
         if (res?.data) {
           setApiSummary(res.data);
         }
       })
       .catch(err => console.warn('Failed to load reports summary', err));
-  }, [selectedAcademicYear]);
+  }, [selectedAcademicYear, selectedBranch]);
 
   const handleCategoryChange = (newCategory: ReportCategory) => {
     setSelectedCategory(newCategory);

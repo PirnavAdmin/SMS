@@ -167,7 +167,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (parsed) {
           parsed.isFirstLogin = false;
           const normRole = normalizeUserRole(parsed.role || '');
-          if (normRole === 'Parent' || (parsed.email && parsed.email.toLowerCase().includes('parent'))) {
+          if (normRole === 'Parent' || (!parsed.role && parsed.email && parsed.email.toLowerCase().includes('parent'))) {
             parsed.role = 'Parent';
           } else if (parsed.role) {
             parsed.role = normRole;
@@ -213,7 +213,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   const [role, setRoleState] = useState<UserRole>(() => {
-    if (user?.email && user.email.toLowerCase().includes('parent')) return 'Parent';
+    if (!user?.role && user?.email && user.email.toLowerCase().includes('parent')) return 'Parent';
     return user ? normalizeUserRole(user.role) : 'Admin';
   });
 
@@ -458,10 +458,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         mappedRole = 'Parent';
       } else if (chosenRole && normalizedRoles.includes(normalizeUserRole(chosenRole))) {
         mappedRole = normalizeUserRole(chosenRole);
-      } else if ((emailOrPhone && emailOrPhone.toLowerCase().includes('parent')) || (response?.email && response.email.toLowerCase().includes('parent'))) {
-        mappedRole = 'Parent';
       } else if (roles.length > 0) {
         const priorityOrder: UserRole[] = [
+          'Super Admin',
           'Admin',
           'Principal',
           'Hostel Warden',
@@ -480,6 +479,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (matched) {
           mappedRole = matched;
         }
+      } else if ((emailOrPhone && emailOrPhone.toLowerCase().includes('parent')) || (response?.email && response.email.toLowerCase().includes('parent'))) {
+        mappedRole = 'Parent';
       }
 
       const loginEmail = (response?.email || (emailOrPhone.includes('@') ? emailOrPhone : '')).trim();
@@ -528,6 +529,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (userBranch) {
         setSelectedBranchState(userBranch);
         setActiveBranchHeader(userBranch);
+        try {
+          localStorage.setItem('selected_branch', userBranch);
+        } catch {}
       }
 
       setUser(loggedUser);

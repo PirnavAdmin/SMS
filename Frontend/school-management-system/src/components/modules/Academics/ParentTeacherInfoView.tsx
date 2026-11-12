@@ -372,12 +372,13 @@ export const ParentTeacherInfoView: React.FC = () => {
 
   const filteredTeachers = useMemo(() => {
     const list = teachers.filter(teacher => {
-      const fullName = `${teacher.firstName} ${teacher.lastName}`.toLowerCase();
+      const fullName = `${teacher.firstName || ''} ${teacher.lastName || ''}`.toLowerCase();
+      const q = (searchQuery || '').toLowerCase();
       const matchesSearch = 
-        fullName.includes(searchQuery.toLowerCase()) ||
-        teacher.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        teacher.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        teacher.subjectCode.toLowerCase().includes(searchQuery.toLowerCase());
+        fullName.includes(q) ||
+        (teacher.email || '').toLowerCase().includes(q) ||
+        (teacher.subject || '').toLowerCase().includes(q) ||
+        (teacher.subjectCode || '').toLowerCase().includes(q);
       
       const teacherFullSubject = teacher.subjectCode ? `${teacher.subject} (${teacher.subjectCode})` : teacher.subject;
       const matchesSubject = subjectFilter === 'All' || teacherFullSubject === subjectFilter || teacher.subject === subjectFilter;
@@ -407,7 +408,7 @@ export const ParentTeacherInfoView: React.FC = () => {
                 {currentWard?.className ? (
                   <>
                     Assigned to: <strong className="text-sky-700 dark:text-sky-400">
-                      {currentWard.className.toLowerCase().startsWith('class') ? currentWard.className : `Class ${currentWard.className}`}
+                      {(currentWard.className || '').toLowerCase().startsWith('class') ? currentWard.className : `Class ${currentWard.className}`}
                       {currentWard.section ? `-${currentWard.section}` : ''}
                     </strong>
                   </>

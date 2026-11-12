@@ -64,3 +64,9 @@ public class StaffCreateDto
     public List<string> AssignedClasses { get; set; } = new();
     public List<string> AssignedSubjects { get; set; } = new();
 }
+
+public class StaffStatusPatchDto
+{
+    public bool? IsActive { get; set; }
+    public string? Status { get; set; }
+}

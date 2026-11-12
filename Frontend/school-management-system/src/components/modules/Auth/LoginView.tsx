@@ -80,30 +80,22 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
     } catch {}
     return '';
   });
-  const [password, setPassword] = useState<string>(() => {
-    try {
-      if (localStorage.getItem('remember_me') === 'true') {
-        return localStorage.getItem('remember_me_password') || '';
-      }
-    } catch {}
-    return '';
-  });
+  const [password, setPassword] = useState<string>('');
   const [showPassword, setShowPassword] = useState(false);
 
   const [identifierTouched, setIdentifierTouched] = useState(false);
   const [passwordTouched, setPasswordTouched] = useState(false);
   const [loginSubmitted, setLoginSubmitted] = useState(false);
 
-  // Re-hydrate remembered credentials on mount
+  // Re-hydrate remembered identifier on mount and purge any legacy plaintext password
   useEffect(() => {
     try {
+      localStorage.removeItem('remember_me_password');
       const isRemembered = localStorage.getItem('remember_me') === 'true';
       if (isRemembered) {
         setRememberMe(true);
         const savedId = localStorage.getItem('remember_me_identifier') || '';
-        const savedPw = localStorage.getItem('remember_me_password') || '';
         if (savedId) setIdentifier(savedId);
-        if (savedPw) setPassword(savedPw);
       }
     } catch {}
   }, []);
@@ -205,9 +197,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
         if (identifier.trim()) {
           localStorage.setItem('remember_me_identifier', identifier.trim());
         }
-        if (password) {
-          localStorage.setItem('remember_me_password', password);
-        }
+        localStorage.removeItem('remember_me_password');
       } else {
         localStorage.removeItem('remember_me');
         localStorage.removeItem('remember_me_identifier');
@@ -229,11 +219,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
   const handlePasswordChange = (value: string) => {
     setPassword(value);
     if (error) setError('');
-    if (rememberMe) {
-      try {
-        localStorage.setItem('remember_me_password', value);
-      } catch {}
-    }
   };
 
   // Validation helpers
@@ -280,7 +265,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
     if (rememberMe) {
       localStorage.setItem('remember_me', 'true');
       localStorage.setItem('remember_me_identifier', identifier.trim());
-      localStorage.setItem('remember_me_password', password);
+      localStorage.removeItem('remember_me_password');
     } else {
       localStorage.removeItem('remember_me');
       localStorage.removeItem('remember_me_identifier');

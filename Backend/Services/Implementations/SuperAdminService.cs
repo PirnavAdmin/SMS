@@ -137,13 +137,17 @@ public class SuperAdminService : ISuperAdminService
 
         try
         {
+            var issuer = _config["Jwt:Issuer"];
+            var audience = _config["Jwt:Audience"];
             tokenHandler.ValidateToken(token, new TokenValidationParameters
             {
                 ValidateIssuerSigningKey = true,
                 IssuerSigningKey = new SymmetricSecurityKey(key),
-                ValidateIssuer = false,
-                ValidateAudience = false,
-                ValidateLifetime = false, // Keep validation simple for refresh
+                ValidateIssuer = !string.IsNullOrWhiteSpace(issuer),
+                ValidIssuer = issuer,
+                ValidateAudience = !string.IsNullOrWhiteSpace(audience),
+                ValidAudience = audience,
+                ValidateLifetime = true,
                 ClockSkew = TimeSpan.Zero
             }, out SecurityToken validatedToken);
 
@@ -158,15 +162,24 @@ public class SuperAdminService : ISuperAdminService
             if (!string.IsNullOrEmpty(user.Role)) roles.Add(user.Role);
             roles = roles.Distinct().ToList();
 
+            bool isSuperAdmin = roles.Any(r => r.Equals("SuperAdmin", StringComparison.OrdinalIgnoreCase) ||
+                                               r.Equals("Super Admin", StringComparison.OrdinalIgnoreCase));
+            if (!isSuperAdmin)
+                throw new AppException("Access denied. Authorized for Super Admin only.", HttpStatusCode.Forbidden);
+
             if (!roles.Contains("SuperAdmin")) roles.Add("SuperAdmin");
             if (!roles.Contains("Super Admin")) roles.Add("Super Admin");
 
             var newToken = GenerateJwtToken(user, roles);
             return new AuthResponseDto(user.UserId, user.FullName, newToken, roles, user.Email, user.MobileNumber, user.Avatar, string.Empty);
         }
-        catch (Exception ex)
+        catch (AppException)
         {
-            throw new AppException($"Invalid token validation: {ex.Message}", HttpStatusCode.Unauthorized);
+            throw;
+        }
+        catch (Exception)
+        {
+            throw new AppException("Invalid or expired token.", HttpStatusCode.Unauthorized);
         }
     }
 

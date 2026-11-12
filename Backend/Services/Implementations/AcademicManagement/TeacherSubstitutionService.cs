@@ -240,6 +240,11 @@ public class TeacherSubstitutionService : ITeacherSubstitutionService
             query = query.Where(s => s.Header == null || s.Header.AcademicYear == academicYear);
         }
 
+        if (!string.IsNullOrWhiteSpace(branchName) && branchName != "All" && branchName != "All Branches")
+        {
+            query = query.Where(s => s.Header != null && s.Header.BranchName == branchName);
+        }
+
         var slots = await query.OrderBy(s => s.StartTime).ToListAsync();
 
         // 5. Fetch existing substitutions on this date

@@ -112,7 +112,7 @@ export function useMarksEntry() {
     return rosterMarks;
   };
 
-  const saveRosterMarksDraft = (
+  const saveRosterMarksDraft = async (
     examId: string,
     className: string,
     section: string,
@@ -122,36 +122,34 @@ export function useMarksEntry() {
     const exam = (exams || []).find(e => String(e.id) === String(examId));
     const examType = exam?.examType || (exam as any)?.assessmentType || '';
 
-    try {
-      saveMarksEntryDraftApi({
-        examId,
-        className,
-        sectionName: section,
-        subjectCode: subject,
-        students: Object.entries(marksState).map(([studentId, state], idx) => {
-          const isAbsent = state.attendance === 'Absent' || state.attendance === 'Medical Leave' || state.attendance === 'Exempted';
-          const mObt = isAbsent ? 0 : Number(state.marks) || 0;
-          const pct = (mObt / 100) * 100;
-          const calcGrd = isAbsent ? (state.attendance === 'Absent' ? 'AB' : (state.attendance === 'Medical Leave' ? 'ML' : 'EX')) : calculateGrade(pct, gradeConfigurations, 'Percentage', examType);
+    await saveMarksEntryDraftApi({
+      examId,
+      className,
+      sectionName: section,
+      subjectCode: subject,
+      students: Object.entries(marksState).map(([studentId, state], idx) => {
+        const isAbsent = state.attendance === 'Absent' || state.attendance === 'Medical Leave' || state.attendance === 'Exempted';
+        const mObt = isAbsent ? 0 : Number(state.marks) || 0;
+        const pct = (mObt / 100) * 100;
+        const calcGrd = isAbsent ? (state.attendance === 'Absent' ? 'AB' : (state.attendance === 'Medical Leave' ? 'ML' : 'EX')) : calculateGrade(pct, gradeConfigurations, 'Percentage', examType);
 
-          return {
-            entryId: idx + 1,
-            rollNo: '',
-            studentName: '',
-            admissionNo: studentId,
-            attendanceStatus: state.attendance,
-            marksObtained: mObt,
-            maxMarks: 100,
-            grade: calcGrd,
-            evaluatorRemarks: state.remarks,
-            status: 'In Progress'
-          };
-        })
-      }).catch(err => console.warn('Marks draft API note:', err));
-    } catch (e) {}
+        return {
+          entryId: idx + 1,
+          rollNo: '',
+          studentName: '',
+          admissionNo: studentId,
+          attendanceStatus: state.attendance,
+          marksObtained: mObt,
+          maxMarks: 100,
+          grade: calcGrd,
+          evaluatorRemarks: state.remarks,
+          status: 'In Progress'
+        };
+      })
+    });
   };
 
-  const submitRosterMarks = (
+  const submitRosterMarks = async (
     examId: string,
     className: string,
     section: string,
@@ -190,38 +188,36 @@ export function useMarksEntry() {
       } as any;
     });
 
+    await submitMarksEntryApi({
+      examId,
+      className,
+      sectionName: section,
+      subjectCode: subject,
+      isFinalSubmit: true,
+      students: Object.entries(marksState).map(([studentId, state], idx) => {
+        const isAbsent = state.attendance === 'Absent' || state.attendance === 'Medical Leave' || state.attendance === 'Exempted';
+        const mObt = isAbsent ? 0 : Number(state.marks) || 0;
+        const pct = maxMarks > 0 ? (mObt / maxMarks) * 100 : 0;
+        const calcGrd = isAbsent 
+          ? (state.attendance === 'Absent' ? 'AB' : (state.attendance === 'Medical Leave' ? 'ML' : 'EX')) 
+          : calculateGrade(pct, gradeConfigurations, 'Percentage', examType);
+
+        return {
+          entryId: idx + 1,
+          rollNo: '',
+          studentName: '',
+          admissionNo: studentId,
+          attendanceStatus: state.attendance,
+          marksObtained: mObt,
+          maxMarks,
+          grade: calcGrd,
+          evaluatorRemarks: state.remarks,
+          status: 'Submitted'
+        };
+      })
+    });
+
     saveMarks(formattedList);
-
-    try {
-      submitMarksEntryApi({
-        examId,
-        className,
-        sectionName: section,
-        subjectCode: subject,
-        isFinalSubmit: true,
-        students: Object.entries(marksState).map(([studentId, state], idx) => {
-          const isAbsent = state.attendance === 'Absent' || state.attendance === 'Medical Leave' || state.attendance === 'Exempted';
-          const mObt = isAbsent ? 0 : Number(state.marks) || 0;
-          const pct = maxMarks > 0 ? (mObt / maxMarks) * 100 : 0;
-          const calcGrd = isAbsent 
-            ? (state.attendance === 'Absent' ? 'AB' : (state.attendance === 'Medical Leave' ? 'ML' : 'EX')) 
-            : calculateGrade(pct, gradeConfigurations, 'Percentage', examType);
-
-          return {
-            entryId: idx + 1,
-            rollNo: '',
-            studentName: '',
-            admissionNo: studentId,
-            attendanceStatus: state.attendance,
-            marksObtained: mObt,
-            maxMarks,
-            grade: calcGrd,
-            evaluatorRemarks: state.remarks,
-            status: 'Submitted'
-          };
-        })
-      }).catch(err => console.warn('Submit marks API note:', err));
-    } catch (e) {}
   };
 
   return {

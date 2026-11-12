@@ -665,6 +665,24 @@ public class StaffService : IStaffService
         return MapToStaffResponseDto(staff);
     }
 
+    public async Task<StaffResponseDto> UpdateStaffStatusAsync(int id, StaffStatusPatchDto dto)
+    {
+        var staff = await _schoolRepository.GetStaffByIdAsync(id)
+            ?? throw new NotFoundException($"Staff member with ID '{id}' not found.");
+
+        if (dto.IsActive.HasValue)
+        {
+            staff.IsActive = dto.IsActive.Value;
+        }
+        else if (!string.IsNullOrWhiteSpace(dto.Status))
+        {
+            staff.IsActive = !dto.Status.Equals("Inactive", StringComparison.OrdinalIgnoreCase);
+        }
+
+        await _schoolRepository.SaveChangesAsync();
+        return MapToStaffResponseDto(staff);
+    }
+
     public async Task<bool> DeleteStaffAsync(int id)
     {
         var staff = await _schoolRepository.GetStaffByIdAsync(id)

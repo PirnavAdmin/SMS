@@ -5,6 +5,7 @@ export const MODULES = [
   "students",
   "staff",
   "admissions",
+  "academic-history",
   "student-promotion",
   "certificates",
   "transfer-certificates",
@@ -43,6 +44,7 @@ export const ROLE_PERMISSIONS: Record<Role, ModuleId[]> = {
     "students",
     "staff",
     "admissions",
+    "academic-history",
     "academics",
     "subjects",
     "timetable",
@@ -131,7 +133,7 @@ export const ROLE_PERMISSIONS: Record<Role, ModuleId[]> = {
     "staff",
     "transport",
   ],
-  Staff: ["dashboard", "communication", "events", "training"],
+  Staff: ["dashboard", "staff", "communication", "events", "training"],
 };
 
 const normalizeRoleForRbac = (roleStr: string): Role => {
@@ -139,7 +141,9 @@ const normalizeRoleForRbac = (roleStr: string): Role => {
     .toLowerCase()
     .replace(/[_\s-]+/g, " ")
     .trim();
-  if (clean === "superadmin" || clean === "super admin" || clean === "admin")
+  if (clean === "superadmin" || clean === "super admin")
+    return "Super Admin";
+  if (clean === "admin")
     return "Admin";
   if (clean === "principal") return "Principal";
   if (clean === "teacher" || clean === "faculty" || clean === "class teacher")
@@ -176,13 +180,25 @@ export const hasModuleAccess = (
   role: any,
   moduleId: ModuleId | string,
 ): boolean => {
-  if (moduleId === "transfer-certificates") moduleId = "certificates";
-  if (moduleId === "librarian-attendance") moduleId = "library";
-  if (moduleId === "library-timetable") moduleId = "library";
-  if (moduleId === "warden-profile" || moduleId === "teacher-profile" || moduleId === "teacher-my-profile" || moduleId === "driver-profile") moduleId = "staff";
-  if (moduleId === "roles") moduleId = "users";
-  const baseModule = moduleId.split("-")[0] as ModuleId;
   const lookupRole = normalizeRoleForRbac(role);
+
+  // Strictly role-specific screens
+  if (moduleId === "warden-attendance" || moduleId === "hostel-warden-attendance" || moduleId === "warden-profile") {
+    return lookupRole === "Hostel Warden";
+  }
+  if (moduleId === "librarian-attendance" || moduleId === "library-attendance") {
+    return lookupRole === "Librarian";
+  }
+  if (moduleId === "driver-attendance" || moduleId === "driver-leave" || moduleId === "driver-payslips" || moduleId === "driver-profile") {
+    return lookupRole === "Driver";
+  }
+
+  if (moduleId === "transfer-certificates") moduleId = "certificates";
+  if (moduleId === "library-timetable") moduleId = "library";
+  if (moduleId === "teacher-profile" || moduleId === "teacher-my-profile" || moduleId === "staff-my-payslips" || moduleId === "teacher-payslips") moduleId = "staff";
+  if (moduleId === "roles") moduleId = "users";
+  const preserveFullId = moduleId === "academic-history" || moduleId === "student-promotion" || moduleId === "marks-entry" || moduleId === "report-cards";
+  const baseModule = (preserveFullId ? moduleId : moduleId.split("-")[0]) as ModuleId;
   const allowedModules =
     ROLE_PERMISSIONS[lookupRole] || ROLE_PERMISSIONS["Staff"] || [];
   return (

@@ -430,7 +430,6 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     securityDepositPaymentMode: "Cash",
     securityDepositTxnId: "",
     securityDepositDate: new Date().toISOString().split("T")[0],
-      branch: selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : (dynamicCampuses[0] || ""),
       branch: (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" && dynamicCampuses.includes(selectedBranch))
         ? selectedBranch
         : (dynamicCampuses[0] || ""),

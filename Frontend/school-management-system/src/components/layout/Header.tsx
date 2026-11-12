@@ -186,10 +186,14 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
   );
 
   useEffect(() => {
-    if (authorizedBranches.length > 0 && (!selectedBranch || !authorizedBranches.includes(selectedBranch))) {
-      setSelectedBranch(authorizedBranches[0]);
+    if (authorizedBranches.length > 0 && (!selectedBranch || (selectedBranch !== 'All' && selectedBranch !== 'All Branches' && !authorizedBranches.includes(selectedBranch)))) {
+      if (canViewBranch) {
+        setSelectedBranch(authorizedBranches[0]);
+      } else if (!selectedBranch) {
+        setSelectedBranch(user?.branch || authorizedBranches[0]);
+      }
     }
-  }, [selectedBranch, authorizedBranches, setSelectedBranch]);
+  }, [selectedBranch, authorizedBranches, setSelectedBranch, canViewBranch, user?.branch]);
 
   const selectBranch = (branch: string) => {
     if (!canViewBranch || !authorizedBranches.includes(branch)) return;
@@ -512,10 +516,7 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
                     return (
                       <div key={idx} className="flex items-center justify-between group px-1 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800">
                         <button
-                          onClick={() => {
-                            setSelectedBranch(branch);
-                            setShowBranchMenu(false);
-                          }}
+                          onClick={() => selectBranch(branch)}
                           className={`flex-1 flex items-center justify-between px-2 py-1.5 text-xs text-left transition-colors font-medium cursor-pointer ${
                             isSelected ? 'text-brand-600 font-bold' : 'text-slate-700 dark:text-slate-200'
                           }`}
@@ -786,14 +787,14 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
                 <p className="text-[10px] text-slate-500 dark:text-slate-400">{displayRole} • {currentStaff?.email || user?.email}</p>
               </div>
 
-              {['Admin', 'Super Admin', 'Teacher', 'Librarian', 'Hostel Warden', 'Accountant', 'Driver'].some(r => (role || '').toLowerCase().includes(r.toLowerCase())) && (
+              {['Admin', 'Super Admin', 'Principal', 'HR', 'Receptionist', 'Transport Manager', 'Teacher', 'Librarian', 'Hostel Warden', 'Accountant', 'Driver', 'Staff'].some(r => (role || '').toLowerCase().includes(r.toLowerCase())) && (
                 <button
                   onClick={() => {
                     setShowUserMenu(false);
                     const cleanRole = (role || '').toLowerCase();
                     if (cleanRole === 'driver') {
                       onNavigate?.('driver-profile');
-                    } else if (['teacher', 'librarian', 'warden', 'hostel warden', 'accountant', 'finance'].some(r => cleanRole.includes(r))) {
+                    } else if (['teacher', 'librarian', 'warden', 'hostel warden', 'accountant', 'finance', 'hr', 'receptionist', 'transport manager', 'staff'].some(r => cleanRole.includes(r))) {
                       onNavigate?.('teacher-profile');
                     } else {
                       onNavigate?.('profile-completion');

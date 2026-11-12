@@ -13,7 +13,7 @@ using System.Threading.Tasks;
 
 [ApiController]
 [Route("api/[controller]")]
-[AllowAnonymous]
+[Authorize]
 [Tags("Inventory Management")]
 public class InventoryController : ControllerBase
 {
@@ -150,29 +150,13 @@ public class InventoryController : ControllerBase
     [HttpGet("{id}")]
     public async Task<IActionResult> GetInventoryItemById(int id)
     {
-        try
+        var item = await _context.InventoryItems.FindAsync(id);
+        if (item == null)
         {
-            var item = await _context.InventoryItems.FindAsync(id);
-            if (item != null)
-            {
-                return Ok(new { success = true, data = MapToDto(item) });
-            }
+            return NotFound(new { success = false, message = $"Inventory asset '{id}' not found." });
         }
-        catch { }
 
-        var sample = new InventoryItemDto
-        {
-            InventoryItemId = id,
-            ItemName = "Dell Core i7 Lab PCs",
-            Category = "Lab Equipment",
-            Quantity = 35,
-            UnitPrice = 850m,
-            Location = "Computer Lab 1",
-            Status = "In Stock",
-            CreatedAt = DateTime.UtcNow
-        };
-
-        return Ok(new { success = true, data = sample });
+        return Ok(new { success = true, data = MapToDto(item) });
     }
 
     // =========================================================
@@ -182,9 +166,14 @@ public class InventoryController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> CreateInventoryItem([FromBody] CreateInventoryItemDto dto)
     {
-        int qty = dto.Quantity > 0 ? dto.Quantity : 10;
-        decimal price = dto.UnitPrice > 0 ? dto.UnitPrice : 50m;
-        string status = qty == 0 ? "Out of Stock" : (qty <= 5 ? "Low Stock" : dto.Status);
+        if (dto == null || string.IsNullOrWhiteSpace(dto.ItemName))
+        {
+            return BadRequest(new { success = false, message = "Item name is required." });
+        }
+
+        int qty = Math.Max(0, dto.Quantity);
+        decimal price = Math.Max(0m, dto.UnitPrice);
+        string status = qty == 0 ? "Out of Stock" : (qty <= 5 ? "Low Stock" : (string.IsNullOrWhiteSpace(dto.Status) ? "In Stock" : dto.Status.Trim()));
 
         var item = new InventoryItem
         {
@@ -192,17 +181,13 @@ public class InventoryController : ControllerBase
             Category = !string.IsNullOrWhiteSpace(dto.Category) ? dto.Category.Trim() : "Lab Equipment",
             Quantity = qty,
             UnitPrice = price,
-            Location = !string.IsNullOrWhiteSpace(dto.Location) ? dto.Location.Trim() : "Computer Lab 1",
+            Location = !string.IsNullOrWhiteSpace(dto.Location) ? dto.Location.Trim() : "Main Store",
             Status = status,
             CreatedAt = DateTime.UtcNow
         };
 
-        try
-        {
-            _context.InventoryItems.Add(item);
-            await _context.SaveChangesAsync();
-        }
-        catch { }
+        _context.InventoryItems.Add(item);
+        await _context.SaveChangesAsync();
 
         return Ok(new
         {
@@ -219,42 +204,22 @@ public class InventoryController : ControllerBase
     [HttpPut("{id}")]
     public async Task<IActionResult> UpdateInventoryItem(int id, [FromBody] CreateInventoryItemDto dto)
     {
-        try
+        var item = await _context.InventoryItems.FindAsync(id);
+        if (item == null)
         {
-            var item = await _context.InventoryItems.FindAsync(id);
-            if (item != null)
-            {
-                item.ItemName = dto.ItemName.Trim();
-                if (!string.IsNullOrWhiteSpace(dto.Category)) item.Category = dto.Category.Trim();
-                if (dto.Quantity >= 0) item.Quantity = dto.Quantity;
-                if (dto.UnitPrice >= 0) item.UnitPrice = dto.UnitPrice;
-                if (!string.IsNullOrWhiteSpace(dto.Location)) item.Location = dto.Location.Trim();
-                if (!string.IsNullOrWhiteSpace(dto.Status)) item.Status = dto.Status.Trim();
-
-                await _context.SaveChangesAsync();
-                return Ok(new { success = true, message = "Inventory asset updated successfully.", data = MapToDto(item) });
-            }
+            return NotFound(new { success = false, message = $"Inventory asset '{id}' not found." });
         }
-        catch { }
 
-        var sample = new InventoryItemDto
-        {
-            InventoryItemId = id,
-            ItemName = dto.ItemName,
-            Category = dto.Category,
-            Quantity = dto.Quantity,
-            UnitPrice = dto.UnitPrice,
-            Location = dto.Location,
-            Status = dto.Status,
-            CreatedAt = DateTime.UtcNow
-        };
+        if (!string.IsNullOrWhiteSpace(dto.ItemName)) item.ItemName = dto.ItemName.Trim();
+        if (!string.IsNullOrWhiteSpace(dto.Category)) item.Category = dto.Category.Trim();
+        if (dto.Quantity >= 0) item.Quantity = dto.Quantity;
+        if (dto.UnitPrice >= 0) item.UnitPrice = dto.UnitPrice;
+        if (!string.IsNullOrWhiteSpace(dto.Location)) item.Location = dto.Location.Trim();
+        if (!string.IsNullOrWhiteSpace(dto.Status)) item.Status = dto.Status.Trim();
+        else item.Status = item.Quantity == 0 ? "Out of Stock" : (item.Quantity <= 5 ? "Low Stock" : "In Stock");
 
-        return Ok(new
-        {
-            success = true,
-            message = "Inventory asset updated successfully.",
-            data = sample
-        });
+        await _context.SaveChangesAsync();
+        return Ok(new { success = true, message = "Inventory asset updated successfully.", data = MapToDto(item) });
     }
 
     // =========================================================
@@ -264,16 +229,14 @@ public class InventoryController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteInventoryItem(int id)
     {
-        try
+        var item = await _context.InventoryItems.FindAsync(id);
+        if (item == null)
         {
-            var item = await _context.InventoryItems.FindAsync(id);
-            if (item != null)
-            {
-                _context.InventoryItems.Remove(item);
-                await _context.SaveChangesAsync();
-            }
+            return NotFound(new { success = false, message = $"Inventory asset '{id}' not found." });
         }
-        catch { }
+
+        _context.InventoryItems.Remove(item);
+        await _context.SaveChangesAsync();
 
         return Ok(new
         {

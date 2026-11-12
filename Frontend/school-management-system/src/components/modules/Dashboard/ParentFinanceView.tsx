@@ -23,6 +23,7 @@ export const ParentFinanceView: React.FC<ParentFinanceViewProps> = ({ activeTab,
   const [paymentMode, setPaymentMode] = useState('Online (Credit Card)');
   const [processing, setProcessing] = useState<string | null>(null);
   const [paymentSuccess, setPaymentSuccess] = useState<string | null>(null);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
   const [isDownloadingReceipts, setIsDownloadingReceipts] = useState(false);
 
   const handleDownloadReceipts = () => {
@@ -38,19 +39,36 @@ export const ParentFinanceView: React.FC<ParentFinanceViewProps> = ({ activeTab,
   const loadFeeData = async () => {
     if (!currentWard) return;
     setLoadingFees(true);
+    setPaymentError(null);
     try {
       const studentId = Number(currentWard.studentId || currentWard.id);
       const res = await getParentFeeDetails(studentId);
       setFeeSummary(res);
-    } catch (err) {
-      console.warn('Failed to load fee details:', err);
+    } catch (err: any) {
+      setPaymentError(err?.message || 'Failed to load fee details.');
     } finally {
       setLoadingFees(false);
     }
   };
 
   useEffect(() => {
-    loadFeeData();
+    let active = true;
+    const run = async () => {
+      if (!currentWard) return;
+      setLoadingFees(true);
+      setPaymentError(null);
+      try {
+        const studentId = Number(currentWard.studentId || currentWard.id);
+        const res = await getParentFeeDetails(studentId);
+        if (active) setFeeSummary(res);
+      } catch (err: any) {
+        if (active) setPaymentError(err?.message || 'Failed to load fee details.');
+      } finally {
+        if (active) setLoadingFees(false);
+      }
+    };
+    run();
+    return () => { active = false; };
   }, [currentWard?.studentId, currentWard?.id]);
 
   if (parentWards.length === 0) {
@@ -70,6 +88,8 @@ export const ParentFinanceView: React.FC<ParentFinanceViewProps> = ({ activeTab,
 
   const handlePayDue = async (item: any) => {
     setProcessing(String(item.feeId));
+    setPaymentError(null);
+    setPaymentSuccess(null);
     try {
       const studentId = Number(currentWard.studentId || currentWard.id);
       const res = await payParentFee({
@@ -81,8 +101,8 @@ export const ParentFinanceView: React.FC<ParentFinanceViewProps> = ({ activeTab,
       });
       setPaymentSuccess(`Payment of ₹${item.balanceDue.toLocaleString()} processed successfully. Receipt: ${res?.receiptNo || 'REC-CONFIRMED'}`);
       await loadFeeData();
-    } catch (err) {
-      console.warn('Payment failed:', err);
+    } catch (err: any) {
+      setPaymentError(err?.message || 'Payment processing failed. Please try again.');
     } finally {
       setProcessing(null);
     }
@@ -91,6 +111,8 @@ export const ParentFinanceView: React.FC<ParentFinanceViewProps> = ({ activeTab,
   const handlePayAll = async () => {
     if (totalDue <= 0) return;
     setProcessing('all');
+    setPaymentError(null);
+    setPaymentSuccess(null);
     try {
       const studentId = Number(currentWard.studentId || currentWard.id);
       const res = await payParentFee({
@@ -102,8 +124,8 @@ export const ParentFinanceView: React.FC<ParentFinanceViewProps> = ({ activeTab,
       });
       setPaymentSuccess(`Total fee payment of ₹${totalDue.toLocaleString()} processed successfully. Receipt: ${res?.receiptNo || 'REC-CONFIRMED'}`);
       await loadFeeData();
-    } catch (err) {
-      console.warn('Payment all failed:', err);
+    } catch (err: any) {
+      setPaymentError(err?.message || 'Total fee payment failed. Please try again.');
     } finally {
       setProcessing(null);
     }
@@ -149,6 +171,18 @@ export const ParentFinanceView: React.FC<ParentFinanceViewProps> = ({ activeTab,
         selectedIndex={selectedChildIdx}
         onSelect={setSelectedChildIdx}
       />
+
+      {paymentError && (
+        <div className="p-4 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-2xl flex items-center justify-between text-rose-800 dark:text-rose-300 text-sm font-medium">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-5 h-5 text-rose-600" />
+            <span>{paymentError}</span>
+          </div>
+          <button onClick={() => setPaymentError(null)} className="p-1 hover:bg-rose-100 rounded-lg">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {paymentSuccess && (
         <div className="p-4 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-2xl flex items-center justify-between text-emerald-800 dark:text-emerald-300 text-sm font-medium">

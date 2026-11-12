@@ -77,12 +77,12 @@ export const TransferCertificatesView: React.FC<TransferCertificatesViewProps> =
       }
 
       // Class Filter
-      if (selectedClass && s.className.toLowerCase() !== selectedClass.toLowerCase()) {
+      if (selectedClass && (s.className || '').toLowerCase() !== selectedClass.toLowerCase()) {
         return false;
       }
 
       // Section Filter
-      if (selectedSection && selectedSection !== 'All' && s.section.toLowerCase() !== selectedSection.toLowerCase()) {
+      if (selectedSection && selectedSection !== 'All' && (s.section || '').toLowerCase() !== selectedSection.toLowerCase()) {
         return false;
       }
 
@@ -94,8 +94,8 @@ export const TransferCertificatesView: React.FC<TransferCertificatesViewProps> =
       // Search Query
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
-        const fullName = `${s.firstName} ${s.lastName}`.toLowerCase();
-        if (!fullName.includes(q) && !s.admissionNo.toLowerCase().includes(q) && !s.rollNo.toLowerCase().includes(q)) {
+        const fullName = `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase();
+        if (!fullName.includes(q) && !(s.admissionNo || '').toLowerCase().includes(q) && !(s.rollNo || '').toLowerCase().includes(q)) {
           return false;
         }
       }
@@ -107,10 +107,10 @@ export const TransferCertificatesView: React.FC<TransferCertificatesViewProps> =
   // Filtered TC Register Records
   const filteredTcRegister = useMemo(() => {
     return tcRegister.filter(tc => {
-      if (selectedClass && tc.className.toLowerCase() !== selectedClass.toLowerCase()) {
+      if (selectedClass && (tc.className || '').toLowerCase() !== selectedClass.toLowerCase()) {
         return false;
       }
-      if (selectedSection && selectedSection !== 'All' && tc.section.toLowerCase() !== selectedSection.toLowerCase()) {
+      if (selectedSection && selectedSection !== 'All' && (tc.section || '').toLowerCase() !== selectedSection.toLowerCase()) {
         return false;
       }
       if (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' && (tc.branch || '').toLowerCase() !== selectedBranch.toLowerCase()) {
@@ -118,7 +118,7 @@ export const TransferCertificatesView: React.FC<TransferCertificatesViewProps> =
       }
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
-        if (!tc.studentName.toLowerCase().includes(q) && !tc.admissionNo.toLowerCase().includes(q) && !tc.tcNo.toLowerCase().includes(q)) {
+        if (!(tc.studentName || '').toLowerCase().includes(q) && !(tc.admissionNo || '').toLowerCase().includes(q) && !(tc.tcNo || '').toLowerCase().includes(q)) {
           return false;
         }
       }

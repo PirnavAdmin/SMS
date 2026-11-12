@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
@@ -7,6 +8,7 @@ using SMS.Api.Services.Interfaces;
 namespace SMS.Api.Controllers
 {
     [ApiController]
+    [Authorize]
     [Route("api/v1/faculty-training")]
     [Route("api/faculty-training")]
     public class FacultyTrainingController : ControllerBase

@@ -362,13 +362,19 @@ namespace SMS.Api.Services.Implementations
             UniformType? item = null;
             if (dto.UniformTypeId.HasValue && dto.UniformTypeId.Value > 0)
             {
-                item = await _uniformRepo.GetUniformTypeByIdAsync(dto.UniformTypeId.Value);
+                item = await _uniformRepo.GetUniformTypeByIdAsync(dto.UniformTypeId.Value)
+                    ?? throw new NotFoundException($"Uniform item with ID '{dto.UniformTypeId.Value}' not found.");
             }
 
             string itemName = !string.IsNullOrWhiteSpace(dto.ItemName) ? dto.ItemName.Trim() : (item?.ItemName ?? "Uniform Item");
             decimal price = dto.TotalAmount > 0 ? dto.TotalAmount : (item?.UnitPrice ?? 0m);
             int qty = dto.Quantity > 0 ? dto.Quantity : 1;
             decimal total = dto.TotalAmount > 0 ? dto.TotalAmount : (price * qty);
+
+            if (item != null && item.AvailableStock < qty)
+            {
+                throw new BadRequestException($"Insufficient stock for '{item.ItemName}'. Available: {item.AvailableStock}, Requested: {qty}.");
+            }
 
             var dist = new StudentUniformDistribution
             {
@@ -389,7 +395,7 @@ namespace SMS.Api.Services.Implementations
                 CreatedAt = DateTime.UtcNow
             };
 
-            if (item != null && item.AvailableStock >= qty)
+            if (item != null)
             {
                 item.AvailableStock -= qty;
             }
@@ -413,6 +419,11 @@ namespace SMS.Api.Services.Implementations
         {
             var dist = await _uniformRepo.GetDistributionByIdAsync(id)
                 ?? throw new NotFoundException($"Distribution record with ID '{id}' not found.");
+
+            if (string.Equals(dist.Status, "Returned", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new BadRequestException($"Distribution record '{id}' has already been marked as Returned.");
+            }
 
             dist.Status = "Returned";
             dist.Notes = !string.IsNullOrWhiteSpace(dto.Notes) ? dto.Notes.Trim() : (dto.Reason?.Trim() ?? "Returned by student");

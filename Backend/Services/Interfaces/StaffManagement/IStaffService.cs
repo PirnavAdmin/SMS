@@ -14,6 +14,7 @@ public interface IStaffService
     Task<TeacherDto?> GetTeacherByIdAsync(int id);
     Task<StaffResponseDto> CreateStaffAsync(StaffCreateDto dto);
     Task<StaffResponseDto> UpdateStaffAsync(int id, StaffCreateDto dto);
+    Task<StaffResponseDto> UpdateStaffStatusAsync(int id, StaffStatusPatchDto dto);
     Task<bool> DeleteStaffAsync(int id);
 
     // Attendance Operations

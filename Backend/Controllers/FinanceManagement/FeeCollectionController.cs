@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SMS.Api.Dtos.FinanceManagement;
 using SMS.Api.Services.Interfaces.FinanceManagement;
+using SMS.Api.Services.Interfaces.Parent;
+using System.Security.Claims;
 using System.Threading.Tasks;
 
 [ApiController]
@@ -13,10 +15,30 @@ using System.Threading.Tasks;
 public class FeeCollectionController : ControllerBase
 {
     private readonly IFeeCollectionService _feeCollectionService;
+    private readonly IParentService _parentService;
 
-    public FeeCollectionController(IFeeCollectionService feeCollectionService)
+    public FeeCollectionController(IFeeCollectionService feeCollectionService, IParentService parentService)
     {
         _feeCollectionService = feeCollectionService;
+        _parentService = parentService;
+    }
+
+    private async Task<bool> IsAuthorizedForStudentAsync(int studentId)
+    {
+        if (!User.IsInRole("Parent") && !User.IsInRole("Student"))
+            return true;
+
+        var idClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+        if (!int.TryParse(idClaim, out int userId) || userId <= 0)
+            return false;
+
+        if (User.IsInRole("Student"))
+        {
+            var ownId = await _parentService.GetStudentIdForUserAsync(userId);
+            return ownId.HasValue && ownId.Value == studentId;
+        }
+
+        return await _parentService.IsStudentAssociatedWithParentAsync(userId, studentId);
     }
 
     // =========================================================================
@@ -42,8 +64,11 @@ public class FeeCollectionController : ControllerBase
     [Authorize(Roles = "Admin,Staff,SuperAdmin,Super Admin,Principal,Accountant,Finance,HR,Receptionist,Parent,Student")]
     public async Task<IActionResult> GetStudentFeeProfile(
         int studentId,
-        [FromQuery] string? academicYear = "2026-2027")
+        [FromQuery] string? academicYear = null)
     {
+        if (!await IsAuthorizedForStudentAsync(studentId))
+            return Forbid();
+
         var result = await _feeCollectionService.GetStudentFeeProfileAsync(studentId, academicYear);
         if (result == null)
             return NotFound(new { success = false, message = "Student not found." });
@@ -168,7 +193,7 @@ public class FeeCollectionController : ControllerBase
     // =========================================================================
 
     [HttpGet("receipts")]
-    [Authorize(Roles = "Admin,Staff,SuperAdmin,Super Admin,Principal,Accountant,Finance,HR,Receptionist,Parent")]
+    [Authorize(Roles = "Admin,Staff,SuperAdmin,Super Admin,Principal,Accountant,Finance,HR,Receptionist")]
     public async Task<IActionResult> GetReceiptsRegister(
         [FromQuery] string? search,
         [FromQuery] string? paymentMode,
@@ -189,6 +214,9 @@ public class FeeCollectionController : ControllerBase
         var result = await _feeCollectionService.GetReceiptByNoAsync(receiptNo);
         if (result == null)
             return NotFound(new { success = false, message = "Receipt not found." });
+
+        if (!await IsAuthorizedForStudentAsync(result.StudentId))
+            return Forbid();
 
         return Ok(new { success = true, data = result });
     }

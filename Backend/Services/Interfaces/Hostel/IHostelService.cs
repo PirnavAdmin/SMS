@@ -62,5 +62,6 @@ public interface IHostelService
     // Transfer & Vacate Requests
     Task<List<HostelTransferVacateDto>> GetAllTransferVacateRequestsAsync(string? search, string? actionType);
     Task<HostelTransferVacateDto> CreateTransferVacateRequestAsync(CreateHostelTransferVacateDto dto);
+    Task<HostelTransferVacateDto> UpdateTransferVacateStatusAsync(int id, string status);
     Task<bool> DeleteTransferVacateRequestAsync(int id);
 }
