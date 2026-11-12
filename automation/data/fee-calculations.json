@@ -1,0 +1,67 @@
+{
+  "termInstallmentCases": [
+    {
+      "caseId": "ANNUAL_1_TERM",
+      "annualAmount": 48000,
+      "terms": 1,
+      "discountMode": "None",
+      "discountValue": 0,
+      "expectedNetTotal": 48000,
+      "expectedPerTermAmount": 48000
+    },
+    {
+      "caseId": "BIANNUAL_PERCENT_DISCOUNT",
+      "annualAmount": 50000,
+      "terms": 2,
+      "discountMode": "Percentage",
+      "discountValue": 10,
+      "expectedNetTotal": 45000,
+      "expectedPerTermAmount": 22500
+    },
+    {
+      "caseId": "QUARTERLY_FLAT_DISCOUNT",
+      "annualAmount": 40000,
+      "terms": 4,
+      "discountMode": "Flat",
+      "discountValue": 4000,
+      "expectedNetTotal": 36000,
+      "expectedPerTermAmount": 9000
+    },
+    {
+      "caseId": "MONTHLY_12_TERMS",
+      "annualAmount": 36000,
+      "terms": 12,
+      "discountMode": "Percentage",
+      "discountValue": 5,
+      "expectedNetTotal": 34200,
+      "expectedPerTermAmount": 2850
+    },
+    {
+      "caseId": "DISCOUNT_CAPPED_AT_TOTAL",
+      "annualAmount": 10000,
+      "terms": 2,
+      "discountMode": "Flat",
+      "discountValue": 15000,
+      "expectedNetTotal": 0,
+      "expectedPerTermAmount": 0
+    }
+  ],
+  "partialPaymentCases": [
+    {
+      "caseId": "PARTIAL_PAYMENT_BALANCE",
+      "totalDue": 15000,
+      "payments": [5000, 4500],
+      "expectedPaid": 9500,
+      "expectedBalance": 5500,
+      "expectedStatus": "Partial"
+    },
+    {
+      "caseId": "FULL_PAYMENT_SETTLED",
+      "totalDue": 12000,
+      "payments": [12000],
+      "expectedPaid": 12000,
+      "expectedBalance": 0,
+      "expectedStatus": "Paid"
+    }
+  ]
+}

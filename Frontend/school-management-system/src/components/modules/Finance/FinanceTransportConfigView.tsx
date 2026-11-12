@@ -30,6 +30,7 @@ import { FinanceTransportConfig, PickupPoint } from '../../../types';
 import { useData, matchesAcademicYear } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
+import { fetchFeeScheduleConfigApi } from '../../../api/finance';
 import { Badge } from '../../common/Badge';
 import { ExportButton } from '../../common/ExportButton';
 import { ConfirmModal } from '../../common/ConfirmModal';
@@ -43,6 +44,8 @@ export const FinanceTransportConfigView: React.FC = () => {
     vehicleAssignments = [],
     vehicleMasters = [],
     academicYearFeeSchedules = [],
+    setAcademicYearFeeSchedules,
+    academicYears = [],
     financeSettings,
     students = [],
     studentTransports = [],
@@ -66,25 +69,58 @@ export const FinanceTransportConfigView: React.FC = () => {
     }
   }, [financeTransportConfigs, fetchFinanceData]);
 
-  const activeAY = selectedAcademicYear || financeSettings?.academicYear || '2026-2027';
+  const currentAYFromMaster = useMemo(() => {
+    const active = (academicYears || []).find((a: any) => a.isCurrent || a.isActive);
+    return active?.academicYear || '';
+  }, [academicYears]);
+
+  const activeAY = selectedAcademicYear || financeSettings?.academicYear || currentAYFromMaster || '';
+
+  React.useEffect(() => {
+    let cancelled = false;
+    fetchFeeScheduleConfigApi(activeAY)
+      .then((res: any) => {
+        if (cancelled) return;
+        const apiData = res?.data || res;
+        if (apiData && Array.isArray(apiData.terms) && apiData.terms.length > 0 && setAcademicYearFeeSchedules) {
+          const ay = apiData.academicYear || activeAY || '';
+          setAcademicYearFeeSchedules((prev: any[]) => [
+            ...(prev || []).filter((s: any) => !matchesAcademicYear(s.academicYear, ay)),
+            {
+              id: apiData.id || `SCH-${ay}`,
+              academicYear: ay,
+              numberOfTerms: apiData.numberOfTerms || apiData.terms.length,
+              dueDateOffsetDays: typeof apiData.dueDateOffsetDays === 'number' ? apiData.dueDateOffsetDays : 0,
+              status: apiData.status || 'Active',
+              annualDueDate: apiData.annualDueDate || '',
+              oneTimeDueDate: apiData.oneTimeDueDate || '',
+              terms: apiData.terms,
+              monthlyConfig: apiData.monthlyConfig,
+            },
+          ]);
+        } else if (setAcademicYearFeeSchedules) {
+          const ay = apiData?.academicYear || activeAY || '';
+          setAcademicYearFeeSchedules((prev: any[]) =>
+            ay ? (prev || []).filter((s: any) => !matchesAcademicYear(s.academicYear, ay)) : []
+          );
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [activeAY, setAcademicYearFeeSchedules]);
 
   // Get source-of-truth Academic Year Fee Schedule
   const currentSchedule = useMemo(() => {
-    return academicYearFeeSchedules.find(s => matchesAcademicYear(s.academicYear, activeAY)) || academicYearFeeSchedules[0];
+    return academicYearFeeSchedules.find(s => matchesAcademicYear(s.academicYear, activeAY)) || (!activeAY ? academicYearFeeSchedules[0] : undefined);
   }, [academicYearFeeSchedules, activeAY]);
 
   const scheduleTerms = useMemo(() => {
     return (currentSchedule?.terms && currentSchedule.terms.length > 0)
       ? [...currentSchedule.terms].sort((a, b) => a.sequence - b.sequence)
-      : [
-          { id: 'T1', termName: 'Term 1', sequence: 1, dueDate: '2026-07-15' },
-          { id: 'T2', termName: 'Term 2', sequence: 2, dueDate: '2026-10-15' },
-          { id: 'T3', termName: 'Term 3', sequence: 3, dueDate: '2027-01-15' },
-          { id: 'T4', termName: 'Term 4', sequence: 4, dueDate: '2027-03-15' },
-        ];
+      : [];
   }, [currentSchedule]);
 
-  const oneTimeDueDate = currentSchedule?.oneTimeDueDate || scheduleTerms[0]?.dueDate || '2026-06-30';
+  const oneTimeDueDate = currentSchedule?.oneTimeDueDate || scheduleTerms[0]?.dueDate || '';
 
   // Global Transport Fee Billing Policy (One-Time vs Term-Wise)
   const [globalPolicy, setGlobalPolicy] = useState<'One-Time' | 'Term-wise'>(() => {
@@ -1090,7 +1126,7 @@ export const FinanceTransportConfigView: React.FC = () => {
             <CalendarDays className="w-5 h-5 text-sky-600 dark:text-sky-400 shrink-0" />
             <div>
               <h3 className="text-xs font-black uppercase tracking-wider text-sky-900 dark:text-sky-200">
-                Official Fee Schedule Term Due Dates ({activeAY})
+                Official Fee Schedule Term Due Dates{activeAY ? ` (${activeAY})` : ''}
               </h3>
               <p className="text-[11px] text-sky-700 dark:text-sky-300">
                 These due dates apply directly to transport fee obligations and installments across both Transport and Finance modules.
@@ -1126,11 +1162,16 @@ export const FinanceTransportConfigView: React.FC = () => {
         </div>
 
         {/* Due Dates Badges */}
+        {scheduleTerms.length === 0 && !oneTimeDueDate ? (
+          <div className="p-3 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-dashed border-sky-200 dark:border-sky-800 text-xs text-slate-500 dark:text-slate-400">
+            No fee schedule dates configured yet{activeAY ? ` for ${activeAY}` : ''}. Configure an Academic Year and term due dates in <span className="font-bold text-sky-700 dark:text-sky-300">Fee Setup → Fee Schedule</span>.
+          </div>
+        ) : (
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-1 border-t border-sky-100 dark:border-sky-900/40">
           <div className="p-2.5 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-sky-100 dark:border-sky-900/50">
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">One-Time / Annual</span>
             <span className="text-xs font-mono font-black text-sky-600 dark:text-sky-400">
-              {formatDateForDisplay(oneTimeDueDate)}
+              {oneTimeDueDate ? formatDateForDisplay(oneTimeDueDate) : 'Not configured'}
             </span>
           </div>
 
@@ -1138,11 +1179,12 @@ export const FinanceTransportConfigView: React.FC = () => {
             <div key={term.id || idx} className="p-2.5 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-sky-100 dark:border-sky-900/50">
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">{term.termName || `Term ${idx + 1}`}</span>
               <span className="text-xs font-mono font-black text-emerald-600 dark:text-emerald-400">
-                {formatDateForDisplay(term.dueDate)}
+                {term.dueDate ? formatDateForDisplay(term.dueDate) : 'Not configured'}
               </span>
             </div>
           ))}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Filter Bar */}

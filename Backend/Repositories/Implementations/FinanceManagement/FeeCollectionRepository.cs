@@ -206,7 +206,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                 .ToListAsync();
 
             hostelApps = await _context.AdmissionApplications.AsNoTracking()
-                .Where(a => !a.IsDeleted && a.StudentType == "Residential" && a.Status != "Rejected" && a.Status != "Deleted" && a.Status != "Withdrawn")
+                .Where(a => !a.IsDeleted && a.StudentType == "Residential" && (a.Status == "Enrolled" || a.Status == "Admitted"))
                 .ToListAsync();
 
             string targetType = studentType!.Trim();
@@ -244,7 +244,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                 .ToListAsync();
 
             hostelApps = await _context.AdmissionApplications.AsNoTracking()
-                .Where(a => !a.IsDeleted && a.StudentType == "Residential" && a.Status != "Rejected" && a.Status != "Deleted" && a.Status != "Withdrawn")
+                .Where(a => !a.IsDeleted && a.StudentType == "Residential" && (a.Status == "Enrolled" || a.Status == "Admitted"))
                 .ToListAsync();
         }
 
@@ -1194,18 +1194,119 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             SecurityDepositRemainingDue = securityDepositRemaining,
             SecurityDepositRefundable = securityDepositPaid,
 
-            FineRule = new LateFineRuleDetailDto
-            {
-                RuleName = "Standard Monthly Late Fine Rule",
-                DaysOverdue = lineItems.Any(l => l.IsOverdue) ? lineItems.Max(l => l.DaysOverdue) : 0,
-                CalculatedFineAmount = 0m,
-                IsWaived = totalOutstanding == 0
-            },
+            FineRule = await BuildLateFineDetailAsync(lineItems, totalOutstanding, student?.BranchId),
             AvailableScholarships = availableScholarships,
             AvailableDiscounts = availableDiscounts,
             CurrentAcademicYearFees = lineItems,
             RecordedReceipts = receiptDtos
         };
+    }
+
+    private async Task<LateFineRuleDetailDto> BuildLateFineDetailAsync(
+        List<FeeLineItemDto> lineItems,
+        decimal totalOutstanding,
+        int? branchId)
+    {
+        int daysOverdue = lineItems.Any(l => l.IsOverdue) ? lineItems.Max(l => l.DaysOverdue) : 0;
+
+        var activeRule = await _context.FineRules.AsNoTracking()
+            .Where(r => r.Status == "Active")
+            .OrderBy(r => r.Id)
+            .FirstOrDefaultAsync();
+
+        string ruleName = activeRule?.RuleName ?? "Standard Monthly Late Fine Rule";
+        int graceDays = activeRule?.GraceDays ?? 5;
+        string fineType = activeRule?.FineType ?? "Daily Fine";
+        decimal dailyFine = activeRule?.DailyFine ?? 0m;
+        decimal fixedFine = activeRule?.FixedFine ?? 0m;
+        decimal maxFine = activeRule?.MaximumFine ?? 0m;
+
+        // Honor FinanceSettings defaults if no dedicated FineRule exists
+        if (activeRule == null)
+        {
+            var settingsRow = await _context.SchoolSettings.AsNoTracking()
+                .OrderByDescending(s => s.UpdatedAt)
+                .FirstOrDefaultAsync();
+
+            if (!string.IsNullOrWhiteSpace(settingsRow?.FinanceSettingsJson))
+            {
+                try
+                {
+                    using var doc = JsonDocument.Parse(settingsRow.FinanceSettingsJson);
+                    var root = doc.RootElement;
+                    bool autoEnforce = !root.TryGetProperty("autoEnforceLateFines", out var autoEl) || autoEl.GetBoolean();
+                    if (autoEnforce)
+                    {
+                        if (root.TryGetProperty("defaultLateFinePerDay", out var dailyEl) && dailyEl.TryGetDecimal(out var dVal))
+                            dailyFine = dVal;
+                        if (root.TryGetProperty("defaultGracePeriodDays", out var graceEl) && graceEl.TryGetInt32(out var gVal))
+                            graceDays = gVal;
+                    }
+                }
+                catch { }
+            }
+        }
+        else if (daysOverdue == 0 && totalOutstanding > 0 && DateTime.TryParse(activeRule.DueDate, out var ruleDueDate))
+        {
+            var diff = (DateTime.UtcNow.Date - ruleDueDate.Date).Days;
+            if (diff > 0) daysOverdue = diff;
+        }
+
+        decimal calculatedFine = 0m;
+        int chargeableDays = Math.Max(0, daysOverdue - graceDays);
+        if (totalOutstanding > 0 && chargeableDays > 0)
+        {
+            if (fineType.Contains("Fixed", StringComparison.OrdinalIgnoreCase))
+            {
+                calculatedFine = fixedFine;
+            }
+            else if (fineType.Contains("Percent", StringComparison.OrdinalIgnoreCase))
+            {
+                calculatedFine = Math.Round(totalOutstanding * (dailyFine / 100m), 2);
+            }
+            else
+            {
+                calculatedFine = chargeableDays * dailyFine;
+            }
+
+            if (maxFine > 0)
+            {
+                calculatedFine = Math.Min(calculatedFine, maxFine);
+            }
+        }
+
+        return new LateFineRuleDetailDto
+        {
+            RuleName = ruleName,
+            DaysOverdue = daysOverdue,
+            CalculatedFineAmount = calculatedFine,
+            IsWaived = totalOutstanding <= 0 || calculatedFine <= 0m
+        };
+    }
+
+    private async Task<FinancialAccount?> ResolveActiveAccountForModeAsync(string? paymentMode)
+    {
+        var accounts = await _context.FinancialAccounts
+            .Where(a => a.Status == "Active")
+            .OrderBy(a => a.Id)
+            .ToListAsync();
+
+        if (accounts.Count == 0) return null;
+
+        bool isCash = !string.IsNullOrWhiteSpace(paymentMode) &&
+            paymentMode.Contains("Cash", StringComparison.OrdinalIgnoreCase);
+
+        if (isCash)
+        {
+            return accounts.FirstOrDefault(a =>
+                a.Type.Contains("Cash", StringComparison.OrdinalIgnoreCase) ||
+                a.Name.Contains("Cash", StringComparison.OrdinalIgnoreCase))
+                ?? accounts.First();
+        }
+
+        return accounts.FirstOrDefault(a =>
+            !a.Type.Contains("Cash", StringComparison.OrdinalIgnoreCase))
+            ?? accounts.First();
     }
 
     public async Task<CollectFeePaymentResponseDto> CollectPaymentAsync(CollectFeePaymentRequestDto request)
@@ -1271,7 +1372,23 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             ? JsonSerializer.Serialize(request.SelectedItems)
             : "";
 
-        string receiptNo = $"REC-{DateTime.UtcNow.Year}-{Random.Shared.Next(1000, 9999)}";
+        string prefix = $"REC-{DateTime.UtcNow.Year}-";
+        var settingsRow = await _context.SchoolSettings.AsNoTracking()
+            .OrderByDescending(s => s.UpdatedAt)
+            .FirstOrDefaultAsync();
+        if (!string.IsNullOrWhiteSpace(settingsRow?.FinanceSettingsJson))
+        {
+            try
+            {
+                using var doc = JsonDocument.Parse(settingsRow.FinanceSettingsJson);
+                if (doc.RootElement.TryGetProperty("receiptPrefix", out var pEl) && !string.IsNullOrWhiteSpace(pEl.GetString()))
+                {
+                    prefix = pEl.GetString()!.Trim();
+                }
+            }
+            catch { }
+        }
+        string receiptNo = $"{prefix}{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}";
 
         var payment = new FeePayment
         {
@@ -1304,6 +1421,29 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             matchingAssignment.PaidAmount += request.TotalAmountPaid;
             matchingAssignment.DueAmount = Math.Max(0m, matchingAssignment.TotalAmount - matchingAssignment.PaidAmount - request.ConcessionDiscountAmount);
         }
+
+        var acct = await ResolveActiveAccountForModeAsync(payment.PaymentMethod);
+        if (acct != null)
+        {
+            acct.CurrentBalance += payment.Amount;
+        }
+
+        _context.LedgerEntries.Add(new LedgerEntry
+        {
+            TransactionDate = payment.PaymentDate,
+            TransactionType = "Fee Collection",
+            Category = "Tuition & Academic Fees",
+            ReferenceNo = receiptNo,
+            FinancialAccountId = acct?.Id,
+            StudentId = canonicalStudentId,
+            AdmissionNo = student?.AdmissionNumber ?? canonicalStr,
+            AcademicYearId = student?.AcademicYearId ?? 1,
+            BranchId = student?.BranchId ?? 1,
+            Debit = 0m,
+            Credit = payment.Amount,
+            Balance = acct?.CurrentBalance ?? 0m,
+            Particulars = $"Fee Collection Receipt ({receiptNo}) - {payment.FeeHeadName}"
+        });
 
         await _context.SaveChangesAsync();
         if (transaction != null)
@@ -1752,11 +1892,24 @@ public class FeeCollectionRepository : IFeeCollectionRepository
     public async Task<FeeReceiptsRegisterResponseDto> GetReceiptsRegisterAsync(
         string? search, string? paymentMode, string? fromDate, string? toDate, int page, int pageSize)
     {
-        var query = _context.FeePayments.AsNoTracking().AsQueryable();
+        var query = _context.FeePayments.AsNoTracking()
+            .Where(p => p.Amount > 0);
 
         if (!string.IsNullOrWhiteSpace(paymentMode) && !paymentMode.Equals("ALL", StringComparison.OrdinalIgnoreCase))
         {
             query = query.Where(p => p.PaymentMethod == paymentMode);
+        }
+
+        if (!string.IsNullOrWhiteSpace(fromDate) && DateTime.TryParse(fromDate, out var parsedFrom))
+        {
+            var startDate = parsedFrom.Date;
+            query = query.Where(p => p.PaymentDate >= startDate);
+        }
+
+        if (!string.IsNullOrWhiteSpace(toDate) && DateTime.TryParse(toDate, out var parsedTo))
+        {
+            var endExclusive = parsedTo.Date.AddDays(1);
+            query = query.Where(p => p.PaymentDate < endExclusive);
         }
 
         if (!string.IsNullOrWhiteSpace(search))
@@ -1821,11 +1974,13 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                 PaymentMethod = p.PaymentMethod ?? "Cash",
                 TransactionId = p.TransactionId ?? "",
                 Status = p.Status ?? "Completed",
-                Remarks = "Fee Collection Receipt"
+                Remarks = !string.IsNullOrWhiteSpace(p.Remarks) ? p.Remarks : "Fee Collection Receipt"
             });
         }
 
-        decimal totalCollected = await _context.FeePayments.AsNoTracking().SumAsync(p => p.Amount);
+        decimal totalCollected = await query
+            .Where(p => p.Status != "Cancelled" && p.Status != "Reversed" && p.Status != "Refunded")
+            .SumAsync(p => p.Amount);
 
         return new FeeReceiptsRegisterResponseDto
         {
@@ -1920,7 +2075,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             PaymentMethod = payment.PaymentMethod ?? "Cash",
             TransactionId = payment.TransactionId ?? "",
             Status = payment.Status ?? "Completed",
-            Remarks = "Fee Collection Receipt",
+            Remarks = !string.IsNullOrWhiteSpace(payment.Remarks) ? payment.Remarks : "Fee Collection Receipt",
             ItemizedBreakdown = breakdown
         };
     }
@@ -1929,10 +2084,52 @@ public class FeeCollectionRepository : IFeeCollectionRepository
     {
         var payment = await _context.FeePayments
             .FirstOrDefaultAsync(p => p.ReceiptNo == receiptNo || ($"REC-{p.PaymentDate.Year}-{p.Id:D4}") == receiptNo || ($"REC-2026-{p.Id:D4}") == receiptNo);
-        if (payment == null) return false;
+        if (payment == null || payment.Status == "Cancelled" || payment.Status == "Reversed") return false;
+
+        await using var transaction = _context.Database.IsRelational()
+            ? await _context.Database.BeginTransactionAsync()
+            : null;
 
         payment.Status = "Cancelled";
+        payment.Remarks = string.IsNullOrWhiteSpace(payment.Remarks)
+            ? $"Cancelled: {reason}"
+            : $"{payment.Remarks} [Cancelled: {reason}]";
+
+        var assignment = await _context.StudentFeeAssignments
+            .FirstOrDefaultAsync(a => a.StudentId == payment.StudentId && (a.Status == "Active" || string.IsNullOrEmpty(a.Status)));
+        if (assignment != null && payment.Amount > 0)
+        {
+            assignment.PaidAmount = Math.Max(0m, assignment.PaidAmount - payment.Amount);
+            assignment.DueAmount = Math.Max(0m, assignment.TotalAmount - assignment.PaidAmount);
+        }
+
+        var acct = await ResolveActiveAccountForModeAsync(payment.PaymentMethod);
+        if (acct != null && payment.Amount > 0)
+        {
+            acct.CurrentBalance -= payment.Amount;
+        }
+
+        int.TryParse(payment.StudentId, out int sId);
+        _context.LedgerEntries.Add(new LedgerEntry
+        {
+            TransactionDate = DateTime.UtcNow,
+            TransactionType = "Reversal",
+            Category = "Tuition & Academic Fees",
+            ReferenceNo = $"REV-{(!string.IsNullOrWhiteSpace(payment.ReceiptNo) ? payment.ReceiptNo : receiptNo)}",
+            FinancialAccountId = acct?.Id,
+            StudentId = sId > 0 ? sId : null,
+            AdmissionNo = payment.StudentId,
+            Debit = payment.Amount > 0 ? payment.Amount : 0m,
+            Credit = 0m,
+            Balance = acct?.CurrentBalance ?? 0m,
+            Particulars = $"Cancelled Receipt {(!string.IsNullOrWhiteSpace(payment.ReceiptNo) ? payment.ReceiptNo : receiptNo)}: {reason}"
+        });
+
         await _context.SaveChangesAsync();
+        if (transaction != null)
+        {
+            await transaction.CommitAsync();
+        }
         return true;
     }
 
@@ -2040,7 +2237,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
 
         var allActiveAdmissions = await _context.AdmissionApplications.AsNoTracking()
             .Include(a => a.AppliedClass)
-            .Where(a => !a.IsDeleted && a.Status != "Rejected" && a.Status != "Deleted" && a.Status != "Withdrawn")
+            .Where(a => !a.IsDeleted && (a.Status == "Enrolled" || a.Status == "Admitted"))
             .ToListAsync();
 
         foreach (var s in activeStudents)
@@ -2971,16 +3168,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                     classExpected += (stTuition + stTransport + stHostel);
                 }
             }
-            else
-            {
-                var matchedDfs = dynamicStructures.FirstOrDefault(d => 
-                    !string.IsNullOrEmpty(d.ClassName) && 
-                    MatchesClassName(d.ClassName, cName));
-                if (matchedDfs != null)
-                {
-                    classExpected = matchedDfs.TotalAmount;
-                }
-            }
+            // Do not add expected fee revenue for classes with 0 enrolled students
 
             if (classCollected > classExpected) classExpected = classCollected;
 
@@ -3685,46 +3873,70 @@ public class FeeCollectionRepository : IFeeCollectionRepository
         var student = await _context.Students
             .Include(s => s.AcademicYear)
             .Include(s => s.Branch)
-            .FirstOrDefaultAsync(s => s.StudentId == request.StudentId);
+            .Include(s => s.ClassGrade)
+            .Include(s => s.ClassSection)
+            .FirstOrDefaultAsync(s => s.StudentId == request.StudentId || s.StudentId == canonicalStudentId);
         string admNo = student?.AdmissionNumber ?? request.AdmissionNo ?? $"STU-{canonicalStudentId}";
 
         decimal netRefund = Math.Max(0m, request.RefundAmount - request.DeductionAmount);
+
+        await using var transaction = _context.Database.IsRelational()
+            ? await _context.Database.BeginTransactionAsync()
+            : null;
+
+        var acct = await ResolveActiveAccountForModeAsync(request.PaymentMode);
+        if (acct != null && netRefund > 0)
+        {
+            acct.CurrentBalance -= netRefund;
+        }
+
+        string refNo = $"REF-HST-DEP-{canonicalStudentId}-{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}";
 
         var ledger = new LedgerEntry
         {
             TransactionDate = DateTime.UtcNow,
             TransactionType = "Refund",
-            Category = "Expense",
-            ReferenceNo = $"REF-HST-DEP-{canonicalStudentId}-{DateTime.UtcNow.Ticks % 100000}",
+            Category = "Fee Refund",
+            ReferenceNo = refNo,
+            FinancialAccountId = acct?.Id,
             StudentId = canonicalStudentId,
             AdmissionNo = admNo,
             Debit = netRefund,
             Credit = 0m,
+            Balance = acct?.CurrentBalance ?? 0m,
             Particulars = $"Refund of Hostel Security Deposit (Gross: {request.RefundAmount:C}, Deductions: {request.DeductionAmount:C} for {request.DeductionReason ?? "None"}). Authorized by: {request.AuthorizedBy ?? "Admin"}",
             AcademicYearId = student?.AcademicYearId ?? 1,
             BranchId = student?.BranchId ?? 1
         };
         _context.LedgerEntries.Add(ledger);
 
-        var payment = new FeePayment
+        _context.FeeRefundRequests.Add(new FeeRefundRequest
         {
-            ReceiptNo = $"REF-{DateTime.UtcNow:yyyyMMdd}-{Random.Shared.Next(1000, 9999)}",
-            StudentId = canonicalStudentId.ToString(),
-            Amount = -netRefund,
-            PaymentDate = DateTime.UtcNow,
-            PaymentMethod = request.PaymentMode ?? "Bank Transfer",
-            Status = "Refunded",
-            TermName = "Hostel Security Deposit",
-            FeeHeadName = "Hostel Security Deposit",
-            Remarks = $"Refund of Security Deposit. Deductions: {request.DeductionAmount:C}. Remarks: {request.Remarks ?? ""}",
-            PaidItemsJson = JsonSerializer.Serialize(new[]
-            {
-                new { headName = "Hostel Security Deposit", feeHeadName = "Hostel Security Deposit", amount = -netRefund }
-            })
-        };
-        _context.FeePayments.Add(payment);
+            RefundNo = refNo,
+            ReceiptNo = refNo,
+            StudentId = canonicalStudentId,
+            AdmissionNo = admNo,
+            StudentName = student?.StudentName ?? $"Student #{canonicalStudentId}",
+            ClassName = student?.ClassGrade?.ClassName ?? string.Empty,
+            Section = student?.ClassSection?.SectionName ?? string.Empty,
+            RefundAmount = netRefund,
+            Reason = string.IsNullOrWhiteSpace(request.DeductionReason)
+                ? "Hostel Security Deposit Refund"
+                : $"Hostel Security Deposit Refund (Deduction: {request.DeductionReason})",
+            Status = "Disbursed",
+            RequestedBy = request.AuthorizedBy ?? "Admin",
+            ApprovedBy = request.AuthorizedBy ?? "Admin",
+            RequestedDate = DateTime.UtcNow,
+            ProcessedDate = DateTime.UtcNow,
+            PaymentMode = request.PaymentMode ?? "Bank Transfer",
+            Remarks = request.Remarks ?? string.Empty
+        });
 
         await _context.SaveChangesAsync();
+        if (transaction != null)
+        {
+            await transaction.CommitAsync();
+        }
         return true;
     }
 

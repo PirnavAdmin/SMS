@@ -1572,38 +1572,45 @@ export const LeaveManagementView: React.FC = () => {
             </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {paginatedLeaveTypes.map(t => (
-              <div key={t.id} className="p-5 bg-white dark:bg-slate-900 border border-sky-200 dark:border-sky-800 rounded-3xl space-y-3 relative group hover:border-sky-400 hover:shadow-md transition-all">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">{t.name}</h4>
-                    <span className="font-mono text-[10px] text-sky-600 font-bold uppercase">{t.code}</span>
+          {activeLeaveTypes.length === 0 ? (
+            <div className="p-10 text-center bg-white dark:bg-slate-900 border border-dashed border-sky-200 dark:border-sky-800 rounded-3xl">
+              <p className="text-sm font-bold text-slate-600 dark:text-slate-300">No leave types configured yet.</p>
+              <p className="text-xs text-slate-400 mt-1">Click "+ Configure Leave Type" above to create your first leave category.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {paginatedLeaveTypes.map(t => (
+                <div key={t.id} className="p-5 bg-white dark:bg-slate-900 border border-sky-200 dark:border-sky-800 rounded-3xl space-y-3 relative group hover:border-sky-400 hover:shadow-md transition-all">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">{t.name}</h4>
+                      <span className="font-mono text-[10px] text-sky-600 font-bold uppercase">{t.code}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleToggleLeaveTypeStatus(t)}
+                      title={`Click to mark as ${t.status === 'Active' ? 'Inactive' : 'Active'}`}
+                      className="cursor-pointer transition-transform active:scale-95"
+                    >
+                      <Badge variant={t.status === 'Active' ? 'success' : 'danger'}>{t.status}</Badge>
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => handleToggleLeaveTypeStatus(t)}
-                    title={`Click to mark as ${t.status === 'Active' ? 'Inactive' : 'Active'}`}
-                    className="cursor-pointer transition-transform active:scale-95"
-                  >
-                    <Badge variant={t.status === 'Active' ? 'success' : 'danger'}>{t.status}</Badge>
-                  </button>
-                </div>
 
-                <div className="grid grid-cols-2 gap-2 text-[11px] pt-2 border-t border-sky-100 dark:border-sky-900/50">
-                  <div><span className="text-slate-400">Allowance:</span> <span className="font-bold text-slate-800 dark:text-slate-200">{t.annualAllowance} {Number(t.annualAllowance) === 1 ? 'Day' : 'Days'}/yr</span></div>
-                  <div><span className="text-slate-400">Carry Forward:</span> <span className="font-bold text-slate-800 dark:text-slate-200">{t.carryForward ? 'Yes' : 'No'}</span></div>
-                  <div><span className="text-slate-400">Max Consecutive:</span> <span className="font-bold text-slate-800 dark:text-slate-200">{t.maxConsecutiveDays} {Number(t.maxConsecutiveDays) === 1 ? 'Day' : 'Days'}</span></div>
-                  <div><span className="text-slate-400">Type:</span> <span className={`font-bold ${t.isPaid ? 'text-brand-600 dark:text-brand-400' : 'text-amber-600 dark:text-amber-400'}`}>{t.isPaid ? 'Paid' : 'Unpaid (LOP)'}</span></div>
-                </div>
+                  <div className="grid grid-cols-2 gap-2 text-[11px] pt-2 border-t border-sky-100 dark:border-sky-900/50">
+                    <div><span className="text-slate-400">Allowance:</span> <span className="font-bold text-slate-800 dark:text-slate-200">{t.annualAllowance} {Number(t.annualAllowance) === 1 ? 'Day' : 'Days'}/yr</span></div>
+                    <div><span className="text-slate-400">Carry Forward:</span> <span className="font-bold text-slate-800 dark:text-slate-200">{t.carryForward ? 'Yes' : 'No'}</span></div>
+                    <div><span className="text-slate-400">Max Consecutive:</span> <span className="font-bold text-slate-800 dark:text-slate-200">{t.maxConsecutiveDays} {Number(t.maxConsecutiveDays) === 1 ? 'Day' : 'Days'}</span></div>
+                    <div><span className="text-slate-400">Type:</span> <span className={`font-bold ${t.isPaid ? 'text-brand-600 dark:text-brand-400' : 'text-amber-600 dark:text-amber-400'}`}>{t.isPaid ? 'Paid' : 'Unpaid (LOP)'}</span></div>
+                  </div>
 
-                <div className="flex justify-end gap-2 pt-3 border-t border-sky-100 dark:border-sky-900/50 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onClick={() => { setEditingType(t); setIsTypeModalOpen(true); }} className="p-1 text-blue-600 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer"><Edit className="w-4 h-4" /></button>
-                  <button onClick={() => deleteLeaveType(t.id)} className="p-1 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg cursor-pointer"><Trash2 className="w-4 h-4" /></button>
+                  <div className="flex justify-end gap-2 pt-3 border-t border-sky-100 dark:border-sky-900/50 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={() => { setEditingType(t); setIsTypeModalOpen(true); }} className="p-1 text-blue-600 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer"><Edit className="w-4 h-4" /></button>
+                    <button onClick={() => deleteLeaveType(t.id)} className="p-1 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg cursor-pointer"><Trash2 className="w-4 h-4" /></button>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
 
           {/* Neat Pagination Footer for Leave Types */}
           {activeLeaveTypes.length > 0 && (

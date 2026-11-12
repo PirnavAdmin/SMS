@@ -74,6 +74,26 @@ export const PrintableFeeReceipt: React.FC<PrintableFeeReceiptProps> = ({ paymen
 
       return { slNo: idx + 1, description: desc, due, con, paid };
     });
+
+    // Reconcile if totalAmountPaid exceeds allocated rows (e.g., full fee paid against a single selected term)
+    const allocatedPaidSum = feeRows.reduce((sum, r) => sum + (Number(r.paid) || 0), 0);
+    if (totalAmountPaid > allocatedPaidSum + 0.01 && feeRows.length > 0) {
+      const diff = Math.round((totalAmountPaid - allocatedPaidSum) * 100) / 100;
+      if (feeRows.length === 1) {
+        const baseHead = (payment.paymentAllocation[0].feeHeadName || payment.feeHeadName || "Tuition Fee").trim();
+        feeRows[0].description = baseHead;
+        feeRows[0].paid = totalAmountPaid;
+        feeRows[0].due = Math.max(feeRows[0].due, grossFee, totalAmountPaid + feeRows[0].con);
+      } else {
+        feeRows.push({
+          slNo: feeRows.length + 1,
+          description: payment.feeHeadName || "Additional Fee Payment",
+          due: diff,
+          con: 0,
+          paid: diff,
+        });
+      }
+    }
   } else {
     const paid = totalAmountPaid;
     const con = discountVal;
@@ -85,9 +105,14 @@ export const PrintableFeeReceipt: React.FC<PrintableFeeReceiptProps> = ({ paymen
   // Determine Installment Label
   let installmentLabel = "ANNUAL";
   if (payment.paymentAllocation && payment.paymentAllocation.length > 0) {
-    const terms = Array.from(new Set(payment.paymentAllocation.map(a => a.termName).filter(Boolean)));
-    if (terms.length > 0) {
-      installmentLabel = terms.join(', ').toUpperCase();
+    const rawAllocSum = payment.paymentAllocation.reduce((sum, a) => sum + (Number(a.amount) || 0), 0);
+    if (payment.paymentAllocation.length === 1 && totalAmountPaid > rawAllocSum + 0.01) {
+      installmentLabel = payment.notes && payment.notes.trim() !== '' ? payment.notes.toUpperCase() : "FULL PAYMENT";
+    } else {
+      const terms = Array.from(new Set(payment.paymentAllocation.map(a => a.termName).filter(Boolean)));
+      if (terms.length > 0) {
+        installmentLabel = terms.join(', ').toUpperCase();
+      }
     }
   } else if (payment.notes && payment.notes.trim() !== '') {
     installmentLabel = payment.notes.toUpperCase();

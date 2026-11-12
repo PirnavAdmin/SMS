@@ -419,17 +419,26 @@ public class DynamicFeeStructureServiceTests
     }
 
     [Fact]
-    public async Task DeleteDynamicFeeStructureAsync_DelegatesToRepository()
+    public async Task DeleteDynamicFeeStructureAsync_CleansUpOrphanAssignmentsAndDelegatesToRepository()
     {
+        var assignments = new List<StudentFeeAssignment>
+        {
+            new StudentFeeAssignment { Id = 1, StudentId = "327", DynamicFeeStructureId = 101 },
+            new StudentFeeAssignment { Id = 2, StudentId = "328", DynamicFeeStructureId = 102 }
+        };
+        _repoMock.Setup(r => r.GetStudentFeeAssignmentsAsync()).ReturnsAsync(assignments);
+        _repoMock.Setup(r => r.DeleteStudentFeeAssignmentAsync(1)).Returns(Task.CompletedTask);
         _repoMock.Setup(r => r.DeleteDynamicFeeStructureAsync(101)).Returns(Task.CompletedTask);
 
         await _service.DeleteDynamicFeeStructureAsync(101);
 
+        _repoMock.Verify(r => r.DeleteStudentFeeAssignmentAsync(1), Times.Once);
+        _repoMock.Verify(r => r.DeleteStudentFeeAssignmentAsync(2), Times.Never);
         _repoMock.Verify(r => r.DeleteDynamicFeeStructureAsync(101), Times.Once);
     }
 
     [Fact]
-    public async Task GetStudentFeeAssignmentsAsync_WhenFeeStructureDeleted_FiltersOrphanAssignments()
+    public async Task GetStudentFeeAssignmentsAsync_WhenFeeStructureDeleted_FiltersOrphanAssignmentsWithoutMutatingOnGet()
     {
         var assignments = new List<StudentFeeAssignment>
         {
@@ -445,11 +454,10 @@ public class DynamicFeeStructureServiceTests
 
         _repoMock.Setup(r => r.GetStudentFeeAssignmentsAsync()).ReturnsAsync(assignments);
         _repoMock.Setup(r => r.GetDynamicFeeStructuresAsync()).ReturnsAsync(new List<DynamicFeeStructure>());
-        _repoMock.Setup(r => r.DeleteStudentFeeAssignmentAsync(1)).Returns(Task.CompletedTask);
 
         var result = await _service.GetStudentFeeAssignmentsAsync();
 
         Assert.Empty(result);
-        _repoMock.Verify(r => r.DeleteStudentFeeAssignmentAsync(1), Times.Once);
+        _repoMock.Verify(r => r.DeleteStudentFeeAssignmentAsync(It.IsAny<int>()), Times.Never);
     }
 }

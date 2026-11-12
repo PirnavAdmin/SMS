@@ -11,7 +11,6 @@ import { useData, formatAcademicYear } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { GenerateCertificateModal } from './GenerateCertificateModal';
-import { INITIAL_CERTIFICATE_TYPES } from '../Settings/CertificateSettingsTab';
 import { formatDateDDMMYYYY } from '../../../utils/dateValidation';
 import { compareClassesAscending, matchesClassName } from '../../../utils/classSorter';
 
@@ -128,16 +127,32 @@ export const CertificatesView: React.FC<CertificatesViewProps> = ({ onNavigateTo
     }
   };
 
-  // Load Certificate Types from localStorage or fallback
-  const certificateTypes = useMemo<CertificateTypeConfig[]>(() => {
+  // Load Certificate Types from synced backend state / localStorage (empty when none configured)
+  const [certificateTypes, setCertificateTypes] = useState<CertificateTypeConfig[]>(() => {
     try {
       const saved = localStorage.getItem('edu_db_certificate_types');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       }
     } catch (e) {}
-    return INITIAL_CERTIFICATE_TYPES;
+    return [];
+  });
+
+  useEffect(() => {
+    const syncTypes = () => {
+      try {
+        const saved = localStorage.getItem('edu_db_certificate_types');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          setCertificateTypes(Array.isArray(parsed) ? parsed : []);
+        } else {
+          setCertificateTypes([]);
+        }
+      } catch (e) {}
+    };
+    window.addEventListener('certificates_updated', syncTypes);
+    return () => window.removeEventListener('certificates_updated', syncTypes);
   }, []);
 
   // Load Generated Certificate History from database & localStorage

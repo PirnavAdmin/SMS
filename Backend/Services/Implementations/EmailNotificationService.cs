@@ -220,7 +220,7 @@ public class EmailNotificationService : IEmailNotificationService
                 </tr>"
             : $@"<tr>
                     <td style=""padding: 8px 0; color: #64748b; font-size: 13px; font-weight: 600;"">Password:</td>
-                    <td style=""padding: 8px 0; color: #10b981; font-size: 14px; font-weight: 600;"">Your existing Parent Portal password</td>
+                    <td style=""padding: 8px 0; color: #0284c7; font-size: 14px; font-weight: 700; font-family: monospace;"">{WebUtility.HtmlEncode(!string.IsNullOrWhiteSpace(initialPassword) ? initialPassword : cleanLoginEmail)}</td>
                 </tr>";
 
         string emailBodyHtml = $@"

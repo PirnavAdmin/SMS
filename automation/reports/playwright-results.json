@@ -3,10 +3,11 @@
     "argv": [
       "C:\\Program Files\\nodejs\\node.exe",
       "C:\\Users\\ADMIN\\source\\repos\\SMS\\automation\\node_modules\\@playwright\\test\\cli.js",
-      "test"
+      "test",
+      "--list"
     ],
     "configFile": "C:\\Users\\ADMIN\\source\\repos\\SMS\\automation\\playwright.config.ts",
-    "rootDir": "C:/Users/ADMIN/source/repos/SMS/automation/e2e",
+    "rootDir": "C:/Users/ADMIN/source/repos/SMS/automation/tests",
     "failOnFlakyTests": false,
     "forbidOnly": false,
     "fullyParallel": false,
@@ -16,26 +17,64 @@
     "grep": {},
     "grepInvert": null,
     "maxFailures": 0,
-    "metadata": {
-      "actualWorkers": 1
-    },
+    "metadata": {},
     "preserveOutput": "always",
     "projects": [
       {
         "outputDir": "C:/Users/ADMIN/source/repos/SMS/automation/test-results",
         "repeatEach": 1,
         "retries": 0,
-        "metadata": {
-          "actualWorkers": 1
-        },
-        "id": "",
-        "name": "",
-        "testDir": "C:/Users/ADMIN/source/repos/SMS/automation/e2e",
+        "metadata": {},
+        "id": "smoke",
+        "name": "smoke",
+        "testDir": "C:/Users/ADMIN/source/repos/SMS/automation/tests/smoke",
         "testIgnore": [],
         "testMatch": [
           "**/*.@(spec|test).?(c|m)[jt]s?(x)"
         ],
-        "timeout": 45000
+        "timeout": 60000
+      },
+      {
+        "outputDir": "C:/Users/ADMIN/source/repos/SMS/automation/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "id": "e2e",
+        "name": "e2e",
+        "testDir": "C:/Users/ADMIN/source/repos/SMS/automation/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 60000
+      },
+      {
+        "outputDir": "C:/Users/ADMIN/source/repos/SMS/automation/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "id": "ddt",
+        "name": "ddt",
+        "testDir": "C:/Users/ADMIN/source/repos/SMS/automation/tests/data-driven",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 60000
+      },
+      {
+        "outputDir": "C:/Users/ADMIN/source/repos/SMS/automation/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "id": "api",
+        "name": "api",
+        "testDir": "C:/Users/ADMIN/source/repos/SMS/automation/tests/api",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 60000
       }
     ],
     "quiet": false,
@@ -47,14 +86,20 @@
       [
         "html",
         {
-          "outputFolder": "../automation/reports/playwright-report",
+          "outputFolder": "reports/playwright-report",
           "open": "never"
         }
       ],
       [
         "json",
         {
-          "outputFile": "../automation/reports/playwright-results.json"
+          "outputFile": "reports/playwright-results.json"
+        }
+      ],
+      [
+        "junit",
+        {
+          "outputFile": "reports/junit-results.xml"
         }
       ]
     ],
@@ -72,237 +117,133 @@
   },
   "suites": [
     {
-      "title": "academic-students-staff.spec.ts",
-      "file": "academic-students-staff.spec.ts",
+      "title": "smoke\\auth-and-health.spec.ts",
+      "file": "smoke/auth-and-health.spec.ts",
       "column": 0,
       "line": 0,
       "specs": [],
       "suites": [
         {
-          "title": "Academic, Students & Staff E2E Suite",
-          "file": "academic-students-staff.spec.ts",
-          "line": 3,
+          "title": "Smoke: Authentication & Entry Points @smoke",
+          "file": "smoke/auth-and-health.spec.ts",
+          "line": 6,
           "column": 6,
           "specs": [
             {
-              "title": "should render Admissions application workflow components",
+              "title": "landing page renders branding, portals, and Sign In CTA @smoke",
               "ok": true,
-              "tags": [],
+              "tags": [
+                "smoke",
+                "smoke"
+              ],
               "tests": [
                 {
-                  "timeout": 45000,
+                  "timeout": 60000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "",
-                  "projectName": "",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 28107,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-11-11T12:17:22.568Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
+                  "projectId": "smoke",
+                  "projectName": "smoke",
+                  "results": [],
+                  "status": "skipped"
                 }
               ],
-              "id": "b25bbb200aae6399fac2-9b20015aee535e855510",
-              "file": "academic-students-staff.spec.ts",
-              "line": 4,
+              "id": "742dc37b41ff482d3249-52d16553a2b79a5e34c6",
+              "file": "smoke/auth-and-health.spec.ts",
+              "line": 7,
               "column": 7
             },
             {
-              "title": "should render Staff Management with sequential employee ID support",
+              "title": "Sign In button opens login view and validates empty submission @smoke",
               "ok": true,
-              "tags": [],
+              "tags": [
+                "smoke",
+                "smoke"
+              ],
               "tests": [
                 {
-                  "timeout": 45000,
+                  "timeout": 60000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "",
-                  "projectName": "",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 8946,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-11-11T12:17:54.133Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
+                  "projectId": "smoke",
+                  "projectName": "smoke",
+                  "results": [],
+                  "status": "skipped"
                 }
               ],
-              "id": "b25bbb200aae6399fac2-de99b2fd82837e18f067",
-              "file": "academic-students-staff.spec.ts",
-              "line": 15,
-              "column": 7
-            },
-            {
-              "title": "should render Timetable generator & Examination scheduling",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 45000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "",
-                  "projectName": "",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 8026,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-11-11T12:18:03.153Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "b25bbb200aae6399fac2-fd91ac6d9435f79560e3",
-              "file": "academic-students-staff.spec.ts",
-              "line": 26,
-              "column": 7
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "title": "auth.spec.ts",
-      "file": "auth.spec.ts",
-      "column": 0,
-      "line": 0,
-      "specs": [],
-      "suites": [
-        {
-          "title": "Authentication & Navigation E2E Suite",
-          "file": "auth.spec.ts",
-          "line": 3,
-          "column": 6,
-          "specs": [
-            {
-              "title": "should render login page with role selections and input fields",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 45000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "",
-                  "projectName": "",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 11235,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-11-11T12:18:11.331Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "d748ac400d08b85935ef-5fb51fb12fde7573a818",
-              "file": "auth.spec.ts",
-              "line": 4,
-              "column": 7
-            },
-            {
-              "title": "should display validation or error for invalid credentials",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 45000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "",
-                  "projectName": "",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 8152,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-11-11T12:18:22.668Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "d748ac400d08b85935ef-5ce1fab88f1cbe5b5eff",
-              "file": "auth.spec.ts",
+              "id": "742dc37b41ff482d3249-8aada65c2fc3883bd1dd",
+              "file": "smoke/auth-and-health.spec.ts",
               "line": 19,
               "column": 7
             },
             {
-              "title": "should support quick login or demo login navigation",
+              "title": "invalid credentials show authentication error without crashing @smoke",
               "ok": true,
-              "tags": [],
+              "tags": [
+                "smoke",
+                "smoke"
+              ],
               "tests": [
                 {
-                  "timeout": 45000,
+                  "timeout": 60000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "",
-                  "projectName": "",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 9178,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-11-11T12:18:30.889Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
+                  "projectId": "smoke",
+                  "projectName": "smoke",
+                  "results": [],
+                  "status": "skipped"
                 }
               ],
-              "id": "d748ac400d08b85935ef-e24a558875b03dff9aab",
-              "file": "auth.spec.ts",
-              "line": 38,
+              "id": "742dc37b41ff482d3249-d607a2673ccea91e1878",
+              "file": "smoke/auth-and-health.spec.ts",
+              "line": 31,
+              "column": 7
+            },
+            {
+              "title": "admin can authenticate end-to-end and reach Dashboard @smoke @regression",
+              "ok": true,
+              "tags": [
+                "smoke",
+                "smoke",
+                "regression"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "smoke",
+                  "projectName": "smoke",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "742dc37b41ff482d3249-af59c2b81136d5f6e4ad",
+              "file": "smoke/auth-and-health.spec.ts",
+              "line": 41,
+              "column": 7
+            },
+            {
+              "title": "public branding endpoint responds < 500 @smoke @api",
+              "ok": true,
+              "tags": [
+                "smoke",
+                "smoke",
+                "api"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "smoke",
+                  "projectName": "smoke",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "742dc37b41ff482d3249-0a252f4788d51578d14d",
+              "file": "smoke/auth-and-health.spec.ts",
+              "line": 57,
               "column": 7
             }
           ]
@@ -310,152 +251,40 @@
       ]
     },
     {
-      "title": "finance.spec.ts",
-      "file": "finance.spec.ts",
+      "title": "smoke\\core-modules.spec.ts",
+      "file": "smoke/core-modules.spec.ts",
       "column": 0,
       "line": 0,
       "specs": [],
       "suites": [
         {
-          "title": "Finance & Fee Management E2E Suite",
-          "file": "finance.spec.ts",
-          "line": 3,
+          "title": "Smoke: Primary Application Views Stability @smoke @regression",
+          "file": "smoke/core-modules.spec.ts",
+          "line": 31,
           "column": 6,
           "specs": [
             {
-              "title": "should verify Fee Setup Schedule section term options and due date rules",
+              "title": "all Admin primary modules render cleanly with zero uncaught errors or 5xx responses @smoke",
               "ok": true,
-              "tags": [],
+              "tags": [
+                "smoke",
+                "regression",
+                "smoke"
+              ],
               "tests": [
                 {
-                  "timeout": 45000,
+                  "timeout": 60000,
                   "annotations": [],
                   "expectedStatus": "passed",
-                  "projectId": "",
-                  "projectName": "",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 8286,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-11-11T12:18:40.178Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
+                  "projectId": "smoke",
+                  "projectName": "smoke",
+                  "results": [],
+                  "status": "skipped"
                 }
               ],
-              "id": "1d1b0b311adfe43979fc-9fcda282937e776d9b8a",
-              "file": "finance.spec.ts",
-              "line": 9,
-              "column": 7
-            },
-            {
-              "title": "should verify 12 Terms Monthly Billing hides duplicate monthly due date configuration",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 45000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "",
-                  "projectName": "",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 7536,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-11-11T12:18:48.512Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "1d1b0b311adfe43979fc-9ccfab656a2fbeb07d89",
-              "file": "finance.spec.ts",
-              "line": 22,
-              "column": 7
-            },
-            {
-              "title": "should display dynamic Fee Schedule term details without hardcoded year/date defaults",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 45000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "",
-                  "projectName": "",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 11516,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-11-11T12:18:56.113Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "1d1b0b311adfe43979fc-64869adb3070ba89ab8f",
-              "file": "finance.spec.ts",
-              "line": 28,
-              "column": 7
-            },
-            {
-              "title": "should load Student Fee Assignment and Fee Collection views",
-              "ok": true,
-              "tags": [],
-              "tests": [
-                {
-                  "timeout": 45000,
-                  "annotations": [],
-                  "expectedStatus": "passed",
-                  "projectId": "",
-                  "projectName": "",
-                  "results": [
-                    {
-                      "workerIndex": 0,
-                      "parallelIndex": 0,
-                      "status": "passed",
-                      "duration": 13535,
-                      "errors": [],
-                      "stdout": [],
-                      "stderr": [],
-                      "retry": 0,
-                      "startTime": "2026-11-11T12:19:07.702Z",
-                      "annotations": [],
-                      "attachments": []
-                    }
-                  ],
-                  "status": "expected"
-                }
-              ],
-              "id": "1d1b0b311adfe43979fc-d6e1e464dcdaa532f16f",
-              "file": "finance.spec.ts",
-              "line": 34,
+              "id": "4a20580567e3c1030e4d-cdb49a1a52980d69c5aa",
+              "file": "smoke/core-modules.spec.ts",
+              "line": 32,
               "column": 7
             }
           ]
@@ -463,262 +292,1959 @@
       ]
     },
     {
-      "title": "test_fee_collection.spec.ts",
-      "file": "test_fee_collection.spec.ts",
+      "title": "smoke\\role-routing.spec.ts",
+      "file": "smoke/role-routing.spec.ts",
       "column": 0,
       "line": 0,
-      "specs": [
+      "specs": [],
+      "suites": [
         {
-          "title": "inspect fee collection view for Veera Garikapati",
-          "ok": true,
-          "tags": [],
-          "tests": [
+          "title": "Smoke: Role-Based Routing & Sidebar Isolation @smoke @regression",
+          "file": "smoke/role-routing.spec.ts",
+          "line": 45,
+          "column": 6,
+          "specs": [
             {
-              "timeout": 45000,
-              "annotations": [],
-              "expectedStatus": "passed",
-              "projectId": "",
-              "projectName": "",
-              "results": [
+              "title": "role \"Teacher\" sees permitted sidebar items and falls back on restricted modules @smoke",
+              "ok": true,
+              "tags": [
+                "smoke",
+                "regression",
+                "smoke"
+              ],
+              "tests": [
                 {
-                  "workerIndex": 0,
-                  "parallelIndex": 0,
-                  "status": "passed",
-                  "duration": 14523,
-                  "errors": [],
-                  "stdout": [
-                    {
-                      "text": "BROWSER LOG: [vite] connecting...\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: [vite] connected.\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Uniform API call failed for /api/Uniform/categories: AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Uniform API call failed for /api/Uniform/sizes: AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Uniform API call failed for /api/Uniform/suppliers: AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Uniform API call failed for /api/Uniform/types: AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Uniform API call failed for /api/Uniform/distributions: AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to fetch branches from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to fetch students from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to fetch branches from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Error fetching admissions AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to fetch branches from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to fetch announcements from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to fetch school events from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to fetch holidays from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to fetch announcements from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to fetch meetings from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to fetch homework from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Error fetching student attendance: AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to fetch grading scale rules in DataContext: AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to fetch staff from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Error fetching subjects AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Error fetching periods AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to fetch all timetables from backend AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to fetch departments AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to fetch designations AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to fetch payroll configurations from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to fetch payroll components from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to fetch payroll runs from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to fetch payslips from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to fetch leave applications from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to fetch leave types from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to fetch leave balances from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Error fetching staff attendance: AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to fetch school branding from backend database: AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Initial released exam results load note: AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to fetch leave types from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to fetch leave applications from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to fetch salary structures from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to fetch salary assignments from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to load examination options: AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to fetch branches from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to fetch branches from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to fetch branches from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to fetch announcements from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to fetch school branding from backend database: AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Initial released exam results load note: AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to fetch leave types from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to fetch leave applications from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to fetch salary structures from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to fetch salary assignments from API AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to load examination options: AbortError: signal is aborted without reason\n    at cancelPendingRequests (http://localhost:5173/src/api/client.ts:17:15)\n    at logout (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:305:3)\n    at handleUnauthorized (http://localhost:5173/src/context/AuthContext.tsx?t=1794398053977:345:4)\n    at apiClient (http://localhost:5173/src/api/client.ts:142:13)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Some Transport API fetches failed [Object, Object, Object, Object, Object, Object, Object, Object]\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Some Transport API fetches failed [Object, Object, Object, Object, Object, Object, Object, Object]\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Error fetching classes Error: HTTP error! status: 401\n    at apiClient (http://localhost:5173/src/api/client.ts:174:17)\n    at async Promise.all (index 0)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:1699:28\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to fetch announcements from API Error: HTTP error! status: 401\n    at apiClient (http://localhost:5173/src/api/client.ts:174:17)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:2854:21\n    at async loadSettingsData (http://localhost:5173/src/components/layout/Header.tsx?t=1794398308148:130:29)\n"
-                    },
-                    {
-                      "text": "Current URL: http://localhost:5173/#login\n"
-                    },
-                    {
-                      "text": "Has Fee Collection: \u001b[33mfalse\u001b[39m\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to load resource: the server responded with a status of 401 (Unauthorized)\n"
-                    },
-                    {
-                      "text": "BROWSER LOG: Failed to fetch announcements from API Error: HTTP error! status: 401\n    at apiClient (http://localhost:5173/src/api/client.ts:174:17)\n    at async http://localhost:5173/src/context/DataContext.tsx?t=1794398308148:2854:21\n    at async loadSettingsData (http://localhost:5173/src/components/layout/Header.tsx?t=1794398308148:130:29)\n"
-                    },
-                    {
-                      "text": "Veera Garikapati not found directly.\n"
-                    },
-                    {
-                      "text": "Count of \"Transport Fee\" on page: \u001b[33m0\u001b[39m\n"
-                    },
-                    {
-                      "text": "Table rows found: \u001b[33m0\u001b[39m\n"
-                    }
-                  ],
-                  "stderr": [],
-                  "retry": 0,
-                  "startTime": "2026-11-11T12:19:21.699Z",
+                  "timeout": 60000,
                   "annotations": [],
-                  "attachments": []
+                  "expectedStatus": "passed",
+                  "projectId": "smoke",
+                  "projectName": "smoke",
+                  "results": [],
+                  "status": "skipped"
                 }
               ],
-              "status": "expected"
+              "id": "bc56b6f4b71088ba7982-6555547ffdad70b36a5b",
+              "file": "smoke/role-routing.spec.ts",
+              "line": 47,
+              "column": 9
+            },
+            {
+              "title": "role \"Accountant\" sees permitted sidebar items and falls back on restricted modules @smoke",
+              "ok": true,
+              "tags": [
+                "smoke",
+                "regression",
+                "smoke"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "smoke",
+                  "projectName": "smoke",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "bc56b6f4b71088ba7982-0e36cb948e2953969177",
+              "file": "smoke/role-routing.spec.ts",
+              "line": 47,
+              "column": 9
+            },
+            {
+              "title": "role \"Librarian\" sees permitted sidebar items and falls back on restricted modules @smoke",
+              "ok": true,
+              "tags": [
+                "smoke",
+                "regression",
+                "smoke"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "smoke",
+                  "projectName": "smoke",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "bc56b6f4b71088ba7982-c1ce23fdae06870bfe15",
+              "file": "smoke/role-routing.spec.ts",
+              "line": 47,
+              "column": 9
+            },
+            {
+              "title": "role \"Student\" sees permitted sidebar items and falls back on restricted modules @smoke",
+              "ok": true,
+              "tags": [
+                "smoke",
+                "regression",
+                "smoke"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "smoke",
+                  "projectName": "smoke",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "bc56b6f4b71088ba7982-94d9ec25cfaac7aeeb6c",
+              "file": "smoke/role-routing.spec.ts",
+              "line": 47,
+              "column": 9
+            },
+            {
+              "title": "role \"Parent\" sees permitted sidebar items and falls back on restricted modules @smoke",
+              "ok": true,
+              "tags": [
+                "smoke",
+                "regression",
+                "smoke"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "smoke",
+                  "projectName": "smoke",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "bc56b6f4b71088ba7982-bfd0c0669456d9e10440",
+              "file": "smoke/role-routing.spec.ts",
+              "line": 47,
+              "column": 9
             }
-          ],
-          "id": "ef6751eeed02c1eb9e6a-4ef616cc2a65f23c7a6f",
-          "file": "test_fee_collection.spec.ts",
+          ]
+        }
+      ]
+    },
+    {
+      "title": "e2e\\academics-and-exams.spec.ts",
+      "file": "e2e/academics-and-exams.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "E2E: Academics, Attendance & Examination Flow @e2e @regression",
+          "file": "e2e/academics-and-exams.spec.ts",
+          "line": 4,
+          "column": 6,
+          "specs": [
+            {
+              "title": "admin navigates Classes, Subjects, Timetable, Attendance, Exams, Marks Entry, and Report Cards @e2e @regression",
+              "ok": true,
+              "tags": [
+                "e2e",
+                "regression",
+                "e2e",
+                "regression"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "e2e",
+                  "projectName": "e2e",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "906f88d3057381bdf4eb-207433956d8d7e68e961",
+              "file": "e2e/academics-and-exams.spec.ts",
+              "line": 5,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "e2e\\admissions-to-student.spec.ts",
+      "file": "e2e/admissions-to-student.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "E2E: Admissions to Student Directory Flow @e2e @regression",
+          "file": "e2e/admissions-to-student.spec.ts",
+          "line": 6,
+          "column": 6,
+          "specs": [
+            {
+              "title": "created admission application hydrates into Admissions UI and cleans up safely @e2e @regression",
+              "ok": true,
+              "tags": [
+                "e2e",
+                "regression",
+                "e2e",
+                "regression"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "e2e",
+                  "projectName": "e2e",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "51839ced1db3d675c2c1-9b26e3941a7c25620285",
+              "file": "e2e/admissions-to-student.spec.ts",
+              "line": 7,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "e2e\\auth-session-flow.spec.ts",
+      "file": "e2e/auth-session-flow.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "E2E: Authentication & Session Lifecycle @e2e @regression",
+          "file": "e2e/auth-session-flow.spec.ts",
+          "line": 6,
+          "column": 6,
+          "specs": [
+            {
+              "title": "full login, reload persistence, context headers, and logout flow @e2e @regression",
+              "ok": true,
+              "tags": [
+                "e2e",
+                "regression",
+                "e2e",
+                "regression"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "e2e",
+                  "projectName": "e2e",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "549f41fddb37565de27f-218391b5833bcd5a505e",
+              "file": "e2e/auth-session-flow.spec.ts",
+              "line": 7,
+              "column": 7
+            },
+            {
+              "title": "forgot password flow navigates cleanly to OTP reset screen @e2e @regression",
+              "ok": true,
+              "tags": [
+                "e2e",
+                "regression",
+                "e2e",
+                "regression"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "e2e",
+                  "projectName": "e2e",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "549f41fddb37565de27f-16c2ec85f1fd25557ccb",
+              "file": "e2e/auth-session-flow.spec.ts",
+              "line": 37,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "e2e\\finance-fee-flow.spec.ts",
+      "file": "e2e/finance-fee-flow.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "E2E: Finance & Fee Collection Flow @e2e @regression",
+          "file": "e2e/finance-fee-flow.spec.ts",
+          "line": 5,
+          "column": 6,
+          "specs": [
+            {
+              "title": "finance dashboard, fee setup, and fee collection integrate with backend APIs @e2e @regression",
+              "ok": true,
+              "tags": [
+                "e2e",
+                "regression",
+                "e2e",
+                "regression"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "e2e",
+                  "projectName": "e2e",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "69ae28c0b8b5b7506152-34b0a071cf72167ce50e",
+              "file": "e2e/finance-fee-flow.spec.ts",
+              "line": 6,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "e2e\\role-portals.spec.ts",
+      "file": "e2e/role-portals.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "E2E: Multi-Role Portal Journeys @e2e @regression",
+          "file": "e2e/role-portals.spec.ts",
+          "line": 21,
+          "column": 6,
+          "specs": [
+            {
+              "title": "Teacher portal login & dashboard journey @e2e",
+              "ok": true,
+              "tags": [
+                "e2e",
+                "regression",
+                "e2e"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "e2e",
+                  "projectName": "e2e",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "850aa2098f7759ce6644-0abb3195060bc78418e9",
+              "file": "e2e/role-portals.spec.ts",
+              "line": 23,
+              "column": 9
+            },
+            {
+              "title": "Accountant portal login & dashboard journey @e2e",
+              "ok": true,
+              "tags": [
+                "e2e",
+                "regression",
+                "e2e"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "e2e",
+                  "projectName": "e2e",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "850aa2098f7759ce6644-bf9acd560edd7770ef23",
+              "file": "e2e/role-portals.spec.ts",
+              "line": 23,
+              "column": 9
+            },
+            {
+              "title": "Librarian portal login & dashboard journey @e2e",
+              "ok": true,
+              "tags": [
+                "e2e",
+                "regression",
+                "e2e"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "e2e",
+                  "projectName": "e2e",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "850aa2098f7759ce6644-28f91557a6a110801f6a",
+              "file": "e2e/role-portals.spec.ts",
+              "line": 23,
+              "column": 9
+            },
+            {
+              "title": "Hostel Warden portal login & dashboard journey @e2e",
+              "ok": true,
+              "tags": [
+                "e2e",
+                "regression",
+                "e2e"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "e2e",
+                  "projectName": "e2e",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "850aa2098f7759ce6644-98875c39a433980d5448",
+              "file": "e2e/role-portals.spec.ts",
+              "line": 23,
+              "column": 9
+            },
+            {
+              "title": "Student portal login & dashboard journey @e2e",
+              "ok": true,
+              "tags": [
+                "e2e",
+                "regression",
+                "e2e"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "e2e",
+                  "projectName": "e2e",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "850aa2098f7759ce6644-8bb2f0208d07c4a8b2c1",
+              "file": "e2e/role-portals.spec.ts",
+              "line": 23,
+              "column": 9
+            },
+            {
+              "title": "Parent portal login & dashboard journey @e2e",
+              "ok": true,
+              "tags": [
+                "e2e",
+                "regression",
+                "e2e"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "e2e",
+                  "projectName": "e2e",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "850aa2098f7759ce6644-a0e09f3926bf0409d250",
+              "file": "e2e/role-portals.spec.ts",
+              "line": 23,
+              "column": 9
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "e2e\\staff-and-operations.spec.ts",
+      "file": "e2e/staff-and-operations.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "E2E: Staff, HR & Campus Operations Flow @e2e @regression",
+          "file": "e2e/staff-and-operations.spec.ts",
+          "line": 6,
+          "column": 6,
+          "specs": [
+            {
+              "title": "staff, payroll, transport, hostel, library, uniform, inventory, and settings modules operate end-to-end @e2e @regression",
+              "ok": true,
+              "tags": [
+                "e2e",
+                "regression",
+                "e2e",
+                "regression"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "e2e",
+                  "projectName": "e2e",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "a54877158ac09b81c9a8-f9ad5e1dc22ff2635947",
+              "file": "e2e/staff-and-operations.spec.ts",
+              "line": 7,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "data-driven\\auth-ddt.spec.ts",
+      "file": "data-driven/auth-ddt.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Data-Driven: Login Matrix (CSV) @ddt @regression",
+          "file": "data-driven/auth-ddt.spec.ts",
+          "line": 17,
+          "column": 6,
+          "specs": [
+            {
+              "title": "[AUTH_INVALID_PASS] login outcome=\"failure\" @ddt",
+              "ok": true,
+              "tags": [
+                "ddt",
+                "regression",
+                "ddt"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "ddt",
+                  "projectName": "ddt",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "ead6dc54d9638cb5b37a-1e9d9cdcabd41604c1c4",
+              "file": "data-driven/auth-ddt.spec.ts",
+              "line": 19,
+              "column": 9
+            },
+            {
+              "title": "[AUTH_NONEXISTENT_EMAIL] login outcome=\"failure\" @ddt",
+              "ok": true,
+              "tags": [
+                "ddt",
+                "regression",
+                "ddt"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "ddt",
+                  "projectName": "ddt",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "ead6dc54d9638cb5b37a-71ee1c95255496f14f63",
+              "file": "data-driven/auth-ddt.spec.ts",
+              "line": 19,
+              "column": 9
+            },
+            {
+              "title": "[AUTH_EMPTY_BOTH] login outcome=\"validation\" @ddt",
+              "ok": true,
+              "tags": [
+                "ddt",
+                "regression",
+                "ddt"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "ddt",
+                  "projectName": "ddt",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "ead6dc54d9638cb5b37a-e938879ba1238370194c",
+              "file": "data-driven/auth-ddt.spec.ts",
+              "line": 19,
+              "column": 9
+            },
+            {
+              "title": "[AUTH_EMPTY_PASSWORD] login outcome=\"validation\" @ddt",
+              "ok": true,
+              "tags": [
+                "ddt",
+                "regression",
+                "ddt"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "ddt",
+                  "projectName": "ddt",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "ead6dc54d9638cb5b37a-288c57694d3595b2c835",
+              "file": "data-driven/auth-ddt.spec.ts",
+              "line": 19,
+              "column": 9
+            },
+            {
+              "title": "[AUTH_EMPTY_IDENTIFIER] login outcome=\"validation\" @ddt",
+              "ok": true,
+              "tags": [
+                "ddt",
+                "regression",
+                "ddt"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "ddt",
+                  "projectName": "ddt",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "ead6dc54d9638cb5b37a-206d5755514127110005",
+              "file": "data-driven/auth-ddt.spec.ts",
+              "line": 19,
+              "column": 9
+            },
+            {
+              "title": "[AUTH_ADMIN_VALID] login outcome=\"success\" @ddt",
+              "ok": true,
+              "tags": [
+                "ddt",
+                "regression",
+                "ddt"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "ddt",
+                  "projectName": "ddt",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "ead6dc54d9638cb5b37a-d2468c307e91561b7c58",
+              "file": "data-driven/auth-ddt.spec.ts",
+              "line": 19,
+              "column": 9
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "data-driven\\fee-calculations-ddt.spec.ts",
+      "file": "data-driven/fee-calculations-ddt.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Data-Driven: Fee Schedule & Payment Calculations (JSON) @ddt @regression",
+          "file": "data-driven/fee-calculations-ddt.spec.ts",
+          "line": 32,
+          "column": 6,
+          "specs": [
+            {
+              "title": "[ANNUAL_1_TERM] 1 term(s), None discount @ddt",
+              "ok": true,
+              "tags": [
+                "ddt",
+                "regression",
+                "ddt"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "ddt",
+                  "projectName": "ddt",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "25e7251c67683ef6d777-f8fab5e22ea839e2b05f",
+              "file": "data-driven/fee-calculations-ddt.spec.ts",
+              "line": 34,
+              "column": 9
+            },
+            {
+              "title": "[BIANNUAL_PERCENT_DISCOUNT] 2 term(s), Percentage discount @ddt",
+              "ok": true,
+              "tags": [
+                "ddt",
+                "regression",
+                "ddt"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "ddt",
+                  "projectName": "ddt",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "25e7251c67683ef6d777-a65bb941baa29c22f57d",
+              "file": "data-driven/fee-calculations-ddt.spec.ts",
+              "line": 34,
+              "column": 9
+            },
+            {
+              "title": "[QUARTERLY_FLAT_DISCOUNT] 4 term(s), Flat discount @ddt",
+              "ok": true,
+              "tags": [
+                "ddt",
+                "regression",
+                "ddt"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "ddt",
+                  "projectName": "ddt",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "25e7251c67683ef6d777-f23ed227854d1bff787e",
+              "file": "data-driven/fee-calculations-ddt.spec.ts",
+              "line": 34,
+              "column": 9
+            },
+            {
+              "title": "[MONTHLY_12_TERMS] 12 term(s), Percentage discount @ddt",
+              "ok": true,
+              "tags": [
+                "ddt",
+                "regression",
+                "ddt"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "ddt",
+                  "projectName": "ddt",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "25e7251c67683ef6d777-2ee31e11b43084f08581",
+              "file": "data-driven/fee-calculations-ddt.spec.ts",
+              "line": 34,
+              "column": 9
+            },
+            {
+              "title": "[DISCOUNT_CAPPED_AT_TOTAL] 2 term(s), Flat discount @ddt",
+              "ok": true,
+              "tags": [
+                "ddt",
+                "regression",
+                "ddt"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "ddt",
+                  "projectName": "ddt",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "25e7251c67683ef6d777-bdc6dae5598bb91bcaff",
+              "file": "data-driven/fee-calculations-ddt.spec.ts",
+              "line": 34,
+              "column": 9
+            },
+            {
+              "title": "[PARTIAL_PAYMENT_BALANCE] partial/full payment balance verification @ddt",
+              "ok": true,
+              "tags": [
+                "ddt",
+                "regression",
+                "ddt"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "ddt",
+                  "projectName": "ddt",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "25e7251c67683ef6d777-f5ed8b756a7fcd14ce87",
+              "file": "data-driven/fee-calculations-ddt.spec.ts",
+              "line": 42,
+              "column": 9
+            },
+            {
+              "title": "[FULL_PAYMENT_SETTLED] partial/full payment balance verification @ddt",
+              "ok": true,
+              "tags": [
+                "ddt",
+                "regression",
+                "ddt"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "ddt",
+                  "projectName": "ddt",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "25e7251c67683ef6d777-73177322cf0891424eab",
+              "file": "data-driven/fee-calculations-ddt.spec.ts",
+              "line": 42,
+              "column": 9
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "data-driven\\forms-ddt.spec.ts",
+      "file": "data-driven/forms-ddt.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Data-Driven: Form & Payload Boundary Validation (JSON) @ddt @regression",
+          "file": "data-driven/forms-ddt.spec.ts",
+          "line": 8,
+          "column": 6,
+          "specs": [
+            {
+              "title": "[ADM_MISSING_BODY] Empty admission payload should be rejected cleanly @ddt @api",
+              "ok": true,
+              "tags": [
+                "ddt",
+                "regression",
+                "ddt",
+                "api"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "ddt",
+                  "projectName": "ddt",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "3845cd9fe64245609d51-d4f8c440716588c20c6b",
+              "file": "data-driven/forms-ddt.spec.ts",
+              "line": 10,
+              "column": 9
+            },
+            {
+              "title": "[ADM_MISSING_NAME] Admission without applicant name should fail validation @ddt @api",
+              "ok": true,
+              "tags": [
+                "ddt",
+                "regression",
+                "ddt",
+                "api"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "ddt",
+                  "projectName": "ddt",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "3845cd9fe64245609d51-8d8a0253b634911a932d",
+              "file": "data-driven/forms-ddt.spec.ts",
+              "line": 10,
+              "column": 9
+            },
+            {
+              "title": "[ADM_INVALID_CLASS_ID] Non-existent class ID should not create corrupt student admission @ddt @api",
+              "ok": true,
+              "tags": [
+                "ddt",
+                "regression",
+                "ddt",
+                "api"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "ddt",
+                  "projectName": "ddt",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "3845cd9fe64245609d51-20ae9a06032430ccacde",
+              "file": "data-driven/forms-ddt.spec.ts",
+              "line": 10,
+              "column": 9
+            },
+            {
+              "title": "[FH_NEGATIVE_AMOUNT] Negative transaction amount must be rejected @ddt @api",
+              "ok": true,
+              "tags": [
+                "ddt",
+                "regression",
+                "ddt",
+                "api"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "ddt",
+                  "projectName": "ddt",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "3845cd9fe64245609d51-5c4a306f2a0e928b84ca",
+              "file": "data-driven/forms-ddt.spec.ts",
+              "line": 28,
+              "column": 9
+            },
+            {
+              "title": "[FH_ZERO_COLLECTION] Zero fee collection payment must be rejected @ddt @api",
+              "ok": true,
+              "tags": [
+                "ddt",
+                "regression",
+                "ddt",
+                "api"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "ddt",
+                  "projectName": "ddt",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "3845cd9fe64245609d51-cb952b86531bbab394d0",
+              "file": "data-driven/forms-ddt.spec.ts",
+              "line": 28,
+              "column": 9
+            },
+            {
+              "title": "[AY_EMPTY_NAME] Empty academic year name returns 400 @ddt @api",
+              "ok": true,
+              "tags": [
+                "ddt",
+                "regression",
+                "ddt",
+                "api"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "ddt",
+                  "projectName": "ddt",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "3845cd9fe64245609d51-503241b975bc3bf0afff",
+              "file": "data-driven/forms-ddt.spec.ts",
+              "line": 38,
+              "column": 9
+            },
+            {
+              "title": "[AY_OVERLONG_NAME] Academic year name > 20 chars returns 400 @ddt @api",
+              "ok": true,
+              "tags": [
+                "ddt",
+                "regression",
+                "ddt",
+                "api"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "ddt",
+                  "projectName": "ddt",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "3845cd9fe64245609d51-c887d53105c6308abb65",
+              "file": "data-driven/forms-ddt.spec.ts",
+              "line": 38,
+              "column": 9
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "data-driven\\rbac-ddt.spec.ts",
+      "file": "data-driven/rbac-ddt.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Data-Driven: 14-Role RBAC Module Permissions Matrix (JSON) @ddt @regression",
+          "file": "data-driven/rbac-ddt.spec.ts",
+          "line": 10,
+          "column": 6,
+          "specs": [
+            {
+              "title": "role \"Super Admin\" enforces module access boundaries @ddt",
+              "ok": true,
+              "tags": [
+                "ddt",
+                "regression",
+                "ddt"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "ddt",
+                  "projectName": "ddt",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "1c632f306e1c09c9fb87-a647919a06e8a56a655c",
+              "file": "data-driven/rbac-ddt.spec.ts",
+              "line": 12,
+              "column": 9
+            },
+            {
+              "title": "role \"Admin\" enforces module access boundaries @ddt",
+              "ok": true,
+              "tags": [
+                "ddt",
+                "regression",
+                "ddt"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "ddt",
+                  "projectName": "ddt",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "1c632f306e1c09c9fb87-58033bc8e2a6f26075dc",
+              "file": "data-driven/rbac-ddt.spec.ts",
+              "line": 12,
+              "column": 9
+            },
+            {
+              "title": "role \"Principal\" enforces module access boundaries @ddt",
+              "ok": true,
+              "tags": [
+                "ddt",
+                "regression",
+                "ddt"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "ddt",
+                  "projectName": "ddt",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "1c632f306e1c09c9fb87-41a342a371ff9fb25822",
+              "file": "data-driven/rbac-ddt.spec.ts",
+              "line": 12,
+              "column": 9
+            },
+            {
+              "title": "role \"Teacher\" enforces module access boundaries @ddt",
+              "ok": true,
+              "tags": [
+                "ddt",
+                "regression",
+                "ddt"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "ddt",
+                  "projectName": "ddt",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "1c632f306e1c09c9fb87-556d87af62866d9f3d9b",
+              "file": "data-driven/rbac-ddt.spec.ts",
+              "line": 12,
+              "column": 9
+            },
+            {
+              "title": "role \"HR\" enforces module access boundaries @ddt",
+              "ok": true,
+              "tags": [
+                "ddt",
+                "regression",
+                "ddt"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "ddt",
+                  "projectName": "ddt",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "1c632f306e1c09c9fb87-dc484db123ad2f3e6ca1",
+              "file": "data-driven/rbac-ddt.spec.ts",
+              "line": 12,
+              "column": 9
+            },
+            {
+              "title": "role \"Accountant\" enforces module access boundaries @ddt",
+              "ok": true,
+              "tags": [
+                "ddt",
+                "regression",
+                "ddt"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "ddt",
+                  "projectName": "ddt",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "1c632f306e1c09c9fb87-8069e8d3efcc41bce139",
+              "file": "data-driven/rbac-ddt.spec.ts",
+              "line": 12,
+              "column": 9
+            },
+            {
+              "title": "role \"Librarian\" enforces module access boundaries @ddt",
+              "ok": true,
+              "tags": [
+                "ddt",
+                "regression",
+                "ddt"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "ddt",
+                  "projectName": "ddt",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "1c632f306e1c09c9fb87-7812e8c8eff6c49eac2d",
+              "file": "data-driven/rbac-ddt.spec.ts",
+              "line": 12,
+              "column": 9
+            },
+            {
+              "title": "role \"Transport Manager\" enforces module access boundaries @ddt",
+              "ok": true,
+              "tags": [
+                "ddt",
+                "regression",
+                "ddt"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "ddt",
+                  "projectName": "ddt",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "1c632f306e1c09c9fb87-41e9fca9b4b2297c0dc6",
+              "file": "data-driven/rbac-ddt.spec.ts",
+              "line": 12,
+              "column": 9
+            },
+            {
+              "title": "role \"Driver\" enforces module access boundaries @ddt",
+              "ok": true,
+              "tags": [
+                "ddt",
+                "regression",
+                "ddt"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "ddt",
+                  "projectName": "ddt",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "1c632f306e1c09c9fb87-e62677e3c09f2042eadd",
+              "file": "data-driven/rbac-ddt.spec.ts",
+              "line": 12,
+              "column": 9
+            },
+            {
+              "title": "role \"Hostel Warden\" enforces module access boundaries @ddt",
+              "ok": true,
+              "tags": [
+                "ddt",
+                "regression",
+                "ddt"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "ddt",
+                  "projectName": "ddt",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "1c632f306e1c09c9fb87-7fc6fc542123d3b621e1",
+              "file": "data-driven/rbac-ddt.spec.ts",
+              "line": 12,
+              "column": 9
+            },
+            {
+              "title": "role \"Receptionist\" enforces module access boundaries @ddt",
+              "ok": true,
+              "tags": [
+                "ddt",
+                "regression",
+                "ddt"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "ddt",
+                  "projectName": "ddt",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "1c632f306e1c09c9fb87-a1ce0da31b79eac4dc40",
+              "file": "data-driven/rbac-ddt.spec.ts",
+              "line": 12,
+              "column": 9
+            },
+            {
+              "title": "role \"Student\" enforces module access boundaries @ddt",
+              "ok": true,
+              "tags": [
+                "ddt",
+                "regression",
+                "ddt"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "ddt",
+                  "projectName": "ddt",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "1c632f306e1c09c9fb87-46cfbcc5d1a98d05de5e",
+              "file": "data-driven/rbac-ddt.spec.ts",
+              "line": 12,
+              "column": 9
+            },
+            {
+              "title": "role \"Parent\" enforces module access boundaries @ddt",
+              "ok": true,
+              "tags": [
+                "ddt",
+                "regression",
+                "ddt"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "ddt",
+                  "projectName": "ddt",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "1c632f306e1c09c9fb87-7ff13fcbe4da4d2fbd08",
+              "file": "data-driven/rbac-ddt.spec.ts",
+              "line": 12,
+              "column": 9
+            },
+            {
+              "title": "role \"Staff\" enforces module access boundaries @ddt",
+              "ok": true,
+              "tags": [
+                "ddt",
+                "regression",
+                "ddt"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "ddt",
+                  "projectName": "ddt",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "1c632f306e1c09c9fb87-c3a606cc6f76b35c409a",
+              "file": "data-driven/rbac-ddt.spec.ts",
+              "line": 12,
+              "column": 9
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "api\\academics-exams.api.spec.ts",
+      "file": "api/academics-exams.api.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "API: Academics, Timetable & Examination @api @regression",
+          "file": "api/academics-exams.api.spec.ts",
+          "line": 5,
+          "column": 6,
+          "specs": [
+            {
+              "title": "academic read endpoints return 200 with valid envelopes @api @regression",
+              "ok": true,
+              "tags": [
+                "api",
+                "regression",
+                "api",
+                "regression"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "api",
+                  "projectName": "api",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "829dd55b4bc1c9a2eb49-c0c8ba8b2621bb6039eb",
+              "file": "api/academics-exams.api.spec.ts",
+              "line": 6,
+              "column": 7
+            },
+            {
+              "title": "department CRUD persists to database and cleans up @api @regression",
+              "ok": true,
+              "tags": [
+                "api",
+                "regression",
+                "api",
+                "regression"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "api",
+                  "projectName": "api",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "829dd55b4bc1c9a2eb49-74ceda49ba40eb7e1b79",
+              "file": "api/academics-exams.api.spec.ts",
+              "line": 31,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "api\\admin-settings.api.spec.ts",
+      "file": "api/admin-settings.api.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "API: Dashboard, Settings, Branches, Academic Years & SuperAdmin Guards @api @regression",
+          "file": "api/admin-settings.api.spec.ts",
+          "line": 4,
+          "column": 6,
+          "specs": [
+            {
+              "title": "dashboard summary, branches, academic years, events, and settings return 200 @api @regression",
+              "ok": true,
+              "tags": [
+                "api",
+                "regression",
+                "api",
+                "regression"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "api",
+                  "projectName": "api",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "1cffc792569a05fe33d2-34d4c9ff89f83f15795a",
+              "file": "api/admin-settings.api.spec.ts",
+              "line": 5,
+              "column": 7
+            },
+            {
+              "title": "SuperAdmin-only endpoints deny standard Admin token with 403 @api @regression",
+              "ok": true,
+              "tags": [
+                "api",
+                "regression",
+                "api",
+                "regression"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "api",
+                  "projectName": "api",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "1cffc792569a05fe33d2-ecb4901f85c896cf2878",
+              "file": "api/admin-settings.api.spec.ts",
+              "line": 24,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "api\\auth-otp.api.spec.ts",
+      "file": "api/auth-otp.api.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "API: Authentication, JWT & Security Middleware @api @smoke @regression",
+          "file": "api/auth-otp.api.spec.ts",
+          "line": 6,
+          "column": 6,
+          "specs": [
+            {
+              "title": "public branding & superadmin setup-status endpoints are accessible anonymously @api @smoke",
+              "ok": true,
+              "tags": [
+                "api",
+                "smoke",
+                "regression",
+                "api",
+                "smoke"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "api",
+                  "projectName": "api",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "94ba9ff8972ecc09b90b-53c273d3798acb9b1404",
+              "file": "api/auth-otp.api.spec.ts",
+              "line": 7,
+              "column": 7
+            },
+            {
+              "title": "protected endpoints reject unauthenticated requests with 401 @api @smoke",
+              "ok": true,
+              "tags": [
+                "api",
+                "smoke",
+                "regression",
+                "api",
+                "smoke"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "api",
+                  "projectName": "api",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "94ba9ff8972ecc09b90b-c0fb1dd647c2b4fff2c7",
+              "file": "api/auth-otp.api.spec.ts",
+              "line": 25,
+              "column": 7
+            },
+            {
+              "title": "admin login returns valid JWT and expected AuthResponseDto schema @api @smoke @regression",
+              "ok": true,
+              "tags": [
+                "api",
+                "smoke",
+                "regression",
+                "api",
+                "smoke",
+                "regression"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "api",
+                  "projectName": "api",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "94ba9ff8972ecc09b90b-e5922dc9515593fde899",
+              "file": "api/auth-otp.api.spec.ts",
+              "line": 44,
+              "column": 7
+            },
+            {
+              "title": "invalid login credentials return 401 and malformed login returns 400 @api",
+              "ok": true,
+              "tags": [
+                "api",
+                "smoke",
+                "regression",
+                "api"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "api",
+                  "projectName": "api",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "94ba9ff8972ecc09b90b-e0502c6b232ab4cac1e0",
+              "file": "api/auth-otp.api.spec.ts",
+              "line": 63,
+              "column": 7
+            },
+            {
+              "title": "OTP verify rejects invalid/non-existent code cleanly without 500 @api",
+              "ok": true,
+              "tags": [
+                "api",
+                "smoke",
+                "regression",
+                "api"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "api",
+                  "projectName": "api",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "94ba9ff8972ecc09b90b-ea0e6a160093f87e7939",
+              "file": "api/auth-otp.api.spec.ts",
+              "line": 73,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "api\\finance-fees.api.spec.ts",
+      "file": "api/finance-fees.api.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "API: Finance & Fee Management @api @regression",
+          "file": "api/finance-fees.api.spec.ts",
+          "line": 5,
+          "column": 6,
+          "specs": [
+            {
+              "title": "finance read endpoints return 200 and expected envelope shapes @api @regression",
+              "ok": true,
+              "tags": [
+                "api",
+                "regression",
+                "api",
+                "regression"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "api",
+                  "projectName": "api",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c617217a82b96d39db7b-853e9047c826238dfae6",
+              "file": "api/finance-fees.api.spec.ts",
+              "line": 6,
+              "column": 7
+            },
+            {
+              "title": "fee-head creation persists and cleans up without leaving test records @api @regression",
+              "ok": true,
+              "tags": [
+                "api",
+                "regression",
+                "api",
+                "regression"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "api",
+                  "projectName": "api",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "c617217a82b96d39db7b-a966129862ea5036c285",
+              "file": "api/finance-fees.api.spec.ts",
+              "line": 30,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "api\\operations.api.spec.ts",
+      "file": "api/operations.api.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "API: Transport, Hostel, Library, Uniform & Inventory @api @regression",
+          "file": "api/operations.api.spec.ts",
           "line": 3,
-          "column": 5
+          "column": 6,
+          "specs": [
+            {
+              "title": "campus operations read endpoints respond 200 @api @regression",
+              "ok": true,
+              "tags": [
+                "api",
+                "regression",
+                "api",
+                "regression"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "api",
+                  "projectName": "api",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "25deadd30e3af96e390f-514ccc6255ec87ed7f42",
+              "file": "api/operations.api.spec.ts",
+              "line": 4,
+              "column": 7
+            },
+            {
+              "title": "Library enforces Read-Only 403 guard for Admin role @api @regression",
+              "ok": true,
+              "tags": [
+                "api",
+                "regression",
+                "api",
+                "regression"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "api",
+                  "projectName": "api",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "25deadd30e3af96e390f-b17fd21bb5b21bdeb667",
+              "file": "api/operations.api.spec.ts",
+              "line": 29,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "api\\staff-payroll.api.spec.ts",
+      "file": "api/staff-payroll.api.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "API: Staff, HR & Payroll @api @regression",
+          "file": "api/staff-payroll.api.spec.ts",
+          "line": 4,
+          "column": 6,
+          "specs": [
+            {
+              "title": "staff & payroll read endpoints return 200 with valid data @api @regression",
+              "ok": true,
+              "tags": [
+                "api",
+                "regression",
+                "api",
+                "regression"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "api",
+                  "projectName": "api",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "4d4cc9b7a83b5905b6ed-dec1ff8bed8019ed4a72",
+              "file": "api/staff-payroll.api.spec.ts",
+              "line": 5,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "api\\students-admissions.api.spec.ts",
+      "file": "api/students-admissions.api.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "API: Admissions & Students Lifecycle @api @regression",
+          "file": "api/students-admissions.api.spec.ts",
+          "line": 6,
+          "column": 6,
+          "specs": [
+            {
+              "title": "POST -> GET -> PUT -> DELETE admission persists and cleans up DB state @api @regression",
+              "ok": true,
+              "tags": [
+                "api",
+                "regression",
+                "api",
+                "regression"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "api",
+                  "projectName": "api",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "6e5b0110b3ca069e536b-b30553b32740d40400a5",
+              "file": "api/students-admissions.api.spec.ts",
+              "line": 7,
+              "column": 7
+            },
+            {
+              "title": "GET /api/v1/students and dropdowns match contract @api @regression",
+              "ok": true,
+              "tags": [
+                "api",
+                "regression",
+                "api",
+                "regression"
+              ],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "api",
+                  "projectName": "api",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "6e5b0110b3ca069e536b-04c71cad51d0f1d20d4f",
+              "file": "api/students-admissions.api.spec.ts",
+              "line": 47,
+              "column": 7
+            }
+          ]
         }
       ]
     }
   ],
   "errors": [],
   "stats": {
-    "startTime": "2026-11-11T12:17:21.419Z",
-    "duration": 137376.33000000002,
-    "expected": 11,
-    "skipped": 0,
+    "startTime": "2026-11-12T06:24:10.303Z",
+    "duration": 2293.178,
+    "expected": 0,
+    "skipped": 73,
     "unexpected": 0,
     "flaky": 0
   }

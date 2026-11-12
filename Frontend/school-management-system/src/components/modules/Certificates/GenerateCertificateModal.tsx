@@ -12,7 +12,6 @@ import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { PrintableCertificateContainer, PrintableBatchCertificatesContainer } from './PrintableCertificateContainer';
 import { DateInput } from '../../common/DateInput';
-import { INITIAL_CERTIFICATE_TYPES, INITIAL_CERTIFICATE_TEMPLATES } from '../Settings/CertificateSettingsTab';
 import { getFieldsForCertificateType } from '../../../utils/certificateFields';
 import { formatDateDDMMYYYY } from '../../../utils/dateValidation';
 import { compareClassesAscending } from '../../../utils/classSorter';
@@ -89,16 +88,16 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
   // Mode state: 'single' vs 'bulk'
   const [generationMode, setGenerationMode] = useState<'single' | 'bulk'>('single');
 
-  // Load Certificate Types & Templates
+  // Load Certificate Types & Templates from synced backend state / localStorage
   const certificateTypes = useMemo<CertificateTypeConfig[]>(() => {
     try {
       const saved = localStorage.getItem('edu_db_certificate_types');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       }
     } catch (e) {}
-    return INITIAL_CERTIFICATE_TYPES;
+    return [];
   }, [isOpen]);
 
   const certificateTemplates = useMemo<CertificateTemplateConfig[]>(() => {
@@ -106,10 +105,10 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
       const saved = localStorage.getItem('edu_db_certificate_templates_v2');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       }
     } catch (e) {}
-    return INITIAL_CERTIFICATE_TEMPLATES;
+    return [];
   }, [isOpen]);
 
   // Selected Student & Type State for Single Mode
@@ -117,7 +116,7 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
     existingRecord?.studentId || initialStudent?.id || ''
   );
   const [selectedTypeId, setSelectedTypeId] = useState<string>(
-    existingRecord?.certificateTypeId || initialCertificateType || certificateTypes[0]?.id || 'CT-TC'
+    existingRecord?.certificateTypeId || initialCertificateType || certificateTypes[0]?.id || ''
   );
 
   // Single Student Search Dropdown State
@@ -1418,29 +1417,33 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
                     academicYear={activeAY}
                     studentName={
                       generationMode === 'bulk'
-                        ? previewStudentForBulk ? `${previewStudentForBulk.firstName} ${previewStudentForBulk.lastName}` : 'Student Name'
-                        : selectedStudent ? `${selectedStudent.firstName} ${selectedStudent.lastName}` : 'Rahul Kumar'
+                        ? previewStudentForBulk ? `${previewStudentForBulk.firstName} ${previewStudentForBulk.lastName}`.trim() : ''
+                        : selectedStudent ? `${selectedStudent.firstName} ${selectedStudent.lastName}`.trim() : ''
                     }
                     admissionNo={
                       generationMode === 'bulk'
-                        ? previewStudentForBulk?.admissionNo || 'ADM-2024-001'
-                        : selectedStudent?.admissionNo || 'ADM-2024-089'
+                        ? previewStudentForBulk?.admissionNo || ''
+                        : selectedStudent?.admissionNo || ''
                     }
                     admissionDate={
                       generationMode === 'bulk'
-                        ? previewStudentForBulk?.joiningDate || '2024-06-15'
-                        : selectedStudent?.joiningDate || '2024-06-15'
+                        ? previewStudentForBulk?.joiningDate || ''
+                        : selectedStudent?.joiningDate || ''
                     }
                     fatherName={
                       generationMode === 'bulk'
-                        ? previewStudentForBulk?.parentName || 'Parent Name'
-                        : selectedStudent?.parentName || 'Vikram Kumar'
+                        ? previewStudentForBulk?.parentName || ''
+                        : selectedStudent?.parentName || ''
                     }
-                    motherName="Sunita Kumar"
+                    motherName={
+                      generationMode === 'bulk'
+                        ? (previewStudentForBulk as any)?.motherName || ''
+                        : (selectedStudent as any)?.motherName || ''
+                    }
                     dob={
                       generationMode === 'bulk'
-                        ? previewStudentForBulk?.dob || '2012-08-15'
-                        : selectedStudent?.dob || '2012-08-15'
+                        ? previewStudentForBulk?.dob || ''
+                        : selectedStudent?.dob || ''
                     }
                     gender={
                       generationMode === 'bulk'
@@ -1459,8 +1462,8 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
                     }
                     rollNo={
                       generationMode === 'bulk'
-                        ? previewStudentForBulk?.rollNo || '1'
-                        : selectedStudent?.rollNo || '12'
+                        ? previewStudentForBulk?.rollNo || ''
+                        : selectedStudent?.rollNo || ''
                     }
                     leavingDate={certificateSpecificData.dateOfLeaving || certificateSpecificData.leavingDate || ''}
                     reason={certificateSpecificData.reasonForLeaving || certificateSpecificData.reason || certificateSpecificData.purpose || ''}

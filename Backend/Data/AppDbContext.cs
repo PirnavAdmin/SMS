@@ -176,6 +176,9 @@ namespace SMS.Api.Data
         public DbSet<SMS.Api.Models.FinanceManagement.Expense> Expenses { get; set; } = null!;
         public DbSet<SMS.Api.Models.FinanceManagement.FinancialBudget> FinancialBudgets { get; set; } = null!;
         public DbSet<SMS.Api.Models.FinanceManagement.HostelFeeConfig> HostelFeeConfigs { get; set; } = null!;
+        public DbSet<SMS.Api.Models.FinanceManagement.FinancialCategory> FinancialCategories { get; set; } = null!;
+        public DbSet<SMS.Api.Models.FinanceManagement.FineRule> FineRules { get; set; } = null!;
+        public DbSet<SMS.Api.Models.FinanceManagement.FeeRefundRequest> FeeRefundRequests { get; set; } = null!;
 
         //student
         public DbSet<Student> Students { get; set; } = null!;
@@ -1379,6 +1382,21 @@ namespace SMS.Api.Data
             modelBuilder.Entity<SMS.Api.Models.FinanceManagement.FinancialBudget>(entity =>
             {
                 entity.ToTable("financial_budgets");
+                entity.HasKey(x => x.Id);
+            });
+            modelBuilder.Entity<SMS.Api.Models.FinanceManagement.FinancialCategory>(entity =>
+            {
+                entity.ToTable("financial_categories");
+                entity.HasKey(x => x.Id);
+            });
+            modelBuilder.Entity<SMS.Api.Models.FinanceManagement.FineRule>(entity =>
+            {
+                entity.ToTable("fine_rules");
+                entity.HasKey(x => x.Id);
+            });
+            modelBuilder.Entity<SMS.Api.Models.FinanceManagement.FeeRefundRequest>(entity =>
+            {
+                entity.ToTable("fee_refund_requests");
                 entity.HasKey(x => x.Id);
             });
         }

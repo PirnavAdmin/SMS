@@ -317,7 +317,7 @@ public class StudentTransportToHostelConversionTests
     }
 
     [Fact]
-    public async Task ProcessDepositRefund_CreatesRefundLedgerAndNegativePayment()
+    public async Task ProcessDepositRefund_CreatesRefundLedgerAndRefundRequestWithoutNegativePayment()
     {
         using var db = GetInMemoryDbContext();
 
@@ -325,6 +325,9 @@ public class StudentTransportToHostelConversionTests
         var ay = new AcademicYear { AcademicYearId = 1, AcademicYearName = "2026-2027", StartDate = DateTime.UtcNow.AddMonths(-6), EndDate = DateTime.UtcNow.AddMonths(6), IsActive = true };
         db.Branches.Add(branch);
         db.AcademicYears.Add(ay);
+
+        var bank = new FinancialAccount { Name = "Main Bank", Type = "Bank", OpeningBalance = 10000m, CurrentBalance = 10000m, Status = "Active" };
+        db.FinancialAccounts.Add(bank);
 
         var student = new Student { StudentId = 103, AdmissionNumber = "ADM-103", RollNumber = "103", StudentName = "Rohan Verma", AcademicYearId = 1, BranchId = 1, Status = "Active" };
         db.Students.Add(student);
@@ -350,10 +353,17 @@ public class StudentTransportToHostelConversionTests
 
         var refundLedger = await db.LedgerEntries.FirstOrDefaultAsync(l => l.StudentId == 103 && l.TransactionType == "Refund");
         Assert.NotNull(refundLedger);
-        Assert.Equal(4500m, refundLedger.Debit); // Net refund
+        Assert.Equal(4500m, refundLedger.Debit);
 
-        var refundPayment = await db.FeePayments.FirstOrDefaultAsync(p => p.StudentId == "103" && p.Status == "Refunded");
-        Assert.NotNull(refundPayment);
-        Assert.Equal(-4500m, refundPayment.Amount);
+        var refundRequest = await db.FeeRefundRequests.FirstOrDefaultAsync(r => r.StudentId == 103);
+        Assert.NotNull(refundRequest);
+        Assert.Equal("Disbursed", refundRequest.Status);
+        Assert.Equal(4500m, refundRequest.RefundAmount);
+
+        var negativePayment = await db.FeePayments.FirstOrDefaultAsync(p => p.StudentId == "103" && p.Amount < 0);
+        Assert.Null(negativePayment);
+
+        var updatedBank = await db.FinancialAccounts.FirstAsync(a => a.Id == bank.Id);
+        Assert.Equal(5500m, updatedBank.CurrentBalance);
     }
 }

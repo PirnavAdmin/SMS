@@ -1,0 +1,81 @@
+{
+  "admissionValidationCases": [
+    {
+      "caseId": "ADM_MISSING_BODY",
+      "description": "Empty admission payload should be rejected cleanly",
+      "payload": {},
+      "expectStatusMin": 400,
+      "expectStatusMax": 499
+    },
+    {
+      "caseId": "ADM_MISSING_NAME",
+      "description": "Admission without applicant name should fail validation",
+      "payload": {
+        "gender": "Male",
+        "appliedClassId": 1,
+        "dateOfBirth": "2015-01-10"
+      },
+      "expectStatusMin": 400,
+      "expectStatusMax": 499
+    },
+    {
+      "caseId": "ADM_INVALID_CLASS_ID",
+      "description": "Non-existent class ID should not create corrupt student admission",
+      "payload": {
+        "firstName": "Boundary",
+        "lastName": "Test",
+        "gender": "Female",
+        "appliedClassId": -999,
+        "dateOfBirth": "2015-01-10"
+      },
+      "expectStatusMin": 400,
+      "expectStatusMax": 499
+    }
+  ],
+  "feeHeadValidationCases": [
+    {
+      "caseId": "FH_NEGATIVE_AMOUNT",
+      "description": "Negative transaction amount must be rejected",
+      "endpoint": "/api/finance/transactions",
+      "payload": {
+        "amount": -500,
+        "type": "Income",
+        "paymentMode": "Cash"
+      },
+      "expectedStatus": 400
+    },
+    {
+      "caseId": "FH_ZERO_COLLECTION",
+      "description": "Zero fee collection payment must be rejected",
+      "endpoint": "/api/finance/fee-collection/collect",
+      "payload": {
+        "studentId": 1,
+        "totalAmountPaid": 0,
+        "paymentMode": "Cash"
+      },
+      "expectedStatus": 400
+    }
+  ],
+  "academicYearValidationCases": [
+    {
+      "caseId": "AY_EMPTY_NAME",
+      "description": "Empty academic year name returns 400",
+      "payload": {
+        "academicYear": "",
+        "startDate": "2027-06-01",
+        "endDate": "2028-04-30"
+      },
+      "expectedStatus": 400
+    },
+    {
+      "caseId": "AY_OVERLONG_NAME",
+      "description": "Academic year name > 20 chars returns 400",
+      "payload": {
+        "academicYear": "2027-2028-EXTENDED-SESSION-NAME",
+        "startDate": "2027-06-01",
+        "endDate": "2028-04-30"
+      },
+      "expectedStatus": 400
+    }
+  ]
+}

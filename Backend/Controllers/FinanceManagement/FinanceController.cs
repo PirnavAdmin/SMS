@@ -11,10 +11,14 @@ using System.Threading.Tasks;
 [Tags("Finance & Fee Management (Full)")]
 public class FinanceController : ControllerBase
 {
+    private const string ReadRoles = "Admin,Staff,SuperAdmin,Super Admin,Principal,Accountant,Finance,HR,Receptionist";
+    private const string WriteRoles = "Admin,SuperAdmin,Super Admin,Principal,Accountant,Finance,Staff";
+
     private readonly IFinanceService _service;
     public FinanceController(IFinanceService service) { _service = service; }
     
     [HttpGet("fee-heads")]
+    [Authorize(Roles = ReadRoles)]
     public async Task<IActionResult> GetFeeHeads(
         [FromQuery] string? search,
         [FromQuery] string? category,
@@ -81,11 +85,12 @@ public class FinanceController : ControllerBase
         }
         catch (Exception ex)
         {
-            return Ok(new { success = true, data = new List<FeeHeadDto>(), message = ex.Message });
+            return StatusCode(500, new { success = false, message = ex.Message });
         }
     }
     
     [HttpPost("fee-heads")]
+    [Authorize(Roles = WriteRoles)]
     public async Task<IActionResult> CreateFeeHead([FromBody] FeeHeadDto dto)
     {
         try
@@ -104,6 +109,7 @@ public class FinanceController : ControllerBase
     }
 
     [HttpPut("fee-heads/{id}")]
+    [Authorize(Roles = WriteRoles)]
     public async Task<IActionResult> UpdateFeeHead(int id, [FromBody] FeeHeadDto dto)
     {
         try
@@ -122,6 +128,7 @@ public class FinanceController : ControllerBase
     }
     
     [HttpPatch("fee-heads/{id}/toggle-status")]
+    [Authorize(Roles = WriteRoles)]
     public async Task<IActionResult> ToggleFeeHeadStatus(int id)
     {
         var updated = await _service.ToggleFeeHeadStatusAsync(id);
@@ -130,10 +137,12 @@ public class FinanceController : ControllerBase
     }
 
     [HttpDelete("fee-heads/{id}")]
+    [Authorize(Roles = WriteRoles)]
     public async Task<IActionResult> DeleteFeeHead(int id) { await _service.DeleteFeeHeadAsync(id); return Ok(new { success = true }); }
     
     [HttpGet("fee-types")]
     [HttpGet("fee-categories")]
+    [Authorize(Roles = ReadRoles)]
     public IActionResult GetFeeTypes()
     {
         var types = new List<string> { "Tuition Fee", "Others", "Hostel", "Transport", "Uniform" };
@@ -141,6 +150,7 @@ public class FinanceController : ControllerBase
     }
 
     [HttpGet("fee-structures")]
+    [Authorize(Roles = ReadRoles)]
     public async Task<IActionResult> GetDynamicFeeStructures(
         [FromQuery] string? search,
         [FromQuery] string? className,
@@ -198,11 +208,12 @@ public class FinanceController : ControllerBase
         }
         catch (Exception ex)
         {
-            return Ok(new { success = true, data = new List<DynamicFeeStructureDto>(), message = ex.Message });
+            return StatusCode(500, new { success = false, message = ex.Message });
         }
     }
 
     [HttpGet("fee-structures/{id:int}")]
+    [Authorize(Roles = ReadRoles)]
     public async Task<IActionResult> GetDynamicFeeStructureById(int id)
     {
         var item = await _service.GetDynamicFeeStructureByIdAsync(id);
@@ -211,6 +222,7 @@ public class FinanceController : ControllerBase
     }
     
     [HttpPost("fee-structures")]
+    [Authorize(Roles = WriteRoles)]
     public async Task<IActionResult> CreateDynamicFeeStructure([FromBody] DynamicFeeStructureDto dto)
     {
         try
@@ -229,6 +241,7 @@ public class FinanceController : ControllerBase
     }
 
     [HttpPut("fee-structures/{id:int}")]
+    [Authorize(Roles = WriteRoles)]
     public async Task<IActionResult> UpdateDynamicFeeStructure(int id, [FromBody] DynamicFeeStructureDto dto)
     {
         try
@@ -248,6 +261,7 @@ public class FinanceController : ControllerBase
     }
 
     [HttpDelete("fee-structures/{id:int}")]
+    [Authorize(Roles = WriteRoles)]
     public async Task<IActionResult> DeleteDynamicFeeStructure(int id)
     {
         await _service.DeleteDynamicFeeStructureAsync(id);
@@ -255,9 +269,11 @@ public class FinanceController : ControllerBase
     }
     
     [HttpGet("fee-assignments")]
+    [Authorize(Roles = ReadRoles)]
     public async Task<IActionResult> GetStudentFeeAssignments() => Ok(new { success = true, data = await _service.GetStudentFeeAssignmentsAsync() });
 
     [HttpGet("fee-assignments/{id:int}")]
+    [Authorize(Roles = ReadRoles)]
     public async Task<IActionResult> GetStudentFeeAssignmentById(int id)
     {
         var item = await _service.GetStudentFeeAssignmentByIdAsync(id);
@@ -266,6 +282,7 @@ public class FinanceController : ControllerBase
     }
     
     [HttpPost("fee-assignments")]
+    [Authorize(Roles = WriteRoles)]
     public async Task<IActionResult> CreateStudentFeeAssignment([FromBody] StudentFeeAssignmentDto dto)
     {
         if (dto == null || string.IsNullOrWhiteSpace(dto.StudentId))
@@ -275,6 +292,7 @@ public class FinanceController : ControllerBase
     }
 
     [HttpPost("fee-assignments/bulk")]
+    [Authorize(Roles = WriteRoles)]
     public async Task<IActionResult> BulkAssignStudentFees([FromBody] BulkFeeAssignmentRequestDto request)
     {
         if (request == null || request.StudentIds == null || !request.StudentIds.Any())
@@ -284,6 +302,7 @@ public class FinanceController : ControllerBase
     }
 
     [HttpPost("fee-assignments/custom")]
+    [Authorize(Roles = WriteRoles)]
     public async Task<IActionResult> SaveCustomStudentFeeAssignment([FromBody] CustomFeeAssignmentRequestDto request)
     {
         if (request == null || string.IsNullOrWhiteSpace(request.StudentId))
@@ -293,6 +312,7 @@ public class FinanceController : ControllerBase
     }
 
     [HttpPut("fee-assignments/{id:int}")]
+    [Authorize(Roles = WriteRoles)]
     public async Task<IActionResult> UpdateStudentFeeAssignment(int id, [FromBody] StudentFeeAssignmentDto dto)
     {
         var res = await _service.UpdateStudentFeeAssignmentAsync(id, dto);
@@ -301,6 +321,7 @@ public class FinanceController : ControllerBase
     }
 
     [HttpDelete("fee-assignments/{id:int}")]
+    [Authorize(Roles = WriteRoles)]
     public async Task<IActionResult> DeleteStudentFeeAssignment(int id)
     {
         var success = await _service.DeleteStudentFeeAssignmentAsync(id);
@@ -309,8 +330,10 @@ public class FinanceController : ControllerBase
     }
     
     [HttpGet("fee-payments")]
+    [Authorize(Roles = ReadRoles)]
     public async Task<IActionResult> GetFeePayments() => Ok(new { success = true, data = await _service.GetFeePaymentsAsync() });
     
     [HttpPost("fee-payments")]
+    [Authorize(Roles = WriteRoles)]
     public async Task<IActionResult> CreateFeePayment([FromBody] FeePaymentDto dto) => Ok(new { success = true, data = await _service.CreateFeePaymentAsync(dto) });
 }

@@ -212,9 +212,9 @@ function buildDocumentDrafts(category: EmployeeCategory, staff?: Staff | null, u
 }
 
 function buildProfileForm(staff: Staff | undefined | null, category: EmployeeCategory, user?: User | null): ProfileFormState {
-  const nameParts = (user?.name || '').trim().split(' ');
-  const fallbackFirstName = nameParts[0] || 'Administrator';
-  const fallbackLastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : 'User';
+  const nameParts = (user?.name || '').trim().split(' ').filter(Boolean);
+  const fallbackFirstName = nameParts[0] || '';
+  const fallbackLastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
 
   const defaultPhoto: UploadedFile | null = user?.avatar
     ? { fileName: 'profile_photo.jpg', fileUrl: user.avatar, uploadedDate: new Date().toISOString().split('T')[0] }

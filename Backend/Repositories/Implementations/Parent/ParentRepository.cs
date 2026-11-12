@@ -620,12 +620,79 @@ namespace SMS.Api.Repositories.Implementations.Parent
 
         public async Task<ParentFeePaymentResponseDto> PayFeeAsync(ParentFeePaymentRequestDto request)
         {
-            var receiptNo = $"REC-{DateTime.UtcNow:yyyyMMdd}-{new Random().Next(1000, 9999)}";
+            if (request == null || request.StudentId <= 0 || request.AmountPaid <= 0)
+            {
+                return new ParentFeePaymentResponseDto
+                {
+                    Success = false,
+                    Message = "A valid student and positive payment amount are required."
+                };
+            }
+
             var dateStr = DateTime.UtcNow.ToString("yyyy-MM-dd");
 
             try
             {
+                // Validate outstanding balance before accepting payment
+                var summary = await GetFeeSummaryAsync(request.StudentId);
+                if (summary == null || summary.TotalDue <= 0)
+                {
+                    return new ParentFeePaymentResponseDto
+                    {
+                        Success = false,
+                        Message = "No pending fee dues found for this student."
+                    };
+                }
+
+                if (request.AmountPaid > summary.TotalDue + 0.01m)
+                {
+                    return new ParentFeePaymentResponseDto
+                    {
+                        Success = false,
+                        Message = $"Payment amount (₹{request.AmountPaid:N2}) exceeds remaining due balance of ₹{summary.TotalDue:N2}."
+                    };
+                }
+
+                var selectedIds = request.FeeItemIds != null
+                    ? new HashSet<string>(request.FeeItemIds.Where(id => !string.IsNullOrWhiteSpace(id)), StringComparer.OrdinalIgnoreCase)
+                    : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+                var matchedItems = selectedIds.Count > 0 && summary.FeeItems != null
+                    ? summary.FeeItems.Where(i => selectedIds.Contains(i.FeeId.ToString())).ToList()
+                    : new List<ParentFeeItemDto>();
+
+                string resolvedHeadName = matchedItems.Count > 0
+                    ? string.Join(", ", matchedItems.Select(i => i.FeeHeadName).Distinct())
+                    : "Tuition Fee";
+                string resolvedTerm = matchedItems.Count > 0
+                    ? string.Join(", ", matchedItems.Select(i => i.FeeHeadName).Distinct())
+                    : (request.PaymentType == "Due" ? "Term Payment" : "School Fee Payment");
+
+                // Generate unique receipt number honoring FinanceSettings prefix
+                string prefix = $"REC-{DateTime.UtcNow.Year}-";
+                var settingsRow = await _context.SchoolSettings.AsNoTracking().FirstOrDefaultAsync();
+                if (settingsRow != null && !string.IsNullOrWhiteSpace(settingsRow.FinanceSettingsJson))
+                {
+                    try
+                    {
+                        using var doc = System.Text.Json.JsonDocument.Parse(settingsRow.FinanceSettingsJson);
+                        if (doc.RootElement.TryGetProperty("ReceiptPrefix", out var rp) || doc.RootElement.TryGetProperty("receiptPrefix", out rp))
+                        {
+                            var val = rp.GetString();
+                            if (!string.IsNullOrWhiteSpace(val)) prefix = val;
+                        }
+                    }
+                    catch { }
+                }
+                string uniqueSuffix = $"{DateTime.UtcNow:MMddHHmmss}-{Guid.NewGuid().ToString("N")[..4].ToUpper()}";
+                var receiptNo = $"{prefix}{uniqueSuffix}";
+
                 var studentIdStr = request.StudentId.ToString();
+                var student = await _context.Students.AsNoTracking().FirstOrDefaultAsync(s => s.StudentId == request.StudentId);
+
+                await using var tx = _context.Database.IsRelational()
+                    ? await _context.Database.BeginTransactionAsync()
+                    : null;
 
                 // Record payment in feepayments so Finance module, receipts, and fee profiles see it
                 var feePayment = new FeePayment
@@ -636,15 +703,42 @@ namespace SMS.Api.Repositories.Implementations.Parent
                     PaymentDate = DateTime.UtcNow,
                     PaymentMethod = request.PaymentMode ?? "Online (Credit Card)",
                     Status = "Completed",
-                    TermName = request.PaymentType == "Due" ? "Term Payment" : "School Fee Payment",
-                    FeeHeadName = "Tuition Fee",
+                    TermName = resolvedTerm.Length > 100 ? resolvedTerm[..100] : resolvedTerm,
+                    FeeHeadName = resolvedHeadName.Length > 100 ? resolvedHeadName[..100] : resolvedHeadName,
                     Remarks = $"Online fee payment by Parent. Mode: {request.PaymentMode ?? "Online"}"
                 };
                 await _context.FeePayments.AddAsync(feePayment);
 
-                // Also update any matching StudentFeeAssignments
+                // Sync to General Ledger & FinancialAccount
+                var targetAccount = await _context.FinancialAccounts
+                    .FirstOrDefaultAsync(a => a.Status == "Active" && a.Type != "Cash" && a.Type != "Petty Cash")
+                    ?? await _context.FinancialAccounts.FirstOrDefaultAsync(a => a.Status == "Active");
+
+                if (targetAccount != null)
+                {
+                    targetAccount.CurrentBalance += request.AmountPaid;
+                }
+
+                _context.LedgerEntries.Add(new LedgerEntry
+                {
+                    TransactionDate = feePayment.PaymentDate,
+                    TransactionType = "Fee Payment",
+                    Category = "Income",
+                    ReferenceNo = receiptNo,
+                    FinancialAccountId = targetAccount?.Id,
+                    StudentId = request.StudentId,
+                    AdmissionNo = student?.AdmissionNumber ?? studentIdStr,
+                    Credit = request.AmountPaid,
+                    Debit = 0m,
+                    Balance = targetAccount?.CurrentBalance ?? 0m,
+                    Particulars = $"Online Fee Payment by Parent ({resolvedHeadName}) — Receipt {receiptNo}",
+                    AcademicYearId = student?.AcademicYearId ?? 0,
+                    BranchId = student?.BranchId ?? 0
+                });
+
+                // Update matching StudentFeeAssignments
                 var feeAssignments = await _context.StudentFeeAssignments
-                    .Where(f => f.StudentId == studentIdStr && f.Status == "Active")
+                    .Where(f => f.StudentId == studentIdStr && (f.Status == "Active" || string.IsNullOrEmpty(f.Status)))
                     .ToListAsync();
 
                 if (feeAssignments.Any())
@@ -656,32 +750,38 @@ namespace SMS.Api.Repositories.Implementations.Parent
                         {
                             var payAmount = Math.Min(assignment.DueAmount, remPay);
                             assignment.PaidAmount += payAmount;
-                            assignment.DueAmount -= payAmount;
+                            assignment.DueAmount = Math.Max(0m, assignment.DueAmount - payAmount);
                             remPay -= payAmount;
-                            if (assignment.DueAmount <= 0)
-                            {
-                                assignment.DueAmount = 0;
-                            }
                         }
                     }
                 }
+
                 await _context.SaveChangesAsync();
+                if (tx != null)
+                {
+                    await tx.CommitAsync();
+                }
+
+                return new ParentFeePaymentResponseDto
+                {
+                    Success = true,
+                    Message = "Fee payment processed successfully.",
+                    ReceiptNo = receiptNo,
+                    Date = dateStr,
+                    AmountPaid = request.AmountPaid,
+                    PaymentMode = request.PaymentMode ?? "Online (Credit Card)",
+                    Term = resolvedTerm
+                };
             }
             catch (Exception ex)
             {
                 System.Console.WriteLine($"[ParentRepository] PayFee Exception: {ex.Message}");
+                return new ParentFeePaymentResponseDto
+                {
+                    Success = false,
+                    Message = $"Payment processing failed: {ex.Message}"
+                };
             }
-
-            return new ParentFeePaymentResponseDto
-            {
-                Success = true,
-                Message = "Fee payment processed successfully.",
-                ReceiptNo = receiptNo,
-                Date = dateStr,
-                AmountPaid = request.AmountPaid,
-                PaymentMode = request.PaymentMode ?? "Online (Credit Card)",
-                Term = request.PaymentType == "Due" ? "Term Payment" : "School Fee Payment"
-            };
         }
 
         public async Task<List<ParentTeacherInfoDto>> GetTeachersAsync(int studentId)

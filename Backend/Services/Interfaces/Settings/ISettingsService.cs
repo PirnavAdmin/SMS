@@ -17,8 +17,8 @@ namespace SMS.Api.Services.Interfaces.Settings
         Task<GeneratedIdResponseDto> GenerateNextIdAsync(string type, string? customId = null);
         Task<bool> DeleteCustomIdFormatAsync(string formatKey);
         Task<AutomatedIdFormatDto> AddOrUpdateCustomIdFormatAsync(CustomIdSequenceDto dto);
-        Task<UserProfileDto> GetUserProfileAsync();
-        Task<UserProfileDto> UpdateUserProfileAsync(UserProfileDto dto);
-        Task<string> UploadProfileImageFileAsync(IFormFile file);
+        Task<UserProfileDto> GetUserProfileAsync(string? userId = null, string? email = null, string? mobile = null, string? claimName = null, string? claimRole = null);
+        Task<UserProfileDto> UpdateUserProfileAsync(UserProfileDto dto, string? userId = null, string? claimEmail = null);
+        Task<string> UploadProfileImageFileAsync(IFormFile file, string? userId = null, string? claimEmail = null);
     }
 }

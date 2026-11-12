@@ -1,4 +1,5 @@
 using System;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -201,7 +202,7 @@ namespace SMS.Api.Controllers
         // POST: api/Settings/id-sequences
         [HttpPost("id-sequences")]
         [HttpPut("id-sequences")]
-        [Authorize(Roles = "SuperAdmin,Admin")]
+        [Authorize(Roles = "SuperAdmin,Super Admin,Admin")]
         public async Task<IActionResult> UpdateIdSequences([FromBody] IdSequenceSettingsDto dto)
         {
             if (dto == null) return BadRequest("Invalid ID sequence payload.");
@@ -298,7 +299,12 @@ namespace SMS.Api.Controllers
         {
             try
             {
-                var profile = await _settingsService.GetUserProfileAsync();
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var email = User.FindFirst(ClaimTypes.Email)?.Value;
+                var mobile = User.FindFirst(ClaimTypes.MobilePhone)?.Value;
+                var name = User.FindFirst(ClaimTypes.Name)?.Value;
+                var role = User.FindFirst(ClaimTypes.Role)?.Value;
+                var profile = await _settingsService.GetUserProfileAsync(userId, email, mobile, name, role);
                 return Ok(new
                 {
                     success = true,
@@ -321,7 +327,9 @@ namespace SMS.Api.Controllers
 
             try
             {
-                var updated = await _settingsService.UpdateUserProfileAsync(dto);
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var email = User.FindFirst(ClaimTypes.Email)?.Value;
+                var updated = await _settingsService.UpdateUserProfileAsync(dto, userId, email);
                 return Ok(new
                 {
                     success = true,
@@ -347,7 +355,9 @@ namespace SMS.Api.Controllers
 
             try
             {
-                var avatarUrl = await _settingsService.UploadProfileImageFileAsync(file);
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var email = User.FindFirst(ClaimTypes.Email)?.Value;
+                var avatarUrl = await _settingsService.UploadProfileImageFileAsync(file, userId, email);
                 return Ok(new
                 {
                     success = true,

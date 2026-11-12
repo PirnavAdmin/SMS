@@ -26,23 +26,74 @@ public class FinanceMasterRepository : IFinanceMasterRepository
     // 1. GENERAL LEDGER & TRANSACTIONS (DYNAMIC FROM MYSQL DATABASE)
     // =========================================================================
 
+    private async Task<FinancialAccount?> ResolveFinancialAccountAsync(string? accountHint, string? paymentMode)
+    {
+        var accounts = await _context.FinancialAccounts
+            .Where(a => a.Status == "Active" || string.IsNullOrEmpty(a.Status))
+            .ToListAsync();
+        if (accounts.Count == 0)
+            accounts = await _context.FinancialAccounts.ToListAsync();
+        if (accounts.Count == 0) return null;
+
+        if (!string.IsNullOrWhiteSpace(accountHint))
+        {
+            var matched = accounts.FirstOrDefault(a =>
+                a.Name.Equals(accountHint.Trim(), StringComparison.OrdinalIgnoreCase) ||
+                a.Name.Contains(accountHint.Trim(), StringComparison.OrdinalIgnoreCase));
+            if (matched != null) return matched;
+        }
+
+        bool isCash = string.Equals(paymentMode?.Trim(), "Cash", StringComparison.OrdinalIgnoreCase);
+        if (isCash)
+        {
+            return accounts.FirstOrDefault(a =>
+                a.Type.Contains("Cash", StringComparison.OrdinalIgnoreCase) ||
+                a.Name.Contains("Cash", StringComparison.OrdinalIgnoreCase)) ?? accounts[0];
+        }
+
+        return accounts.FirstOrDefault(a => !a.Type.Contains("Cash", StringComparison.OrdinalIgnoreCase)) ?? accounts[0];
+    }
+
     public async Task<List<FinanceTransactionDto>> GetTransactionsAsync(
         string? search, string? type, string? module, string? category, string? paymentMode, string? status, int page, int pageSize)
     {
         var result = new List<FinanceTransactionDto>();
 
-        // 1. FeePayments -> Income Transactions
-        var payments = await _context.FeePayments.AsNoTracking().ToListAsync();
-        var students = await _context.Students.AsNoTracking()
-            .Include(s => s.ClassGrade)
-            .Include(s => s.ClassSection)
+        var accounts = await _context.FinancialAccounts.AsNoTracking().ToListAsync();
+        var accountNameById = accounts.ToDictionary(a => a.Id, a => a.Name);
+
+        // 1. FeePayments -> Income Transactions (exclude negative refund entries handled in LedgerEntries)
+        var payments = await _context.FeePayments.AsNoTracking()
+            .Where(p => !(p.Amount < 0 && p.Status == "Refunded"))
             .ToListAsync();
+        var students = await _context.Students.AsNoTracking()
+            .Select(s => new
+            {
+                s.StudentId,
+                s.AdmissionNumber,
+                s.StudentName,
+                ClassName = s.ClassGrade != null ? s.ClassGrade.ClassName : string.Empty
+            })
+            .ToListAsync();
+
+        var studentById = students.ToDictionary(s => s.StudentId.ToString(), s => s);
+        var studentByAdm = students
+            .Where(s => !string.IsNullOrWhiteSpace(s.AdmissionNumber))
+            .GroupBy(s => s.AdmissionNumber!)
+            .ToDictionary(g => g.Key, g => g.First());
+
+        var feeReceiptNos = new HashSet<string>(
+            payments.Where(p => !string.IsNullOrWhiteSpace(p.ReceiptNo)).Select(p => p.ReceiptNo),
+            StringComparer.OrdinalIgnoreCase);
 
         foreach (var p in payments)
         {
-            var st = students.FirstOrDefault(s => s.StudentId.ToString() == p.StudentId || s.AdmissionNumber == p.StudentId);
+            var st = (p.StudentId != null && studentById.TryGetValue(p.StudentId, out var byId))
+                ? byId
+                : (p.StudentId != null && studentByAdm.TryGetValue(p.StudentId, out var byAdm) ? byAdm : null);
             string stName = st?.StudentName ?? (p.StudentId != null ? $"Student #{p.StudentId}" : "Student");
-            string cName = st?.ClassGrade?.ClassName ?? string.Empty;
+            string cName = st?.ClassName ?? string.Empty;
+            string txnStatus = (p.Status == "Cancelled" || p.Status == "Reversed") ? p.Status : "Completed";
 
             result.Add(new FinanceTransactionDto
             {
@@ -56,7 +107,7 @@ public class FinanceMasterRepository : IFinanceMasterRepository
                 PaymentMode = p.PaymentMethod ?? "Cash",
                 Account = (p.PaymentMethod == "Cash") ? "School Petty Cash" : "Main Bank Account",
                 TransactionDate = p.PaymentDate,
-                Status = p.Status == "Cancelled" ? "Cancelled" : "Completed",
+                Status = txnStatus,
                 ReferenceNumber = p.TransactionId ?? "",
                 CreatedBy = "Accounts Counter",
                 Branch = string.Empty,
@@ -64,53 +115,73 @@ public class FinanceMasterRepository : IFinanceMasterRepository
             });
         }
 
-        // 2. LedgerEntries -> Manual General Ledger Transactions
-        var dbLedgers = await _context.LedgerEntries.AsNoTracking().ToListAsync();
-        foreach (var l in dbLedgers)
-        {
-            result.Add(new FinanceTransactionDto
-            {
-                Id = 10000 + l.Id,
-                TransactionId = $"TXN-LED-{l.Id:D4}",
-                Type = l.Credit > 0 ? "Income" : "Expense",
-                SourceModule = "Manual",
-                Category = l.Category ?? "General",
-                Description = l.Particulars ?? "Ledger Transaction",
-                Amount = l.Credit > 0 ? l.Credit : l.Debit,
-                PaymentMode = "Bank Transfer",
-                Account = "Main Bank Account",
-                TransactionDate = l.TransactionDate,
-                Status = "Completed",
-                ReferenceNumber = l.ReferenceNo ?? "",
-                CreatedBy = "Admin",
-                Branch = string.Empty,
-                AcademicYear = "2026-2027",
-                Notes = l.Particulars ?? ""
-            });
-        }
-
-        // 3. Expenses -> Expense Transactions
+        // 2. Expenses -> Expense Transactions
         var dbExpenses = await _context.Expenses.AsNoTracking().ToListAsync();
+        var expenseRefs = new HashSet<string>(
+            dbExpenses.Where(e => !string.IsNullOrWhiteSpace(e.ReferenceNo)).Select(e => e.ReferenceNo),
+            StringComparer.OrdinalIgnoreCase);
+
         foreach (var e in dbExpenses)
         {
+            string acctName = e.FinancialAccountId.HasValue && accountNameById.TryGetValue(e.FinancialAccountId.Value, out var an)
+                ? an
+                : (string.Equals(e.PaymentMethod, "Cash", StringComparison.OrdinalIgnoreCase) ? "School Petty Cash" : "Main Bank Account");
+
             result.Add(new FinanceTransactionDto
             {
                 Id = 20000 + e.Id,
                 TransactionId = !string.IsNullOrEmpty(e.ExpenseNo) ? e.ExpenseNo : $"TXN-EXP-{e.Id:D4}",
                 Type = "Expense",
                 SourceModule = "Expense",
-                Category = e.Category ?? "Campus Maintenance & Repairs",
-                Description = e.Description ?? "Campus Expense",
+                Category = !string.IsNullOrWhiteSpace(e.Category) ? e.Category : "Campus Maintenance & Repairs",
+                Description = !string.IsNullOrWhiteSpace(e.Description) ? e.Description : "Campus Expense",
                 Amount = e.Amount,
                 PaymentMode = e.PaymentMethod ?? "Bank Transfer",
-                Account = "Main Bank Account",
+                Account = acctName,
                 TransactionDate = e.Date,
-                Status = e.Status ?? "Completed",
+                Status = e.Status == "Approved" ? "Completed" : (e.Status ?? "Completed"),
                 ReferenceNumber = e.ReferenceNo ?? "",
                 CreatedBy = "Admin",
                 Branch = string.Empty,
                 AcademicYear = "2026-2027",
                 Notes = e.Vendor ?? ""
+            });
+        }
+
+        // 3. LedgerEntries -> Manual/Refund/Contra GL Transactions (skip mirrored FeePayment/Expense rows to prevent double counting)
+        var dbLedgers = await _context.LedgerEntries.AsNoTracking().ToListAsync();
+        foreach (var l in dbLedgers)
+        {
+            if (!string.IsNullOrWhiteSpace(l.ReferenceNo))
+            {
+                if (feeReceiptNos.Contains(l.ReferenceNo)) continue;
+                if (expenseRefs.Contains(l.ReferenceNo)) continue;
+            }
+            if (l.Category == "Fee Refund") continue; // Pending refund requests live in FeeRefundRequests until disbursed
+
+            bool isReversed = (l.Particulars ?? "").Contains("[Reversed", StringComparison.OrdinalIgnoreCase);
+            string acctName = l.FinancialAccountId.HasValue && accountNameById.TryGetValue(l.FinancialAccountId.Value, out var an)
+                ? an
+                : (!string.IsNullOrWhiteSpace(l.AdmissionNo) && !l.StudentId.HasValue ? l.AdmissionNo : "Main Bank Account");
+
+            result.Add(new FinanceTransactionDto
+            {
+                Id = 10000 + l.Id,
+                TransactionId = $"TXN-LED-{l.Id:D4}",
+                Type = l.Credit > 0 ? "Income" : "Expense",
+                SourceModule = string.IsNullOrWhiteSpace(l.TransactionType) ? "Manual" : l.TransactionType,
+                Category = l.Category ?? "General",
+                Description = l.Particulars ?? "Ledger Transaction",
+                Amount = l.Credit > 0 ? l.Credit : l.Debit,
+                PaymentMode = "Bank Transfer",
+                Account = acctName,
+                TransactionDate = l.TransactionDate,
+                Status = isReversed ? "Reversed" : "Completed",
+                ReferenceNumber = l.ReferenceNo ?? "",
+                CreatedBy = "Admin",
+                Branch = string.Empty,
+                AcademicYear = "2026-2027",
+                Notes = l.Particulars ?? ""
             });
         }
 
@@ -165,22 +236,56 @@ public class FinanceMasterRepository : IFinanceMasterRepository
 
     public async Task<FinanceTransactionSummaryDto> GetTransactionSummaryAsync()
     {
-        var allTxns = await GetTransactionsAsync(null, null, null, null, null, null, 1, 10000);
-        decimal inflow = allTxns.Where(t => t.Type == "Income" && t.Status != "Cancelled" && t.Status != "Reversed").Sum(t => t.Amount);
-        decimal outflow = allTxns.Where(t => t.Type == "Expense" && t.Status != "Cancelled" && t.Status != "Reversed").Sum(t => t.Amount);
-        decimal net = inflow - outflow;
-
         DateTime today = DateTime.UtcNow.Date;
-        decimal todayInflow = allTxns
-            .Where(t => t.Type == "Income" && t.TransactionDate.Date == today && t.Status == "Completed")
-            .Sum(t => t.Amount);
+
+        var validPayments = _context.FeePayments.AsNoTracking()
+            .Where(p => p.Status != "Cancelled" && p.Status != "Reversed" && !(p.Amount < 0 && p.Status == "Refunded"));
+
+        decimal feeInflow = await validPayments.SumAsync(p => p.Amount);
+        decimal todayFeeInflow = await validPayments
+            .Where(p => p.PaymentDate >= today && p.PaymentDate < today.AddDays(1))
+            .SumAsync(p => p.Amount);
+
+        var activeExpenses = _context.Expenses.AsNoTracking()
+            .Where(e => e.Status != "Cancelled" && e.Status != "Reversed" && e.Status != "Rejected");
+        decimal expenseOutflow = await activeExpenses.SumAsync(e => e.Amount);
+
+        var feeReceipts = await _context.FeePayments.AsNoTracking()
+            .Where(p => !string.IsNullOrEmpty(p.ReceiptNo))
+            .Select(p => p.ReceiptNo)
+            .ToListAsync();
+        var expenseRefs = await _context.Expenses.AsNoTracking()
+            .Where(e => !string.IsNullOrEmpty(e.ReferenceNo))
+            .Select(e => e.ReferenceNo)
+            .ToListAsync();
+
+        var excludedRefs = new HashSet<string>(feeReceipts.Concat(expenseRefs), StringComparer.OrdinalIgnoreCase);
+
+        var ledgers = await _context.LedgerEntries.AsNoTracking()
+            .Where(l => l.Category != "Fee Refund")
+            .Select(l => new { l.ReferenceNo, l.Credit, l.Debit, l.TransactionDate, l.Particulars })
+            .ToListAsync();
+
+        var standaloneLedgers = ledgers
+            .Where(l => (string.IsNullOrWhiteSpace(l.ReferenceNo) || !excludedRefs.Contains(l.ReferenceNo)) &&
+                        !(l.Particulars ?? "").Contains("[Reversed", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        decimal manualInflow = standaloneLedgers.Sum(l => l.Credit);
+        decimal todayManualInflow = standaloneLedgers
+            .Where(l => l.TransactionDate.Date == today)
+            .Sum(l => l.Credit);
+        decimal manualOutflow = standaloneLedgers.Sum(l => l.Debit);
+
+        decimal inflow = feeInflow + manualInflow;
+        decimal outflow = expenseOutflow + manualOutflow;
 
         return new FinanceTransactionSummaryDto
         {
             TotalInflow = inflow,
             TotalOutflow = outflow,
-            NetBalance = net,
-            TodayInflow = todayInflow,
+            NetBalance = inflow - outflow,
+            TodayInflow = todayFeeInflow + todayManualInflow,
             PendingClearances = 0m
         };
     }
@@ -194,53 +299,75 @@ public class FinanceMasterRepository : IFinanceMasterRepository
             if (dbBr != null) branchId = dbBr.BranchId;
         }
 
+        DateTime txnDate = DateTime.TryParse(request.TransactionDate, out var dt) ? dt : DateTime.UtcNow;
+        var targetAccount = await ResolveFinancialAccountAsync(request.Account, request.PaymentMode);
+        bool isExpense = string.Equals(request.Type, "Expense", StringComparison.OrdinalIgnoreCase);
+        string refNo = $"REF-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..5].ToUpper()}";
+
+        await using var tx = _context.Database.IsRelational()
+            ? await _context.Database.BeginTransactionAsync()
+            : null;
+
+        if (targetAccount != null)
+        {
+            targetAccount.CurrentBalance += isExpense ? -request.Amount : request.Amount;
+        }
+
         var ledgerEntry = new LedgerEntry
         {
-            TransactionDate = DateTime.TryParse(request.TransactionDate, out var dt) ? dt : DateTime.UtcNow,
-            TransactionType = request.SourceModule ?? "Manual",
-            Category = !string.IsNullOrWhiteSpace(request.Category) ? request.Category : (request.Type == "Income" ? "Income" : "Expense"),
-            Particulars = request.Description ?? "Manual Transaction",
-            Credit = request.Type == "Income" ? request.Amount : 0m,
-            Debit = request.Type == "Expense" ? request.Amount : 0m,
-            ReferenceNo = $"REF-{Random.Shared.Next(10000, 99999)}",
-            AdmissionNo = request.Account ?? "Main Bank Account",
+            TransactionDate = txnDate,
+            TransactionType = string.IsNullOrWhiteSpace(request.SourceModule) ? "Manual" : request.SourceModule,
+            Category = !string.IsNullOrWhiteSpace(request.Category) ? request.Category : (isExpense ? "Expense" : "Income"),
+            Particulars = !string.IsNullOrWhiteSpace(request.Description) ? request.Description : "Manual Transaction",
+            FinancialAccountId = targetAccount?.Id,
+            Credit = isExpense ? 0m : request.Amount,
+            Debit = isExpense ? request.Amount : 0m,
+            Balance = targetAccount?.CurrentBalance ?? 0m,
+            ReferenceNo = refNo,
+            AdmissionNo = targetAccount?.Name ?? request.Account ?? "Main Bank Account",
             BranchId = branchId
         };
 
         _context.LedgerEntries.Add(ledgerEntry);
 
-        if (request.Type == "Expense")
+        Expense? createdExpense = null;
+        if (isExpense)
         {
-            var expense = new Expense
+            createdExpense = new Expense
             {
-                ExpenseNo = $"EXP-{DateTime.UtcNow:yyyyMMdd}-{Random.Shared.Next(1000, 9999)}",
-                Date = ledgerEntry.TransactionDate,
+                ExpenseNo = $"EXP-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..4].ToUpper()}",
+                Date = txnDate,
                 Category = !string.IsNullOrWhiteSpace(request.Category) ? request.Category : "General",
-                Vendor = request.Description ?? "General Vendor",
-                Description = request.Description ?? "Manual Expense Entry",
+                Vendor = !string.IsNullOrWhiteSpace(request.Description) ? request.Description : "General Vendor",
+                Description = !string.IsNullOrWhiteSpace(request.Description) ? request.Description : "Manual Expense Entry",
                 Amount = request.Amount,
+                FinancialAccountId = targetAccount?.Id,
                 PaymentMethod = request.PaymentMode ?? "Bank Transfer",
-                ReferenceNo = ledgerEntry.ReferenceNo,
+                ReferenceNo = refNo,
                 Status = "Approved",
                 BranchId = branchId,
                 CreatedAt = DateTime.UtcNow
             };
-            _context.Expenses.Add(expense);
+            _context.Expenses.Add(createdExpense);
         }
 
         await _context.SaveChangesAsync();
+        if (tx != null)
+        {
+            await tx.CommitAsync();
+        }
 
         return new FinanceTransactionDto
         {
-            Id = 10000 + ledgerEntry.Id,
-            TransactionId = $"TXN-LED-{ledgerEntry.Id:D4}",
-            Type = request.Type ?? "Income",
-            SourceModule = request.SourceModule ?? "Manual",
+            Id = createdExpense != null ? (20000 + createdExpense.Id) : (10000 + ledgerEntry.Id),
+            TransactionId = createdExpense != null ? createdExpense.ExpenseNo : $"TXN-LED-{ledgerEntry.Id:D4}",
+            Type = isExpense ? "Expense" : "Income",
+            SourceModule = createdExpense != null ? "Expense" : (request.SourceModule ?? "Manual"),
             Category = request.Category ?? "General",
             Description = ledgerEntry.Particulars,
             Amount = request.Amount,
             PaymentMode = request.PaymentMode ?? "Bank Transfer",
-            Account = request.Account ?? "Main Bank Account",
+            Account = targetAccount?.Name ?? request.Account ?? "Main Bank Account",
             TransactionDate = ledgerEntry.TransactionDate,
             Status = "Completed",
             ReferenceNumber = ledgerEntry.ReferenceNo,
@@ -254,40 +381,141 @@ public class FinanceMasterRepository : IFinanceMasterRepository
 
     public async Task<bool> ReverseTransactionAsync(int id, ReverseTransactionRequestDto request)
     {
+        await using var tx = _context.Database.IsRelational()
+            ? await _context.Database.BeginTransactionAsync()
+            : null;
+
         if (id >= 10000 && id < 20000)
         {
             int realId = id - 10000;
             var entry = await _context.LedgerEntries.FirstOrDefaultAsync(l => l.Id == realId);
-            if (entry != null)
+            if (entry == null) return false;
+            if ((entry.Particulars ?? "").Contains("[Reversed", StringComparison.OrdinalIgnoreCase)) return false;
+
+            entry.Particulars = $"{entry.Particulars} [Reversed: {request.ReversalReason} by {request.AuthorizedBy}]".Trim();
+
+            var acct = entry.FinancialAccountId.HasValue
+                ? await _context.FinancialAccounts.FirstOrDefaultAsync(a => a.Id == entry.FinancialAccountId.Value)
+                : await ResolveFinancialAccountAsync(entry.AdmissionNo, null);
+            if (acct != null)
             {
-                entry.Particulars = $"{entry.Particulars} [Reversed: {request.ReversalReason} by {request.AuthorizedBy}]".Trim();
-                await _context.SaveChangesAsync();
-                return true;
+                acct.CurrentBalance += entry.Debit - entry.Credit;
             }
+
+            _context.LedgerEntries.Add(new LedgerEntry
+            {
+                TransactionDate = DateTime.UtcNow,
+                TransactionType = "Reversal",
+                Category = entry.Category,
+                ReferenceNo = $"REV-{entry.ReferenceNo}",
+                FinancialAccountId = acct?.Id,
+                StudentId = entry.StudentId,
+                AdmissionNo = entry.AdmissionNo,
+                Credit = entry.Debit,
+                Debit = entry.Credit,
+                Balance = acct?.CurrentBalance ?? 0m,
+                Particulars = $"Contra Reversal for TXN-LED-{realId:D4} ({request.ReversalReason})",
+                AcademicYearId = entry.AcademicYearId,
+                BranchId = entry.BranchId
+            });
+
+            if (!string.IsNullOrWhiteSpace(entry.ReferenceNo))
+            {
+                var pairedExp = await _context.Expenses.FirstOrDefaultAsync(e => e.ReferenceNo == entry.ReferenceNo && e.Status != "Reversed");
+                if (pairedExp != null) pairedExp.Status = "Reversed";
+            }
+
+            await _context.SaveChangesAsync();
+            if (tx != null) await tx.CommitAsync();
+            return true;
         }
         else if (id >= 20000)
         {
             int realId = id - 20000;
             var exp = await _context.Expenses.FirstOrDefaultAsync(e => e.Id == realId);
-            if (exp != null)
+            if (exp == null || exp.Status == "Reversed" || exp.Status == "Cancelled") return false;
+
+            exp.Status = "Reversed";
+            var acct = exp.FinancialAccountId.HasValue
+                ? await _context.FinancialAccounts.FirstOrDefaultAsync(a => a.Id == exp.FinancialAccountId.Value)
+                : await ResolveFinancialAccountAsync(null, exp.PaymentMethod);
+            if (acct != null)
             {
-                exp.Status = "Reversed";
-                await _context.SaveChangesAsync();
-                return true;
+                acct.CurrentBalance += exp.Amount;
             }
+
+            if (!string.IsNullOrWhiteSpace(exp.ReferenceNo))
+            {
+                var pairedLedgers = await _context.LedgerEntries
+                    .Where(l => l.ReferenceNo == exp.ReferenceNo && !(l.Particulars ?? "").Contains("[Reversed"))
+                    .ToListAsync();
+                foreach (var pl in pairedLedgers)
+                {
+                    pl.Particulars = $"{pl.Particulars} [Reversed: {request.ReversalReason} by {request.AuthorizedBy}]".Trim();
+                }
+            }
+
+            _context.LedgerEntries.Add(new LedgerEntry
+            {
+                TransactionDate = DateTime.UtcNow,
+                TransactionType = "Reversal",
+                Category = exp.Category,
+                ReferenceNo = $"REV-{(!string.IsNullOrWhiteSpace(exp.ExpenseNo) ? exp.ExpenseNo : exp.Id.ToString())}",
+                FinancialAccountId = acct?.Id,
+                Credit = exp.Amount,
+                Debit = 0m,
+                Balance = acct?.CurrentBalance ?? 0m,
+                Particulars = $"Expense Reversal ({exp.ExpenseNo}): {request.ReversalReason}",
+                AcademicYearId = exp.AcademicYearId,
+                BranchId = exp.BranchId
+            });
+
+            await _context.SaveChangesAsync();
+            if (tx != null) await tx.CommitAsync();
+            return true;
         }
         else
         {
             var p = await _context.FeePayments.FirstOrDefaultAsync(fp => fp.Id == id);
-            if (p != null)
+            if (p == null || p.Status == "Cancelled" || p.Status == "Reversed") return false;
+
+            p.Status = "Cancelled";
+            p.Remarks = $"{p.Remarks} [Reversed: {request.ReversalReason} by {request.AuthorizedBy}]".Trim();
+
+            var assignment = await _context.StudentFeeAssignments
+                .FirstOrDefaultAsync(a => a.StudentId == p.StudentId && (a.Status == "Active" || string.IsNullOrEmpty(a.Status)));
+            if (assignment != null && p.Amount > 0)
             {
-                p.Status = "Cancelled";
-                p.Remarks = $"{p.Remarks} [Reversed: {request.ReversalReason} by {request.AuthorizedBy}]".Trim();
-                await _context.SaveChangesAsync();
-                return true;
+                assignment.PaidAmount = Math.Max(0m, assignment.PaidAmount - p.Amount);
+                assignment.DueAmount = Math.Max(0m, assignment.TotalAmount - assignment.PaidAmount);
             }
+
+            var acct = await ResolveFinancialAccountAsync(null, p.PaymentMethod);
+            if (acct != null && p.Amount > 0)
+            {
+                acct.CurrentBalance -= p.Amount;
+            }
+
+            int.TryParse(p.StudentId, out int sId);
+            _context.LedgerEntries.Add(new LedgerEntry
+            {
+                TransactionDate = DateTime.UtcNow,
+                TransactionType = "Reversal",
+                Category = "Tuition & Academic Fees",
+                ReferenceNo = $"REV-{p.ReceiptNo}",
+                FinancialAccountId = acct?.Id,
+                StudentId = sId > 0 ? sId : null,
+                AdmissionNo = p.StudentId,
+                Debit = p.Amount > 0 ? p.Amount : 0m,
+                Credit = 0m,
+                Balance = acct?.CurrentBalance ?? 0m,
+                Particulars = $"Receipt Reversal ({p.ReceiptNo}): {request.ReversalReason}"
+            });
+
+            await _context.SaveChangesAsync();
+            if (tx != null) await tx.CommitAsync();
+            return true;
         }
-        return false;
     }
 
     // =========================================================================
@@ -378,132 +606,147 @@ public class FinanceMasterRepository : IFinanceMasterRepository
 
     public async Task<List<FinancialCategoryDto>> GetCategoriesAsync(string? type)
     {
+        var dbCategories = await _context.FinancialCategories.AsNoTracking().OrderBy(c => c.Id).ToListAsync();
         var feeHeadCats = await _context.FeeHeads.AsNoTracking().Select(f => f.Category).Where(c => !string.IsNullOrEmpty(c)).Distinct().ToListAsync();
         var expenseCats = await _context.Expenses.AsNoTracking().Select(e => e.Category).Where(c => !string.IsNullOrEmpty(c)).Distinct().ToListAsync();
 
-        var categoriesList = new List<FinancialCategoryDto>();
-        int idCounter = 1;
+        var categoriesList = dbCategories.Select(c => new FinancialCategoryDto
+        {
+            Id = c.Id,
+            Name = c.Name,
+            Type = c.Type,
+            SourceModule = c.SourceModule,
+            Status = c.Status,
+            IsSystem = c.IsSystem
+        }).ToList();
+
+        var existingNames = categoriesList
+            .Select(c => $"{c.Type}:{c.Name}".ToLowerInvariant())
+            .ToHashSet();
+
+        // Synthetic system defaults use negative IDs so they never collide with persisted financial_categories rows.
+        int syntheticId = -1;
 
         var systemIncome = new[] { "Tuition & Academic Fees", "Transport Fees", "Hostel & Residence Fees", "Uniform & Supplies Fees", "Donations & Grants" };
-        foreach (var name in systemIncome.Concat(feeHeadCats).Distinct())
+        foreach (var name in systemIncome.Concat(feeHeadCats).Distinct(StringComparer.OrdinalIgnoreCase))
         {
+            if (string.Equals(name, "Expense", StringComparison.OrdinalIgnoreCase)) continue;
+            if (existingNames.Contains($"income:{name}".ToLowerInvariant())) continue;
             categoriesList.Add(new FinancialCategoryDto
             {
-                Id = idCounter++,
+                Id = syntheticId--,
                 Name = name,
                 Type = "Income",
-                SourceModule = name.Contains("Transport") ? "Transport" : name.Contains("Hostel") ? "Hostel" : name.Contains("Uniform") ? "Uniform" : "Fees",
+                SourceModule = name.Contains("Transport", StringComparison.OrdinalIgnoreCase) ? "Transport"
+                    : name.Contains("Hostel", StringComparison.OrdinalIgnoreCase) ? "Hostel"
+                    : name.Contains("Uniform", StringComparison.OrdinalIgnoreCase) ? "Uniform" : "Fees",
                 Status = "Active",
                 IsSystem = true
             });
         }
 
         var systemExpense = new[] { "Staff Salaries & Payroll", "Campus Maintenance & Repairs", "Utilities & Facilities" };
-        foreach (var name in systemExpense.Concat(expenseCats).Distinct())
+        foreach (var name in systemExpense.Concat(expenseCats).Distinct(StringComparer.OrdinalIgnoreCase))
         {
+            if (existingNames.Contains($"expense:{name}".ToLowerInvariant())) continue;
             categoriesList.Add(new FinancialCategoryDto
             {
-                Id = idCounter++,
+                Id = syntheticId--,
                 Name = name,
                 Type = "Expense",
-                SourceModule = name.Contains("Salaries") || name.Contains("Payroll") ? "Payroll" : "Expense",
+                SourceModule = name.Contains("Salaries", StringComparison.OrdinalIgnoreCase) || name.Contains("Payroll", StringComparison.OrdinalIgnoreCase) ? "Payroll" : "Expense",
                 Status = "Active",
                 IsSystem = true
             });
         }
 
-        var list = categoriesList.AsQueryable();
+        IEnumerable<FinancialCategoryDto> filtered = categoriesList;
         if (!string.IsNullOrWhiteSpace(type) && !type.Equals("ALL", StringComparison.OrdinalIgnoreCase))
-            list = list.Where(c => c.Type.Equals(type, StringComparison.OrdinalIgnoreCase));
+            filtered = filtered.Where(c => c.Type.Equals(type, StringComparison.OrdinalIgnoreCase));
 
-        return list.ToList();
+        return filtered.ToList();
     }
 
     public async Task<FinancialCategoryDto> CreateCategoryAsync(FinancialCategoryDto category)
     {
-        var feeHead = new FeeHead
+        var entity = new FinancialCategory
         {
-            Name = category.Name,
-            Category = category.Type == "Expense" ? "Expense" : "General",
-            Frequency = "Annual",
-            Mandatory = true,
-            DefaultAmount = 0m,
-            Status = "Active"
+            Name = category.Name?.Trim() ?? string.Empty,
+            Type = string.IsNullOrWhiteSpace(category.Type) ? "Income" : category.Type.Trim(),
+            SourceModule = string.IsNullOrWhiteSpace(category.SourceModule) ? "Manual" : category.SourceModule.Trim(),
+            Status = string.IsNullOrWhiteSpace(category.Status) ? "Active" : category.Status.Trim(),
+            IsSystem = false,
+            CreatedAt = DateTime.UtcNow
         };
-        _context.FeeHeads.Add(feeHead);
+        _context.FinancialCategories.Add(entity);
         await _context.SaveChangesAsync();
-        category.Id = feeHead.Id;
-        return category;
+
+        return new FinancialCategoryDto
+        {
+            Id = entity.Id,
+            Name = entity.Name,
+            Type = entity.Type,
+            SourceModule = entity.SourceModule,
+            Status = entity.Status,
+            IsSystem = entity.IsSystem
+        };
     }
 
     public async Task<bool> UpdateCategoryAsync(int id, FinancialCategoryDto category)
     {
-        var feeHead = await _context.FeeHeads.FirstOrDefaultAsync(f => f.Id == id);
-        if (feeHead != null)
-        {
-            feeHead.Name = category.Name;
-            feeHead.Category = category.Type ?? feeHead.Category;
-            await _context.SaveChangesAsync();
-            return true;
-        }
+        if (id <= 0) return false;
+        var existing = await _context.FinancialCategories.FirstOrDefaultAsync(c => c.Id == id);
+        if (existing == null || existing.IsSystem) return false;
+
+        if (!string.IsNullOrWhiteSpace(category.Name)) existing.Name = category.Name.Trim();
+        if (!string.IsNullOrWhiteSpace(category.Type)) existing.Type = category.Type.Trim();
+        if (!string.IsNullOrWhiteSpace(category.SourceModule)) existing.SourceModule = category.SourceModule.Trim();
+        if (!string.IsNullOrWhiteSpace(category.Status)) existing.Status = category.Status.Trim();
+
+        await _context.SaveChangesAsync();
         return true;
     }
 
     public async Task<bool> DeleteCategoryAsync(int id)
     {
-        var feeHead = await _context.FeeHeads.FirstOrDefaultAsync(f => f.Id == id);
-        if (feeHead != null)
-        {
-            var headIdStr = id.ToString();
-            var headName = feeHead.Name?.Trim();
+        if (id <= 0) return false;
+        var existing = await _context.FinancialCategories.FirstOrDefaultAsync(c => c.Id == id);
+        if (existing == null || existing.IsSystem) return false;
 
-            var structures = await _context.DynamicFeeStructures.ToListAsync();
-            foreach (var s in structures)
-            {
-                if (string.IsNullOrWhiteSpace(s.ItemsJson))
-                    continue;
-
-                try
-                {
-                    var items = JsonSerializer.Deserialize<List<FeeStructureItemDto>>(s.ItemsJson);
-                    if (items != null && items.Count > 0)
-                    {
-                        var remainingItems = items.Where(i =>
-                            !string.Equals(i.FeeHeadId, headIdStr, StringComparison.OrdinalIgnoreCase) &&
-                            (string.IsNullOrEmpty(headName) || !string.Equals(i.FeeHeadName?.Trim(), headName, StringComparison.OrdinalIgnoreCase))
-                        ).ToList();
-
-                        if (remainingItems.Count != items.Count)
-                        {
-                            var cat = (s.TargetAudience ?? "").Trim().ToLowerInvariant();
-                            bool isTuitionOrOthers = cat == "" || cat == "tuition" || cat == "tuition fee" || cat == "others" || cat == "other" || cat == "general";
-
-                            if (remainingItems.Count == 0 && isTuitionOrOthers)
-                            {
-                                _context.DynamicFeeStructures.Remove(s);
-                            }
-                            else
-                            {
-                                s.ItemsJson = JsonSerializer.Serialize(remainingItems);
-                                s.TotalAmount = remainingItems.Sum(x => x.Amount);
-                                _context.DynamicFeeStructures.Update(s);
-                            }
-                        }
-                    }
-                }
-                catch { }
-            }
-
-            _context.FeeHeads.Remove(feeHead);
-            await _context.SaveChangesAsync();
-            return true;
-        }
+        _context.FinancialCategories.Remove(existing);
+        await _context.SaveChangesAsync();
         return true;
     }
 
     // =========================================================================
     // 3. BUDGETS
     // =========================================================================
+
+    private static (DateTime Start, DateTime End)? ParseAcademicYearDateRange(string? academicYear)
+    {
+        if (string.IsNullOrWhiteSpace(academicYear) ||
+            academicYear.Equals("ALL", StringComparison.OrdinalIgnoreCase))
+            return null;
+
+        var parts = academicYear.Trim().Split('-', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (parts.Length >= 1 && int.TryParse(parts[0], out int startYear) && startYear >= 2000 && startYear <= 2100)
+        {
+            int endYear = startYear + 1;
+            if (parts.Length >= 2 && int.TryParse(parts[1], out int parsedSecond))
+            {
+                endYear = parsedSecond < 100 ? (startYear / 100) * 100 + parsedSecond : parsedSecond;
+            }
+            else if (parts.Length == 1)
+            {
+                return (new DateTime(startYear, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                        new DateTime(startYear, 12, 31, 23, 59, 59, DateTimeKind.Utc));
+            }
+            return (new DateTime(startYear, 4, 1, 0, 0, 0, DateTimeKind.Utc),
+                    new DateTime(endYear, 3, 31, 23, 59, 59, DateTimeKind.Utc));
+        }
+
+        return null;
+    }
 
     public async Task<List<FinancialBudgetDto>> GetBudgetsAsync(string? branch, string? academicYear)
     {
@@ -526,18 +769,16 @@ public class FinanceMasterRepository : IFinanceMasterRepository
             return new List<FinancialBudgetDto>();
         }
 
-        // Fetch real expenses, ledger entries, and payslips to aggregate actual consumed amounts
         var expensesQuery = _context.Expenses.AsNoTracking()
             .Where(e => e.Status != "Cancelled" && e.Status != "Reversed" && e.Status != "Rejected");
 
         var ledgerQuery = _context.LedgerEntries.AsNoTracking()
-            .Where(l => l.Debit > 0 && !l.Particulars.Contains("[Reversed"));
+            .Where(l => l.Debit > 0 && l.TransactionType != "Reversal" && !l.Particulars.Contains("[Reversed"));
 
         var payslipsQuery = _context.Payslips.AsNoTracking()
             .Where(p => p.Status == "Paid" || p.Status == "Disbursed");
 
-        // Filter by branch if specific branch provided
-        if (!string.IsNullOrWhiteSpace(branch) && !branch.Equals("All", StringComparison.OrdinalIgnoreCase))
+        if (!string.IsNullOrWhiteSpace(branch) && !branch.Equals("All", StringComparison.OrdinalIgnoreCase) && !branch.Equals("All Branches", StringComparison.OrdinalIgnoreCase))
         {
             var matchedBranch = await _context.Branches.AsNoTracking()
                 .FirstOrDefaultAsync(b => b.BranchName == branch);
@@ -553,31 +794,63 @@ public class FinanceMasterRepository : IFinanceMasterRepository
         var ledgerList = await ledgerQuery.ToListAsync();
         var payslipsList = await payslipsQuery.ToListAsync();
 
+        // Deduplicate ledger entries that already mirror a persisted Expense row
+        var expenseRefs = expensesList
+            .Select(e => e.ReferenceNo)
+            .Where(r => !string.IsNullOrWhiteSpace(r))
+            .Concat(expensesList.Select(e => $"EXP-{e.Id}"))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var manualLedgerList = ledgerList
+            .Where(l => string.IsNullOrWhiteSpace(l.ReferenceNo) || !expenseRefs.Contains(l.ReferenceNo))
+            .ToList();
+
         var result = new List<FinancialBudgetDto>();
 
         foreach (var b in dbBudgets)
         {
+            var ayRange = ParseAcademicYearDateRange(b.AcademicYear) ?? ParseAcademicYearDateRange(academicYear);
+
+            var scopedExpenses = ayRange.HasValue
+                ? expensesList.Where(e => e.Date >= ayRange.Value.Start && e.Date <= ayRange.Value.End)
+                : expensesList;
+
+            var scopedLedger = ayRange.HasValue
+                ? manualLedgerList.Where(l => l.TransactionDate >= ayRange.Value.Start && l.TransactionDate <= ayRange.Value.End)
+                : manualLedgerList;
+
             bool isPayroll = b.CategoryName.Contains("Salaries", StringComparison.OrdinalIgnoreCase) ||
                              b.CategoryName.Contains("Salary", StringComparison.OrdinalIgnoreCase) ||
                              b.CategoryName.Contains("Payroll", StringComparison.OrdinalIgnoreCase);
 
-            decimal catExpenses = expensesList
+            decimal catExpenses = scopedExpenses
                 .Where(e => string.Equals(e.Category, b.CategoryName, StringComparison.OrdinalIgnoreCase) ||
                             (!string.IsNullOrEmpty(e.Description) && e.Description.Contains(b.CategoryName, StringComparison.OrdinalIgnoreCase)))
                 .Sum(e => e.Amount);
 
-            decimal catLedger = ledgerList
+            decimal catManualLedger = scopedLedger
                 .Where(l => string.Equals(l.Particulars, b.CategoryName, StringComparison.OrdinalIgnoreCase) ||
                             string.Equals(l.Category, b.CategoryName, StringComparison.OrdinalIgnoreCase) ||
                             (!string.IsNullOrEmpty(l.Particulars) && l.Particulars.Contains(b.CategoryName, StringComparison.OrdinalIgnoreCase)))
                 .Sum(l => l.Debit);
 
-            decimal consumed = Math.Max(catExpenses, catLedger);
+            decimal consumed = catExpenses + catManualLedger;
 
             if (isPayroll)
             {
-                var payrollSum = payslipsList.Sum(p => p.NetPay);
-                consumed += payrollSum;
+                var scopedPayslips = ayRange.HasValue
+                    ? payslipsList.Where(p =>
+                    {
+                        int year = Math.Clamp(p.Year, 2000, 2100);
+                        DateTime payDate = DateTime.TryParse($"{p.Month} 1, {year}", out var parsed)
+                            ? parsed
+                            : (int.TryParse(p.Month, out int mNum) && mNum >= 1 && mNum <= 12
+                                ? new DateTime(year, mNum, 1, 0, 0, 0, DateTimeKind.Utc)
+                                : new DateTime(year, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+                        return payDate >= ayRange.Value.Start && payDate <= ayRange.Value.End;
+                    })
+                    : payslipsList;
+                consumed += scopedPayslips.Sum(p => p.NetPay);
             }
 
             result.Add(new FinancialBudgetDto
@@ -667,97 +940,157 @@ public class FinanceMasterRepository : IFinanceMasterRepository
 
     public async Task<List<FeeRefundRequestDto>> GetRefundRequestsAsync(string? status)
     {
-        var dbRefunds = await _context.LedgerEntries.AsNoTracking()
-            .Where(l => l.Category == "Fee Refund")
-            .ToListAsync();
-
-        var list = new List<FeeRefundRequestDto>();
-        foreach (var r in dbRefunds)
+        var query = _context.FeeRefundRequests.AsNoTracking().AsQueryable();
+        if (!string.IsNullOrWhiteSpace(status) && !status.Equals("ALL", StringComparison.OrdinalIgnoreCase))
         {
-            int sId = r.StudentId ?? 0;
-            list.Add(new FeeRefundRequestDto
-            {
-                Id = r.Id,
-                RefundRequestId = $"RF-2026-{r.Id:D3}",
-                RefundNo = $"RF-2026-{r.Id:D3}",
-                ReceiptNo = r.ReferenceNo ?? "",
-                StudentId = sId,
-                AdmissionNo = r.AdmissionNo ?? "",
-                StudentName = r.Particulars ?? "Student",
-                ClassName = "Class 10",
-                Section = "A",
-                RefundAmount = r.Debit > 0 ? r.Debit : r.Credit,
-                Reason = r.Particulars ?? "Scholarship Adjustment",
-                Status = "Pending",
-                RequestedBy = "Admin",
-                RequestedDate = r.TransactionDate,
-                PaymentMode = "Bank Transfer",
-                Remarks = r.Particulars ?? ""
-            });
+            string normalized = status.Trim();
+            query = query.Where(r => r.Status.ToLower() == normalized.ToLower());
         }
 
-        if (!string.IsNullOrWhiteSpace(status) && !status.Equals("ALL", StringComparison.OrdinalIgnoreCase))
-            list = list.Where(r => r.Status.Equals(status, StringComparison.OrdinalIgnoreCase)).ToList();
+        var dbRefunds = await query.OrderByDescending(r => r.RequestedDate).ToListAsync();
 
-        return list.OrderByDescending(r => r.RequestedDate).ToList();
+        return dbRefunds.Select(r => new FeeRefundRequestDto
+        {
+            Id = r.Id,
+            RefundRequestId = r.RefundNo,
+            RefundNo = r.RefundNo,
+            ReceiptNo = r.ReceiptNo,
+            StudentId = r.StudentId,
+            AdmissionNo = r.AdmissionNo,
+            StudentName = r.StudentName,
+            ClassName = r.ClassName,
+            Section = r.Section,
+            RefundAmount = r.RefundAmount,
+            Reason = r.Reason,
+            Status = r.Status,
+            RequestedBy = r.RequestedBy,
+            ApprovedBy = r.ApprovedBy,
+            RequestedDate = r.RequestedDate,
+            ProcessedDate = r.ProcessedDate,
+            PaymentMode = r.PaymentMode,
+            Remarks = r.Remarks
+        }).ToList();
     }
 
     public async Task<FeeRefundRequestDto> CreateRefundRequestAsync(CreateRefundRequestDto request)
     {
+        if (request.RefundAmount <= 0)
+            throw new ArgumentException("Refund amount must be greater than zero.", nameof(request));
+
         var st = await _context.Students.AsNoTracking()
             .Include(s => s.ClassGrade)
-            .FirstOrDefaultAsync(s => s.StudentId == request.StudentId || (s.AdmissionNumber != null && s.AdmissionNumber == request.AdmissionNo));
+            .Include(s => s.ClassSection)
+            .FirstOrDefaultAsync(s => s.StudentId == request.StudentId || (!string.IsNullOrEmpty(request.AdmissionNo) && s.AdmissionNumber == request.AdmissionNo));
 
         string stName = !string.IsNullOrWhiteSpace(request.StudentName) ? request.StudentName : (st?.StudentName ?? $"Student #{request.StudentId}");
         string clsName = !string.IsNullOrWhiteSpace(request.ClassName) ? request.ClassName : (st?.ClassGrade?.ClassName ?? string.Empty);
+        string sectionName = !string.IsNullOrWhiteSpace(request.Section) ? request.Section : (st?.ClassSection?.SectionName ?? string.Empty);
 
-        var refundEntry = new LedgerEntry
+        var entity = new FeeRefundRequest
         {
-            TransactionDate = DateTime.UtcNow,
-            TransactionType = "Refund",
-            Category = "Fee Refund",
-            Particulars = $"Refund to {stName} ({clsName}) — {request.Reason}",
-            Debit = request.RefundAmount,
-            Credit = 0m,
-            ReferenceNo = request.ReceiptNo ?? "",
-            StudentId = request.StudentId,
-            AdmissionNo = request.AdmissionNo ?? st?.AdmissionNumber ?? ""
+            RefundNo = $"RF-{DateTime.UtcNow.Year}-{Random.Shared.Next(1000, 9999)}",
+            ReceiptNo = request.ReceiptNo ?? string.Empty,
+            StudentId = st?.StudentId ?? request.StudentId,
+            AdmissionNo = request.AdmissionNo ?? st?.AdmissionNumber ?? string.Empty,
+            StudentName = stName,
+            ClassName = clsName,
+            Section = sectionName,
+            RefundAmount = request.RefundAmount,
+            Reason = request.Reason ?? string.Empty,
+            Status = "Pending",
+            RequestedBy = "Admin",
+            ApprovedBy = string.Empty,
+            RequestedDate = DateTime.UtcNow,
+            PaymentMode = string.IsNullOrWhiteSpace(request.PaymentMode) ? "Bank Transfer" : request.PaymentMode,
+            Remarks = request.Remarks ?? string.Empty
         };
 
-        _context.LedgerEntries.Add(refundEntry);
+        _context.FeeRefundRequests.Add(entity);
+        await _context.SaveChangesAsync();
+
+        // Assign deterministic refund number from identity ID
+        entity.RefundNo = $"RF-{entity.RequestedDate.Year}-{entity.Id:D3}";
         await _context.SaveChangesAsync();
 
         return new FeeRefundRequestDto
         {
-            Id = refundEntry.Id,
-            RefundRequestId = $"RF-2026-{refundEntry.Id:D3}",
-            RefundNo = $"RF-2026-{refundEntry.Id:D3}",
-            ReceiptNo = refundEntry.ReferenceNo,
-            StudentId = request.StudentId,
-            AdmissionNo = request.AdmissionNo ?? st?.AdmissionNumber ?? "",
-            StudentName = stName,
-            ClassName = clsName,
-            Section = request.Section ?? "A",
-            RefundAmount = request.RefundAmount,
-            Reason = request.Reason,
-            Status = "Pending",
-            RequestedBy = "Admin",
-            RequestedDate = refundEntry.TransactionDate,
-            PaymentMode = request.PaymentMode ?? "Bank Transfer",
-            Remarks = request.Remarks ?? ""
+            Id = entity.Id,
+            RefundRequestId = entity.RefundNo,
+            RefundNo = entity.RefundNo,
+            ReceiptNo = entity.ReceiptNo,
+            StudentId = entity.StudentId,
+            AdmissionNo = entity.AdmissionNo,
+            StudentName = entity.StudentName,
+            ClassName = entity.ClassName,
+            Section = entity.Section,
+            RefundAmount = entity.RefundAmount,
+            Reason = entity.Reason,
+            Status = entity.Status,
+            RequestedBy = entity.RequestedBy,
+            ApprovedBy = entity.ApprovedBy,
+            RequestedDate = entity.RequestedDate,
+            ProcessedDate = entity.ProcessedDate,
+            PaymentMode = entity.PaymentMode,
+            Remarks = entity.Remarks
         };
     }
 
     public async Task<bool> ProcessRefundRequestAsync(int id, ProcessRefundRequestDto request)
     {
-        var entry = await _context.LedgerEntries.FirstOrDefaultAsync(l => l.Id == id && l.Category == "Fee Refund");
-        if (entry != null)
+        var entity = await _context.FeeRefundRequests.FirstOrDefaultAsync(r => r.Id == id);
+        if (entity == null) return false;
+
+        string targetStatus = string.IsNullOrWhiteSpace(request.Status) ? "Approved" : request.Status.Trim();
+        if (string.Equals(entity.Status, "Rejected", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        bool alreadyDisbursed = await _context.LedgerEntries.AsNoTracking()
+            .AnyAsync(l => l.ReferenceNo == entity.RefundNo && l.TransactionType == "Refund");
+
+        await using var tx = _context.Database.IsRelational()
+            ? await _context.Database.BeginTransactionAsync()
+            : null;
+
+        entity.Status = targetStatus;
+        entity.ApprovedBy = string.IsNullOrWhiteSpace(request.ProcessedBy) ? "Admin" : request.ProcessedBy.Trim();
+        entity.ProcessedDate = DateTime.UtcNow;
+        if (!string.IsNullOrWhiteSpace(request.Remarks))
         {
-            entry.Particulars = $"{entry.Particulars} [Processed by {request.ProcessedBy}: {request.Remarks}]".Trim();
-            await _context.SaveChangesAsync();
-            return true;
+            entity.Remarks = string.IsNullOrWhiteSpace(entity.Remarks)
+                ? request.Remarks.Trim()
+                : $"{entity.Remarks} | {request.Remarks.Trim()}";
         }
-        return false;
+
+        if ((targetStatus.Equals("Approved", StringComparison.OrdinalIgnoreCase) ||
+             targetStatus.Equals("Disbursed", StringComparison.OrdinalIgnoreCase)) &&
+            !alreadyDisbursed &&
+            entity.RefundAmount > 0)
+        {
+            var acct = await ResolveFinancialAccountAsync(null, entity.PaymentMode);
+            if (acct != null)
+            {
+                acct.CurrentBalance -= entity.RefundAmount;
+            }
+
+            _context.LedgerEntries.Add(new LedgerEntry
+            {
+                TransactionDate = DateTime.UtcNow,
+                TransactionType = "Refund",
+                Category = "Fee Refund",
+                Particulars = $"Fee Refund ({entity.RefundNo}) to {entity.StudentName} ({entity.ClassName}) — {entity.Reason}",
+                Debit = entity.RefundAmount,
+                Credit = 0m,
+                Balance = acct?.CurrentBalance ?? 0m,
+                ReferenceNo = entity.RefundNo,
+                FinancialAccountId = acct?.Id,
+                StudentId = entity.StudentId > 0 ? entity.StudentId : null,
+                AdmissionNo = entity.AdmissionNo
+            });
+        }
+
+        await _context.SaveChangesAsync();
+        if (tx != null) await tx.CommitAsync();
+        return true;
     }
 
     // =========================================================================
@@ -766,16 +1099,20 @@ public class FinanceMasterRepository : IFinanceMasterRepository
 
     public async Task<FeeScheduleConfigDto> GetFeeScheduleAsync(string? academicYear)
     {
-        string ay = string.IsNullOrWhiteSpace(academicYear) ? "2026-2027" : academicYear.Trim();
+        string ay = string.IsNullOrWhiteSpace(academicYear) ? string.Empty : academicYear.Trim();
         string ayCompact = ay.Replace(" ", "");
         string ayPrefix = ay.Contains('-') ? ay.Split('-')[0] : ay;
 
-        var ayEntity = await _context.AcademicYears.AsNoTracking()
-            .FirstOrDefaultAsync(a => !a.IsDeleted && (
-                a.AcademicYearName == ay || 
-                a.AcademicYearName == ayCompact ||
-                (ay.Contains("-") && a.AcademicYearName.StartsWith(ayPrefix))
-            ));
+        AcademicYear? ayEntity = null;
+        if (!string.IsNullOrWhiteSpace(ay))
+        {
+            ayEntity = await _context.AcademicYears.AsNoTracking()
+                .FirstOrDefaultAsync(a => !a.IsDeleted && (
+                    a.AcademicYearName == ay || 
+                    a.AcademicYearName == ayCompact ||
+                    (ay.Contains("-") && a.AcademicYearName.StartsWith(ayPrefix))
+                ));
+        }
 
         if (ayEntity == null)
         {
@@ -785,26 +1122,26 @@ public class FinanceMasterRepository : IFinanceMasterRepository
                 .FirstOrDefaultAsync(a => !a.IsDeleted);
         }
 
-        if (ayEntity == null)
+        if (string.IsNullOrWhiteSpace(ay) && ayEntity != null)
         {
-            ayEntity = new AcademicYear
-            {
-                AcademicYearName = ay,
-                StartDate = new DateTime(2026, 6, 1),
-                EndDate = new DateTime(2027, 6, 1),
-                IsActive = true
-            };
+            ay = ayEntity.AcademicYearName;
+            ayCompact = ay.Replace(" ", "");
+            ayPrefix = ay.Contains('-') ? ay.Split('-')[0] : ay;
         }
 
-        var entity = await _context.FeeSchedules.AsNoTracking()
-            .Include(s => s.Terms)
-            .Include(s => s.MonthlyDates)
-            .FirstOrDefaultAsync(s => 
-                s.AcademicYear == ay || 
-                s.AcademicYear == ayCompact ||
-                s.Id == $"SCH-{ay}" ||
-                (ay.Contains("-") && s.AcademicYear.StartsWith(ayPrefix))
-            );
+        FeeSchedule? entity = null;
+        if (!string.IsNullOrWhiteSpace(ay))
+        {
+            entity = await _context.FeeSchedules.AsNoTracking()
+                .Include(s => s.Terms)
+                .Include(s => s.MonthlyDates)
+                .FirstOrDefaultAsync(s => 
+                    s.AcademicYear == ay || 
+                    s.AcademicYear == ayCompact ||
+                    s.Id == $"SCH-{ay}" ||
+                    (ay.Contains("-") && s.AcademicYear.StartsWith(ayPrefix))
+                );
+        }
 
         if (entity != null)
         {
@@ -825,7 +1162,9 @@ public class FinanceMasterRepository : IFinanceMasterRepository
                 }).ToList()
                 : null;
 
-            var calculatedTerms = AcademicYearTermCalculator.GenerateTermsFromAcademicYear(ayEntity, entity.NumberOfTerms, offset, dbTermsDto);
+            var calculatedTerms = ayEntity != null
+                ? AcademicYearTermCalculator.GenerateTermsFromAcademicYear(ayEntity, entity.NumberOfTerms, offset, dbTermsDto)
+                : (dbTermsDto ?? new List<FeeScheduleTermDto>());
 
             MonthlyDueDateConfigDto? monthly = null;
             if (entity.MonthlyDates != null && entity.MonthlyDates.Count > 0)
@@ -846,11 +1185,12 @@ public class FinanceMasterRepository : IFinanceMasterRepository
             {
                 monthly = JsonSerializer.Deserialize<MonthlyDueDateConfigDto>(entity.MonthlyConfigJson);
             }
-            else
+            else if (ayEntity != null)
             {
                 monthly = AcademicYearTermCalculator.GenerateMonthlyDatesFromAcademicYear(ayEntity, entity.MonthlyDueDay > 0 ? entity.MonthlyDueDay : 10);
             }
 
+            string fallbackDue = ayEntity != null ? ayEntity.StartDate.AddDays(offset).ToString("yyyy-MM-dd") : string.Empty;
             return new FeeScheduleConfigDto
             {
                 Id = entity.Id,
@@ -858,10 +1198,26 @@ public class FinanceMasterRepository : IFinanceMasterRepository
                 NumberOfTerms = entity.NumberOfTerms,
                 DueDateOffsetDays = offset,
                 Status = entity.Status,
-                AnnualDueDate = calculatedTerms.FirstOrDefault()?.DueDate ?? ayEntity.StartDate.AddDays(offset).ToString("yyyy-MM-dd"),
-                OneTimeDueDate = string.IsNullOrWhiteSpace(entity.OneTimeDueDate) ? ayEntity.StartDate.AddDays(offset).ToString("yyyy-MM-dd") : entity.OneTimeDueDate,
+                AnnualDueDate = calculatedTerms.FirstOrDefault()?.DueDate ?? fallbackDue,
+                OneTimeDueDate = string.IsNullOrWhiteSpace(entity.OneTimeDueDate) ? fallbackDue : entity.OneTimeDueDate,
                 Terms = calculatedTerms,
                 MonthlyConfig = monthly
+            };
+        }
+
+        if (ayEntity == null)
+        {
+            return new FeeScheduleConfigDto
+            {
+                Id = string.IsNullOrWhiteSpace(ay) ? string.Empty : $"SCH-{ay}",
+                AcademicYear = ay,
+                NumberOfTerms = 0,
+                DueDateOffsetDays = 0,
+                Status = "Not Configured",
+                AnnualDueDate = string.Empty,
+                OneTimeDueDate = string.Empty,
+                Terms = new List<FeeScheduleTermDto>(),
+                MonthlyConfig = null
             };
         }
 
@@ -1133,20 +1489,42 @@ public class FinanceMasterRepository : IFinanceMasterRepository
 
     public async Task<FinanceReportsSummaryDto> GetReportsSummaryAsync(string? academicYear)
     {
-        var validPayments = await _context.FeePayments.AsNoTracking().Where(p => p.Status != "Cancelled").ToListAsync();
+        var ayRange = ParseAcademicYearDateRange(academicYear);
+        var validPayments = await _context.FeePayments.AsNoTracking()
+            .Where(p => p.Status != "Cancelled" && p.Status != "Reversed" && p.Status != "Refunded" && p.Amount > 0)
+            .ToListAsync();
+
+        if (ayRange.HasValue)
+        {
+            validPayments = validPayments
+                .Where(p => p.PaymentDate >= ayRange.Value.Start && p.PaymentDate <= ayRange.Value.End)
+                .ToList();
+        }
+
         DateTime today = DateTime.UtcNow.Date;
         decimal todayCollection = validPayments.Where(p => p.PaymentDate.Date == today).Sum(p => p.Amount);
         DateTime monthStart = new DateTime(today.Year, today.Month, 1);
         decimal monthlyCollection = validPayments.Where(p => p.PaymentDate >= monthStart).Sum(p => p.Amount);
 
         var dynamicStructures = await _context.DynamicFeeStructures.AsNoTracking().ToListAsync();
+        if (!string.IsNullOrWhiteSpace(academicYear) && !academicYear.Equals("ALL", StringComparison.OrdinalIgnoreCase))
+        {
+            var ayNorm = academicYear.Trim().Replace(" ", "");
+            dynamicStructures = dynamicStructures
+                .Where(s => string.IsNullOrEmpty(s.AcademicYear) || s.AcademicYear.Replace(" ", "").Equals(ayNorm, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+
         var validStructureIds = dynamicStructures.Select(d => d.Id).ToHashSet();
         var assignments = await _context.StudentFeeAssignments.AsNoTracking()
             .Where(a => !a.DynamicFeeStructureId.HasValue || validStructureIds.Contains(a.DynamicFeeStructureId.Value))
             .ToListAsync();
+
         decimal totalExpected = (dynamicStructures.Count > 0 && assignments.Count > 0) ? assignments.Sum(a => a.TotalAmount) : 0m;
         decimal totalCollected = validPayments.Sum(p => p.Amount);
-        decimal pendingDues = Math.Max(0m, totalExpected - totalCollected);
+        decimal pendingDues = assignments.Count > 0
+            ? assignments.Sum(a => Math.Max(0m, a.TotalAmount - a.PaidAmount))
+            : Math.Max(0m, totalExpected - totalCollected);
 
         int studentsPaidCount = validPayments.Select(p => p.StudentId).Distinct().Count();
 
@@ -1169,7 +1547,7 @@ public class FinanceMasterRepository : IFinanceMasterRepository
         DateTime targetDate = DateTime.TryParse(date, out var dt) ? dt.Date : DateTime.UtcNow.Date;
 
         var payments = await _context.FeePayments.AsNoTracking()
-            .Where(p => p.Status != "Cancelled" && p.PaymentDate >= targetDate && p.PaymentDate < targetDate.AddDays(1))
+            .Where(p => p.Status != "Cancelled" && p.Status != "Reversed" && p.Status != "Refunded" && p.Amount > 0 && p.PaymentDate >= targetDate && p.PaymentDate < targetDate.AddDays(1))
             .OrderByDescending(p => p.PaymentDate)
             .ToListAsync();
         var students = await _context.Students.AsNoTracking().Include(s => s.ClassGrade).ToListAsync();
@@ -1208,22 +1586,49 @@ public class FinanceMasterRepository : IFinanceMasterRepository
 
     public async Task<List<ClassWiseCollectionReportRowDto>> GetClassWiseCollectionReportAsync(string? academicYear)
     {
+        var ayRange = ParseAcademicYearDateRange(academicYear);
         var classes = await _context.Classes.AsNoTracking().ToListAsync();
         var students = await _context.Students.AsNoTracking().Where(s => !s.IsDeleted && s.Status == "Active").ToListAsync();
-        var payments = await _context.FeePayments.AsNoTracking().Where(p => p.Status != "Cancelled").ToListAsync();
+        var payments = await _context.FeePayments.AsNoTracking()
+            .Where(p => p.Status != "Cancelled" && p.Status != "Reversed" && p.Status != "Refunded" && p.Amount > 0)
+            .ToListAsync();
+
+        if (ayRange.HasValue)
+        {
+            payments = payments
+                .Where(p => p.PaymentDate >= ayRange.Value.Start && p.PaymentDate <= ayRange.Value.End)
+                .ToList();
+        }
+
         var structures = await _context.DynamicFeeStructures.AsNoTracking()
             .Where(s => s.Status == "Active" || string.IsNullOrEmpty(s.Status))
             .ToListAsync();
+
+        var assignments = await _context.StudentFeeAssignments.AsNoTracking().ToListAsync();
+
+        if (!string.IsNullOrWhiteSpace(academicYear) && !academicYear.Equals("ALL", StringComparison.OrdinalIgnoreCase))
+        {
+            var ayNorm = academicYear.Trim().Replace(" ", "");
+            structures = structures
+                .Where(s => string.IsNullOrEmpty(s.AcademicYear) || s.AcademicYear.Replace(" ", "").Equals(ayNorm, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            var ayStructureIds = structures.Select(s => s.Id).ToHashSet();
+            assignments = assignments
+                .Where(a => !a.DynamicFeeStructureId.HasValue || ayStructureIds.Contains(a.DynamicFeeStructureId.Value))
+                .ToList();
+        }
 
         var result = new List<ClassWiseCollectionReportRowDto>();
         foreach (var cls in classes)
         {
             var classStudents = students.Where(s => s.ClassId == cls.ClassId).ToList();
-            var studentIds = classStudents.Select(s => s.StudentId.ToString()).ToList();
-            var admNos = classStudents.Where(s => !string.IsNullOrEmpty(s.AdmissionNumber)).Select(s => s.AdmissionNumber!).ToList();
+            var studentIds = classStudents.Select(s => s.StudentId.ToString()).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var admNos = classStudents.Where(s => !string.IsNullOrEmpty(s.AdmissionNumber)).Select(s => s.AdmissionNumber!).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
             var classPayments = payments.Where(p => studentIds.Contains(p.StudentId) || admNos.Contains(p.StudentId)).ToList();
             decimal collected = classPayments.Sum(p => p.Amount);
+
+            var classAssignments = assignments.Where(a => studentIds.Contains(a.StudentId) || admNos.Contains(a.StudentId)).ToList();
 
             var matchedStructure = structures.FirstOrDefault(s =>
                 !string.IsNullOrEmpty(s.ClassName) &&
@@ -1231,7 +1636,7 @@ public class FinanceMasterRepository : IFinanceMasterRepository
                  s.ClassName.Replace(" ", "").Equals(cls.ClassName?.Replace(" ", ""), StringComparison.OrdinalIgnoreCase)));
 
             decimal feePerStudent = matchedStructure?.TotalAmount ?? 0m;
-            decimal expected = classStudents.Count * feePerStudent;
+            decimal expected = classAssignments.Count > 0 ? classAssignments.Sum(a => a.TotalAmount) : classStudents.Count * feePerStudent;
             decimal dues = Math.Max(0m, expected - collected);
 
             result.Add(new ClassWiseCollectionReportRowDto
@@ -1668,99 +2073,91 @@ public class FinanceMasterRepository : IFinanceMasterRepository
 
     public async Task<List<FineRuleDto>> GetFineRulesAsync(string? search, string? status)
     {
-        var dbRules = await _context.ConcessionRules.AsNoTracking().Where(c => c.Type == "Fine").ToListAsync();
-        var list = new List<FineRuleDto>();
-        foreach (var r in dbRules)
-        {
-            list.Add(new FineRuleDto
-            {
-                Id = r.Id,
-                RuleName = r.Name ?? "Late Fee Penalty",
-                FineType = r.DiscountType ?? "Daily Fine",
-                DailyFine = r.Value,
-                FixedFine = r.Value,
-                MaximumFine = r.Value * 10,
-                GraceDays = 5,
-                Status = r.Status ?? "Active"
-            });
-        }
-
-        if (list.Count == 0)
-        {
-            list.Add(new FineRuleDto
-            {
-                Id = 1,
-                RuleName = "Standard Late Payment Fine",
-                FineType = "Daily Fine",
-                DailyFine = 50m,
-                FixedFine = 200m,
-                MaximumFine = 1000m,
-                GraceDays = 5,
-                Status = "Active"
-            });
-        }
+        var query = _context.FineRules.AsNoTracking().AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(search))
         {
             string s = search.Trim().ToLower();
-            list = list.Where(x => x.RuleName.ToLower().Contains(s) || x.FineType.ToLower().Contains(s)).ToList();
+            query = query.Where(x => x.RuleName.ToLower().Contains(s) || x.FineType.ToLower().Contains(s));
         }
+
         if (!string.IsNullOrWhiteSpace(status) && !status.Equals("ALL", System.StringComparison.OrdinalIgnoreCase))
         {
-            list = list.Where(x => x.Status.Equals(status, System.StringComparison.OrdinalIgnoreCase)).ToList();
+            string normalized = status.Trim().ToLower();
+            query = query.Where(x => x.Status.ToLower() == normalized);
         }
-        return list;
+
+        var dbRules = await query.OrderBy(r => r.Id).ToListAsync();
+        return dbRules.Select(MapFineRuleDto).ToList();
     }
 
     public async Task<FineRuleDto?> GetFineRuleByIdAsync(int id)
     {
-        var rules = await GetFineRulesAsync(null, null);
-        return rules.FirstOrDefault(r => r.Id == id);
+        var entity = await _context.FineRules.AsNoTracking().FirstOrDefaultAsync(r => r.Id == id);
+        return entity == null ? null : MapFineRuleDto(entity);
     }
 
     public async Task<FineRuleDto> CreateFineRuleAsync(FineRuleDto rule)
     {
-        var entity = new ConcessionRule
+        var entity = new FineRule
         {
-            Name = rule.RuleName,
-            Type = "Fine",
-            DiscountType = rule.FineType ?? "Daily Fine",
-            Value = rule.DailyFine,
-            Status = rule.Status ?? "Active",
-            CreatedAt = DateTime.UtcNow
+            RuleName = rule.RuleName?.Trim() ?? string.Empty,
+            DueDate = string.IsNullOrWhiteSpace(rule.DueDate) ? "2026-08-15" : rule.DueDate.Trim(),
+            GraceDays = Math.Max(0, rule.GraceDays),
+            FineType = string.IsNullOrWhiteSpace(rule.FineType) ? "Daily Fine" : rule.FineType.Trim(),
+            DailyFine = Math.Max(0m, rule.DailyFine),
+            FixedFine = Math.Max(0m, rule.FixedFine),
+            MaximumFine = Math.Max(0m, rule.MaximumFine),
+            Status = string.IsNullOrWhiteSpace(rule.Status) ? "Active" : rule.Status.Trim(),
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
         };
-        _context.ConcessionRules.Add(entity);
+        _context.FineRules.Add(entity);
         await _context.SaveChangesAsync();
-        rule.Id = entity.Id;
-        return rule;
+        return MapFineRuleDto(entity);
     }
 
     public async Task<FineRuleDto?> UpdateFineRuleAsync(int id, FineRuleDto rule)
     {
-        var entity = await _context.ConcessionRules.FirstOrDefaultAsync(c => c.Id == id && c.Type == "Fine");
-        if (entity != null)
-        {
-            entity.Name = rule.RuleName;
-            entity.DiscountType = rule.FineType ?? entity.DiscountType;
-            entity.Value = rule.DailyFine;
-            entity.Status = rule.Status ?? entity.Status;
-            await _context.SaveChangesAsync();
-            return rule;
-        }
-        return rule;
+        var entity = await _context.FineRules.FirstOrDefaultAsync(r => r.Id == id);
+        if (entity == null) return null;
+
+        if (!string.IsNullOrWhiteSpace(rule.RuleName)) entity.RuleName = rule.RuleName.Trim();
+        if (!string.IsNullOrWhiteSpace(rule.DueDate)) entity.DueDate = rule.DueDate.Trim();
+        entity.GraceDays = Math.Max(0, rule.GraceDays);
+        if (!string.IsNullOrWhiteSpace(rule.FineType)) entity.FineType = rule.FineType.Trim();
+        entity.DailyFine = Math.Max(0m, rule.DailyFine);
+        entity.FixedFine = Math.Max(0m, rule.FixedFine);
+        entity.MaximumFine = Math.Max(0m, rule.MaximumFine);
+        if (!string.IsNullOrWhiteSpace(rule.Status)) entity.Status = rule.Status.Trim();
+        entity.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+        return MapFineRuleDto(entity);
     }
 
     public async Task<bool> DeleteFineRuleAsync(int id)
     {
-        var entity = await _context.ConcessionRules.FirstOrDefaultAsync(c => c.Id == id && c.Type == "Fine");
-        if (entity != null)
-        {
-            _context.ConcessionRules.Remove(entity);
-            await _context.SaveChangesAsync();
-            return true;
-        }
+        var entity = await _context.FineRules.FirstOrDefaultAsync(r => r.Id == id);
+        if (entity == null) return false;
+
+        _context.FineRules.Remove(entity);
+        await _context.SaveChangesAsync();
         return true;
     }
+
+    private static FineRuleDto MapFineRuleDto(FineRule r) => new()
+    {
+        Id = r.Id,
+        RuleName = r.RuleName,
+        DueDate = r.DueDate,
+        GraceDays = r.GraceDays,
+        FineType = r.FineType,
+        DailyFine = r.DailyFine,
+        FixedFine = r.FixedFine,
+        MaximumFine = r.MaximumFine,
+        Status = r.Status
+    };
 
     // =========================================================================
     // 9. HOSTEL FEE CONFIGURATIONS (PERSISTED IN MYSQL DATABASE)

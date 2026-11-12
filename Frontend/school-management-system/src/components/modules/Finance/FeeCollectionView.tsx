@@ -232,16 +232,15 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
       const payload = {
         studentId: sId,
         admissionNo: selectedStudent.admissionNo || String(sId),
-        fromCategory: transitionTargetType === "Residential" ? "Non-Residential" : "Residential",
-        toCategory: transitionTargetType,
+        newStudentType: transitionTargetType,
         effectiveDate: transitionDate,
         transportEndDate: transitionTargetType === "Residential" ? transportEndDate : undefined,
         hostelJoiningDate: transitionTargetType === "Residential" ? hostelJoiningDate : undefined,
-        hostelBlockId: selectedBlockId ? Number(selectedBlockId) : undefined,
-        hostelRoomId: selectedRoomId ? Number(selectedRoomId) : undefined,
+        hostelId: selectedBlockId ? Number(selectedBlockId) : undefined,
+        roomId: selectedRoomId ? Number(selectedRoomId) : undefined,
         bedNumber: selectedBedNumber || undefined,
-        applyCreditToHostel: applyCreditOnTransition,
-        notes: transitionNotes || `Transitioned student to ${transitionTargetType}`
+        applyTransportCreditToHostel: applyCreditOnTransition,
+        remarks: transitionNotes || `Transitioned student to ${transitionTargetType}`
       };
 
       const res: any = await transitionStudentCategoryApi(payload);
@@ -1211,6 +1210,30 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
         termName: inst?.termName || inst?.termId || "Installment",
       };
     });
+
+    if (remainingPaid > 0) {
+      const unselectedUnpaid = allInstallments.filter(
+        (i: any) => !selectedInstallments.includes(i.id) && Number(i.dueAmount || 0) > 0,
+      );
+      for (const inst of unselectedUnpaid) {
+        if (remainingPaid <= 0) break;
+        const due = Number(inst.dueAmount || 0);
+        const allocAmt = Math.min(due, remainingPaid);
+        remainingPaid = Math.max(0, remainingPaid - allocAmt);
+        paymentAllocations.push({
+          academicYear: inst?.academicYear || currentYear,
+          ledgerId: undefined,
+          amount: allocAmt,
+          installmentId: inst.id,
+          feeHeadName: inst?.feeHeadName || inst?.headName || inst?.title || inst?.category || "Tuition Fee",
+          termName: inst?.termName || inst?.termId || "Installment",
+        });
+      }
+      if (remainingPaid > 0 && paymentAllocations.length > 0) {
+        paymentAllocations[paymentAllocations.length - 1].amount += remainingPaid;
+        remainingPaid = 0;
+      }
+    }
 
     const activeMode = (paymentMode && paymentMode.trim() !== "") ? paymentMode : "Cash";
     const concessionTitle = allConcessionOptions.find(c => c.id === selectedConcessionId)?.name || "";

@@ -43,6 +43,7 @@ export const ROLE_PERMISSIONS: Record<Role, ModuleId[]> = {
     "dashboard",
     "students",
     "staff",
+    "fees",
     "admissions",
     "academic-history",
     "academics",

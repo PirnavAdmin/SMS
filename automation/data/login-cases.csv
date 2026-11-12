@@ -1,0 +1,7 @@
+caseId,identifier,password,portal,expectedOutcome,expectedErrorPattern
+AUTH_INVALID_PASS,pirnavsms@gmail.com,WrongPassword!999,,failure,Invalid|incorrect|unauthorized|failed
+AUTH_NONEXISTENT_EMAIL,nonexistent.qa.user@invalid.test,SomePass123!,,failure,Invalid|not found|incorrect|failed
+AUTH_EMPTY_BOTH,,,,validation,required|enter|email|password
+AUTH_EMPTY_PASSWORD,pirnavsms@gmail.com,,,validation,password|required
+AUTH_EMPTY_IDENTIFIER,,admin1234,,validation,email|mobile|student|required
+AUTH_ADMIN_VALID,$ADMIN_EMAIL,$ADMIN_PASSWORD,Admin,success,

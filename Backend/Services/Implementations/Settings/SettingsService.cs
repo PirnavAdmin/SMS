@@ -657,7 +657,10 @@ namespace SMS.Api.Services.Implementations.Settings
         private static string BuildFormattedId(string prefix, int sequenceNumber, int padding, bool includeYear, string separator, string position)
         {
             var cleanPrefix = (prefix ?? string.Empty).Trim().ToUpperInvariant();
-            var sep = separator ?? "-";
+            var sep = (string.Equals(separator, "none", StringComparison.OrdinalIgnoreCase) ||
+                       string.Equals(separator, "__none__", StringComparison.OrdinalIgnoreCase))
+                ? string.Empty
+                : (!string.IsNullOrEmpty(separator) ? separator : "-");
             var yearStr = includeYear ? DateTime.UtcNow.Year.ToString() : string.Empty;
             var paddedSeq = sequenceNumber.ToString().PadLeft(padding > 0 ? padding : 4, '0');
 
@@ -686,41 +689,142 @@ namespace SMS.Api.Services.Implementations.Settings
             return string.Join(sep, parts.Where(p => !string.IsNullOrEmpty(p)));
         }
 
-        public async Task<UserProfileDto> GetUserProfileAsync()
+        private static bool IsPlaceholderProfileName(string? name)
         {
-            // Primary source of truth: Admin table in database
+            if (string.IsNullOrWhiteSpace(name)) return true;
+            var n = name.Trim().ToLowerInvariant();
+            return n == "administrator" || n == "admin" || n == "super admin" || n == "superadmin"
+                || n == "pirnavsms" || n == "vasantha gokul" || n == "user";
+        }
+
+        private static bool IsPlaceholderAvatarUrl(string? url)
+        {
+            if (string.IsNullOrWhiteSpace(url)) return true;
+            return url.Contains("images.unsplash.com/photo-1573496359142-b8d87734a5a2", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private async Task<Admin?> FindMatchingAdminAsync(string? userId, string? email, string? mobile, string? claimRole = null)
+        {
+            var normalizedEmail = email?.Trim().ToLowerInvariant();
+            var normalizedMobile = mobile?.Trim();
+
+            if (!string.IsNullOrWhiteSpace(normalizedEmail))
+            {
+                var byEmail = await _context.Admins.FirstOrDefaultAsync(a => a.Email != null && a.Email.ToLower() == normalizedEmail);
+                if (byEmail != null) return byEmail;
+            }
+
+            if (!string.IsNullOrWhiteSpace(normalizedMobile))
+            {
+                var byMobile = await _context.Admins.FirstOrDefaultAsync(a => a.MobileNumber == normalizedMobile);
+                if (byMobile != null) return byMobile;
+            }
+
+            var isAdminRole = string.IsNullOrWhiteSpace(claimRole)
+                || claimRole.Contains("Admin", StringComparison.OrdinalIgnoreCase);
+            if (isAdminRole && int.TryParse(userId, out var adminId))
+            {
+                var byId = await _context.Admins.FirstOrDefaultAsync(a => a.AdminId == adminId);
+                if (byId != null) return byId;
+            }
+
+            if (string.IsNullOrWhiteSpace(userId) && string.IsNullOrWhiteSpace(normalizedEmail) && string.IsNullOrWhiteSpace(normalizedMobile))
+            {
+                return await _context.Admins.FirstOrDefaultAsync();
+            }
+
+            return null;
+        }
+
+        private async Task<User?> FindMatchingUserAsync(string? userId, string? email, string? mobile)
+        {
+            var normalizedEmail = email?.Trim().ToLowerInvariant();
+            var normalizedMobile = mobile?.Trim();
+
+            if (!string.IsNullOrWhiteSpace(normalizedEmail))
+            {
+                var byEmail = await _context.Users.FirstOrDefaultAsync(u => u.Email != null && u.Email.ToLower() == normalizedEmail);
+                if (byEmail != null) return byEmail;
+            }
+
+            if (!string.IsNullOrWhiteSpace(normalizedMobile))
+            {
+                var byMobile = await _context.Users.FirstOrDefaultAsync(u => u.MobileNumber == normalizedMobile);
+                if (byMobile != null) return byMobile;
+            }
+
+            if (int.TryParse(userId, out var uid))
+            {
+                var byId = await _context.Users.FirstOrDefaultAsync(u => u.UserId == uid);
+                if (byId != null) return byId;
+            }
+
+            return null;
+        }
+
+        public async Task<UserProfileDto> GetUserProfileAsync(string? userId = null, string? email = null, string? mobile = null, string? claimName = null, string? claimRole = null)
+        {
+            UserProfileDto? dto = null;
+
+            // Primary source of truth: matching Admin or User record in database
             try
             {
-                var admin = await _context.Admins.FirstOrDefaultAsync();
+                var admin = await FindMatchingAdminAsync(userId, email, mobile, claimRole);
                 if (admin != null)
                 {
-                    var dto = new UserProfileDto
+                    dto = new UserProfileDto
                     {
                         Id = admin.AdminId.ToString(),
-                        Name = !string.IsNullOrWhiteSpace(admin.FullName) ? admin.FullName : "Administrator",
-                        Email = !string.IsNullOrWhiteSpace(admin.Email) ? admin.Email : "pirnavsms@gmail.com",
-                        Phone = !string.IsNullOrWhiteSpace(admin.MobileNumber) ? admin.MobileNumber : "+91 9581768555",
-                        Avatar = !string.IsNullOrWhiteSpace(admin.Avatar) ? admin.Avatar : "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80",
+                        Name = !IsPlaceholderProfileName(admin.FullName) ? admin.FullName.Trim() : (!IsPlaceholderProfileName(claimName) ? claimName!.Trim() : string.Empty),
+                        Email = !string.IsNullOrWhiteSpace(admin.Email) ? admin.Email.Trim() : (email ?? string.Empty),
+                        Phone = !string.IsNullOrWhiteSpace(admin.MobileNumber) ? admin.MobileNumber.Trim() : (mobile ?? string.Empty),
+                        Avatar = !IsPlaceholderAvatarUrl(admin.Avatar) ? admin.Avatar!.Trim() : string.Empty,
                         Branch = string.Empty,
-                        Role = !string.IsNullOrWhiteSpace(admin.Role) ? admin.Role : "Admin",
+                        Role = !string.IsNullOrWhiteSpace(admin.Role) ? admin.Role : (claimRole ?? "Admin"),
                         Status = "Active Account"
                     };
+                }
+                else
+                {
+                    var dbUser = await FindMatchingUserAsync(userId, email, mobile);
+                    if (dbUser != null)
+                    {
+                        dto = new UserProfileDto
+                        {
+                            Id = dbUser.UserId.ToString(),
+                            Name = !IsPlaceholderProfileName(dbUser.FullName) ? dbUser.FullName.Trim() : (!IsPlaceholderProfileName(claimName) ? claimName!.Trim() : string.Empty),
+                            Email = !string.IsNullOrWhiteSpace(dbUser.Email) ? dbUser.Email.Trim() : (email ?? string.Empty),
+                            Phone = !string.IsNullOrWhiteSpace(dbUser.MobileNumber) ? dbUser.MobileNumber.Trim() : (mobile ?? string.Empty),
+                            Avatar = !IsPlaceholderAvatarUrl(dbUser.Avatar) ? dbUser.Avatar!.Trim() : string.Empty,
+                            Branch = string.Empty,
+                            Role = !string.IsNullOrWhiteSpace(dbUser.Role) ? dbUser.Role : (claimRole ?? string.Empty),
+                            Status = "Active Account"
+                        };
+                    }
+                }
 
-                    // Supplemental settings (custom avatar or branch if saved in settings)
+                if (dto != null)
+                {
+                    // Supplemental settings (branch and avatar fallback if not stored on Admin/User)
                     var settings = await _repository.GetSettingsAsync();
                     if (!string.IsNullOrWhiteSpace(settings.UserProfileJson))
                     {
                         try
                         {
                             var parsed = JsonSerializer.Deserialize<UserProfileDto>(settings.UserProfileJson);
-                            if (parsed != null && (parsed.Email == admin.Email || parsed.Phone == admin.MobileNumber || parsed.Id == admin.AdminId.ToString()))
+                            var matchesUser = parsed != null && (
+                                (!string.IsNullOrWhiteSpace(dto.Email) && string.Equals(parsed.Email?.Trim(), dto.Email, StringComparison.OrdinalIgnoreCase)) ||
+                                (!string.IsNullOrWhiteSpace(dto.Phone) && string.Equals(parsed.Phone?.Trim(), dto.Phone, StringComparison.OrdinalIgnoreCase)) ||
+                                (!string.IsNullOrWhiteSpace(dto.Id) && string.Equals(parsed.Id?.Trim(), dto.Id, StringComparison.OrdinalIgnoreCase))
+                            );
+                            if (matchesUser && parsed != null)
                             {
-                                if (!string.IsNullOrWhiteSpace(parsed.Avatar)) dto.Avatar = parsed.Avatar;
-                                if (!string.IsNullOrWhiteSpace(parsed.Branch)) dto.Branch = parsed.Branch;
-                                if (!string.IsNullOrWhiteSpace(parsed.Name) && parsed.Name != "Pirnavsms" && parsed.Name != "Vasantha Gokul")
-                                {
-                                    dto.Name = parsed.Name;
-                                }
+                                if (string.IsNullOrWhiteSpace(dto.Avatar) && !IsPlaceholderAvatarUrl(parsed.Avatar))
+                                    dto.Avatar = parsed.Avatar.Trim();
+                                if (!string.IsNullOrWhiteSpace(parsed.Branch))
+                                    dto.Branch = parsed.Branch.Trim();
+                                if (string.IsNullOrWhiteSpace(dto.Name) && !IsPlaceholderProfileName(parsed.Name))
+                                    dto.Name = parsed.Name.Trim();
                             }
                         }
                         catch { }
@@ -733,22 +837,27 @@ namespace SMS.Api.Services.Implementations.Settings
 
             return new UserProfileDto
             {
-                Id = "USR-001",
-                Name = "Administrator",
-                Email = "pirnavsms@gmail.com",
-                Phone = "+91 9581768555",
-                Avatar = "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80",
+                Id = userId ?? string.Empty,
+                Name = !IsPlaceholderProfileName(claimName) ? claimName!.Trim() : string.Empty,
+                Email = email ?? string.Empty,
+                Phone = mobile ?? string.Empty,
+                Avatar = string.Empty,
                 Branch = string.Empty,
-                Role = "Admin",
+                Role = claimRole ?? string.Empty,
                 Status = "Active Account"
             };
         }
 
-        public async Task<UserProfileDto> UpdateUserProfileAsync(UserProfileDto dto)
+        public async Task<UserProfileDto> UpdateUserProfileAsync(UserProfileDto dto, string? userId = null, string? claimEmail = null)
         {
             if (dto == null) throw new ArgumentNullException(nameof(dto));
 
             string avatarUrl = dto.Avatar?.Trim() ?? string.Empty;
+            if (IsPlaceholderAvatarUrl(avatarUrl))
+            {
+                avatarUrl = string.Empty;
+                dto.Avatar = string.Empty;
+            }
 
             // If base64 image data is provided, save it as a physical file
             if (avatarUrl.StartsWith("data:image", StringComparison.OrdinalIgnoreCase))
@@ -791,30 +900,42 @@ namespace SMS.Api.Services.Implementations.Settings
                 catch { }
             }
 
-            var json = JsonSerializer.Serialize(dto);
-            await _repository.UpdateUserProfileAsync(json);
+            var lookupEmail = !string.IsNullOrWhiteSpace(claimEmail) ? claimEmail : dto.Email;
 
-            // Synchronize with matching Admin record in database (never fall back to unrelated Admins)
+            // Synchronize with matching Admin or User record in database
             try
             {
-                var admin = await _context.Admins.FirstOrDefaultAsync(a =>
-                    (!string.IsNullOrWhiteSpace(dto.Email) && a.Email == dto.Email) ||
-                    (!string.IsNullOrWhiteSpace(dto.Phone) && a.MobileNumber == dto.Phone));
+                var admin = await FindMatchingAdminAsync(userId, lookupEmail, dto.Phone);
                 if (admin != null)
                 {
-                    if (!string.IsNullOrWhiteSpace(dto.Name)) admin.FullName = dto.Name;
-                    if (!string.IsNullOrWhiteSpace(dto.Email)) admin.Email = dto.Email;
-                    if (!string.IsNullOrWhiteSpace(dto.Phone)) admin.MobileNumber = dto.Phone;
+                    if (!IsPlaceholderProfileName(dto.Name)) admin.FullName = dto.Name.Trim();
+                    if (!string.IsNullOrWhiteSpace(dto.Email)) admin.Email = dto.Email.Trim();
+                    if (!string.IsNullOrWhiteSpace(dto.Phone)) admin.MobileNumber = dto.Phone.Trim();
                     admin.Avatar = dto.Avatar;
+                    if (string.IsNullOrWhiteSpace(dto.Id)) dto.Id = admin.AdminId.ToString();
+                    await _context.SaveChangesAsync();
+                }
+
+                var dbUser = await FindMatchingUserAsync(userId, lookupEmail, dto.Phone);
+                if (dbUser != null)
+                {
+                    if (!IsPlaceholderProfileName(dto.Name)) dbUser.FullName = dto.Name.Trim();
+                    if (!string.IsNullOrWhiteSpace(dto.Email)) dbUser.Email = dto.Email.Trim();
+                    if (!string.IsNullOrWhiteSpace(dto.Phone)) dbUser.MobileNumber = dto.Phone.Trim();
+                    dbUser.Avatar = dto.Avatar;
+                    if (string.IsNullOrWhiteSpace(dto.Id)) dto.Id = dbUser.UserId.ToString();
                     await _context.SaveChangesAsync();
                 }
             }
             catch { }
 
+            var json = JsonSerializer.Serialize(dto);
+            await _repository.UpdateUserProfileAsync(json);
+
             return dto;
         }
 
-        public async Task<string> UploadProfileImageFileAsync(IFormFile file)
+        public async Task<string> UploadProfileImageFileAsync(IFormFile file, string? userId = null, string? claimEmail = null)
         {
             if (file == null || file.Length == 0)
                 throw new ArgumentException("No file was uploaded.");
@@ -854,9 +975,9 @@ namespace SMS.Api.Services.Implementations.Settings
             // Automatically update the stored profile avatar if existing profile exists
             try
             {
-                var currentProfile = await GetUserProfileAsync();
+                var currentProfile = await GetUserProfileAsync(userId, claimEmail);
                 currentProfile.Avatar = relativeUrl;
-                await UpdateUserProfileAsync(currentProfile);
+                await UpdateUserProfileAsync(currentProfile, userId, claimEmail);
             }
             catch { }
 

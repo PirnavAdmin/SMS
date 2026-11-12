@@ -110,7 +110,7 @@ public class FeeService : IFeeService
         foreach (var id in matchedAdmissions) allStudentKeys.Add(id);
 
         var payments = await _context.FeePayments.AsNoTracking()
-            .Where(p => allStudentKeys.Contains(p.StudentId))
+            .Where(p => allStudentKeys.Contains(p.StudentId) && p.Status != "Cancelled" && p.Status != "Reversed" && p.Amount > 0)
             .ToListAsync();
 
         decimal paid = payments.Sum(p => p.Amount);
@@ -124,21 +124,25 @@ public class FeeService : IFeeService
         var breakdown = new List<FeeBreakdownItemDto>();
         if (terms.Any() && total > 0)
         {
-            decimal sharePerTerm = Math.Round(total / terms.Count, 2);
+            bool usePercentageShares = terms.Sum(t => t.PercentageShare) > 0m;
+            decimal totalSharePct = usePercentageShares ? terms.Sum(t => t.PercentageShare) : 0m;
             decimal remainingDue = due;
             foreach (var term in terms)
             {
+                decimal termAmount = usePercentageShares && totalSharePct > 0m
+                    ? Math.Round(total * (term.PercentageShare / totalSharePct), 2)
+                    : Math.Round(total / terms.Count, 2);
                 bool isTermDue = remainingDue > 0;
                 breakdown.Add(new FeeBreakdownItemDto
                 {
                     FeeId = term.Id,
                     Title = $"{term.TermName} Tuition Fee",
                     DueDate = term.DueDate,
-                    Amount = sharePerTerm,
+                    Amount = termAmount,
                     IsDue = isTermDue,
                     Selected = false
                 });
-                remainingDue = Math.Max(0m, remainingDue - sharePerTerm);
+                remainingDue = Math.Max(0m, remainingDue - termAmount);
             }
         }
         else if (total > 0)
@@ -172,7 +176,7 @@ public class FeeService : IFeeService
         string admNo = student?.AdmissionNumber ?? string.Empty;
 
         var payments = await _context.FeePayments.AsNoTracking()
-            .Where(p => p.StudentId == sidStr || (!string.IsNullOrEmpty(admNo) && p.StudentId == admNo))
+            .Where(p => (p.StudentId == sidStr || (!string.IsNullOrEmpty(admNo) && p.StudentId == admNo)) && p.Status != "Cancelled" && p.Status != "Reversed" && p.Amount > 0)
             .OrderByDescending(p => p.PaymentDate)
             .ToListAsync();
 

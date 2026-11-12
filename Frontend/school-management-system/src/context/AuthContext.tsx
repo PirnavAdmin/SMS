@@ -25,15 +25,30 @@ interface AuthContextType {
   setUser: (user: User | null) => void;
 }
 
-const defaultAdminUser: User = {
-  id: 'USR-001',
-  name: 'Administrator',
-  email: 'pirnavsms@gmail.com',
-  role: 'Admin',
-  avatar: DEFAULT_USER_AVATAR,
-  phone: '+91 9581768555',
-  lastLogin: '2026-07-21 09:30 AM',
-  status: 'Active'
+const STATIC_UNSPLASH_AVATAR = 'images.unsplash.com/photo-1573496359142-b8d87734a5a2';
+
+const isPlaceholderProfileName = (name?: string): boolean => {
+  const n = (name || '').trim().toLowerCase();
+  return !n || n === 'administrator' || n === 'admin' || n === 'super admin' || n === 'superadmin' || n === 'pirnavsms' || n === 'vasantha gokul' || n === 'user';
+};
+
+const getNameFromJwt = (jwt?: string | null): string => {
+  if (!jwt) return '';
+  try {
+    const parts = jwt.split('.');
+    if (parts.length !== 3) return '';
+    let b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    while (b64.length % 4 !== 0) b64 += '=';
+    const payload = JSON.parse(atob(b64));
+    const claimName =
+      payload?.['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name'] ||
+      payload?.unique_name ||
+      payload?.name ||
+      '';
+    return typeof claimName === 'string' ? claimName.trim() : '';
+  } catch {
+    return '';
+  }
 };
 
 export const normalizeUserRole = (roleStr: string): UserRole => {
@@ -176,16 +191,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const userKey = getActiveUserKey(parsed.email || parsed.id);
           const localProfile = getLocalUserProfile(userKey);
 
+          if (isPlaceholderProfileName(parsed.name)) {
+            const jwtName = getNameFromJwt(savedToken);
+            parsed.name = !isPlaceholderProfileName(jwtName) ? jwtName : '';
+          }
+
+          if (parsed.avatar && String(parsed.avatar).includes(STATIC_UNSPLASH_AVATAR)) {
+            parsed.avatar = '';
+          }
+
           if (localProfile) {
             const profileEmail = (localProfile.email || '').trim().toLowerCase();
             const userEmail = (parsed.email || '').trim().toLowerCase();
             const isEmailMatch = !profileEmail || !userEmail || profileEmail === userEmail;
 
             if (isEmailMatch) {
-              if (localProfile.name && (parsed.role === 'Admin' || localProfile.name !== 'Pirnavsms')) {
+              if (localProfile.name && !isPlaceholderProfileName(localProfile.name)) {
                 parsed.name = localProfile.name;
               }
-              if (localProfile.avatar) {
+              if (localProfile.avatar && !localProfile.avatar.includes(STATIC_UNSPLASH_AVATAR)) {
                 parsed.avatar = localProfile.avatar;
               }
               if (localProfile.phone) {
@@ -335,8 +359,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setUser((prev) => {
               if (!prev) return prev;
               const hasUploadedAvatar = prev.avatar && prev.avatar.startsWith('data:image/');
-              const nextAvatar = hasUploadedAvatar ? prev.avatar : (data.avatar || prev.avatar);
-              const nextName = (user.role !== 'Admin' && data.name === 'Pirnavsms') ? prev.name : (data.name || prev.name);
+              const cleanPrevAvatar = prev.avatar && !prev.avatar.includes(STATIC_UNSPLASH_AVATAR) ? prev.avatar : '';
+              const cleanDataAvatar = data.avatar && !data.avatar.includes(STATIC_UNSPLASH_AVATAR) ? data.avatar : '';
+              const nextAvatar = hasUploadedAvatar ? prev.avatar : (cleanDataAvatar || cleanPrevAvatar);
+              const cleanPrevName = isPlaceholderProfileName(prev.name) ? '' : prev.name;
+              const cleanDataName = isPlaceholderProfileName(data.name) ? '' : data.name;
+              const nextName = cleanDataName || cleanPrevName;
               const next = {
                 ...prev,
                 name: nextName,
@@ -345,6 +373,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 branch: data.branch || prev.branch,
               };
               localStorage.setItem('auth_user', JSON.stringify(next));
+              localStorage.setItem('user', JSON.stringify(next));
               return next;
             });
           }
@@ -488,12 +517,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const savedProfile = getLocalUserProfile(userKey);
 
       let userName = (response?.fullName || response?.name || '').trim();
-      if (!userName && savedProfile?.name) {
+      if (isPlaceholderProfileName(userName)) {
+        const jwtName = getNameFromJwt(realToken);
+        userName = !isPlaceholderProfileName(jwtName) ? jwtName : '';
+      }
+      if (!userName && savedProfile?.name && !isPlaceholderProfileName(savedProfile.name)) {
         userName = savedProfile.name.trim();
       }
 
       const userIdStr = response?.userId ? String(response.userId) : (response?.id ? String(response.id) : `USR-${Math.floor(Math.random() * 1000)}`);
-      let userAvatar = response?.avatar || savedProfile?.avatar || '';
+      const rawAvatar = response?.avatar || savedProfile?.avatar || '';
+      const userAvatar = rawAvatar.includes(STATIC_UNSPLASH_AVATAR) ? '' : rawAvatar;
 
       const userPhone = response?.mobileNumber || response?.phone || (!emailOrPhone.includes('@') ? emailOrPhone : '') || savedProfile?.phone || '';
 

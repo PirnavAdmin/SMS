@@ -2542,6 +2542,47 @@ using (var scope = app.Services.CreateScope())
                             }
                         }
 
+                        // 5. Clean up any previously generated IDs that literally contain the "none" separator (e.g. 2026ADnone0001 -> 2026AD0001)
+                        static string CleanNoneSep(string? idVal) =>
+                            string.IsNullOrEmpty(idVal)
+                                ? idVal ?? string.Empty
+                                : System.Text.RegularExpressions.Regex.Replace(idVal, @"(?<=[A-Za-z0-9])none(?=[0-9])", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+                        var appsWithNone = await context.AdmissionApplications
+                            .Where(a => (a.AdmissionNo != null && a.AdmissionNo.Contains("none")) || (a.RegistrationNo != null && a.RegistrationNo.Contains("none")))
+                            .ToListAsync();
+                        foreach (var a in appsWithNone)
+                        {
+                            if (!string.IsNullOrEmpty(a.AdmissionNo)) a.AdmissionNo = CleanNoneSep(a.AdmissionNo);
+                            if (!string.IsNullOrEmpty(a.RegistrationNo)) a.RegistrationNo = CleanNoneSep(a.RegistrationNo);
+                        }
+
+                        var admWithNone = await context.Admissions
+                            .Where(a => (a.ApplicationNo != null && a.ApplicationNo.Contains("none")) || (a.RollNo != null && a.RollNo.Contains("none")))
+                            .ToListAsync();
+                        foreach (var a in admWithNone)
+                        {
+                            if (!string.IsNullOrEmpty(a.ApplicationNo)) a.ApplicationNo = CleanNoneSep(a.ApplicationNo);
+                            if (!string.IsNullOrEmpty(a.RollNo)) a.RollNo = CleanNoneSep(a.RollNo);
+                        }
+
+                        var studentsWithNone = await context.Students
+                            .Where(s => (s.AdmissionNumber != null && s.AdmissionNumber.Contains("none")) || (s.RollNumber != null && s.RollNumber.Contains("none")))
+                            .ToListAsync();
+                        foreach (var s in studentsWithNone)
+                        {
+                            if (!string.IsNullOrEmpty(s.AdmissionNumber)) s.AdmissionNumber = CleanNoneSep(s.AdmissionNumber);
+                            if (!string.IsNullOrEmpty(s.RollNumber)) s.RollNumber = CleanNoneSep(s.RollNumber);
+                        }
+
+                        var staffWithNone = await context.Staff
+                            .Where(s => s.EmployeeId != null && s.EmployeeId.Contains("none"))
+                            .ToListAsync();
+                        foreach (var s in staffWithNone)
+                        {
+                            if (!string.IsNullOrEmpty(s.EmployeeId)) s.EmployeeId = CleanNoneSep(s.EmployeeId);
+                        }
+
                         await context.SaveChangesAsync();
                     }
                     catch (Exception ex)
@@ -2645,6 +2686,47 @@ using (var scope = app.Services.CreateScope())
                             {
                                 matchedStudent.RollNumber = appItem.RegistrationNo ?? string.Empty;
                             }
+                        }
+
+                        // 5. Clean up any previously generated IDs that literally contain the "none" separator (e.g. 2026ADnone0001 -> 2026AD0001)
+                        static string CleanNoneSep(string? idVal) =>
+                            string.IsNullOrEmpty(idVal)
+                                ? idVal ?? string.Empty
+                                : System.Text.RegularExpressions.Regex.Replace(idVal, @"(?<=[A-Za-z0-9])none(?=[0-9])", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+                        var appsWithNone = await context.AdmissionApplications
+                            .Where(a => (a.AdmissionNo != null && a.AdmissionNo.Contains("none")) || (a.RegistrationNo != null && a.RegistrationNo.Contains("none")))
+                            .ToListAsync();
+                        foreach (var a in appsWithNone)
+                        {
+                            if (!string.IsNullOrEmpty(a.AdmissionNo)) a.AdmissionNo = CleanNoneSep(a.AdmissionNo);
+                            if (!string.IsNullOrEmpty(a.RegistrationNo)) a.RegistrationNo = CleanNoneSep(a.RegistrationNo);
+                        }
+
+                        var admWithNone = await context.Admissions
+                            .Where(a => (a.ApplicationNo != null && a.ApplicationNo.Contains("none")) || (a.RollNo != null && a.RollNo.Contains("none")))
+                            .ToListAsync();
+                        foreach (var a in admWithNone)
+                        {
+                            if (!string.IsNullOrEmpty(a.ApplicationNo)) a.ApplicationNo = CleanNoneSep(a.ApplicationNo);
+                            if (!string.IsNullOrEmpty(a.RollNo)) a.RollNo = CleanNoneSep(a.RollNo);
+                        }
+
+                        var studentsWithNone = await context.Students
+                            .Where(s => (s.AdmissionNumber != null && s.AdmissionNumber.Contains("none")) || (s.RollNumber != null && s.RollNumber.Contains("none")))
+                            .ToListAsync();
+                        foreach (var s in studentsWithNone)
+                        {
+                            if (!string.IsNullOrEmpty(s.AdmissionNumber)) s.AdmissionNumber = CleanNoneSep(s.AdmissionNumber);
+                            if (!string.IsNullOrEmpty(s.RollNumber)) s.RollNumber = CleanNoneSep(s.RollNumber);
+                        }
+
+                        var staffWithNone = await context.Staff
+                            .Where(s => s.EmployeeId != null && s.EmployeeId.Contains("none"))
+                            .ToListAsync();
+                        foreach (var s in staffWithNone)
+                        {
+                            if (!string.IsNullOrEmpty(s.EmployeeId)) s.EmployeeId = CleanNoneSep(s.EmployeeId);
                         }
 
                         await context.SaveChangesAsync();
@@ -2838,7 +2920,11 @@ using (var scope = app.Services.CreateScope())
                     `TransactionId` VARCHAR(100) NOT NULL DEFAULT '',
                     `PaymentDate` DATETIME NOT NULL,
                     `PaymentMethod` VARCHAR(50) NOT NULL DEFAULT 'Cash',
-                    `Status` VARCHAR(50) NOT NULL DEFAULT 'Completed'
+                    `Status` VARCHAR(50) NOT NULL DEFAULT 'Completed',
+                    `TermName` VARCHAR(255) NULL,
+                    `FeeHeadName` VARCHAR(255) NULL,
+                    `Remarks` LONGTEXT NULL,
+                    `PaidItemsJson` LONGTEXT NULL
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
                 CREATE TABLE IF NOT EXISTS `fee_schedules` (
@@ -3037,6 +3123,50 @@ using (var scope = app.Services.CreateScope())
                     `AcademicYearId` INT NOT NULL DEFAULT 0,
                     `BranchId` INT NOT NULL DEFAULT 0
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+                CREATE TABLE IF NOT EXISTS `financial_categories` (
+                    `Id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                    `Name` VARCHAR(150) NOT NULL,
+                    `Type` VARCHAR(30) NOT NULL DEFAULT 'Income',
+                    `SourceModule` VARCHAR(100) NOT NULL DEFAULT 'Manual',
+                    `Status` VARCHAR(30) NOT NULL DEFAULT 'Active',
+                    `IsSystem` TINYINT(1) NOT NULL DEFAULT 0,
+                    `CreatedAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+                CREATE TABLE IF NOT EXISTS `fine_rules` (
+                    `Id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                    `RuleName` VARCHAR(150) NOT NULL,
+                    `DueDate` VARCHAR(30) NOT NULL DEFAULT '2026-08-15',
+                    `GraceDays` INT NOT NULL DEFAULT 5,
+                    `FineType` VARCHAR(50) NOT NULL DEFAULT 'Daily Fine',
+                    `DailyFine` DECIMAL(18,2) NOT NULL DEFAULT 50.00,
+                    `FixedFine` DECIMAL(18,2) NOT NULL DEFAULT 200.00,
+                    `MaximumFine` DECIMAL(18,2) NOT NULL DEFAULT 1500.00,
+                    `Status` VARCHAR(30) NOT NULL DEFAULT 'Active',
+                    `CreatedAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    `UpdatedAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+                CREATE TABLE IF NOT EXISTS `fee_refund_requests` (
+                    `Id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                    `RefundNo` VARCHAR(100) NOT NULL,
+                    `ReceiptNo` VARCHAR(100) NOT NULL DEFAULT '',
+                    `StudentId` INT NOT NULL DEFAULT 0,
+                    `AdmissionNo` VARCHAR(100) NOT NULL DEFAULT '',
+                    `StudentName` VARCHAR(150) NOT NULL DEFAULT '',
+                    `ClassName` VARCHAR(100) NOT NULL DEFAULT '',
+                    `Section` VARCHAR(50) NOT NULL DEFAULT '',
+                    `RefundAmount` DECIMAL(18,2) NOT NULL DEFAULT 0.00,
+                    `Reason` VARCHAR(500) NOT NULL DEFAULT '',
+                    `Status` VARCHAR(50) NOT NULL DEFAULT 'Pending',
+                    `RequestedBy` VARCHAR(150) NOT NULL DEFAULT 'Admin',
+                    `ApprovedBy` VARCHAR(150) NOT NULL DEFAULT '',
+                    `RequestedDate` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    `ProcessedDate` DATETIME NULL,
+                    `PaymentMode` VARCHAR(50) NOT NULL DEFAULT 'Bank Transfer',
+                    `Remarks` VARCHAR(500) NOT NULL DEFAULT ''
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
             ");
 
             if (!feeWasOpen) await feeDbConn.OpenAsync();
@@ -3054,7 +3184,11 @@ using (var scope = app.Services.CreateScope())
                 ("hostel_fee_configs", "ApplicableClasses", "TEXT NULL"),
                 ("hostel_fee_configs", "ApplicableTermsJson", "TEXT NULL"),
                 ("hostel_fee_configs", "AcademicYear", "VARCHAR(50) NOT NULL DEFAULT '2025-2026'"),
-                ("hostel_fee_configs", "Branch", "VARCHAR(100) NOT NULL DEFAULT ''")
+                ("hostel_fee_configs", "Branch", "VARCHAR(100) NOT NULL DEFAULT ''"),
+                ("feepayments", "TermName", "VARCHAR(255) NULL"),
+                ("feepayments", "FeeHeadName", "VARCHAR(255) NULL"),
+                ("feepayments", "Remarks", "LONGTEXT NULL"),
+                ("feepayments", "PaidItemsJson", "LONGTEXT NULL")
             };
 
             foreach (var (table, colName, colDef) in feeScheduleCols)

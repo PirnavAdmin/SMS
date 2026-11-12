@@ -27,6 +27,19 @@ export const getActiveUserKey = (emailOrId?: string): string => {
   return 'current_user';
 };
 
+const STATIC_UNSPLASH_AVATAR = 'images.unsplash.com/photo-1573496359142-b8d87734a5a2';
+
+const isPlaceholderProfileName = (name?: string): boolean => {
+  const n = (name || '').trim().toLowerCase();
+  return !n || n === 'administrator' || n === 'admin' || n === 'super admin' || n === 'superadmin' || n === 'pirnavsms' || n === 'vasantha gokul' || n === 'user';
+};
+
+const sanitizeAvatar = (avatar?: string): string => {
+  if (!avatar || typeof avatar !== 'string') return '';
+  if (avatar.includes(STATIC_UNSPLASH_AVATAR)) return '';
+  return avatar;
+};
+
 // Read user-scoped profile from local storage
 export const getLocalUserProfile = (userKey?: string): UserProfileData | null => {
   const key = getActiveUserKey(userKey);
@@ -46,6 +59,10 @@ export const getLocalUserProfile = (userKey?: string): UserProfileData | null =>
         localStorage.removeItem(`user_profile_${key}`);
         return null;
       }
+      if (isPlaceholderProfileName(parsed.name)) {
+        parsed.name = '';
+      }
+      parsed.avatar = sanitizeAvatar(parsed.avatar);
       return parsed;
     }
   } catch {}
@@ -62,12 +79,16 @@ export const saveLocalUserProfile = (profileData: Partial<UserProfileData>, user
       phone: '',
       avatar: '',
       branch: '',
-      role: 'Admin',
+      role: '',
       status: 'Active Account',
     };
+    const nextName = isPlaceholderProfileName(profileData.name) ? existing.name : (profileData.name || existing.name);
+    const nextAvatar = sanitizeAvatar(profileData.avatar !== undefined ? profileData.avatar : existing.avatar);
     const updated = {
       ...existing,
       ...profileData,
+      name: nextName,
+      avatar: nextAvatar,
     };
     localStorage.setItem(`user_profile_${key}`, JSON.stringify(updated));
   } catch {}
@@ -76,14 +97,15 @@ export const saveLocalUserProfile = (profileData: Partial<UserProfileData>, user
 export const fetchUserProfileApi = async (userEmailOrId?: string) => {
   const key = getActiveUserKey(userEmailOrId);
 
-  // 1. Try dedicated backend endpoint ONLY for Admin users
+  // 1. Try dedicated backend endpoint for authenticated Admin / Super Admin users
   try {
     let isExplicitAdmin = false;
     try {
       const saved = localStorage.getItem('auth_user');
       if (saved) {
         const parsed = JSON.parse(saved);
-        isExplicitAdmin = parsed?.role === 'Admin' || key.includes('admin') || key.includes('pirnavsms');
+        const roleLower = (parsed?.role || '').toLowerCase();
+        isExplicitAdmin = roleLower === 'admin' || roleLower === 'super admin' || roleLower === 'superadmin' || key.includes('admin') || key.includes('pirnavsms');
       }
     } catch {}
 
@@ -93,14 +115,19 @@ export const fetchUserProfileApi = async (userEmailOrId?: string) => {
       });
       const backendData = res?.data || res;
       if (backendData && (backendData.name || backendData.avatar || backendData.email)) {
-        const backendEmail = (backendData.email || '').trim().toLowerCase();
+        const sanitizedBackendData = {
+          ...backendData,
+          name: isPlaceholderProfileName(backendData.name) ? '' : backendData.name,
+          avatar: sanitizeAvatar(backendData.avatar),
+        };
+        const backendEmail = (sanitizedBackendData.email || '').trim().toLowerCase();
         const targetKey = key.trim().toLowerCase();
         if (!backendEmail || !targetKey || targetKey === 'current_user' || !targetKey.includes('@') || backendEmail === targetKey) {
-          // Cache locally for this specific admin user
-          saveLocalUserProfile(backendData, key);
+          // Cache locally for this specific user
+          saveLocalUserProfile(sanitizedBackendData, key);
           return {
             success: true,
-            data: backendData,
+            data: sanitizedBackendData,
           };
         }
       }

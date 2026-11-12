@@ -89,108 +89,7 @@ export interface CampusItem {
 
 const defaultCampuses: CampusItem[] = [];
 
-const defaultCertificateTemplates: CertificateTemplateConfig[] = [
-  {
-    id: "TPL-TC",
-    certificateType: "Transfer Certificate",
-    title: "OFFICIAL TRANSFER CERTIFICATE",
-    subTitle: "CBSE Affiliation No: 883012 • School Code: 40192",
-    headerStyle: "Classic Double Border",
-    themeColor: "#1e3a8a",
-    showLogo: true,
-    showSeal: true,
-    signatory1: "Class Teacher Signature",
-    signatory2: "Verified By (Accounts)",
-    signatory3: "Principal Signature & Seal",
-    customPreamble:
-      "Certified that the student details listed below are verified from original school admission registers.",
-    footerDisclaimer:
-      "Official Transfer Certificate issued in accordance with Education Code Rules.",
-  },
-  {
-    id: "TPL-BONAFIDE",
-    certificateType: "Bonafide Certificate",
-    title: "BONAFIDE STUDY CERTIFICATE",
-    subTitle: "Recognized Educational Institution",
-    headerStyle: "Modern Minimalist",
-    themeColor: "#065f46",
-    showLogo: true,
-    showSeal: true,
-    signatory1: "Class Teacher",
-    signatory2: "Administrative Officer",
-    signatory3: "Headmaster / Principal",
-    customPreamble:
-      "This is to certify that the student is a genuine student studying in our institution.",
-    footerDisclaimer:
-      "Valid for official passport, bank, or scholarship verification.",
-  },
-  {
-    id: "TPL-CONDUCT",
-    certificateType: "Character Certificate",
-    title: "CHARACTER & CONDUCT CERTIFICATE",
-    subTitle: "General Student Conduct Evaluation",
-    headerStyle: "Executive Slate",
-    themeColor: "#1e293b",
-    showLogo: true,
-    showSeal: true,
-    signatory1: "Counselor / Class Teacher",
-    signatory2: "Vice Principal",
-    signatory3: "Principal",
-    customPreamble:
-      "Certified that the student bears exemplary moral character and satisfactory conduct.",
-    footerDisclaimer:
-      "Issued upon student or parent request for higher studies.",
-  },
-  {
-    id: "TPL-LEAVING",
-    certificateType: "Leaving Certificate",
-    title: "SCHOOL LEAVING CERTIFICATE",
-    subTitle: "Secondary Education Departure Record",
-    headerStyle: "Classic Double Border",
-    themeColor: "#991b1b",
-    showLogo: true,
-    showSeal: true,
-    signatory1: "Class Teacher",
-    signatory2: "Registrar",
-    signatory3: "Principal",
-    customPreamble:
-      "Certified that the student has completed course work and departed the institution.",
-    footerDisclaimer: "Official leaving record for board verification.",
-  },
-  {
-    id: "TPL-MERIT",
-    certificateType: "Merit Certificate",
-    title: "CERTIFICATE OF ACADEMIC EXCELLENCE",
-    subTitle: "Awarded for Outstanding Academic Performance",
-    headerStyle: "Royal Gold Crest",
-    themeColor: "#92400e",
-    showLogo: true,
-    showSeal: true,
-    signatory1: "Academic Coordinator",
-    signatory2: "Exam Controller",
-    signatory3: "Principal",
-    customPreamble:
-      "In recognition of stellar academic achievements and exemplary effort.",
-    footerDisclaimer:
-      "Honorary academic award presented at annual convocation.",
-  },
-  {
-    id: "TPL-SPORTS",
-    certificateType: "Sports Certificate",
-    title: "CERTIFICATE OF SPORTS ACHIEVEMENT",
-    subTitle: "Annual Inter-School Athletics Championship",
-    headerStyle: "Modern Minimalist",
-    themeColor: "#0284c7",
-    showLogo: true,
-    showSeal: true,
-    signatory1: "Physical Education Director",
-    signatory2: "Sports Coordinator",
-    signatory3: "Principal",
-    customPreamble:
-      "Presented for outstanding sportsmanship and championship performance.",
-    footerDisclaimer: "Official sports recognition certificate.",
-  },
-];
+const defaultCertificateTemplates: CertificateTemplateConfig[] = [];
 
 const TIME_DROPDOWN_OPTIONS = [
   "06:00 AM", "06:15 AM", "06:30 AM", "06:45 AM",
@@ -402,12 +301,12 @@ export const SettingsView: React.FC = () => {
   };
 
   const [myProfileForm, setMyProfileForm] = useState({
-    name: user?.name || "Administrator",
+    name: user?.name || "",
     email: getCleanUserEmail(user?.email),
-    phone: user?.phone || "+91 9581768555",
+    phone: user?.phone || "",
     avatar: user?.avatar || DEFAULT_USER_AVATAR,
     branch: user?.branch || "",
-    role: user?.role || role || "Admin",
+    role: user?.role || role || "",
   });
 
   const configuredBranches = useMemo(() => {
@@ -467,19 +366,19 @@ export const SettingsView: React.FC = () => {
         const data = res?.data;
         if (data && isMounted && (data.name || data.avatar)) {
           setMyProfileForm((prev) => {
-            const currentAvatar = prev.avatar === "" ? "" : (prev.avatar || user?.avatar || DEFAULT_USER_AVATAR);
+            const resolvedAvatar = data.avatar || (prev.avatar && prev.avatar !== DEFAULT_USER_AVATAR ? prev.avatar : DEFAULT_USER_AVATAR);
             return {
               ...prev,
               name: data.name || prev.name,
               phone: data.phone || prev.phone,
-              avatar: currentAvatar,
+              avatar: resolvedAvatar,
               branch: data.branch || prev.branch,
               role: data.role || prev.role,
             };
           });
 
           if (user && setUser) {
-            const currentAvatar = user.avatar || DEFAULT_USER_AVATAR;
+            const currentAvatar = data.avatar || (user.avatar && !user.avatar.includes('photo-1573496359142-b8d87734a5a2') ? user.avatar : '') || DEFAULT_USER_AVATAR;
             const updatedUser = {
               ...user,
               name: data.name || user.name,
@@ -690,18 +589,65 @@ export const SettingsView: React.FC = () => {
   };
 
   const handleSaveIdCard = async (cardKey: string, cardTitle: string) => {
+    const toSafeInt = (val: any, fallback = 0): number => {
+      if (val === "" || val === null || val === undefined) return fallback;
+      const n = Number(val);
+      return Number.isFinite(n) ? Math.trunc(n) : fallback;
+    };
+
     try {
       setEditingIdCards({ student: false, teaching: false, nonTeaching: false, admission: false });
-                    saveIdSequenceSettings(idForm);
-      const res = await updateIdSequenceSettingsApi(idForm);
+      saveIdSequenceSettings(idForm);
+      const apiPayload = {
+        ...idForm,
+        studentIdPrefix: idForm.studentIdPrefix || "",
+        studentIdStartNo: toSafeInt(idForm.studentIdStartNo, 0),
+        studentIdPadding: toSafeInt(idForm.studentIdPadding, 0),
+        studentIdIncludeYear: Boolean(idForm.studentIdIncludeYear),
+        studentIdSeparator: idForm.studentIdSeparator ?? "",
+        studentIdPosition: idForm.studentIdPosition || "",
+
+        teachingIdPrefix: idForm.teachingIdPrefix || "",
+        teachingIdStartNo: toSafeInt(idForm.teachingIdStartNo, 0),
+        teachingIdPadding: toSafeInt(idForm.teachingIdPadding, 0),
+        teachingIdIncludeYear: Boolean(idForm.teachingIdIncludeYear),
+        teachingIdSeparator: idForm.teachingIdSeparator ?? "",
+        teachingIdPosition: idForm.teachingIdPosition || "",
+
+        nonTeachingIdPrefix: idForm.nonTeachingIdPrefix || "",
+        nonTeachingIdStartNo: toSafeInt(idForm.nonTeachingIdStartNo, 0),
+        nonTeachingIdPadding: toSafeInt(idForm.nonTeachingIdPadding, 0),
+        nonTeachingIdIncludeYear: Boolean(idForm.nonTeachingIdIncludeYear),
+        nonTeachingIdSeparator: idForm.nonTeachingIdSeparator ?? "",
+        nonTeachingIdPosition: idForm.nonTeachingIdPosition || "",
+
+        admissionNoPrefix: idForm.admissionNoPrefix || "",
+        admissionNoStartNo: toSafeInt(idForm.admissionNoStartNo, 0),
+        admissionNoPadding: toSafeInt(idForm.admissionNoPadding, 0),
+        admissionNoIncludeYear: Boolean(idForm.admissionNoIncludeYear),
+        admissionNoSeparator: idForm.admissionNoSeparator ?? "",
+        admissionNoPosition: idForm.admissionNoPosition || "",
+
+        customSequences: Array.isArray((idForm as any).customSequences)
+          ? (idForm as any).customSequences.map((c: any) => ({
+              ...c,
+              startNo: toSafeInt(c?.startNo, 101),
+              padding: toSafeInt(c?.padding, 4),
+              includeYear: Boolean(c?.includeYear),
+              separator: c?.separator ?? "-",
+              position: c?.position || "start",
+            }))
+          : [],
+      };
+      const res = await updateIdSequenceSettingsApi(apiPayload);
       if (res && (res.success || res.data)) {
         addToast("success", `${cardTitle} Saved`, "Format sequence updated successfully.");
       } else {
         addToast("success", `${cardTitle} Saved`, "Format sequence updated.");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.warn("Error saving ID sequence settings to backend API:", err);
-      addToast("error", "Sync Warning", "Could not sync ID sequence settings to backend API.");
+      addToast("error", "Sync Warning", err?.message || "Could not sync ID sequence settings to backend API.");
     }
     setEditingIdCards(prev => ({ ...prev, [cardKey]: false }));
   };

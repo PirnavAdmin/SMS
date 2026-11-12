@@ -1,14 +1,24 @@
 {
-  "name": "automation",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "name": "sms-automation",
+  "version": "2.0.0",
+  "description": "Comprehensive QA Automation Suite (Smoke, E2E, Regression, Data-Driven, API, Performance) for School Management System",
+  "private": true,
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "npx playwright test --project=smoke --project=api",
+    "test:smoke": "npx playwright test --project=smoke",
+    "test:e2e": "npx playwright test --project=e2e",
+    "test:regression": "npx playwright test --grep @regression",
+    "test:ddt": "npx playwright test --project=ddt",
+    "test:api": "npx playwright test --project=api",
+    "test:all": "npx playwright test",
+    "test:headed": "npx playwright test --headed",
+    "test:ui": "npx playwright test --ui",
+    "test:report": "npx playwright show-report reports/playwright-report",
+    "test:backend": "dotnet test ../Backend.Tests/Backend.Tests.csproj --configuration Debug --logger \"console;verbosity=normal\"",
+    "test:frontend:build": "npm --prefix ../Frontend/school-management-system run build",
+    "test:perf": "node performance/load-runner.mjs",
+    "test:perf:k6": "k6 run performance/login-and-core-k6.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "devDependencies": {
     "@playwright/test": "^1.63.0"
   }

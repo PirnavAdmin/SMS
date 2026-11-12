@@ -347,7 +347,8 @@ export function formatConfiguredStudentAdmissionNo(admissionNo?: string, student
   if (admissionNo && admissionNo.trim()) return admissionNo.trim();
   const config = getIdSequenceSettings();
   const prefix = config.admissionNoPrefix || config.studentIdPrefix || 'STU';
-  const sep = config.admissionNoSeparator || '-';
+  const rawSep = config.admissionNoSeparator;
+  const sep = (rawSep === 'none' || rawSep === '__none__') ? '' : (rawSep || '-');
   const yearStr = config.admissionNoIncludeYear ? `${new Date().getFullYear()}` : '';
   const padding = config.admissionNoPadding || 4;
   

@@ -419,7 +419,6 @@ import {
   initialHostelAttendanceLogs,
   initialFinanceHostelConfigs,
   initialFinanceUniformConfigs,
-  initialLeaveTypes,
   initialLeaveApplications,
   initialPayslips,
   initialPayrollConfigurations,
@@ -1592,21 +1591,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const [branches, setBranches] = useState<any[]>([]);
   const [certificateTemplates, setCertificateTemplates] = useState<
     CertificateTemplateConfig[]
-  >(() => {
-    const stored = getStored(
-      "certificate_templates",
-      initialCertificateTemplates,
-    );
-    if (
-      Array.isArray(stored) &&
-      stored.length > 0 &&
-      stored[0]?.certificateType &&
-      stored[0]?.title
-    ) {
-      return stored;
-    }
-    return initialCertificateTemplates;
-  });
+  >([]);
   const [tcRegister, setTcRegister] = useState<TcRecord[]>(() =>
     getStored("tc_register", []),
   );
@@ -1817,79 +1802,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   // Leave Management ERP States
-  const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>(() => {
-    const stored = getStored("leave_types", initialLeaveTypes);
-    return Array.isArray(stored) && stored.length > 0
-      ? stored
-      : [
-          {
-            id: "LT-001",
-            name: "Casual Leave",
-            code: "CL",
-            annualAllowance: 10,
-            maxConsecutiveDays: 3,
-            isPaid: true,
-            carryForward: true,
-            requiresAttachment: false,
-            status: "Active",
-          },
-          {
-            id: "LT-002",
-            name: "Sick Leave",
-            code: "SL",
-            annualAllowance: 10,
-            maxConsecutiveDays: 5,
-            isPaid: true,
-            carryForward: true,
-            requiresAttachment: true,
-            status: "Active",
-          },
-          {
-            id: "LT-003",
-            name: "Paid / Earned Leave",
-            code: "PL",
-            annualAllowance: 15,
-            maxConsecutiveDays: 10,
-            isPaid: true,
-            carryForward: true,
-            requiresAttachment: false,
-            status: "Active",
-          },
-          {
-            id: "LT-004",
-            name: "On Duty Leave",
-            code: "OD",
-            annualAllowance: 12,
-            maxConsecutiveDays: 4,
-            isPaid: true,
-            carryForward: false,
-            requiresAttachment: false,
-            status: "Active",
-          },
-          {
-            id: "LT-005",
-            name: "Maternity / Paternity Leave",
-            code: "ML",
-            annualAllowance: 90,
-            maxConsecutiveDays: 90,
-            isPaid: true,
-            carryForward: false,
-            requiresAttachment: true,
-            status: "Active",
-          },
-          {
-            id: "LT-006",
-            name: "Loss of Pay (Unpaid)",
-            code: "LOP",
-            annualAllowance: 30,
-            maxConsecutiveDays: 30,
-            isPaid: false,
-            carryForward: false,
-            requiresAttachment: false,
-            status: "Active",
-          },
-        ];
-  });
+  const [leaveTypes, setLeaveTypes] = useState<LeaveType[]>([]);
   const [leaveApplications, setLeaveApplications] = useState<
     LeaveApplication[]
   >([]);
@@ -5746,6 +5659,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           studentScholarshipsRes,
           discountsRes,
           studentDiscountsRes,
+          fineRulesRes,
         ] = await Promise.allSettled([
           FinanceAPI.fetchFeeHeadsApi(),
           FinanceAPI.fetchDynamicFeeStructuresApi(),
@@ -5767,6 +5681,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           FinanceAPI.fetchStudentScholarshipsApi(),
           FinanceAPI.fetchDiscountsApi(),
           FinanceAPI.fetchStudentDiscountsApi(),
+          FinanceAPI.fetchFineRulesApi(),
         ]);
         const extract = (r: PromiseSettledResult<any>) =>
           r.status === "fulfilled"
@@ -5856,6 +5771,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             ...prev.filter((s) => !matchesAcademicYear(s.academicYear, ay)),
             loadedSchedule,
           ]);
+        } else if (feeScheduleRes.status === "fulfilled") {
+          const ay = apiFeeSchedule?.academicYear || selectedAcademicYear || "";
+          setAcademicYearFeeSchedules((prev) =>
+            ay ? prev.filter((s) => !matchesAcademicYear(s.academicYear, ay)) : []
+          );
         }
 
         const apiScholarships = extract(scholarshipsRes);
@@ -5976,6 +5896,29 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               "student_discounts",
               JSON.stringify(mappedStudentDiscounts),
             );
+          } catch (e) {}
+        }
+
+        const apiFineRules = extract(fineRulesRes);
+        if (
+          fineRulesRes.status === "fulfilled" &&
+          Array.isArray(apiFineRules)
+        ) {
+          const mappedFineRules: FineRule[] = apiFineRules.map((fr: any) => ({
+            id: String(fr.id),
+            ruleName: fr.ruleName || "",
+            dueDate: fr.dueDate || "2026-08-15",
+            graceDays: Number(fr.graceDays ?? 5),
+            fineType: fr.fineType === "Fixed Fine" ? "Fixed Fine" : "Daily Fine",
+            dailyFine: Number(fr.dailyFine ?? 0),
+            fixedFine: Number(fr.fixedFine ?? 0),
+            maximumFine: Number(fr.maximumFine ?? 0),
+            status: fr.status === "Inactive" ? "Inactive" : "Active",
+          }));
+          setFineRules(mappedFineRules);
+          try {
+            localStorage.setItem("edu_db_fine_rules", JSON.stringify(mappedFineRules));
+            localStorage.setItem("fine_rules", JSON.stringify(mappedFineRules));
           } catch (e) {}
         }
 
@@ -6971,26 +6914,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 : [];
             }
 
-            if (parsedTemplates.length > 0) {
-              setCertificateTemplates(parsedTemplates);
-              localStorage.setItem(
-                "edu_db_certificate_templates_v2",
-                JSON.stringify(parsedTemplates),
-              );
-            }
-            if (parsedTypes.length > 0) {
-              localStorage.setItem(
-                "edu_db_certificate_types",
-                JSON.stringify(parsedTypes),
-              );
-            }
-            if (parsedIssued.length > 0) {
-              setGeneratedCertificates(parsedIssued);
-              localStorage.setItem(
-                "edu_db_generated_certificates",
-                JSON.stringify(parsedIssued),
-              );
-            }
+            setCertificateTemplates(parsedTemplates);
+            localStorage.setItem(
+              "edu_db_certificate_templates_v2",
+              JSON.stringify(parsedTemplates),
+            );
+            localStorage.setItem(
+              "edu_db_certificate_types",
+              JSON.stringify(parsedTypes),
+            );
+            setGeneratedCertificates(parsedIssued);
+            localStorage.setItem(
+              "edu_db_generated_certificates",
+              JSON.stringify(parsedIssued),
+            );
             if (parsedAlumni.length > 0) {
               setAlumniRecords((prev) => {
                 const map = new Map<string, AlumniRecord>();
@@ -7838,15 +7775,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       const res: any = await fetchSchoolSettingsApi();
       const raw = res?.data?.certificateTemplates;
-      if (raw && typeof raw === "object") {
-        if (Array.isArray(raw.issued)) {
-          setGeneratedCertificates(raw.issued);
-          localStorage.setItem("edu_db_generated_certificates", JSON.stringify(raw.issued));
-        }
-        if (Array.isArray(raw.templates)) {
-          setCertificateTemplates(raw.templates);
-          localStorage.setItem("edu_db_certificate_templates_v2", JSON.stringify(raw.templates));
-        }
+      if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+        const dbIssued = Array.isArray(raw.issued) ? raw.issued : [];
+        const dbTemplates = Array.isArray(raw.templates) ? raw.templates : [];
+        const dbTypes = Array.isArray(raw.types) ? raw.types : [];
+        const dbPlaceholders = Array.isArray(raw.placeholders) ? raw.placeholders : [];
+        setGeneratedCertificates(dbIssued);
+        localStorage.setItem("edu_db_generated_certificates", JSON.stringify(dbIssued));
+        setCertificateTemplates(dbTemplates);
+        localStorage.setItem("edu_db_certificate_templates_v2", JSON.stringify(dbTemplates));
+        localStorage.setItem("edu_db_certificate_types", JSON.stringify(dbTypes));
+        localStorage.setItem("edu_db_certificate_placeholders", JSON.stringify(dbPlaceholders));
         if (Array.isArray(raw.alumni)) {
           setAlumniRecords((prev) => {
             const map = new Map<string, AlumniRecord>();
@@ -7858,7 +7797,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             return Array.from(map.values());
           });
         }
+      } else {
+        setGeneratedCertificates([]);
+        localStorage.setItem("edu_db_generated_certificates", JSON.stringify([]));
+        setCertificateTemplates([]);
+        localStorage.setItem("edu_db_certificate_templates_v2", JSON.stringify([]));
+        localStorage.setItem("edu_db_certificate_types", JSON.stringify([]));
+        localStorage.setItem("edu_db_certificate_placeholders", JSON.stringify([]));
       }
+      try {
+        window.dispatchEvent(new Event("certificates_updated"));
+      } catch {}
     } catch (e) {}
   };
 
@@ -9286,98 +9235,104 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         ...prev.filter((a) => a.id !== createdApp.id),
       ]);
 
-      // Dynamically ensure student is in students state and fees are assigned immediately
-      const matchingDfs = (dynamicFeeStructures || []).find(
-        (d) =>
-          matchesClassName(d.className, createdApp.appliedClass) &&
-          (matchesAcademicYear(d.academicYear, selectedAcademicYear) || !d.academicYear) &&
-          (d.status === "Active" || !d.status),
-      );
-      const calculatedTotalFee = matchingDfs
-        ? matchingDfs.totalAmount ||
-          matchingDfs.items?.reduce((s, it) => s + Number(it.amount || 0), 0) ||
-          0
-        : 0;
+      // Only add student & assign fees if the application is already Enrolled/Admitted
+      const isCreatedEnrolled =
+        String(createdApp.status || "").toLowerCase() === "enrolled" ||
+        String(createdApp.status || "").toLowerCase() === "admitted";
 
-      const newStudentEntry: Student = {
-        id: createdApp.id,
-        admissionNo:
-          createdApp.admissionNo ||
-          createdApp.applicationNo ||
-          createdApp.registrationNo ||
-          "",
-        firstName: createdApp.applicantName
-          ? createdApp.applicantName.split(" ")[0]
-          : "",
-        lastName: createdApp.applicantName
-          ? createdApp.applicantName.split(" ").slice(1).join(" ")
-          : "",
-        className: createdApp.appliedClass || "",
-        section: (createdApp as any).section || "",
-        gender: (createdApp.gender as any) || "",
-        dob: createdApp.dob || "",
-        bloodGroup: createdApp.bloodGroup || "",
-        religion: createdApp.religion || "",
-        casteCategory: createdApp.casteCategory || "",
-        category: createdApp.casteCategory || "",
-        parentName: createdApp.parentName || "",
-        fatherName: createdApp.parentName || "",
-        motherName: createdApp.motherName || "",
-        phone: createdApp.phone || "",
-        email: createdApp.email || "",
-        studentType: normalizeStudentType(createdApp.studentType),
-        branch: createdApp.branch || selectedBranch || "",
-        rollNo: "",
-        avatar: "",
-        joiningDate:
-          createdApp.submissionDate || new Date().toISOString().split("T")[0],
-        admissionDate:
-          createdApp.submissionDate || new Date().toISOString().split("T")[0],
-        status: "Active",
-        totalFee: calculatedTotalFee,
-        paidFee: 0,
-        dueFee: calculatedTotalFee,
-      } as unknown as Student;
-
-      setStudents((prev) => {
-        const idx = prev.findIndex(
-          (s) =>
-            s.id === newStudentEntry.id ||
-            (newStudentEntry.admissionNo &&
-              s.admissionNo === newStudentEntry.admissionNo),
+      if (isCreatedEnrolled) {
+        const matchingDfs = (dynamicFeeStructures || []).find(
+          (d) =>
+            matchesClassName(d.className, createdApp.appliedClass) &&
+            (matchesAcademicYear(d.academicYear, selectedAcademicYear) || !d.academicYear) &&
+            (d.status === "Active" || !d.status),
         );
-        if (idx !== -1) {
-          const updated = [...prev];
-          updated[idx] = { ...updated[idx], ...newStudentEntry };
-          return updated;
-        }
-        return [newStudentEntry, ...prev];
-      });
+        const calculatedTotalFee = matchingDfs
+          ? matchingDfs.totalAmount ||
+            matchingDfs.items?.reduce((s, it) => s + Number(it.amount || 0), 0) ||
+            0
+          : 0;
 
-      if (matchingDfs) {
-        setStudentFeeAssignments((prev) => {
-          const exists = prev.some((a) => a.studentId === newStudentEntry.id);
-          if (exists) return prev;
-          const newAssign: StudentFeeAssignment = {
-            id: `SFA-${newStudentEntry.id}-${selectedAcademicYear || (academicYears.find((ay: any) => ay.isCurrent || ay.isCurrentAcademicYear || ay.status === 'Active')?.academicYear) || (academicYears[0]?.academicYear) || "ACTIVE"}`,
-            studentId: newStudentEntry.id,
-            studentName: `${newStudentEntry.firstName} ${newStudentEntry.lastName}`.trim(),
-            admissionNo: newStudentEntry.admissionNo,
-            branch: newStudentEntry.branch || selectedBranch || "",
-            academicYear: selectedAcademicYear || (academicYears.find((ay: any) => ay.isCurrent || ay.isCurrentAcademicYear || ay.status === 'Active')?.academicYear) || (academicYears[0]?.academicYear) || "",
-            className: newStudentEntry.className,
-            section: newStudentEntry.section,
-            feeStructureId: matchingDfs.id,
-            assignedFeeHeads: matchingDfs.items,
-            baseFeeTotal: calculatedTotalFee,
-            assignedDate: new Date().toISOString().split("T")[0],
-            status: "Active",
-          };
-          return [newAssign, ...prev];
+        const newStudentEntry: Student = {
+          id: createdApp.id,
+          admissionNo:
+            createdApp.admissionNo ||
+            createdApp.applicationNo ||
+            createdApp.registrationNo ||
+            "",
+          firstName: createdApp.applicantName
+            ? createdApp.applicantName.split(" ")[0]
+            : "",
+          lastName: createdApp.applicantName
+            ? createdApp.applicantName.split(" ").slice(1).join(" ")
+            : "",
+          className: createdApp.appliedClass || "",
+          section: (createdApp as any).section || "",
+          gender: (createdApp.gender as any) || "",
+          dob: createdApp.dob || "",
+          bloodGroup: createdApp.bloodGroup || "",
+          religion: createdApp.religion || "",
+          casteCategory: createdApp.casteCategory || "",
+          category: createdApp.casteCategory || "",
+          parentName: createdApp.parentName || "",
+          fatherName: createdApp.parentName || "",
+          motherName: createdApp.motherName || "",
+          phone: createdApp.phone || "",
+          email: createdApp.email || "",
+          studentType: normalizeStudentType(createdApp.studentType),
+          branch: createdApp.branch || selectedBranch || "",
+          rollNo: "",
+          avatar: "",
+          joiningDate:
+            createdApp.submissionDate || new Date().toISOString().split("T")[0],
+          admissionDate:
+            createdApp.submissionDate || new Date().toISOString().split("T")[0],
+          status: "Active",
+          totalFee: calculatedTotalFee,
+          paidFee: 0,
+          dueFee: calculatedTotalFee,
+        } as unknown as Student;
+
+        setStudents((prev) => {
+          const idx = prev.findIndex(
+            (s) =>
+              s.id === newStudentEntry.id ||
+              (newStudentEntry.admissionNo &&
+                s.admissionNo === newStudentEntry.admissionNo),
+          );
+          if (idx !== -1) {
+            const updated = [...prev];
+            updated[idx] = { ...updated[idx], ...newStudentEntry };
+            return updated;
+          }
+          return [newStudentEntry, ...prev];
         });
-      }
 
-      notifyFinanceUpdated();
+        if (matchingDfs) {
+          setStudentFeeAssignments((prev) => {
+            const exists = prev.some((a) => a.studentId === newStudentEntry.id);
+            if (exists) return prev;
+            const newAssign: StudentFeeAssignment = {
+              id: `SFA-${newStudentEntry.id}-${selectedAcademicYear || (academicYears.find((ay: any) => ay.isCurrent || ay.isCurrentAcademicYear || ay.status === 'Active')?.academicYear) || (academicYears[0]?.academicYear) || "ACTIVE"}`,
+              studentId: newStudentEntry.id,
+              studentName: `${newStudentEntry.firstName} ${newStudentEntry.lastName}`.trim(),
+              admissionNo: newStudentEntry.admissionNo,
+              branch: newStudentEntry.branch || selectedBranch || "",
+              academicYear: selectedAcademicYear || (academicYears.find((ay: any) => ay.isCurrent || ay.isCurrentAcademicYear || ay.status === 'Active')?.academicYear) || (academicYears[0]?.academicYear) || "",
+              className: newStudentEntry.className,
+              section: newStudentEntry.section,
+              feeStructureId: matchingDfs.id,
+              assignedFeeHeads: matchingDfs.items,
+              baseFeeTotal: calculatedTotalFee,
+              assignedDate: new Date().toISOString().split("T")[0],
+              status: "Active",
+            };
+            return [newAssign, ...prev];
+          });
+        }
+
+        notifyFinanceUpdated();
+      }
 
       if (json && json.success !== false) {
         logActivity(
@@ -11589,7 +11544,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         fetchFinanceData().catch(() => {});
       })
       .catch((err: any) => {
-        console.warn("Backend create fee payment fallback to local state", err);
+        console.error("Backend create fee payment failed:", err);
+        addToast(
+          "error",
+          "Payment Save Failed",
+          err?.message || "Could not save fee payment to the database.",
+        );
       });
 
     const student = students.find(
@@ -13422,20 +13382,59 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   // 6. Fine Rules CRUD
-  const addFineRule = (rule: Omit<FineRule, "id">) => {
-    const id = "FR-" + Math.floor(100 + Math.random() * 900);
-    const newRule: FineRule = { ...rule, id };
-    setFineRules((prev) => [...prev, newRule]);
+  const addFineRule = async (rule: Omit<FineRule, "id">) => {
+    let newRule: FineRule = {
+      ...rule,
+      id: "FR-" + Math.floor(100 + Math.random() * 900),
+    };
+    try {
+      const res: any = await FinanceAPI.createFineRuleApi({
+        ruleName: rule.ruleName,
+        dueDate: rule.dueDate,
+        graceDays: Number(rule.graceDays ?? 5),
+        fineType: rule.fineType || "Daily Fine",
+        dailyFine: Number(rule.dailyFine ?? 0),
+        fixedFine: Number(rule.fixedFine ?? 0),
+        maximumFine: Number(rule.maximumFine ?? 0),
+        status: rule.status || "Active",
+      });
+      const data = res?.data || res;
+      if (data?.id) {
+        newRule = { ...rule, id: String(data.id) };
+      }
+    } catch (err) {
+      console.warn("Could not persist fine rule to API:", err);
+    }
+    setFineRules((prev) => [...prev.filter((f) => f.id !== newRule.id), newRule]);
+    logActivity("Created Fine Rule", `Added fine rule ${newRule.ruleName}`);
   };
 
-  const updateFineRule = (id: string, updates: Partial<FineRule>) => {
+  const updateFineRule = async (id: string, updates: Partial<FineRule>) => {
+    const existing = fineRules.find((f) => f.id === id);
+    const merged = existing ? { ...existing, ...updates } : updates;
     setFineRules((prev) =>
       prev.map((f) => (f.id === id ? { ...f, ...updates } : f)),
     );
+    try {
+      const numId = parseInt(id, 10);
+      if (!isNaN(numId)) {
+        await FinanceAPI.updateFineRuleApi(numId, merged);
+      }
+    } catch (err) {
+      console.warn("Could not update fine rule via API:", err);
+    }
   };
 
-  const deleteFineRule = (id: string) => {
+  const deleteFineRule = async (id: string) => {
     setFineRules((prev) => prev.filter((f) => f.id !== id));
+    try {
+      const numId = parseInt(id, 10);
+      if (!isNaN(numId)) {
+        await FinanceAPI.deleteFineRuleApi(numId);
+      }
+    } catch (err) {
+      console.warn("Could not delete fine rule via API:", err);
+    }
   };
 
   // 7. Transport Routes CRUD
@@ -24979,17 +24978,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     }
 
     let leaveTypeIdNum = 0;
-    const allKnownTypes =
-      leaveTypes && leaveTypes.length > 0
-        ? leaveTypes
-        : [
-            { id: "1", name: "Casual Leave", code: "CL" },
-            { id: "2", name: "Sick Leave", code: "SL" },
-            { id: "3", name: "Paid / Earned Leave", code: "PL" },
-            { id: "4", name: "On Duty Leave", code: "OD" },
-            { id: "5", name: "Maternity / Paternity Leave", code: "ML" },
-            { id: "6", name: "Loss of Pay (Unpaid)", code: "LOP" },
-          ];
+    const allKnownTypes = Array.isArray(leaveTypes) ? leaveTypes : [];
     const typeMatch = allKnownTypes.find(
       (t) =>
         t.id === appData.leaveTypeId ||

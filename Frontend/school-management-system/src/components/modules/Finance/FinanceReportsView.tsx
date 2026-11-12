@@ -57,6 +57,11 @@ export const FinanceReportsView: React.FC = () => {
     studentTransports,
     studentHostels,
     studentScholarships,
+    studentDiscounts,
+    feeHeads,
+    dynamicFeeStructures,
+    studentFeeAssignments,
+    academicYearFeeSchedules,
     getStudentFeeOutstandingSummary,
     getStudentFeeLedger,
     financeSettings,
@@ -131,7 +136,7 @@ export const FinanceReportsView: React.FC = () => {
   const sectionsList = Array.from(new Set(students.map(s => s.section))).filter(Boolean);
 
   // Conditional filters visibility check
-  const showFeeHeadFilter = selectedReport === 'Fee Head Wise Collection';
+  const showFeeHeadFilter = selectedReport === 'Head-wise Collection' || selectedReport === 'Fee Head Wise Collection';
   const showPaymentModeFilter = ['Daily Collection', 'Monthly Collection', 'Yearly Collection', 'Collection Summary', 'Cash Book'].includes(selectedReport);
   const showHostelFilter = selectedReport === 'Hostel Collection';
   const showRouteFilter = selectedReport === 'Transport Collection';
@@ -153,14 +158,224 @@ export const FinanceReportsView: React.FC = () => {
 
   const handleGenerate = () => {
     let result: any[] = [];
+    const activeYear = selectedAcademicYear || financeSettings?.academicYear || '';
+    const validPayments = feePayments.filter(
+      (p: any) =>
+        !['Cancelled', 'Reversed', 'Refunded'].includes(String(p.status || '')) &&
+        Number(p.amountPaid ?? p.amount ?? 0) > 0
+    );
+    const normalizeDateStr = (val?: string) => (val ? String(val).slice(0, 10) : '');
+
     switch (selectedReport) {
-      case 'Transport Collection':
-        result = studentTransports.map(t => ({
-          studentName: t.studentName,
-          admissionNo: t.admissionNo,
-          routeName: t.routeName,
-          feePlan: t.feePlan,
-          amount: t.feeAmount
+      case 'Daily Collection':
+        result = validPayments
+          .filter((p: any) => (filterStartDate || filterEndDate ? true : normalizeDateStr(p.paymentDate) === todayStr))
+          .map((p: any) => ({
+            receiptNo: p.receiptNo,
+            studentName: p.studentName,
+            classSection: p.className,
+            paymentMode: p.paymentMode,
+            paymentDate: normalizeDateStr(p.paymentDate),
+            amount: Number(p.amountPaid ?? p.amount ?? 0),
+          }));
+        break;
+      case 'Monthly Collection':
+        result = validPayments
+          .filter((p: any) => (filterStartDate || filterEndDate ? true : normalizeDateStr(p.paymentDate).startsWith(thisMonthStr)))
+          .map((p: any) => ({
+            receiptNo: p.receiptNo,
+            studentName: p.studentName,
+            classSection: p.className,
+            paymentMode: p.paymentMode,
+            paymentDate: normalizeDateStr(p.paymentDate),
+            amount: Number(p.amountPaid ?? p.amount ?? 0),
+          }));
+        break;
+      case 'Yearly Collection':
+      case 'Academic Year Collection':
+        result = validPayments
+          .filter((p: any) => !activeYear || !p.academicYear || p.academicYear === activeYear)
+          .map((p: any) => ({
+            receiptNo: p.receiptNo,
+            studentName: p.studentName,
+            classSection: p.className,
+            academicYear: p.academicYear || activeYear,
+            paymentMode: p.paymentMode,
+            paymentDate: normalizeDateStr(p.paymentDate),
+            amount: Number(p.amountPaid ?? p.amount ?? 0),
+          }));
+        break;
+      case 'Head-wise Collection':
+        {
+          const grouped: Record<string, { feeHeadName: string; receiptsCount: number; amount: number }> = {};
+          validPayments.forEach((p: any) => {
+            const allocs = Array.isArray(p.paymentAllocation) && p.paymentAllocation.length > 0
+              ? p.paymentAllocation
+              : [{ feeHeadName: p.feeHeadName || 'Tuition Fee', amount: Number(p.amountPaid ?? p.amount ?? 0) }];
+            allocs.forEach((a: any) => {
+              const head = a.feeHeadName || p.feeHeadName || 'Tuition Fee';
+              if (filterFeeHead !== 'All' && head.toLowerCase() !== filterFeeHead.toLowerCase()) return;
+              if (!grouped[head]) grouped[head] = { feeHeadName: head, receiptsCount: 0, amount: 0 };
+              grouped[head].receiptsCount += 1;
+              grouped[head].amount += Number(a.amount || 0);
+            });
+          });
+          result = Object.values(grouped);
+        }
+        break;
+      case 'Defaulter List':
+      case 'Outstanding Summary':
+      case 'Pending Fees':
+        result = students
+          .map(s => ({ s, summary: getStudentFeeOutstandingSummary(s.id) }))
+          .filter(item => item.summary.totalOutstanding > 0)
+          .map(({ s, summary }) => ({
+            studentName: `${s.firstName} ${s.lastName}`,
+            admissionNo: s.admissionNo,
+            classSection: `${s.className}-${s.section}`,
+            currentYearDueAmount: summary.currentYearDue,
+            previousYearsDueAmount: summary.previousYearsDue,
+            amount: summary.totalOutstanding,
+          }));
+        break;
+      case 'Class-wise Collection':
+        {
+          const classMap: Record<string, { classSection: string; studentsCount: number; expectedAmount: number; amount: number; outstandingAmount: number }> = {};
+          students.forEach(s => {
+            const cls = s.className || 'Unassigned';
+            if (!classMap[cls]) classMap[cls] = { classSection: cls, studentsCount: 0, expectedAmount: 0, amount: 0, outstandingAmount: 0 };
+            classMap[cls].studentsCount += 1;
+            const summary = getStudentFeeOutstandingSummary(s.id);
+            classMap[cls].outstandingAmount += Number(summary?.totalOutstanding || 0);
+          });
+          validPayments.forEach((p: any) => {
+            const st = students.find(s => s.id === p.studentId);
+            const cls = p.className || st?.className || 'Unassigned';
+            if (!classMap[cls]) classMap[cls] = { classSection: cls, studentsCount: 0, expectedAmount: 0, amount: 0, outstandingAmount: 0 };
+            classMap[cls].amount += Number(p.amountPaid ?? p.amount ?? 0);
+          });
+          Object.values(classMap).forEach(row => {
+            row.expectedAmount = row.amount + row.outstandingAmount;
+          });
+          result = Object.values(classMap);
+        }
+        break;
+      case 'Concession Report':
+        result = [
+          ...studentDiscounts.map((sd: any) => {
+            const st = students.find(s => s.id === sd.studentId);
+            return {
+              studentName: st ? `${st.firstName} ${st.lastName}` : sd.studentId,
+              admissionNo: st?.admissionNo || '',
+              classSection: st ? `${st.className}-${st.section}` : '',
+              concessionType: sd.discountName || 'Discount',
+              appliedDate: sd.appliedDate || '',
+              amount: 0,
+            };
+          }),
+          ...validPayments
+            .filter((p: any) => Number(p.discount || 0) > 0)
+            .map((p: any) => ({
+              studentName: p.studentName,
+              admissionNo: p.receiptNo,
+              classSection: p.className,
+              concessionType: 'Receipt Discount',
+              appliedDate: normalizeDateStr(p.paymentDate),
+              amount: Number(p.discount || 0),
+            })),
+        ];
+        break;
+      case 'Discount Report':
+        result = studentDiscounts.map((sd: any) => {
+          const st = students.find(s => s.id === sd.studentId);
+          return {
+            studentName: st ? `${st.firstName} ${st.lastName}` : sd.studentId,
+            admissionNo: st?.admissionNo || '',
+            classSection: st ? `${st.className}-${st.section}` : '',
+            discountName: sd.discountName,
+            appliedDate: sd.appliedDate || '',
+          };
+        });
+        break;
+      case 'Scholarship Report':
+        result = studentScholarships.map((s: any) => ({
+          studentName: s.studentName,
+          scholarshipName: s.scholarshipName,
+          discount: `${formatCurrency(s.discountValue)} (${s.discountType})`,
+          amount: Number(s.discountValue || 0),
+          appliedDate: s.appliedDate,
+        }));
+        break;
+      case 'Fee Structure Assign':
+        result = studentFeeAssignments.map((a: any) => ({
+          studentName: a.studentName,
+          admissionNo: a.admissionNo,
+          classSection: `${a.className || ''}${a.section ? `-${a.section}` : ''}`,
+          academicYear: a.academicYear || activeYear,
+          baseFeeAmount: Number(a.baseFeeTotal || 0),
+          amount: Number(a.netTotal ?? a.baseFeeTotal ?? 0),
+        }));
+        break;
+      case 'Student Ledger':
+        result = students
+          .map(st => {
+            const ledger = getStudentFeeLedger(st.id, activeYear);
+            if (!ledger) return null;
+            return {
+              studentName: `${st.firstName} ${st.lastName}`,
+              admissionNo: st.admissionNo,
+              classSection: `${st.className}-${st.section}`,
+              grossAmount: Number(ledger.grossAmount || 0),
+              paidAmount: Number(ledger.paidAmount || 0),
+              amount: Number(ledger.dueBalance || 0),
+            };
+          })
+          .filter(Boolean);
+        break;
+      case 'Structure Matrix':
+        result = dynamicFeeStructures.map((s: any) => ({
+          structureName: s.name || s.className,
+          classSection: s.className,
+          academicYear: s.academicYear,
+          studentType: s.studentType || 'All',
+          status: s.status || 'Active',
+          amount: Number(s.totalAmount || 0),
+        }));
+        break;
+      case 'Schedule Status':
+        academicYearFeeSchedules.forEach((sch: any) => {
+          (sch.terms || []).forEach((t: any) => {
+            result.push({
+              academicYear: sch.academicYear,
+              termName: t.termName,
+              startDate: t.startDate,
+              dueDate: t.dueDate,
+              sharePercent: `${t.percentageShare ?? 0}%`,
+              status: t.status || sch.status,
+            });
+          });
+        });
+        break;
+      case 'Fine Collection':
+        result = validPayments
+          .filter((p: any) => Number(p.fineAmount || 0) > 0)
+          .map((p: any) => ({
+            receiptNo: p.receiptNo,
+            studentName: p.studentName,
+            classSection: p.className,
+            paymentMode: p.paymentMode,
+            paymentDate: normalizeDateStr(p.paymentDate),
+            amount: Number(p.fineAmount || 0),
+          }));
+        break;
+      case 'Head Master':
+        result = feeHeads.map((h: any) => ({
+          code: h.code,
+          feeHeadName: h.name,
+          category: h.category,
+          frequency: h.frequency,
+          status: h.status,
+          amount: Number(h.defaultAmount ?? h.amount ?? 0),
         }));
         break;
       case 'Hostel Collection':
@@ -168,147 +383,26 @@ export const FinanceReportsView: React.FC = () => {
           studentName: h.studentName,
           hostelName: h.hostelName,
           roomNo: h.roomNo,
-          amount: h.feeAmount
+          amount: h.feeAmount,
         }));
         break;
-      case 'Scholarship Report':
-        result = studentScholarships.map(s => ({
-          studentName: s.studentName,
-          scholarshipName: s.scholarshipName,
-          discount: `${formatCurrency(s.discountValue)} (${s.discountType})`,
-          appliedDate: s.appliedDate
+      case 'Transport Collection':
+        result = studentTransports.map(t => ({
+          studentName: t.studentName,
+          admissionNo: t.admissionNo,
+          routeName: t.routeName,
+          feePlan: t.feePlan,
+          amount: t.feeAmount,
         }));
-        break;
-      case 'Pending Fees':
-        result = students.map(s => ({ s, summary: getStudentFeeOutstandingSummary(s.id) })).filter(item => item.summary.totalOutstanding > 0).map(({ s, summary }) => ({
-          studentName: `${s.firstName} ${s.lastName}`,
-          classSection: `${s.className}-${s.section}`,
-          currentYearDue: summary.currentYearDue,
-          previousYearsDue: summary.previousYearsDue,
-          totalOutstanding: summary.totalOutstanding
-        }));
-        break;
-      case 'Term-wise Collection':
-        students.forEach(st => {
-          const ledger = getStudentFeeLedger(st.id, selectedAcademicYear || financeSettings?.academicYear || '');
-          if (ledger && ledger.installments) {
-            ledger.installments.forEach(inst => {
-              if (inst.paidAmount > 0) {
-                result.push({
-                  studentName: `${st.firstName} ${st.lastName}`,
-                  admissionNo: st.admissionNo,
-                  classSection: `${st.className}-${st.section}`,
-                  termName: inst.termName,
-                  feeHead: inst.feeHeadName,
-                  dueDate: inst.dueDate,
-                  amount: inst.paidAmount
-                });
-              }
-            });
-          }
-        });
-        break;
-      case 'Term-wise Outstanding':
-        students.forEach(st => {
-          const ledger = getStudentFeeLedger(st.id, selectedAcademicYear || financeSettings?.academicYear || '');
-          if (ledger && ledger.installments) {
-            ledger.installments.forEach(inst => {
-              if (inst.dueAmount > 0) {
-                result.push({
-                  studentName: `${st.firstName} ${st.lastName}`,
-                  admissionNo: st.admissionNo,
-                  classSection: `${st.className}-${st.section}`,
-                  termName: inst.termName,
-                  feeHead: inst.feeHeadName,
-                  dueDate: inst.dueDate,
-                  amount: inst.dueAmount
-                });
-              }
-            });
-          }
-        });
-        break;
-      case 'Overdue Collection':
-        {
-          const todayStr = new Date().toISOString().split('T')[0];
-          students.forEach(st => {
-            const ledger = getStudentFeeLedger(st.id, selectedAcademicYear || financeSettings?.academicYear || '');
-            if (ledger && ledger.installments) {
-              ledger.installments.forEach(inst => {
-                if (inst.dueAmount > 0 && inst.dueDate < todayStr) {
-                  result.push({
-                    studentName: `${st.firstName} ${st.lastName}`,
-                    admissionNo: st.admissionNo,
-                    classSection: `${st.className}-${st.section}`,
-                    termName: inst.termName,
-                    feeHead: inst.feeHeadName,
-                    dueDate: inst.dueDate,
-                    amount: inst.dueAmount
-                  });
-                }
-              });
-            }
-          });
-        }
-        break;
-      case 'Upcoming Dues':
-        {
-          const currentToday = new Date().toISOString().split('T')[0];
-          students.forEach(st => {
-            const ledger = getStudentFeeLedger(st.id, selectedAcademicYear || financeSettings?.academicYear || '');
-            if (ledger && ledger.installments) {
-              ledger.installments.forEach(inst => {
-                if (inst.dueAmount > 0 && inst.dueDate >= currentToday) {
-                  result.push({
-                    studentName: `${st.firstName} ${st.lastName}`,
-                    admissionNo: st.admissionNo,
-                    classSection: `${st.className}-${st.section}`,
-                    termName: inst.termName,
-                    feeHead: inst.feeHeadName,
-                    dueDate: inst.dueDate,
-                    amount: inst.dueAmount
-                  });
-                }
-              });
-            }
-          });
-        }
-        break;
-      case 'Academic Year Collection':
-        result = feePayments.filter(p => p.academicYear === (selectedAcademicYear || financeSettings?.academicYear || '')).map(p => ({
-          receiptNo: p.receiptNo,
-          studentName: p.studentName,
-          classSection: p.className,
-          paymentMode: p.paymentMode,
-          paymentDate: p.paymentDate,
-          amount: p.amountPaid
-        }));
-        break;
-      case 'Outstanding by Academic Year':
-        students.forEach(st => {
-          const ledger = getStudentFeeLedger(st.id, selectedAcademicYear || financeSettings?.academicYear || '');
-          if (ledger && ledger.dueBalance > 0) {
-            result.push({
-              studentName: `${st.firstName} ${st.lastName}`,
-              admissionNo: st.admissionNo,
-              classSection: `${st.className}-${st.section}`,
-              academicYear: selectedAcademicYear || financeSettings?.academicYear || '',
-              amount: ledger.dueBalance
-            });
-          }
-        });
         break;
       default:
-        // Daily Collection, Monthly Collection, Yearly Collection, Branch Wise Collection,
-        // Class Wise Collection, Section Wise Collection, Fee Head Wise Collection,
-        // Fine Report (Fine Collection), Collection Summary, Cash Book
-        result = feePayments.map(p => ({
+        result = validPayments.map((p: any) => ({
           receiptNo: p.receiptNo,
           studentName: p.studentName,
           classSection: p.className,
-          amount: p.amountPaid,
+          amount: Number(p.amountPaid ?? p.amount ?? 0),
           paymentMode: p.paymentMode,
-          paymentDate: p.paymentDate
+          paymentDate: normalizeDateStr(p.paymentDate),
         }));
         break;
     }
@@ -355,18 +449,18 @@ export const FinanceReportsView: React.FC = () => {
 
   // Search filter
   const displayedData = currentData.filter(item => {
-    const q = searchQuery.toLowerCase();
-    return (
-      (item.studentName && item.studentName.toLowerCase().includes(q)) ||
-      (item.admissionNo && item.admissionNo.toLowerCase().includes(q)) ||
-      (item.receiptNo && item.receiptNo.toLowerCase().includes(q)) ||
-      (item.routeName && item.routeName.toLowerCase().includes(q)) ||
-      (item.hostelName && item.hostelName.toLowerCase().includes(q))
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return true;
+    return Object.values(item).some(
+      val => val !== null && val !== undefined && String(val).toLowerCase().includes(q)
     );
   });
 
   // Totals calculations
-  const totalAmountSum = displayedData.reduce((sum, item) => sum + (item.amount || item.dueFee || item.fee || 0), 0);
+  const totalAmountSum = displayedData.reduce(
+    (sum, item) => sum + Number(item.amount ?? item.dueFee ?? item.fee ?? 0),
+    0
+  );
 
   // Pagination calculations
   const totalRecords = displayedData.length;

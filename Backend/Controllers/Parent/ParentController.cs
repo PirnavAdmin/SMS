@@ -176,14 +176,18 @@ namespace SMS.Api.Controllers.Parent
         [HttpPost("pay-fee")]
         public async Task<IActionResult> PayFee([FromBody] ParentFeePaymentRequestDto request)
         {
-            if (request == null)
+            if (request == null || request.AmountPaid <= 0)
             {
-                return BadRequest(new { success = false, message = "Invalid payment request payload." });
+                return BadRequest(new { success = false, message = "A positive payment amount is required." });
             }
             if (!await ValidateParentAccessAsync(request.StudentId))
                 return StatusCode(403, new { success = false, message = "Access denied: student not associated with this parent account." });
 
             var response = await _parentService.PayFeeAsync(request);
+            if (!response.Success)
+            {
+                return BadRequest(new { success = false, message = response.Message, data = response });
+            }
             return Ok(new { success = true, data = response });
         }
 

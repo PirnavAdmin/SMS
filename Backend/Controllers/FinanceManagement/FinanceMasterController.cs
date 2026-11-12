@@ -53,7 +53,7 @@ public class FinanceMasterController : ControllerBase
     }
 
     [HttpPost("transactions")]
-    [Authorize(Roles = ReadRoles)]
+    [Authorize(Roles = WriteRoles)]
     public async Task<IActionResult> CreateTransaction([FromBody] CreateTransactionRequestDto request)
     {
         if (request == null || request.Amount <= 0)
@@ -245,7 +245,7 @@ public class FinanceMasterController : ControllerBase
 
     [HttpGet("fee-schedules")]
     [Authorize(Roles = ReadRoles + ",Parent,Student")]
-    public async Task<IActionResult> GetFeeSchedule([FromQuery] string? academicYear = "2026-2027")
+    public async Task<IActionResult> GetFeeSchedule([FromQuery] string? academicYear = null)
     {
         var result = await _masterService.GetFeeScheduleAsync(academicYear);
         return Ok(new { success = true, data = result });

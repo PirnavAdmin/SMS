@@ -1,0 +1,74 @@
+{
+  "roles": [
+    {
+      "role": "Super Admin",
+      "allowedModules": ["dashboard", "students", "staff", "admissions", "academics", "fees", "library", "transport", "hostel", "users", "settings", "reports"],
+      "deniedModules": ["librarian-attendance", "driver-profile", "warden-attendance"]
+    },
+    {
+      "role": "Admin",
+      "allowedModules": ["dashboard", "students", "staff", "admissions", "academics", "fees", "library", "transport", "hostel", "users", "settings", "reports"],
+      "deniedModules": ["librarian-attendance", "driver-profile", "warden-attendance"]
+    },
+    {
+      "role": "Principal",
+      "allowedModules": ["dashboard", "students", "staff", "admissions", "academics", "examination", "reports", "settings"],
+      "deniedModules": ["fees", "transport", "hostel", "users", "inventory"]
+    },
+    {
+      "role": "Teacher",
+      "allowedModules": ["dashboard", "students", "attendance", "timetable", "examination", "marks-entry", "homework", "staff"],
+      "deniedModules": ["admissions", "fees", "users", "settings", "transport", "hostel"]
+    },
+    {
+      "role": "HR",
+      "allowedModules": ["dashboard", "staff", "communication", "events", "training"],
+      "deniedModules": ["fees", "admissions", "examination", "users", "settings"]
+    },
+    {
+      "role": "Accountant",
+      "allowedModules": ["dashboard", "staff", "fees", "inventory", "communication", "events"],
+      "deniedModules": ["admissions", "examination", "users", "settings", "hostel"]
+    },
+    {
+      "role": "Librarian",
+      "allowedModules": ["dashboard", "library", "librarian-attendance", "library-timetable", "communication", "events", "staff"],
+      "deniedModules": ["fees", "admissions", "users", "settings", "transport", "hostel"]
+    },
+    {
+      "role": "Transport Manager",
+      "allowedModules": ["dashboard", "transport", "communication", "events", "training"],
+      "deniedModules": ["fees", "admissions", "library", "hostel", "users", "settings"]
+    },
+    {
+      "role": "Driver",
+      "allowedModules": ["dashboard", "transport", "driver-profile", "driver-attendance", "communication", "events", "staff"],
+      "deniedModules": ["fees", "admissions", "library", "hostel", "users", "settings"]
+    },
+    {
+      "role": "Hostel Warden",
+      "allowedModules": ["dashboard", "hostel", "students", "warden-attendance", "communication", "events", "staff"],
+      "deniedModules": ["fees", "admissions", "library", "transport", "users", "settings"]
+    },
+    {
+      "role": "Receptionist",
+      "allowedModules": ["dashboard", "admissions", "students", "certificates", "communication", "events", "training"],
+      "deniedModules": ["fees", "examination", "users", "settings", "payroll"]
+    },
+    {
+      "role": "Student",
+      "allowedModules": ["dashboard", "attendance", "timetable", "report-cards", "homework", "library", "fees", "hostel", "transport"],
+      "deniedModules": ["admissions", "users", "settings", "inventory", "reports"]
+    },
+    {
+      "role": "Parent",
+      "allowedModules": ["dashboard", "attendance", "timetable", "report-cards", "homework", "fees", "hostel", "transport"],
+      "deniedModules": ["admissions", "library", "users", "settings", "inventory"]
+    },
+    {
+      "role": "Staff",
+      "allowedModules": ["dashboard", "staff", "communication", "events", "training"],
+      "deniedModules": ["admissions", "fees", "users", "settings", "examination"]
+    }
+  ]
+}

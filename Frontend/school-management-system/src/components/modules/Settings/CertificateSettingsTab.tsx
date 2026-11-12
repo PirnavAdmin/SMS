@@ -38,162 +38,7 @@ export const formatCertificateNumberPreview = (
   return `${cleanPrefix}-${yearPart}${formattedSeq}`;
 };
 
-export const INITIAL_CERTIFICATE_TYPES: CertificateTypeConfig[] = [
-  {
-    id: 'CT-TC',
-    name: 'Transfer Certificate',
-    code: 'TC',
-    description: 'Official transfer certificate for students leaving the institution.',
-    status: 'Active',
-    displayOrder: 1,
-    requiredFields: ['studentName', 'admissionNumber', 'class', 'dateOfBirth', 'dateOfAdmission', 'dateOfLeaving', 'reasonForLeaving', 'conduct'],
-    fields: DEFAULT_CERTIFICATE_FIELDS_MAP['CT-TC'],
-    numberingPrefix: 'TC',
-    numberingStart: 1,
-    numberingLength: 4,
-    includeAcademicYearInNo: true,
-    isSystem: true
-  },
-  {
-    id: 'CT-BONAFIDE',
-    name: 'Bonafide Certificate',
-    code: 'BC',
-    description: 'Certificate certifying current bonafide enrollment in school.',
-    status: 'Active',
-    displayOrder: 2,
-    requiredFields: ['studentName', 'admissionNumber', 'class', 'section', 'academicYear', 'issueDate'],
-    fields: DEFAULT_CERTIFICATE_FIELDS_MAP['CT-BONAFIDE'],
-    numberingPrefix: 'BC',
-    numberingStart: 1,
-    numberingLength: 4,
-    includeAcademicYearInNo: true,
-    isSystem: true
-  },
-  {
-    id: 'CT-STUDY',
-    name: 'Study Certificate',
-    code: 'SC',
-    description: 'Proof of study duration and academic record in the school.',
-    status: 'Active',
-    displayOrder: 3,
-    requiredFields: ['studentName', 'admissionNumber', 'class', 'academicYear'],
-    fields: DEFAULT_CERTIFICATE_FIELDS_MAP['CT-STUDY'],
-    numberingPrefix: 'SC',
-    numberingStart: 1,
-    numberingLength: 4,
-    includeAcademicYearInNo: true,
-    isSystem: true
-  },
-  {
-    id: 'CT-CHARACTER',
-    name: 'Character Certificate',
-    code: 'CC',
-    description: 'Evaluation of student moral conduct and character.',
-    status: 'Active',
-    displayOrder: 4,
-    requiredFields: ['studentName', 'admissionNumber', 'class', 'conduct'],
-    fields: DEFAULT_CERTIFICATE_FIELDS_MAP['CT-CHARACTER'],
-    numberingPrefix: 'CC',
-    numberingStart: 1,
-    numberingLength: 4,
-    includeAcademicYearInNo: true,
-    isSystem: true
-  },
-  {
-    id: 'CT-CONDUCT',
-    name: 'Conduct Certificate',
-    code: 'CD',
-    description: 'Official record of student conduct and discipline.',
-    status: 'Active',
-    displayOrder: 5,
-    requiredFields: ['studentName', 'admissionNumber', 'class', 'conduct'],
-    fields: DEFAULT_CERTIFICATE_FIELDS_MAP['CT-CONDUCT'],
-    numberingPrefix: 'CD',
-    numberingStart: 1,
-    numberingLength: 4,
-    includeAcademicYearInNo: true,
-    isSystem: true
-  },
-  {
-    id: 'CT-FEE-CLEARANCE',
-    name: 'Fee Clearance Certificate',
-    code: 'FC',
-    description: 'Verification of complete fee clearance across all academic terms.',
-    status: 'Active',
-    displayOrder: 6,
-    requiredFields: ['studentName', 'admissionNumber', 'class', 'academicYear'],
-    fields: DEFAULT_CERTIFICATE_FIELDS_MAP['CT-FEE-CLEARANCE'],
-    numberingPrefix: 'FC',
-    numberingStart: 1,
-    numberingLength: 4,
-    includeAcademicYearInNo: true,
-    isSystem: true
-  },
-  {
-    id: 'CT-ADMISSION',
-    name: 'Admission Certificate',
-    code: 'AC',
-    description: 'Certificate confirming student admission and enrollment details.',
-    status: 'Active',
-    displayOrder: 7,
-    requiredFields: ['studentName', 'admissionNumber', 'class', 'dateOfAdmission'],
-    fields: DEFAULT_CERTIFICATE_FIELDS_MAP['CT-ADMISSION'],
-    numberingPrefix: 'AC',
-    numberingStart: 1,
-    numberingLength: 4,
-    includeAcademicYearInNo: true,
-    isSystem: true
-  },
-  {
-    id: 'CT-COURSE-COMPLETION',
-    name: 'Course Completion Certificate',
-    code: 'CCC',
-    description: 'Certificate awarded upon completion of secondary or senior secondary course.',
-    status: 'Active',
-    displayOrder: 8,
-    requiredFields: ['studentName', 'admissionNumber', 'class', 'academicYear'],
-    fields: DEFAULT_CERTIFICATE_FIELDS_MAP['CT-COURSE-COMPLETION'],
-    numberingPrefix: 'CCC',
-    numberingStart: 1,
-    numberingLength: 4,
-    includeAcademicYearInNo: true,
-    isSystem: true
-  },
-  {
-    id: 'CT-LEAVING',
-    name: 'Leaving Certificate',
-    code: 'LC',
-    description: 'Official school leaving certificate for educational departure.',
-    status: 'Active',
-    displayOrder: 9,
-    requiredFields: ['studentName', 'admissionNumber', 'class', 'dateOfLeaving', 'reasonForLeaving'],
-    fields: DEFAULT_CERTIFICATE_FIELDS_MAP['CT-LEAVING'],
-    numberingPrefix: 'LC',
-    numberingStart: 1,
-    numberingLength: 4,
-    includeAcademicYearInNo: true,
-    isSystem: true
-  },
-  {
-    id: 'CT-SPORTS',
-    name: 'Custom Certificate',
-    code: 'CUST',
-    description: 'Custom certificate template for sports, achievements, or events.',
-    status: 'Active',
-    displayOrder: 10,
-    requiredFields: ['studentName', 'admissionNumber', 'class', 'academicYear'],
-    fields: [
-      { key: 'issueDate', label: 'Date of Issue', type: 'date', required: true, displayOrder: 1 },
-      { key: 'purpose', label: 'Purpose', type: 'text', required: false, displayOrder: 2 },
-      { key: 'remarks', label: 'Remarks', type: 'textarea', required: false, displayOrder: 3 }
-    ],
-    numberingPrefix: 'CUST',
-    numberingStart: 1,
-    numberingLength: 4,
-    includeAcademicYearInNo: true,
-    isSystem: false
-  }
-];
+export const INITIAL_CERTIFICATE_TYPES: CertificateTypeConfig[] = [];
 
 export interface DynamicPlaceholderItem {
   id: string;
@@ -204,115 +49,14 @@ export interface DynamicPlaceholderItem {
   isSystem?: boolean;
 }
 
-export const INITIAL_DYNAMIC_PLACEHOLDERS: DynamicPlaceholderItem[] = [
-  { id: 'PH-1', placeholder: '{{studentName}}', description: 'Student Full Name', category: 'Student Info', sampleValue: 'Rahul Kumar', isSystem: true },
-  { id: 'PH-2', placeholder: '{{admissionNumber}}', description: 'Admission / Reg Number', category: 'Student Info', sampleValue: 'ADM-2024-089', isSystem: true },
-  { id: 'PH-3', placeholder: '{{class}}', description: 'Class Grade Name', category: 'Academic', sampleValue: 'Class 10', isSystem: true },
-  { id: 'PH-4', placeholder: '{{section}}', description: 'Section', category: 'Academic', sampleValue: 'A', isSystem: true },
-  { id: 'PH-5', placeholder: '{{academicYear}}', description: 'Current Academic Session', category: 'Academic', sampleValue: '2026–2027', isSystem: true },
-  { id: 'PH-6', placeholder: '{{dateOfBirth}}', description: 'Date of Birth (DD/MM/YYYY)', category: 'Student Info', sampleValue: '15/08/2012', isSystem: true },
-  { id: 'PH-7', placeholder: '{{gender}}', description: 'Gender', category: 'Student Info', sampleValue: 'Male', isSystem: true },
-  { id: 'PH-8', placeholder: '{{fatherName}}', description: "Father's / Guardian Name", category: 'Student Info', sampleValue: 'Vikram Kumar', isSystem: true },
-  { id: 'PH-9', placeholder: '{{motherName}}', description: "Mother's Name", category: 'Student Info', sampleValue: 'Sunita Kumar', isSystem: true },
-  { id: 'PH-10', placeholder: '{{address}}', description: 'Residential Address', category: 'Student Info', sampleValue: '12 Executive Avenue, New York', isSystem: true },
-  { id: 'PH-11', placeholder: '{{dateOfAdmission}}', description: 'Date of Admission', category: 'Academic', sampleValue: '15/06/2024', isSystem: true },
-  { id: 'PH-12', placeholder: '{{dateOfLeaving}}', description: 'Date of Leaving', category: 'Academic', sampleValue: '14/08/2026', isSystem: true },
-  { id: 'PH-13', placeholder: '{{reasonForLeaving}}', description: 'Reason for Leaving', category: 'Academic', sampleValue: 'Parent Relocation', isSystem: true },
-  { id: 'PH-14', placeholder: '{{conduct}}', description: 'Conduct & Character Remark', category: 'Student Info', sampleValue: 'Good & Exemplary', isSystem: true },
-  { id: 'PH-14B', placeholder: '{{moleIdentification}}', description: 'Mole / Personal Identification Marks', category: 'Student Info', sampleValue: '1. Mole on right cheek  2. Mole on left shoulder', isSystem: true },
-  { id: 'PH-14C', placeholder: '{{Moles}}', description: 'Mole Identification Marks', category: 'Student Info', sampleValue: '1. Mole on right cheek  2. Mole on left shoulder', isSystem: true },
-  { id: 'PH-15', placeholder: '{{schoolName}}', description: 'Name of Institution', category: 'School Details', sampleValue: "Pirnav Educational Institutions", isSystem: true },
-  { id: 'PH-16', placeholder: '{{schoolAddress}}', description: 'Address of Institution', category: 'School Details', sampleValue: 'Knowledge City, NY 10001', isSystem: true },
-  { id: 'PH-17', placeholder: '{{certificateNumber}}', description: 'Unique Serial Number', category: 'Certificate Info', sampleValue: 'TC-2026-0001', isSystem: true },
-  { id: 'PH-18', placeholder: '{{issueDate}}', description: 'Date of Certificate Issue', category: 'Certificate Info', sampleValue: '14/08/2026', isSystem: true },
-];
+export const INITIAL_DYNAMIC_PLACEHOLDERS: DynamicPlaceholderItem[] = [];
 
-export const ALL_DYNAMIC_PLACEHOLDERS = INITIAL_DYNAMIC_PLACEHOLDERS.map(p => ({
-  placeholder: p.placeholder,
-  description: p.description
-}));
+export const ALL_DYNAMIC_PLACEHOLDERS: Array<{ placeholder: string; description: string }> = [];
 
-export const INITIAL_CERTIFICATE_TEMPLATES: CertificateTemplateConfig[] = [
-  {
-    id: 'TPL-CT-TC',
-    certificateTypeId: 'CT-TC',
-    certificateTypeName: 'Transfer Certificate',
-    title: 'OFFICIAL TRANSFER CERTIFICATE',
-    headerStyle: '',
-    themeColor: '#1e3a8a',
-    showLogo: true,
-    showSchoolHeader: true,
-    bodyTemplate: `This is to certify that {{studentName}}, son/daughter of {{fatherName}} and {{motherName}}, bearing Admission No. {{admissionNumber}}, was admitted to this institution on {{dateOfAdmission}}. He/She last studied in Class {{class}} - Section {{section}} during the {{academicYear}} academic session. He/She has left the school on {{dateOfLeaving}} due to {{reasonForLeaving}}. His/Her general conduct during the period of study has been {{conduct}}. All school dues have been cleared.`,
-    footerText: 'Official Transfer Certificate issued in accordance with School Education Rules.',
-    signatories: [
-      { id: 'sig-1', title: 'Class Teacher', name: 'Class Teacher', show: true },
-      { id: 'sig-2', title: '', name: 'Accounts Officer', show: true },
-      { id: 'sig-3', title: 'Principal', name: '', designation: 'Principal & Head of School', show: true }
-    ],
-    showSeal: true,
-    dateFormat: 'DD/MM/YYYY'
-  },
-  {
-    id: 'TPL-CT-BONAFIDE',
-    certificateTypeId: 'CT-BONAFIDE',
-    certificateTypeName: 'Bonafide Certificate',
-    title: 'BONAFIDE STUDY CERTIFICATE',
-    headerStyle: '',
-    themeColor: '#047857',
-    showLogo: true,
-    showSchoolHeader: true,
-    bodyTemplate: `This is to certify that {{studentName}}, son/daughter of {{fatherName}}, bearing Admission No. {{admissionNumber}}, is a bonafide student of {{schoolName}}, currently studying in Class {{class}} - Section {{section}} for the Academic Session {{academicYear}}. To the best of our knowledge, his/her character and conduct are good. This certificate is issued upon request for official verification purposes.`,
-    footerText: 'Valid for passport, bank, government, or scholarship verification.',
-    signatories: [
-      { id: 'sig-1', title: 'Class Teacher', show: true },
-      { id: 'sig-2', title: 'Administrative Officer', show: true },
-      { id: 'sig-3', title: 'Principal', name: '', designation: 'Principal', show: true }
-    ],
-    showSeal: true,
-    dateFormat: 'DD/MM/YYYY'
-  },
-  {
-    id: 'TPL-CT-STUDY',
-    certificateTypeId: 'CT-STUDY',
-    certificateTypeName: 'Study Certificate',
-    title: 'STUDY & CONDUCT CERTIFICATE',
-    headerStyle: '',
-    themeColor: '#b45309',
-    showLogo: true,
-    showSchoolHeader: true,
-    bodyTemplate: `This is to certify that {{studentName}}, Admission No. {{admissionNumber}}, has continuously studied in {{schoolName}} in Class {{class}} during the academic year {{academicYear}}. His/Her date of birth as per school admission records is {{dateOfBirth}}. During his/her study period, his/her performance and discipline have been commendable.`,
-    footerText: 'Issued for higher study application and educational verification.',
-    signatories: [
-      { id: 'sig-1', title: 'Class Teacher', show: true },
-      { id: 'sig-2', title: 'Vice Principal', show: true },
-      { id: 'sig-3', title: 'Principal', name: '', show: true }
-    ],
-    showSeal: true,
-    dateFormat: 'DD/MM/YYYY'
-  },
-  {
-    id: 'TPL-CT-CHARACTER',
-    certificateTypeId: 'CT-CHARACTER',
-    certificateTypeName: 'Character Certificate',
-    title: 'CHARACTER & CONDUCT CERTIFICATE',
-    headerStyle: '',
-    themeColor: '#1e293b',
-    showLogo: true,
-    showSchoolHeader: true,
-    bodyTemplate: `Certified that {{studentName}}, Admission No. {{admissionNumber}}, Class {{class}}, has been a student of this school during {{academicYear}}. During this period, he/she has displayed exemplary moral character, sound discipline, and polite demeanor towards teachers and fellow students. We wish him/her all success in future endeavors.`,
-    footerText: 'Official character certificate issued for academic or employment purposes.',
-    signatories: [
-      { id: 'sig-1', title: 'Class Teacher', show: true },
-      { id: 'sig-2', title: 'Student Counselor', show: true },
-      { id: 'sig-3', title: 'Principal', name: '', show: true }
-    ],
-    showSeal: true,
-    dateFormat: 'DD/MM/YYYY'
-  }
-];
+export const INITIAL_CERTIFICATE_TEMPLATES: CertificateTemplateConfig[] = [];
 
 export const CertificateSettingsTab: React.FC = () => {
-  const { schoolProfile, academicYears = [] } = useData();
+  const { schoolProfile, academicYears = [], students = [] } = useData();
   const { selectedAcademicYear } = useAuth();
   const { addToast } = useToast();
 
@@ -482,20 +226,48 @@ export const CertificateSettingsTab: React.FC = () => {
   const [signatoryErrors, setSignatoryErrors] = useState<Record<number, string>>({});
   const [sealError, setSealError] = useState<string>("");
 
-  const syncSettingsToDb = async (newTemplates?: CertificateTemplateConfig[], newTypes?: CertificateTypeConfig[], newSignatories?: any[], newSeal?: any) => {
+  const syncLocalStorageAndNotify = (
+    nextTemplates: CertificateTemplateConfig[],
+    nextTypes: CertificateTypeConfig[],
+    nextPlaceholders: DynamicPlaceholderItem[],
+  ) => {
+    try {
+      localStorage.setItem("edu_db_certificate_types", JSON.stringify(nextTypes));
+      localStorage.setItem("edu_db_certificate_templates_v2", JSON.stringify(nextTemplates));
+      localStorage.setItem("edu_db_certificate_placeholders", JSON.stringify(nextPlaceholders));
+      window.dispatchEvent(new Event("certificates_updated"));
+    } catch {}
+  };
+
+  const syncSettingsToDb = async (
+    newTemplates?: CertificateTemplateConfig[],
+    newTypes?: CertificateTypeConfig[],
+    newSignatories?: any[],
+    newSeal?: any,
+    newPlaceholders?: DynamicPlaceholderItem[],
+  ) => {
+    const resolvedTemplates = newTemplates ?? templates;
+    const resolvedTypes = newTypes ?? types;
+    const resolvedSignatories = newSignatories ?? signatories;
+    const resolvedSeal = newSeal ?? sealConfig;
+    const resolvedPlaceholders = newPlaceholders ?? placeholders;
+
+    syncLocalStorageAndNotify(resolvedTemplates, resolvedTypes, resolvedPlaceholders);
+
     try {
       const currentRes: any = await fetchSchoolSettingsApi();
       const currentRaw = currentRes?.data?.certificateTemplates;
-      let existingObj: any = { templates: [], types: [], issued: [], alumni: [] };
+      let existingObj: any = { templates: [], types: [], placeholders: [], issued: [], alumni: [] };
       if (typeof currentRaw === "object" && currentRaw !== null && !Array.isArray(currentRaw)) {
         existingObj = { ...currentRaw };
       }
       const payload = {
         ...existingObj,
-        templates: newTemplates ?? templates,
-        types: newTypes ?? types,
-        signatories: newSignatories ?? signatories,
-        seal: newSeal ?? sealConfig,
+        templates: resolvedTemplates,
+        types: resolvedTypes,
+        placeholders: resolvedPlaceholders,
+        signatories: resolvedSignatories,
+        seal: resolvedSeal,
       };
       await updateCertificateTemplatesApi(payload);
     } catch (e) {
@@ -511,25 +283,37 @@ export const CertificateSettingsTab: React.FC = () => {
         if (!isMounted) return;
         const certData = res?.data?.certificateTemplates;
         if (certData && typeof certData === "object" && !Array.isArray(certData)) {
-          if (Array.isArray(certData.types) && certData.types.length > 0) {
-            setTypes(certData.types);
-                        if (!isInitialTypesLoadedRef.current) {
-              setSavedNumberingSnapshot(getNumberingSnapshot(certData.types));
-              setSavedFieldsSnapshot(getRequiredFieldsSnapshot(certData.types));
-              isInitialTypesLoadedRef.current = true;
-            }
+          const dbTypes = Array.isArray(certData.types) ? certData.types : [];
+          const dbTemplates = Array.isArray(certData.templates) ? certData.templates : [];
+          const dbPlaceholders = Array.isArray(certData.placeholders) ? certData.placeholders : [];
+
+          setTypes(dbTypes);
+          setTemplates(dbTemplates);
+          setPlaceholders(dbPlaceholders);
+          if (!isInitialTypesLoadedRef.current) {
+            setSavedNumberingSnapshot(getNumberingSnapshot(dbTypes));
+            setSavedFieldsSnapshot(getRequiredFieldsSnapshot(dbTypes));
+            isInitialTypesLoadedRef.current = true;
           }
-          if (Array.isArray(certData.templates) && certData.templates.length > 0) {
-            setTemplates(certData.templates);
-                      }
           if (Array.isArray(certData.signatories) && certData.signatories.length > 0) {
             setSignatories(certData.signatories);
             setSavedSignatories(certData.signatories);
-                      }
+          }
           if (certData.seal && typeof certData.seal === "object") {
             setSealConfig(certData.seal);
             setSavedSealConfig(certData.seal);
-                      }
+          }
+          syncLocalStorageAndNotify(dbTemplates, dbTypes, dbPlaceholders);
+        } else {
+          setTypes([]);
+          setTemplates([]);
+          setPlaceholders([]);
+          if (!isInitialTypesLoadedRef.current) {
+            setSavedNumberingSnapshot(getNumberingSnapshot([]));
+            setSavedFieldsSnapshot(getRequiredFieldsSnapshot([]));
+            isInitialTypesLoadedRef.current = true;
+          }
+          syncLocalStorageAndNotify([], [], []);
         }
       })
       .catch(() => {});
@@ -722,15 +506,13 @@ export const CertificateSettingsTab: React.FC = () => {
       showSchoolHeader: true,
       bodyTemplate: `This is to certify that {{studentName}}, Admission No. {{admissionNumber}}, Class {{class}}, is a student of {{schoolName}}. Issued on {{issueDate}}.`,
       footerText: 'Official Certificate issued by School Authority.',
-      signatories: [
-        { id: 'sig-1', title: 'Class Teacher', show: true },
-        { id: 'sig-2', title: 'Accounts Officer', show: true },
-        { id: 'sig-3', title: 'Principal', name: schoolProfile?.principalName || 'Principal', show: true }
-      ],
-      showSeal: true,
+      signatories: signatories.map(s => ({ ...s })),
+      showSeal: sealConfig.show,
+      sealText: sealConfig.sealText,
+      sealImageUrl: sealConfig.sealImageUrl,
       dateFormat: 'DD/MM/YYYY'
     };
-  }, [templates, selectedTemplateTypeId, currentTypeForTemplate, schoolProfile]);
+  }, [templates, selectedTemplateTypeId, currentTypeForTemplate, signatories, sealConfig]);
 
   const [templateEditorState, setTemplateEditorState] = useState<CertificateTemplateConfig>(activeTemplate);
 
@@ -1012,13 +794,15 @@ export const CertificateSettingsTab: React.FC = () => {
     const formattedPlaceholder = `{{${cleanTokenKey}}}`;
 
     if (editingPlaceholder) {
-      setPlaceholders(prev => prev.map(item => item.id === editingPlaceholder.id ? {
+      const nextPlaceholders = placeholders.map(item => item.id === editingPlaceholder.id ? {
         ...item,
         placeholder: formattedPlaceholder,
         description: placeholderForm.description.trim(),
         category: placeholderForm.category as any,
         sampleValue: placeholderForm.sampleValue.trim()
-      } : item));
+      } : item);
+      setPlaceholders(nextPlaceholders);
+      syncSettingsToDb(undefined, undefined, undefined, undefined, nextPlaceholders);
       addToast('success', 'Placeholder Updated', `Updated token ${formattedPlaceholder}`);
     } else {
       const newPh: DynamicPlaceholderItem = {
@@ -1026,10 +810,12 @@ export const CertificateSettingsTab: React.FC = () => {
         placeholder: formattedPlaceholder,
         description: placeholderForm.description.trim() || 'Custom Token Field',
         category: placeholderForm.category as any,
-        sampleValue: placeholderForm.sampleValue.trim() || 'Sample Data',
+        sampleValue: placeholderForm.sampleValue.trim() || '',
         isSystem: false
       };
-      setPlaceholders(prev => [...prev, newPh]);
+      const nextPlaceholders = [...placeholders, newPh];
+      setPlaceholders(nextPlaceholders);
+      syncSettingsToDb(undefined, undefined, undefined, undefined, nextPlaceholders);
       addToast('success', 'Placeholder Created', `Added new token ${formattedPlaceholder}`);
     }
     setIsPlaceholderModalOpen(false);
@@ -1136,6 +922,21 @@ export const CertificateSettingsTab: React.FC = () => {
             </button>
           </div>
 
+          {types.length === 0 ? (
+            <div className="glass-card p-10 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 text-center space-y-3">
+              <Award className="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto" />
+              <div className="space-y-1">
+                <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">No Certificate Types Configured</h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Add a certificate type to configure templates, numbering rules, and required fields.</p>
+              </div>
+              <button
+                onClick={handleOpenAddType}
+                className="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-md shadow-sky-600/20 inline-flex items-center gap-1.5 cursor-pointer transition-all"
+              >
+                <Plus className="w-4 h-4" /> Add Certificate Type
+              </button>
+            </div>
+          ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {types.map(t => (
               <div key={t.id} className="glass-card p-4 rounded-2xl space-y-3 border border-slate-200/80 dark:border-slate-800 overflow-hidden">
@@ -1166,6 +967,7 @@ export const CertificateSettingsTab: React.FC = () => {
               </div>
             ))}
           </div>
+          )}
         </div>
       )}
 
@@ -1399,7 +1201,9 @@ export const CertificateSettingsTab: React.FC = () => {
               <h4 className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-1.5">
                 <Eye className="w-4 h-4 text-sky-500" /> Live Certificate Preview
               </h4>
-              <span className="text-xs text-slate-400 font-mono">Sample Student Data</span>
+              <span className="text-xs text-slate-400 font-mono">
+                {students[0] ? `Student: ${`${students[0].firstName || ''} ${students[0].lastName || ''}`.trim()}` : 'Template Preview'}
+              </span>
             </div>
 
             <div className="glass-card p-4 rounded-3xl border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-950 overflow-x-auto">
@@ -1407,23 +1211,33 @@ export const CertificateSettingsTab: React.FC = () => {
                 template={templateEditorState}
                 schoolProfile={schoolProfile}
                 academicYear={activeAY}
-                studentName="Rahul Kumar"
-                admissionNo={`ADM-${new Date().getFullYear() - 2}-089`}
-                admissionDate={`${new Date().getFullYear() - 2}-06-15`}
-                fatherName="Vikram Kumar"
-                motherName="Sunita Kumar"
-                dob={`${new Date().getFullYear() - 14}-08-15`}
-                gender="Male"
-                className="Class 10"
-                section="A"
-                rollNo="12"
-                leavingDate={new Date().toISOString().split('T')[0]}
-                reason="Parent Relocation"
-                conduct="Good & Exemplary"
-                remarks="Promoted to Higher Grade"
-                result="PASSED"
-                feeClearanceStatus="Full Dues Cleared"
-                tcNo={`${currentTypeForTemplate?.numberingPrefix || 'CERT'}-${activeYearPrefix}-0001`}
+                studentName={students[0] ? `${students[0].firstName || ''} ${students[0].lastName || ''}`.trim() : ''}
+                admissionNo={students[0]?.admissionNo || ''}
+                admissionDate={students[0]?.joiningDate || ''}
+                fatherName={students[0]?.parentName || ''}
+                motherName={(students[0] as any)?.motherName || ''}
+                dob={students[0]?.dob || ''}
+                gender={students[0]?.gender || ''}
+                className={students[0]?.className || ''}
+                section={students[0]?.section || ''}
+                rollNo={students[0]?.rollNo || ''}
+                leavingDate=""
+                reason=""
+                conduct=""
+                remarks=""
+                result=""
+                feeClearanceStatus=""
+                tcNo={
+                  currentTypeForTemplate
+                    ? formatCertificateNumberPreview(
+                        currentTypeForTemplate.numberingPrefix,
+                        currentTypeForTemplate.numberingStart,
+                        currentTypeForTemplate.numberingLength,
+                        Boolean(currentTypeForTemplate.includeAcademicYearInNo),
+                        activeYearPrefix
+                      )
+                    : ''
+                }
                 issueDate={new Date().toISOString().split('T')[0]}
                 isDraftPreview={true}
               />
@@ -1456,6 +1270,12 @@ export const CertificateSettingsTab: React.FC = () => {
           </div>
 
           <div className="divide-y divide-slate-100 dark:divide-slate-800">
+            {types.length === 0 && (
+              <div className="py-10 text-center space-y-2">
+                <p className="text-sm font-bold text-slate-700 dark:text-slate-300">No Certificate Types Available</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Create certificate types first to configure numbering prefixes and sequences.</p>
+              </div>
+            )}
             {types.map(t => {
               const rowErr = numberingErrors[t.id];
               return (
@@ -1623,6 +1443,13 @@ export const CertificateSettingsTab: React.FC = () => {
               <span className="text-[11px] text-slate-400">Click token badge to copy to clipboard</span>
             </div>
 
+            {placeholders.length === 0 ? (
+              <div className="py-10 text-center space-y-2 border border-dashed border-slate-200 dark:border-slate-700 rounded-2xl">
+                <Sparkles className="w-8 h-8 text-slate-300 dark:text-slate-600 mx-auto" />
+                <p className="text-sm font-bold text-slate-700 dark:text-slate-300">No Placeholders Defined</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Click "Add Custom Placeholder" to create dynamic tokens for templates.</p>
+              </div>
+            ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
               {placeholders.map(p => (
                 <div key={p.id || p.placeholder} className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200/60 dark:border-slate-700/60 space-y-2 relative group">
@@ -1656,6 +1483,7 @@ export const CertificateSettingsTab: React.FC = () => {
                 </div>
               ))}
             </div>
+            )}
           </div>
 
           {/* Per-Certificate Type Required Fields Matrix Configuration */}
@@ -1701,6 +1529,13 @@ export const CertificateSettingsTab: React.FC = () => {
               </div>
             </div>
 
+            {placeholders.length === 0 ? (
+              <div className="py-10 text-center space-y-2 border border-dashed border-slate-200 dark:border-slate-700 rounded-2xl">
+                <ListChecks className="w-8 h-8 text-slate-300 dark:text-slate-600 mx-auto" />
+                <p className="text-sm font-bold text-slate-700 dark:text-slate-300">No Fields Available to Configure</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Add placeholders above to assign mandatory fields per certificate type.</p>
+              </div>
+            ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
               {placeholders.map(p => {
                 const keyName = p.placeholder.replace(/^\{\{/, '').replace(/\}\}$/, '');
@@ -1738,6 +1573,7 @@ export const CertificateSettingsTab: React.FC = () => {
                 );
               })}
             </div>
+            )}
           </div>
         </div>
       )}
@@ -2389,7 +2225,17 @@ export const CertificateSettingsTab: React.FC = () => {
         message={`Are you sure you want to delete certificate type '${deletingType?.name}'?`}
         onConfirm={() => {
           if (deletingType) {
-            setTypes(prev => prev.filter(t => t.id !== deletingType.id));
+            const nextTypes = types.filter(t => t.id !== deletingType.id);
+            const nextTemplates = templates.filter(tpl => tpl.certificateTypeId !== deletingType.id);
+            setTypes(nextTypes);
+            setTemplates(nextTemplates);
+            if (selectedTemplateTypeId === deletingType.id) {
+              setSelectedTemplateTypeId('');
+            }
+            if (selectedFieldMatrixTypeId === deletingType.id) {
+              setSelectedFieldMatrixTypeId('');
+            }
+            syncSettingsToDb(nextTemplates, nextTypes);
             addToast('success', 'Type Removed');
             setDeletingType(null);
           }
@@ -2404,7 +2250,9 @@ export const CertificateSettingsTab: React.FC = () => {
         message={`Are you sure you want to delete token '${deletingPlaceholder?.placeholder}'?`}
         onConfirm={() => {
           if (deletingPlaceholder) {
-            setPlaceholders(prev => prev.filter(p => p.id !== deletingPlaceholder.id));
+            const nextPlaceholders = placeholders.filter(p => p.id !== deletingPlaceholder.id);
+            setPlaceholders(nextPlaceholders);
+            syncSettingsToDb(undefined, undefined, undefined, undefined, nextPlaceholders);
             addToast('success', 'Placeholder Token Removed');
             setDeletingPlaceholder(null);
           }

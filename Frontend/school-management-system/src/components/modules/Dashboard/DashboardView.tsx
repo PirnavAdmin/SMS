@@ -343,7 +343,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
       const derived = parts.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
       if (derived) return derived;
     }
-    return rawName || (isLibrarian ? 'Librarian' : 'Administrator');
+    return rawName || (isLibrarian ? 'Librarian' : (user?.role || ''));
   }, [user, isLibrarian]);
   
   const isBranchMatch = useMemo(() => {

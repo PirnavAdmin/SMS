@@ -24,7 +24,7 @@ public class FeeDetailsController : ControllerBase
 
     private async Task<(bool allowed, int? resolvedStudentId)> AuthorizeStudentAccessAsync(int? requestedStudentId)
     {
-        if (User.IsInRole("Admin") || User.IsInRole("Super Admin") || User.IsInRole("SuperAdmin") || User.IsInRole("Teacher") || User.IsInRole("Accountant"))
+        if (User.IsInRole("Admin") || User.IsInRole("Super Admin") || User.IsInRole("SuperAdmin") || User.IsInRole("Principal") || User.IsInRole("Teacher") || User.IsInRole("Accountant") || User.IsInRole("Finance"))
             return (true, requestedStudentId);
 
         var idClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
@@ -54,7 +54,7 @@ public class FeeDetailsController : ControllerBase
     /// Get dropdown options for Academic Years in Fee Details and Receipt Register
     /// </summary>
     [HttpGet("options")]
-    [Authorize(Roles = "Admin,Teacher,Student,Parent")]
+    [Authorize(Roles = "Admin,SuperAdmin,Super Admin,Principal,Accountant,Finance,Teacher,Student,Parent")]
     public async Task<IActionResult> GetFeeDropdownOptions()
     {
         var result = await _feeService.GetFeeDropdownOptionsAsync();
@@ -65,7 +65,7 @@ public class FeeDetailsController : ControllerBase
     /// Get Student Outstanding Fee Details & Breakdown (Fee Details Tab)
     /// </summary>
     [HttpGet("student/details")]
-    [Authorize(Roles = "Admin,Teacher,Student,Parent")]
+    [Authorize(Roles = "Admin,SuperAdmin,Super Admin,Principal,Accountant,Finance,Teacher,Student,Parent")]
     public async Task<IActionResult> GetStudentFeeDetails(
         [FromQuery] int? studentId = null,
         [FromQuery] string? academicYear = null)
@@ -81,7 +81,7 @@ public class FeeDetailsController : ControllerBase
     /// Get Student Receipt Register / Payment History (Receipt Register Tab)
     /// </summary>
     [HttpGet("student/receipts")]
-    [Authorize(Roles = "Admin,Teacher,Student,Parent")]
+    [Authorize(Roles = "Admin,SuperAdmin,Super Admin,Principal,Accountant,Finance,Teacher,Student,Parent")]
     public async Task<IActionResult> GetStudentReceiptRegister(
         [FromQuery] int? studentId = null,
         [FromQuery] string? academicYear = "All Academic Years")

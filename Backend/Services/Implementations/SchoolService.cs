@@ -1258,6 +1258,8 @@ public class SchoolService : ISchoolService
 		app.Status = "Enrolled";
 		await _schoolRepository.SaveChangesAsync();
 		await SyncToAdmissionsTableAsync(app);
+		await SyncHostelAllocationAsync(app);
+		await SyncTransportAllocationAsync(app);
 		return app.AdmissionNo;
 	}
 
@@ -2403,6 +2405,13 @@ public class SchoolService : ISchoolService
 	{
 		try
 		{
+			bool isEnrolledOrAdmitted = string.Equals(app.Status, "Enrolled", StringComparison.OrdinalIgnoreCase)
+				|| string.Equals(app.Status, "Admitted", StringComparison.OrdinalIgnoreCase);
+			if (!isEnrolledOrAdmitted)
+			{
+				return;
+			}
+
 			if (!string.Equals(app.StudentType, "Residential", StringComparison.OrdinalIgnoreCase))
 			{
 				var existingAllocs = await _context.StudentBedAllocations
@@ -2487,6 +2496,13 @@ public class SchoolService : ISchoolService
 	{
 		try
 		{
+			bool isEnrolledOrAdmitted = string.Equals(app.Status, "Enrolled", StringComparison.OrdinalIgnoreCase)
+				|| string.Equals(app.Status, "Admitted", StringComparison.OrdinalIgnoreCase);
+			if (!isEnrolledOrAdmitted)
+			{
+				return;
+			}
+
 			bool isTransportReq = app.TransportRequired == true || 
 				(!string.IsNullOrWhiteSpace(app.StudentType) && app.StudentType.Contains("Transport", StringComparison.OrdinalIgnoreCase)) ||
 				(!string.IsNullOrWhiteSpace(app.StudentType) && app.StudentType.Equals("Non-Residential", StringComparison.OrdinalIgnoreCase) && app.TransportRequired == true) ||
@@ -2617,21 +2633,6 @@ public class SchoolService : ISchoolService
 	public async Task<List<LeaveTypeConfigDto>> GetAllLeaveTypesAsync()
 	{
 		var list = await _schoolRepository.GetAllLeaveTypesAsync();
-		if (list.Count == 0)
-		{
-			var defaults = new List<LeaveTypeConfig>
-			{
-				new() { Name = "Casual Leave", Code = "CL", AnnualAllowance = 10, CarryForward = false, MaxConsecutiveDays = 3, RequiresAttachment = false, IsPaid = true, Status = "Active" },
-				new() { Name = "Sick Leave", Code = "SL", AnnualAllowance = 10, CarryForward = true, MaxConsecutiveDays = 5, RequiresAttachment = true, IsPaid = true, Status = "Active" },
-				new() { Name = "Paid / Earned Leave", Code = "PL", AnnualAllowance = 15, CarryForward = true, MaxConsecutiveDays = 10, RequiresAttachment = false, IsPaid = true, Status = "Active" },
-				new() { Name = "On Duty Leave", Code = "OD", AnnualAllowance = 12, CarryForward = false, MaxConsecutiveDays = 5, RequiresAttachment = false, IsPaid = true, Status = "Active" },
-				new() { Name = "Maternity / Paternity Leave", Code = "ML", AnnualAllowance = 90, CarryForward = false, MaxConsecutiveDays = 90, RequiresAttachment = true, IsPaid = true, Status = "Active" },
-				new() { Name = "Loss of Pay (Unpaid)", Code = "LOP", AnnualAllowance = 30, CarryForward = false, MaxConsecutiveDays = 30, RequiresAttachment = false, IsPaid = false, Status = "Active" }
-			};
-			await _context.LeaveTypeConfigs.AddRangeAsync(defaults);
-			await _context.SaveChangesAsync();
-			list = await _schoolRepository.GetAllLeaveTypesAsync();
-		}
 
 		return list.Select(l => new LeaveTypeConfigDto
 		{
@@ -2730,15 +2731,7 @@ public class SchoolService : ISchoolService
 
 		if (leaveType == null)
 		{
-			leaveType = new LeaveTypeConfig
-			{
-				Name = "Casual Leave",
-				Code = "CL",
-				AnnualAllowance = 10,
-				Status = "Active"
-			};
-			await _context.LeaveTypeConfigs.AddAsync(leaveType);
-			await _context.SaveChangesAsync();
+			throw new NotFoundException("No leave type configured. Please configure a leave type first.");
 		}
 
 		DateTime from = DateTime.TryParse(dto.FromDate, out var f) ? f : DateTime.UtcNow;

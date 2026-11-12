@@ -291,8 +291,73 @@ public class FinanceRepository : IFinanceRepository
             }
         }
 
+        await using var transaction = _context.Database.IsRelational()
+            ? await _context.Database.BeginTransactionAsync()
+            : null;
+
         _context.FeePayments.Add(payment);
+
+        bool isEffectiveCollection = payment.Amount > 0 &&
+            !string.Equals(payment.Status, "Cancelled", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(payment.Status, "Reversed", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(payment.Status, "Refunded", StringComparison.OrdinalIgnoreCase);
+
+        if (isEffectiveCollection)
+        {
+            if (!string.IsNullOrWhiteSpace(payment.StudentId))
+            {
+                var assignment = await _context.StudentFeeAssignments
+                    .FirstOrDefaultAsync(a => a.StudentId == payment.StudentId && (a.Status == "Active" || string.IsNullOrEmpty(a.Status)));
+                if (assignment != null)
+                {
+                    assignment.PaidAmount += payment.Amount;
+                    assignment.DueAmount = Math.Max(0m, assignment.TotalAmount - assignment.PaidAmount - payment.DiscountAmount);
+                }
+            }
+
+            bool hasLedger = !string.IsNullOrWhiteSpace(payment.ReceiptNo) &&
+                await _context.LedgerEntries.AnyAsync(l => l.ReferenceNo == payment.ReceiptNo && l.Credit > 0);
+
+            if (!hasLedger)
+            {
+                var accounts = await _context.FinancialAccounts
+                    .Where(a => a.Status == "Active")
+                    .OrderBy(a => a.Id)
+                    .ToListAsync();
+                bool isCash = !string.IsNullOrWhiteSpace(payment.PaymentMethod) &&
+                    payment.PaymentMethod.Contains("Cash", StringComparison.OrdinalIgnoreCase);
+                var acct = isCash
+                    ? (accounts.FirstOrDefault(a => (a.Type ?? string.Empty).Contains("Cash", StringComparison.OrdinalIgnoreCase) || (a.Name ?? string.Empty).Contains("Cash", StringComparison.OrdinalIgnoreCase)) ?? accounts.FirstOrDefault())
+                    : (accounts.FirstOrDefault(a => !(a.Type ?? string.Empty).Contains("Cash", StringComparison.OrdinalIgnoreCase)) ?? accounts.FirstOrDefault());
+
+                if (acct != null)
+                {
+                    acct.CurrentBalance += payment.Amount;
+                }
+
+                int.TryParse(payment.StudentId, out int studentIdNum);
+                _context.LedgerEntries.Add(new LedgerEntry
+                {
+                    TransactionDate = payment.PaymentDate == default ? DateTime.UtcNow : payment.PaymentDate,
+                    TransactionType = "Fee Collection",
+                    Category = "Tuition & Academic Fees",
+                    ReferenceNo = payment.ReceiptNo ?? string.Empty,
+                    FinancialAccountId = acct?.Id,
+                    StudentId = studentIdNum > 0 ? studentIdNum : null,
+                    AdmissionNo = payment.StudentId ?? string.Empty,
+                    Debit = 0m,
+                    Credit = payment.Amount,
+                    Balance = acct?.CurrentBalance ?? 0m,
+                    Particulars = $"Fee Collection Receipt ({payment.ReceiptNo}) - {payment.FeeHeadName}"
+                });
+            }
+        }
+
         await _context.SaveChangesAsync();
+        if (transaction != null)
+        {
+            await transaction.CommitAsync();
+        }
         return payment;
     }
 }

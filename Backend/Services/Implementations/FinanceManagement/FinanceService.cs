@@ -118,6 +118,37 @@ public class FinanceService : IFinanceService
         return dtos.OrderBy(d => d.DisplayOrder);
     }
 
+    private static FeeHeadMetadata BuildFeeHeadMetadata(FeeHeadDto dto, string resolvedCode, int resolvedDisplayOrder)
+    {
+        return new FeeHeadMetadata
+        {
+            code = resolvedCode,
+            mandatory = dto.Mandatory,
+            displayOrder = resolvedDisplayOrder,
+            taxPercentage = dto.TaxPercentage,
+            academicYear = !string.IsNullOrWhiteSpace(dto.AcademicYear) ? dto.AcademicYear : "All",
+            applicableClasses = dto.ApplicableClasses ?? new List<string>(),
+            applicableBranches = (dto.ApplicableBranches != null && dto.ApplicableBranches.Count > 0) ? dto.ApplicableBranches : new List<string> { "All Branches" },
+            paymentEligibility = !string.IsNullOrWhiteSpace(dto.PaymentEligibility) ? dto.PaymentEligibility : "Both One-Time and Term-Wise",
+            applicableTerms = dto.ApplicableTerms ?? new List<string>(),
+            applicableSections = dto.ApplicableSections,
+            hostelBlockId = dto.HostelBlockId,
+            hostelBlockName = dto.HostelBlockName,
+            hostelRoomId = dto.HostelRoomId,
+            hostelRoomNo = dto.HostelRoomNo,
+            hostelSharingType = dto.HostelSharingType,
+            transportRouteId = dto.TransportRouteId,
+            transportRouteName = dto.TransportRouteName,
+            transportVehicleId = dto.TransportVehicleId,
+            transportVehicleNo = dto.TransportVehicleNo,
+            transportStopId = dto.TransportStopId,
+            transportStopName = dto.TransportStopName,
+            uniformItemId = dto.UniformItemId,
+            uniformItemName = dto.UniformItemName,
+            uniformSize = dto.UniformSize
+        };
+    }
+
     public async Task<FeeHeadDto> CreateFeeHeadAsync(FeeHeadDto dto)
     {
         if (string.IsNullOrWhiteSpace(dto.Name))
@@ -159,38 +190,13 @@ public class FinanceService : IFinanceService
         }
 
         decimal effectiveAmount = dto.DefaultAmount > 0 ? dto.DefaultAmount : dto.Amount;
-
-        var meta = new FeeHeadMetadata
-        {
-            code = string.IsNullOrEmpty(dto.Code) ? $"FH-{Random.Shared.Next(100, 999)}" : dto.Code,
-            mandatory = dto.Mandatory,
-            displayOrder = dto.DisplayOrder > 0 ? dto.DisplayOrder : 1,
-            taxPercentage = dto.TaxPercentage,
-            academicYear = !string.IsNullOrWhiteSpace(dto.AcademicYear) ? dto.AcademicYear : "All",
-            applicableClasses = dto.ApplicableClasses ?? new List<string>(),
-            applicableBranches = (dto.ApplicableBranches != null && dto.ApplicableBranches.Count > 0) ? dto.ApplicableBranches : new List<string> { "All Branches" },
-            paymentEligibility = !string.IsNullOrWhiteSpace(dto.PaymentEligibility) ? dto.PaymentEligibility : "Both One-Time and Term-Wise",
-            applicableTerms = dto.ApplicableTerms ?? new List<string>(),
-            applicableSections = dto.ApplicableSections,
-            hostelBlockId = dto.HostelBlockId,
-            hostelBlockName = dto.HostelBlockName,
-            hostelRoomId = dto.HostelRoomId,
-            hostelRoomNo = dto.HostelRoomNo,
-            hostelSharingType = dto.HostelSharingType,
-            transportRouteId = dto.TransportRouteId,
-            transportRouteName = dto.TransportRouteName,
-            transportVehicleId = dto.TransportVehicleId,
-            transportVehicleNo = dto.TransportVehicleNo,
-            transportStopId = dto.TransportStopId,
-            transportStopName = dto.TransportStopName,
-            uniformItemId = dto.UniformItemId,
-            uniformItemName = dto.UniformItemName,
-            uniformSize = dto.UniformSize
-        };
+        string resolvedCode = string.IsNullOrEmpty(dto.Code) ? $"FH-{Random.Shared.Next(100, 999)}" : dto.Code;
+        int resolvedOrder = dto.DisplayOrder > 0 ? dto.DisplayOrder : 1;
+        var meta = BuildFeeHeadMetadata(dto, resolvedCode, resolvedOrder);
 
         var model = new FeeHead
         {
-            Code = meta.code,
+            Code = meta.code!,
             Name = dto.Name,
             Category = dto.Category ?? "General",
             Frequency = dto.Frequency,
@@ -199,16 +205,10 @@ public class FinanceService : IFinanceService
             IsRefundable = dto.IsRefundable,
             IsTaxable = dto.IsTaxable || dto.TaxPercentage > 0,
             TaxPercentage = dto.TaxPercentage,
-            DisplayOrder = dto.DisplayOrder > 0 ? dto.DisplayOrder : 1,
+            DisplayOrder = resolvedOrder,
             Status = dto.Status ?? "Active",
             Description = JsonSerializer.Serialize(meta)
         };
-
-        var existingHead = existingList.FirstOrDefault(h => h.Name.Trim().Equals(dto.Name.Trim(), StringComparison.OrdinalIgnoreCase));
-        if (existingHead != null)
-        {
-            return await UpdateFeeHeadAsync(existingHead.Id, dto);
-        }
 
         var res = await _repo.CreateFeeHeadAsync(model);
         dto.Id = res.Id;
@@ -258,24 +258,14 @@ public class FinanceService : IFinanceService
         }
 
         decimal effectiveAmount = dto.DefaultAmount > 0 ? dto.DefaultAmount : dto.Amount;
-
-        var meta = new FeeHeadMetadata
-        {
-            code = string.IsNullOrEmpty(dto.Code) ? $"FH-{id:D3}" : dto.Code,
-            mandatory = dto.Mandatory,
-            displayOrder = dto.DisplayOrder > 0 ? dto.DisplayOrder : id,
-            taxPercentage = dto.TaxPercentage,
-            academicYear = !string.IsNullOrWhiteSpace(dto.AcademicYear) ? dto.AcademicYear : "All",
-            applicableClasses = dto.ApplicableClasses ?? new List<string>(),
-            applicableBranches = (dto.ApplicableBranches != null && dto.ApplicableBranches.Count > 0) ? dto.ApplicableBranches : new List<string> { "All Branches" },
-            paymentEligibility = !string.IsNullOrWhiteSpace(dto.PaymentEligibility) ? dto.PaymentEligibility : "Both One-Time and Term-Wise",
-            applicableTerms = dto.ApplicableTerms ?? new List<string>()
-        };
+        string resolvedCode = string.IsNullOrEmpty(dto.Code) ? $"FH-{id:D3}" : dto.Code;
+        int resolvedOrder = dto.DisplayOrder > 0 ? dto.DisplayOrder : id;
+        var meta = BuildFeeHeadMetadata(dto, resolvedCode, resolvedOrder);
 
         var model = new FeeHead
         {
             Id = id,
-            Code = meta.code,
+            Code = meta.code!,
             Name = dto.Name,
             Category = dto.Category ?? "General",
             Frequency = dto.Frequency,
@@ -284,7 +274,7 @@ public class FinanceService : IFinanceService
             IsRefundable = dto.IsRefundable,
             IsTaxable = dto.IsTaxable || dto.TaxPercentage > 0,
             TaxPercentage = dto.TaxPercentage,
-            DisplayOrder = dto.DisplayOrder > 0 ? dto.DisplayOrder : id,
+            DisplayOrder = resolvedOrder,
             Status = dto.Status ?? "Active",
             Description = JsonSerializer.Serialize(meta)
         };
@@ -363,14 +353,6 @@ public class FinanceService : IFinanceService
                 items = rawItems;
             }
 
-            // Sync updated items back to database if any deleted fee heads were removed
-            if (rawItems.Count != items.Count)
-            {
-                x.ItemsJson = JsonSerializer.Serialize(items);
-                x.TotalAmount = items.Sum(i => i.Amount);
-                try { await _repo.UpdateDynamicFeeStructureAsync(x); } catch { }
-            }
-
             decimal totalAmount = items.Count > 0 ? items.Sum(i => i.Amount) : 0m;
 
             result.Add(new DynamicFeeStructureDto
@@ -423,7 +405,6 @@ public class FinanceService : IFinanceService
 
             if (items.Count == 0)
             {
-                try { await _repo.DeleteDynamicFeeStructureAsync(x.Id); } catch { }
                 return null;
             }
         }
@@ -656,6 +637,14 @@ public class FinanceService : IFinanceService
 
     public async Task DeleteDynamicFeeStructureAsync(int id)
     {
+        var assignments = await _repo.GetStudentFeeAssignmentsAsync();
+        if (assignments != null)
+        {
+            foreach (var a in assignments.Where(a => a.DynamicFeeStructureId == id).ToList())
+            {
+                await _repo.DeleteStudentFeeAssignmentAsync(a.Id);
+            }
+        }
         await _repo.DeleteDynamicFeeStructureAsync(id);
     }
 
@@ -668,26 +657,24 @@ public class FinanceService : IFinanceService
         var validList = new List<StudentFeeAssignmentDto>();
         foreach (var x in list)
         {
+            decimal totalAmount = x.TotalAmount;
+            decimal dueAmount = x.DueAmount;
+
             if (x.DynamicFeeStructureId.HasValue)
             {
                 if (!structureDict.TryGetValue(x.DynamicFeeStructureId.Value, out var structObj))
                 {
-                    // The assigned structure was deleted! Clean up orphan assignment
-                    try { await _repo.DeleteStudentFeeAssignmentAsync(x.Id); } catch { }
                     continue;
                 }
 
-                if (x.TotalAmount != structObj.TotalAmount)
+                if (totalAmount != structObj.TotalAmount)
                 {
-                    x.TotalAmount = structObj.TotalAmount;
-                    x.DueAmount = Math.Max(0m, structObj.TotalAmount - x.PaidAmount);
-                    try { await _repo.UpdateStudentFeeAssignmentAsync(x); } catch { }
+                    totalAmount = structObj.TotalAmount;
+                    dueAmount = Math.Max(0m, structObj.TotalAmount - x.PaidAmount);
                 }
             }
             else if (structures.Count == 0)
             {
-                // No fee structures exist in system
-                try { await _repo.DeleteStudentFeeAssignmentAsync(x.Id); } catch { }
                 continue;
             }
 
@@ -696,9 +683,9 @@ public class FinanceService : IFinanceService
                 Id = x.Id,
                 StudentId = x.StudentId,
                 DynamicFeeStructureId = x.DynamicFeeStructureId,
-                TotalAmount = x.TotalAmount,
+                TotalAmount = totalAmount,
                 PaidAmount = x.PaidAmount,
-                DueAmount = x.DueAmount,
+                DueAmount = dueAmount,
                 Status = x.Status,
                 FeePolicy = string.IsNullOrWhiteSpace(x.FeePolicy) ? "Full Annual Fee" : x.FeePolicy
             });
@@ -717,7 +704,6 @@ public class FinanceService : IFinanceService
             var structures = (await _repo.GetDynamicFeeStructuresAsync())?.ToList() ?? new List<DynamicFeeStructure>();
             if (!structures.Any(s => s.Id == x.DynamicFeeStructureId.Value))
             {
-                try { await _repo.DeleteStudentFeeAssignmentAsync(id); } catch { }
                 return null;
             }
         }

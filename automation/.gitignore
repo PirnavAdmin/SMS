@@ -1,0 +1,7 @@
+node_modules/
+reports/
+test-results/
+.auth/
+.env.test
+.env.local
+*.log
