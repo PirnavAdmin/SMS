@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
-  Search, Sun, Moon, Bell, Shield, LogOut, Key, Calendar, CheckCircle2,
+  Search, Sun, Moon, Palette, Bell, Shield, LogOut, Key, Calendar, CheckCircle2,
   Megaphone, Building2, Plus, Edit, Trash2, ChevronDown, X, Menu, User
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { ThemeCustomizer } from '../ThemeCustomizer';
 import { useData, formatAcademicYear } from '../../context/DataContext';
 import { UserRole } from '../../types';
 import { ConfirmModal } from '../common/ConfirmModal';
@@ -23,6 +24,7 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenSearch, onOpenChangePass, onNavigate }) => {
   const { user, role, setRole, selectedBranch, setSelectedBranch, selectedAcademicYear, setSelectedAcademicYear, logout } = useAuth();
   const { isDarkMode, toggleDarkMode } = useTheme();
+  const [showThemeCustomizer, setShowThemeCustomizer] = useState(false);
   const { staff = [], announcements, students, admissions, academicClasses, dynamicFeeStructures, routeMasters, hostelMasters, driverMasters = [], academicYears, branches = [], fetchBranches, fetchAnnouncements } = useData();
 
   const formatEmailToName = (email?: string): string => {
@@ -610,6 +612,20 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
 
       {/* Right side tools: Notifications & User Profile */}
       <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        {/* Theme Customizer Quick Studio Toggle */}
+        <button
+          type="button"
+          onClick={() => setShowThemeCustomizer((prev) => !prev)}
+          className="p-2 rounded-xl text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors relative cursor-pointer"
+          title="Customize Theme Colors"
+        >
+          <Palette className="w-5 h-5 text-sky-600 dark:text-sky-400" />
+          <span
+            className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full ring-1 ring-white dark:ring-slate-900"
+            style={{ backgroundColor: 'var(--secondary-color)' }}
+          />
+        </button>
+
         {/* Dark Mode Toggle */}
         <button
           onClick={toggleDarkMode}
@@ -869,6 +885,15 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
         onConfirm={confirmDeleteBranch}
         onCancel={() => setDeletingBranch(null)}
       />
+
+      {/* Theme Customizer Modal Dialog */}
+      {showThemeCustomizer && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-2xl w-full shadow-2xl border border-sky-300 dark:border-sky-800 relative overflow-hidden">
+            <ThemeCustomizer onClose={() => setShowThemeCustomizer(false)} />
+          </div>
+        </div>
+      )}
     </header>
   );
 };

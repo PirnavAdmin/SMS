@@ -53,6 +53,7 @@ import { resolveMediaUrl, DEFAULT_USER_AVATAR, createOptimizedAvatarDataUrl } fr
 import { validateFullName, validateEmail, validate10DigitPhone, validatePhoneNumber, sanitizePhoneInput, sanitizeEmailInput, validateCampusName, validateCampusCode, validateCampusAddress, validateAcademicSessionName, formatTitleCase } from "../../../utils/validation";
 import { SchoolLogoUploader } from "./SchoolLogoUploader";
 import { CertificateSettingsTab } from "./CertificateSettingsTab";
+import { ThemeCustomizer } from "../../ThemeCustomizer";
 import {
   updateCampusesApi,
   updateCertificateTemplatesApi,
@@ -270,6 +271,7 @@ export const SettingsView: React.FC = () => {
     | "automated-ids"
     | "backup"
     | "audit"
+    | "theme"
   >(() => {
     try {
       const saved = sessionStorage.getItem("settings_active_tab") || localStorage.getItem("settings_active_tab");
@@ -281,7 +283,8 @@ export const SettingsView: React.FC = () => {
         "certificates",
         "automated-ids",
         "backup",
-        "audit"
+        "audit",
+        "theme"
       ];
       if (saved && validTabs.includes(saved)) {
         return saved as any;
@@ -1523,6 +1526,12 @@ export const SettingsView: React.FC = () => {
               label: "System Audit Logs",
               icon: Activity,
               visible: isAdminOrSuperAdmin,
+            },
+            {
+              id: "theme",
+              label: "Theme & Colors",
+              icon: Palette,
+              visible: true,
             },
           ]
             .filter((t) => t.visible)
@@ -3334,6 +3343,11 @@ export const SettingsView: React.FC = () => {
             </tbody>
           </table>
         </div>
+      )}
+
+      {/* TAB: DUAL-COLOR THEME CUSTOMIZER */}
+      {activeTab === "theme" && (
+        <ThemeCustomizer />
       )}
 
       {/* Add / Edit Campus Modal */}

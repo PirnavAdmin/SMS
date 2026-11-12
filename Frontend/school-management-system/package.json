@@ -16,6 +16,7 @@
     "lucide-react": "^1.25.0",
     "postcss": "^8.5.20",
     "react": "^19.2.7",
+    "react-colorful": "^5.8.1",
     "react-dom": "^19.2.7",
     "tailwindcss": "^4.3.3",
     "xlsx": "^0.18.5"
