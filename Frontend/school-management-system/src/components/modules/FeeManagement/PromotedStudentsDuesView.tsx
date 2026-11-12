@@ -15,7 +15,9 @@ import {
 import { Student, PromotedStudentWithDues } from "../../../types";
 import { useData } from "../../../context/DataContext";
 import { formatCurrency } from "../../../utils/currency";
+import { validateSearchQuery } from "../../../utils/validation";
 import { ExportButton } from "../../common/ExportButton";
+import { ValidatedSearchInput } from "../../common/ValidatedSearchInput";
 
 interface PromotedStudentsDuesViewProps {
   onCollectDue: (student: Student) => void;
@@ -216,20 +218,18 @@ export const PromotedStudentsDuesView: React.FC<PromotedStudentsDuesViewProps> =
         {/* Filter Dropdowns Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
           {/* Search Input */}
-          <div className="lg:col-span-2 relative">
+          <div className="lg:col-span-2 relative min-w-0">
             <label className="block text-[11px] font-bold text-slate-500 mb-1">
               Search Student / Admission No
             </label>
-            <div className="relative">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                placeholder="Search by name or ADM..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none"
-              />
-            </div>
+            <ValidatedSearchInput
+              value={searchQuery}
+              onChange={(val) => setSearchQuery(val)}
+              placeholder="Search by name or ADM..."
+              maxLength={30}
+              ariaLabel="Search Student or Admission No"
+              inputClassName="font-bold"
+            />
           </div>
 
           {/* Previous Academic Year Filter */}

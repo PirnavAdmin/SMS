@@ -16,6 +16,8 @@ import {
 } from "../../../utils/uniformUtils";
 import { matchesClassName, compareClassesAscending } from "../../../utils/classSorter";
 import { formatDateForDisplay } from "../../../utils/dateValidation";
+import { validateSearchQuery } from "../../../utils/validation";
+import { ValidatedSearchInput } from "../../common/ValidatedSearchInput";
 import {
   IndianRupee,
   Search,
@@ -58,6 +60,22 @@ interface FeeCollectionViewProps {
   initialStudent?: Student | null;
   onClearInitialStudent?: () => void;
 }
+
+const MAX_FEE_ADJUSTMENT_AMOUNT = 99999999;
+const REFERENCE_NO_REGEX = /^[a-zA-Z0-9\-\/_.]*$/;
+const TRANSITION_REMARKS_REGEX = /^[a-zA-Z0-9\s.,\-\/()':]*$/;
+const TRANSITION_REMARKS_MAX_LEN = 250;
+
+const sanitizeBoundedNumericInput = (raw: string, maxAmount = MAX_FEE_ADJUSTMENT_AMOUNT): string => {
+  const cleaned = raw.replace(/[^0-9.]/g, "");
+  if (!cleaned) return "";
+  const parts = cleaned.split(".");
+  const normalized = parts.length > 2 ? `${parts[0]}.${parts.slice(1).join("")}` : cleaned;
+  const num = Number(normalized);
+  if (!Number.isFinite(num)) return "";
+  if (num > maxAmount) return String(maxAmount);
+  return normalized.slice(0, 11);
+};
 
 export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
   onPrintReceipt,
@@ -130,15 +148,16 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
 
   // Dynamic Backend Fee Profile & Transition States
+  const [activeSubTab, setActiveSubTab] = useState<"payment" | "transactions" | "balance" | "ledger">("payment");
   const [backendFeeProfile, setBackendFeeProfile] = useState<any | null>(null);
   const [isLoadingProfile, setIsLoadingProfile] = useState(false);
 
   // Category Transition Modal State
   const [showTransitionModal, setShowTransitionModal] = useState(false);
-  const [transitionTargetType, setTransitionTargetType] = useState<"Residential" | "Non-Residential">("Residential");
-  const [transitionDate, setTransitionDate] = useState<string>(() => new Date().toISOString().split("T")[0]);
-  const [transportEndDate, setTransportEndDate] = useState<string>(() => new Date().toISOString().split("T")[0]);
-  const [hostelJoiningDate, setHostelJoiningDate] = useState<string>(() => new Date().toISOString().split("T")[0]);
+  const [transitionTargetType, setTransitionTargetType] = useState<"Residential" | "Non-Residential" | "">("");
+  const [transitionDate, setTransitionDate] = useState<string>("");
+  const [transportEndDate, setTransportEndDate] = useState<string>("");
+  const [hostelJoiningDate, setHostelJoiningDate] = useState<string>("");
   const [selectedBlockId, setSelectedBlockId] = useState<string>("");
   const [selectedRoomId, setSelectedRoomId] = useState<string>("");
   const [selectedBedNumber, setSelectedBedNumber] = useState<string>("");
@@ -226,6 +245,18 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
   const handleExecuteTransition = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedStudent) return;
+    if (!transitionTargetType) {
+      addToast("warning", "Category Required", "Please select a Target Student Category.");
+      return;
+    }
+    if (!transitionDate || !transportEndDate || (transitionTargetType === "Residential" && !hostelJoiningDate)) {
+      addToast("warning", "Dates Required", "Please select all required transition dates.");
+      return;
+    }
+    if (transitionNotes.length > TRANSITION_REMARKS_MAX_LEN || !TRANSITION_REMARKS_REGEX.test(transitionNotes)) {
+      addToast("warning", "Invalid Remarks", "Remarks may only contain letters, numbers, spaces, and basic punctuation (max 250 characters).");
+      return;
+    }
     try {
       setIsSubmittingTransition(true);
       const sId = Number(selectedStudent.id || (selectedStudent as any).studentId);
@@ -397,7 +428,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
   >({});
   const [paymentMode, setPaymentMode] = useState<
     FeePayment["paymentMode"] | ""
-  >("Cash");
+  >("");
   const [transactionId, setTransactionId] = useState("");
   const [chequeNo, setChequeNo] = useState("");
   const [chequeDate, setChequeDate] = useState("");
@@ -743,12 +774,18 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     return Array.from(set).sort();
   }, [allEnrolledStudents]);
 
+  const isSearchValid = React.useMemo(
+    () => validateSearchQuery(searchQuery, 30).isValid,
+    [searchQuery]
+  );
+
   const filteredStudents = React.useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
     return allEnrolledStudents
       .filter((s) => {
         const nameMatch =
           !q ||
+          !isSearchValid ||
           `${s.firstName} ${s.lastName}`.toLowerCase().includes(q) ||
           (s.admissionNo || "").toLowerCase().includes(q) ||
           (s.id || "").toLowerCase().includes(q);
@@ -770,7 +807,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
         const nameB = `${b.firstName || ''} ${b.lastName || ''}`.trim() || (b as any).studentName || b.name || '';
         return nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: 'base' });
       });
-  }, [allEnrolledStudents, searchQuery, selectedClass, selectedSection]);
+  }, [allEnrolledStudents, searchQuery, isSearchValid, selectedClass, selectedSection]);
 
   const selectableStudents = React.useMemo(() => {
     const list = allEnrolledStudents.filter((s) => {
@@ -928,7 +965,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     setTempDiscountId("");
     setSelectedInstallments([]);
     setCustomCollectionAmounts({});
-    setPaymentMode("Cash");
+    setPaymentMode("");
     const freshLedger = getStudentFeeLedger(st.id, st, currentYear);
     updateCalculation(st.id, calculateStudentPayableFee(st.id), freshLedger);
   };
@@ -1161,9 +1198,10 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
       return;
     }
 
-    const activeMode = (paymentMode && paymentMode.trim() !== "") ? paymentMode : "Cash";
-    if (paymentMode !== activeMode) {
-      setPaymentMode(activeMode);
+    const activeMode = paymentMode ? paymentMode.trim() : "";
+    if (!activeMode) {
+      addToast("warning", "Payment Method Required", "Please select a payment method.");
+      return;
     }
 
     setShowPaymentConfirmModal(true);
@@ -1235,7 +1273,12 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
       }
     }
 
-    const activeMode = (paymentMode && paymentMode.trim() !== "") ? paymentMode : "Cash";
+    const activeMode = paymentMode ? paymentMode.trim() : "";
+    if (!activeMode) {
+      addToast("warning", "Payment Method Required", "Please select a payment method.");
+      setIsProcessingPayment(false);
+      return;
+    }
     const concessionTitle = allConcessionOptions.find(c => c.id === selectedConcessionId)?.name || "";
 
     const payment = addFeePayment({
@@ -1470,7 +1513,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
 
     updateCalculation(selectedStudent.id);
 
-    setPaymentMode("Cash");
+    setPaymentMode("");
     setTransactionId("");
     setChequeNo("");
     setChequeDate("");
@@ -2705,6 +2748,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     !hasAnyAmountError;
 
   const isModeSelected = Boolean(paymentMode);
+  const isReferenceNoFormatValid = !transactionId.trim() || REFERENCE_NO_REGEX.test(transactionId.trim());
 
   let isModeFieldsValid = false;
   let validationMessage = "";
@@ -2727,8 +2771,10 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     validationMessage = errInst
       ? getInstallmentAmountError(errInst) || "Invalid collection amount"
       : "Invalid collection amount";
+  } else if (!isReferenceNoFormatValid) {
+    validationMessage = "Reference No may only contain letters, numbers, '-', '_', '.', and '/'.";
   } else if (!isModeSelected) {
-    validationMessage = "Please select a Payment Mode";
+    validationMessage = "Please select a Payment Method";
   } else if (paymentMode === "Cash") {
     isModeFieldsValid = true;
   } else if (
@@ -2738,14 +2784,15 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     paymentMode === "Bank Transfer" ||
     paymentMode === "Other"
   ) {
-    isModeFieldsValid = transactionId.trim().length > 0;
+    isModeFieldsValid = transactionId.trim().length > 0 && isReferenceNoFormatValid;
     if (!isModeFieldsValid)
       validationMessage = "Transaction Ref / UTR No is required";
   } else if (paymentMode === "Cheque") {
     isModeFieldsValid =
       chequeNo.trim().length > 0 &&
       chequeDate.trim().length > 0 &&
-      bankName.trim().length > 0;
+      bankName.trim().length > 0 &&
+      isReferenceNoFormatValid;
     if (!isModeFieldsValid)
       validationMessage =
         "Cheque No, Cheque Date, and Bank Name are required for Cheque payment";
@@ -2993,42 +3040,43 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
       </div>
 
       {/* 2. Navigation Sub-Tabs Bar */}
-      <div className="flex items-center gap-6 border-b border-slate-200/80 dark:border-slate-800 text-xs font-bold">
-        <button className="py-2.5 text-blue-600 border-b-2 border-blue-600 flex items-center gap-1.5 cursor-pointer">
-          Payment & Receipt
-        </button>
-        <button
-          onClick={() => setShowPaymentHistoryModal(true)}
-          className="py-2.5 text-slate-500 hover:text-slate-900 dark:hover:text-white flex items-center gap-1.5 cursor-pointer"
-        >
-          Transactions
-        </button>
-        <button className="py-2.5 text-slate-500 hover:text-slate-900 dark:hover:text-white flex items-center gap-1.5 cursor-pointer">
-          Account Balance
-        </button>
-        <button
-          onClick={() => setShowPaymentHistoryModal(true)}
-          className="py-2.5 text-slate-500 hover:text-slate-900 dark:hover:text-white flex items-center gap-1.5 cursor-pointer"
-        >
-          Ledger
-        </button>
+      <div className="flex items-center gap-6 border-b border-slate-200/80 dark:border-slate-800 text-xs font-bold overflow-x-auto">
+        {([
+          { id: "payment", label: "Payment & Receipt" },
+          { id: "transactions", label: "Transactions" },
+          { id: "balance", label: "Account Balance" },
+          { id: "ledger", label: "Ledger" },
+        ] as const).map((tab) => {
+          const isActive = activeSubTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveSubTab(tab.id)}
+              className={`py-2.5 flex items-center gap-1.5 cursor-pointer whitespace-nowrap border-b-2 transition-colors ${
+                isActive
+                  ? "text-blue-600 border-blue-600"
+                  : "text-slate-500 border-transparent hover:text-slate-900 dark:hover:text-white"
+              }`}
+            >
+              {tab.label}
+            </button>
+          );
+        })}
       </div>
 
       {/* 3. Search Bar & Filter Controls */}
       <div className="glass-card p-4.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative flex-1 min-w-[240px]">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Search student by Name, Adm No, or Roll No..."
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-              }}
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-semibold focus:ring-2 focus:ring-blue-500/20"
-            />
-          </div>
+        <div className="flex flex-wrap items-start gap-3">
+          <ValidatedSearchInput
+            value={searchQuery}
+            onChange={(val) => setSearchQuery(val)}
+            placeholder="Search student by Name, Adm No, or Roll No..."
+            maxLength={30}
+            className="flex-1 min-w-[240px]"
+            inputClassName="py-2.5 bg-white dark:bg-slate-900 font-semibold"
+            ariaLabel="Search student by Name, Admission No, or Roll No"
+          />
 
           <div>
             <select
@@ -3092,47 +3140,62 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
               <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-black text-lg flex items-center justify-center shadow-md shrink-0">
                 {activeStudent.firstName?.[0] || "A"}
               </div>
-              <div>
-                <h3 className="text-base font-black text-slate-900 dark:text-white">
+              <div className="min-w-0">
+                <h3 className="text-base font-black text-slate-900 dark:text-white truncate">
                   {activeStudent.firstName} {activeStudent.lastName}
                 </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  Student ID:{" "}
-                  <span className="font-bold text-slate-800 dark:text-slate-200">
-                    {getStudentDisplayId(activeStudent)}
-                  </span>{" "}
-                  | Class:{" "}
-                  <span className="font-bold text-slate-800 dark:text-slate-200">
-                    {activeStudent.className || "8"}
-                  </span>{" "}
-                  | Section:{" "}
-                  <span className="font-bold text-slate-800 dark:text-slate-200">
-                    {activeStudent.section || "A"}
-                  </span>{" "}
-                  | Branch:{" "}
-                  <span className="font-bold text-slate-800 dark:text-slate-200">
-                    {activeStudent.branch || (activeStudent as any).campus || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "—")}
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 dark:text-slate-400 mt-1">
+                  <span>
+                    Student ID:{" "}
+                    <strong className="text-slate-800 dark:text-slate-200">
+                      {getStudentDisplayId(activeStudent)}
+                    </strong>
                   </span>
-                </p>
+                  <span className="text-slate-300 dark:text-slate-700">|</span>
+                  <span>
+                    Class:{" "}
+                    <strong className="text-slate-800 dark:text-slate-200">
+                      {activeStudent.className || "—"}
+                    </strong>
+                  </span>
+                  <span className="text-slate-300 dark:text-slate-700">|</span>
+                  <span>
+                    Section:{" "}
+                    <strong className="text-slate-800 dark:text-slate-200">
+                      {activeStudent.section || "—"}
+                    </strong>
+                  </span>
+                  <span className="text-slate-300 dark:text-slate-700">|</span>
+                  <span>
+                    Branch:{" "}
+                    <strong className="text-slate-800 dark:text-slate-200">
+                      {activeStudent.branch || (activeStudent as any).campus || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "—")}
+                    </strong>
+                  </span>
+                </div>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2.5">
               <div className="text-right pr-2">
                 <span className="text-[10px] uppercase font-bold text-slate-400 block">
                   Current Due
                 </span>
-                <span className="text-xl font-black text-rose-600 dark:text-rose-400">
+                <span className="text-xl font-black text-rose-600 dark:text-rose-400 tabular-nums">
                   {formatCurrency(totalOutstanding)}
                 </span>
               </div>
               <button
                 type="button"
                 onClick={() => {
-                  setTransitionTargetType(isHostellerStudent ? "Non-Residential" : "Residential");
+                  setTransitionTargetType("");
+                  setTransitionDate("");
+                  setTransportEndDate("");
+                  setHostelJoiningDate("");
+                  setTransitionNotes("");
                   setShowTransitionModal(true);
                 }}
-                className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white text-xs font-bold shadow-md shadow-indigo-500/20 flex items-center gap-1.5 transition-all cursor-pointer"
+                className="h-9 px-3.5 rounded-xl border border-indigo-600 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
               >
                 <ArrowRightLeft className="w-3.5 h-3.5" />
                 Category Transition
@@ -3141,21 +3204,21 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                 type="button"
                 onClick={refreshStudentProfile}
                 title="Recalculate & Sync Fee Profile"
-                className="p-2 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
+                className="h-9 w-9 flex items-center justify-center rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
               >
                 <RefreshCw className={`w-4 h-4 ${isLoadingProfile ? "animate-spin text-blue-600" : ""}`} />
               </button>
               <button
                 type="button"
-                onClick={() => setShowPaymentHistoryModal(true)}
-                className="px-3 py-2 rounded-xl border border-blue-600 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 text-xs font-bold transition-all cursor-pointer"
+                onClick={() => setActiveSubTab("ledger")}
+                className="h-9 px-3.5 rounded-xl border border-blue-600 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 text-xs font-bold transition-all cursor-pointer flex items-center"
               >
                 View Ledger
               </button>
               <button
                 type="button"
                 onClick={() => setSelectedStudent(null)}
-                className="px-3 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold transition-all cursor-pointer"
+                className="h-9 px-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition-all cursor-pointer flex items-center"
               >
                 Change Student
               </button>
@@ -3299,7 +3362,9 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                 {filteredStudents.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="py-8 text-center text-slate-400 dark:text-slate-500 font-bold italic">
-                      No students found matching search filters.
+                      {!isSearchValid
+                        ? "Please enter a valid search term without special characters."
+                        : "No students found matching search filters."}
                     </td>
                   </tr>
                 ) : (
@@ -3339,7 +3404,138 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
         </div>
       )}
 
+      {/* Sub-Tab Views: Transactions, Account Balance, Ledger */}
+      {activeSubTab === "transactions" && (
+        <div className="glass-card p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-base font-bold text-slate-900 dark:text-white">
+              Transactions {activeStudent ? `— ${activeStudent.firstName} ${activeStudent.lastName}` : ""}
+            </h3>
+            <span className="text-xs font-bold text-slate-500">
+              {displayedHistoryPayments.length} Record(s)
+            </span>
+          </div>
+          {displayedHistoryPayments.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs text-left">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-500 font-bold uppercase text-[10px]">
+                    <th className="p-3 whitespace-nowrap">Receipt No</th>
+                    <th className="p-3 whitespace-nowrap">Date</th>
+                    <th className="p-3 whitespace-nowrap">Fee Head</th>
+                    <th className="p-3 whitespace-nowrap">Mode</th>
+                    <th className="p-3 whitespace-nowrap">Reference No</th>
+                    <th className="p-3 text-right whitespace-nowrap">Amount</th>
+                    <th className="p-3 text-right whitespace-nowrap">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {displayedHistoryPayments.map((p) => (
+                    <tr key={p.receiptNo || p.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-900/50">
+                      <td className="p-3 font-mono font-bold text-slate-900 dark:text-white">{p.receiptNo || p.id}</td>
+                      <td className="p-3 text-slate-500 font-mono">{formatDateForDisplay(p.paymentDate)}</td>
+                      <td className="p-3 font-medium text-slate-700 dark:text-slate-300">{p.feeHeadName || "Fee Payment"}</td>
+                      <td className="p-3 font-semibold text-slate-700 dark:text-slate-300">{p.paymentMode || "Cash"}</td>
+                      <td className="p-3 font-mono text-slate-500">{p.transactionId || p.chequeNo || "N/A"}</td>
+                      <td className="p-3 text-right font-mono font-bold text-emerald-600">{formatCurrency(p.amountPaid)}</td>
+                      <td className="p-3 text-right">
+                        <button
+                          type="button"
+                          onClick={() => onPrintReceipt(p)}
+                          className="text-xs font-bold text-blue-600 hover:underline cursor-pointer"
+                        >
+                          Print Receipt
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="p-10 text-center text-xs font-semibold text-slate-400">
+              No Transactions Found
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeSubTab === "balance" && (
+        <div className="glass-card p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-4">
+          <h3 className="text-base font-bold text-slate-900 dark:text-white">
+            Account Balance {activeStudent ? `— ${activeStudent.firstName} ${activeStudent.lastName}` : ""}
+          </h3>
+          {activeStudent ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {[
+                { label: "Total Assessed Fee", val: formatCurrency(calcResult?.totalFee ?? activeStudent.totalFee ?? 0), cls: "text-slate-900 dark:text-white" },
+                { label: "Concessions / Discounts", val: formatCurrency(calcResult?.concessionAmount ?? 0), cls: "text-blue-600 dark:text-blue-400" },
+                { label: "Total Paid", val: formatCurrency(calcResult?.paidFee ?? activeStudent.paidFee ?? 0), cls: "text-emerald-600 dark:text-emerald-400" },
+                { label: "Current Net Balance Due", val: formatCurrency(totalOutstanding), cls: "text-rose-600 dark:text-rose-400" },
+              ].map((item) => (
+                <div key={item.label} className="p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200/70 dark:border-slate-800 min-w-0">
+                  <span className="text-[11px] font-bold text-slate-500 uppercase block">{item.label}</span>
+                  <span title={item.val} className={`text-lg font-black tabular-nums mt-1 block truncate ${item.cls}`}>
+                    {item.val}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="p-10 text-center text-xs font-semibold text-slate-400">
+              Please select a student above to view their account balance summary.
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeSubTab === "ledger" && (
+        <div className="glass-card p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-base font-bold text-slate-900 dark:text-white">
+              Student Ledger {activeStudent ? `— ${activeStudent.firstName} ${activeStudent.lastName}` : ""}
+            </h3>
+            <span className="text-xs font-bold text-slate-500">
+              Net Due: <strong className="text-rose-600 tabular-nums">{formatCurrency(totalOutstanding)}</strong>
+            </span>
+          </div>
+          {activeStudent && allInstallments.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs text-left">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-500 font-bold uppercase text-[10px]">
+                    <th className="p-3 whitespace-nowrap">#</th>
+                    <th className="p-3 whitespace-nowrap">Particulars</th>
+                    <th className="p-3 whitespace-nowrap">Term</th>
+                    <th className="p-3 text-right whitespace-nowrap">Assessed</th>
+                    <th className="p-3 text-right whitespace-nowrap">Paid</th>
+                    <th className="p-3 text-right whitespace-nowrap">Balance</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {allInstallments.map((inst, idx) => (
+                    <tr key={inst.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-900/50">
+                      <td className="p-3 font-mono text-slate-500">{idx + 1}</td>
+                      <td className="p-3 font-bold text-slate-900 dark:text-white">{inst.feeHeadName}</td>
+                      <td className="p-3 text-slate-500">{inst.termName || "Full Annual Fee"}</td>
+                      <td className="p-3 text-right font-mono">{formatCurrency(inst.amount)}</td>
+                      <td className="p-3 text-right font-mono text-emerald-600">{formatCurrency(inst.paidAmount)}</td>
+                      <td className="p-3 text-right font-mono font-bold text-rose-600">{formatCurrency(inst.dueAmount)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="p-10 text-center text-xs font-semibold text-slate-400">
+              No Ledger Entries Found
+            </div>
+          )}
+        </div>
+      )}
+
       {/* 4. Main 2-Column Grid */}
+      {activeSubTab === "payment" && (
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Main Column (Span 8) */}
         <div className="lg:col-span-8 space-y-6">
@@ -3389,23 +3585,27 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
               <table className="w-full text-xs text-left">
                 <thead>
                   <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-500 font-bold uppercase text-[10px]">
-                    <th className="p-3">#</th>
-                    <th className="p-3">Fee Head</th>
-                    <th className="p-3">Term</th>
-                    <th className="p-3">Due Date</th>
-                    <th className="p-3 text-right">Original Amount</th>
-                    <th className="p-3 text-right">Discount</th>
-                    <th className="p-3 text-right">Paid Amount</th>
-                    <th className="p-3 text-right">Due Amount</th>
-                    <th className="p-3 text-right">Paying Amount (₹)</th>
-                    <th className="p-3 text-center">Select</th>
+                    <th className="p-3 whitespace-nowrap">#</th>
+                    <th className="p-3 whitespace-nowrap">Fee Head</th>
+                    <th className="p-3 whitespace-nowrap">Term</th>
+                    <th className="p-3 whitespace-nowrap">Due Date</th>
+                    <th className="p-3 text-right whitespace-nowrap">Original Amount</th>
+                    <th className="p-3 text-right whitespace-nowrap">Discount</th>
+                    <th className="p-3 text-right whitespace-nowrap">Paid Amount</th>
+                    <th className="p-3 text-right whitespace-nowrap">Due Amount</th>
+                    <th className="p-3 text-right whitespace-nowrap">Paying Amount (₹)</th>
+                    <th className="p-3 text-center whitespace-nowrap">Select</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                   {allInstallments.length > 0 ? (
                     allInstallments.map((inst, index) => {
                       const isSelected = selectedInstallments.includes(inst.id);
-                      const isPaid = inst.dueAmount <= 0 || inst.status === "Paid";
+                      const isZeroCharge =
+                        Number(inst.amount || 0) <= 0 &&
+                        Number(inst.paidAmount || 0) <= 0 &&
+                        Number(inst.dueAmount || 0) <= 0;
+                      const isPaid = !isZeroCharge && (inst.dueAmount <= 0 || inst.status === "Paid");
                       const displayPaidAmt = inst.paidAmount > 0 ? inst.paidAmount : (isPaid ? inst.amount : 0);
 
                       // Calculate cumulative prior arrears from preceding pending installments
@@ -3422,7 +3622,13 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                       return (
                         <tr
                           key={inst.id}
-                          className={`transition-colors ${isPaid ? 'bg-emerald-50/40 dark:bg-emerald-950/20' : isSelected ? 'bg-blue-50/30 dark:bg-blue-950/20' : 'hover:bg-slate-50/50 dark:hover:bg-slate-900/50'}`}
+                          className={`transition-colors ${
+                            isPaid
+                              ? "bg-emerald-50/40 dark:bg-emerald-950/20"
+                              : isSelected
+                                ? "bg-blue-50/30 dark:bg-blue-950/20"
+                                : "hover:bg-slate-50/50 dark:hover:bg-slate-900/50"
+                          }`}
                         >
                           <td className="p-3 font-mono font-semibold text-slate-600">{index + 1}</td>
                           <td className="p-3 font-bold text-slate-900 dark:text-white">{inst.feeHeadName}</td>
@@ -3442,7 +3648,9 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                             {formatCurrency(displayPaidAmt)}
                           </td>
                           <td className="p-3 text-right font-mono font-bold">
-                            {isPaid ? (
+                            {isZeroCharge ? (
+                              <span className="text-slate-400 font-medium">₹ 0</span>
+                            ) : isPaid ? (
                               <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">₹ 0</span>
                             ) : (
                               <div>
@@ -3461,7 +3669,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                             )}
                           </td>
                           <td className="p-3 text-right font-mono">
-                            {isPaid ? (
+                            {isZeroCharge || isPaid ? (
                               <span className="text-slate-400 font-medium">₹ 0</span>
                             ) : isSelected ? (
                               <div className="flex justify-end items-center">
@@ -3483,7 +3691,11 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                             )}
                           </td>
                           <td className="p-3 text-center">
-                            {isPaid ? (
+                            {isZeroCharge ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                                No Charges
+                              </span>
+                            ) : isPaid ? (
                               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
                                 PAID
                               </span>
@@ -3546,9 +3758,11 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                 </label>
                 <input
                   type="number"
+                  min={0}
+                  max={MAX_FEE_ADJUSTMENT_AMOUNT}
                   disabled={isFineWaived}
                   value={isFineWaived ? 0 : fineAmountInput}
-                  onChange={(e) => setFineAmountInput(e.target.value)}
+                  onChange={(e) => setFineAmountInput(sanitizeBoundedNumericInput(e.target.value))}
                   placeholder="0"
                   className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs bg-white dark:bg-slate-900 font-mono font-bold text-rose-600 dark:text-rose-400"
                 />
@@ -3584,7 +3798,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                   }}
                   className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs bg-white dark:bg-slate-900 font-semibold"
                 >
-                  <option value="">No Concession</option>
+                  <option value="">Select Concession</option>
                   {allConcessionOptions.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name}
@@ -3598,8 +3812,10 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                 </label>
                 <input
                   type="number"
+                  min={0}
+                  max={MAX_FEE_ADJUSTMENT_AMOUNT}
                   value={discountAmountInput}
-                  onChange={(e) => setDiscountAmountInput(e.target.value)}
+                  onChange={(e) => setDiscountAmountInput(sanitizeBoundedNumericInput(e.target.value))}
                   placeholder="0"
                   className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs bg-white dark:bg-slate-900 font-mono font-bold text-emerald-600 dark:text-emerald-400"
                 />
@@ -3625,10 +3841,11 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
               </span>
               <div>
                 <select
-                  value={paymentMode || "Cash"}
+                  value={paymentMode}
                   onChange={(e) => handlePaymentModeChange(e.target.value as any)}
                   className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold bg-white dark:bg-slate-900"
                 >
+                  <option value="">Select Payment Method</option>
                   <option value="Cash">Cash</option>
                   <option value="Bank Transfer">Bank Transfer</option>
                   <option value="Online">UPI / Online</option>
@@ -3656,11 +3873,21 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                 </label>
                 <input
                   type="text"
+                  maxLength={40}
                   placeholder="Enter reference no"
                   value={transactionId}
-                  onChange={(e) => setTransactionId(e.target.value)}
-                  className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs bg-white dark:bg-slate-900"
+                  onChange={(e) => setTransactionId(e.target.value.slice(0, 40))}
+                  className={`w-full p-2 border rounded-lg text-xs bg-white dark:bg-slate-900 ${
+                    !isReferenceNoFormatValid
+                      ? "border-rose-500 text-rose-600"
+                      : "border-slate-200 dark:border-slate-700"
+                  }`}
                 />
+                {!isReferenceNoFormatValid && (
+                  <p className="text-[10px] font-semibold text-rose-500 mt-1">
+                    Alphanumeric characters and '-', '_', '.', '/' only.
+                  </p>
+                )}
               </div>
               <div>
                 <label className="text-[10px] text-slate-400 font-bold block mb-1">
@@ -3679,26 +3906,35 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
         {/* Right Sidebar (Span 4) */}
         <div className="lg:col-span-4 space-y-6">
           {/* Card 1: Payment Summary */}
-          <div className="glass-card p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-4">
+          <div className="glass-card p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-4 overflow-hidden">
             <h3 className="text-base font-bold text-slate-900 dark:text-white">
               Payment Summary
             </h3>
             <div className="space-y-2.5 text-xs">
-              <div className="flex justify-between items-center text-slate-600 dark:text-slate-400">
-                <span>Total Selected Amount</span>
-                <span className="font-mono font-bold text-slate-900 dark:text-white">
+              <div className="flex justify-between items-center gap-3 min-w-0 text-slate-600 dark:text-slate-400">
+                <span className="shrink-0">Total Selected Amount</span>
+                <span
+                  title={formatCurrency(baseSelectedAmount)}
+                  className="font-mono font-bold text-slate-900 dark:text-white truncate tabular-nums"
+                >
                   {formatCurrency(baseSelectedAmount)}
                 </span>
               </div>
-              <div className="flex justify-between items-center text-slate-600 dark:text-slate-400">
-                <span>Fine Amount</span>
-                <span className="font-mono font-bold text-rose-600 dark:text-rose-400">
+              <div className="flex justify-between items-center gap-3 min-w-0 text-slate-600 dark:text-slate-400">
+                <span className="shrink-0">Fine Amount</span>
+                <span
+                  title={effectiveFineAmount > 0 ? `+ ${formatCurrency(effectiveFineAmount)}` : "₹ 0"}
+                  className="font-mono font-bold text-rose-600 dark:text-rose-400 truncate tabular-nums"
+                >
                   {effectiveFineAmount > 0 ? `+ ${formatCurrency(effectiveFineAmount)}` : `₹ 0`}
                 </span>
               </div>
-              <div className="flex justify-between items-center text-slate-600 dark:text-slate-400">
-                <span>Discount Amount</span>
-                <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+              <div className="flex justify-between items-center gap-3 min-w-0 text-slate-600 dark:text-slate-400">
+                <span className="shrink-0">Discount Amount</span>
+                <span
+                  title={effectiveDiscountAmount > 0 ? `- ${formatCurrency(effectiveDiscountAmount)}` : "₹ 0"}
+                  className="font-mono font-bold text-emerald-600 dark:text-emerald-400 truncate tabular-nums"
+                >
                   {effectiveDiscountAmount > 0 ? `- ${formatCurrency(effectiveDiscountAmount)}` : `₹ 0`}
                 </span>
               </div>
@@ -3751,11 +3987,14 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                 </p>
               </div>
 
-              <div className="border-t border-slate-200 dark:border-slate-800 pt-3 flex justify-between items-center">
-                <span className="font-bold text-slate-900 dark:text-white">
+              <div className="border-t border-slate-200 dark:border-slate-800 pt-3 flex justify-between items-center gap-3 min-w-0">
+                <span className="font-bold text-slate-900 dark:text-white shrink-0">
                   Amount to Collect
                 </span>
-                <span className="font-mono font-black text-lg text-emerald-600 dark:text-emerald-400">
+                <span
+                  title={formatCurrency(amountPaying)}
+                  className="font-mono font-black text-lg text-emerald-600 dark:text-emerald-400 truncate tabular-nums"
+                >
                   {formatCurrency(amountPaying)}
                 </span>
               </div>
@@ -3868,6 +4107,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
           </div>
         </div>
       </div>
+      )}
 
       {/* Confirmation Modal */}
       {showPaymentConfirmModal && (
@@ -3901,7 +4141,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
               <div className="flex justify-between">
                 <span className="text-slate-500">Payment Mode:</span>
                 <span className="font-bold text-slate-900 dark:text-white">
-                  {paymentMode || "Cash"}
+                  {paymentMode || "—"}
                 </span>
               </div>
               <div className="flex justify-between">
@@ -4049,8 +4289,10 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                 <select
                   value={transitionTargetType}
                   onChange={(e) => setTransitionTargetType(e.target.value as any)}
+                  required
                   className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-bold"
                 >
+                  <option value="">Select Student Category</option>
                   <option value="Residential">Residential (Join Hostel)</option>
                   <option value="Non-Residential">Non-Residential (Day Scholar / Transport)</option>
                 </select>
@@ -4186,16 +4428,31 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
               )}
 
               <div>
-                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Reason & Administrative Remarks
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block font-bold text-slate-700 dark:text-slate-300">
+                    Reason & Administrative Remarks
+                  </label>
+                  <span className="text-[10px] text-slate-400 font-mono">
+                    {transitionNotes.length}/{TRANSITION_REMARKS_MAX_LEN}
+                  </span>
+                </div>
                 <textarea
                   rows={2}
+                  maxLength={TRANSITION_REMARKS_MAX_LEN}
                   value={transitionNotes}
-                  onChange={(e) => setTransitionNotes(e.target.value)}
+                  onChange={(e) => setTransitionNotes(e.target.value.slice(0, TRANSITION_REMARKS_MAX_LEN))}
                   placeholder="e.g. Parent requested transition from Day Scholar to Boarder as per application."
-                  className="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                  className={`w-full px-3 py-2 rounded-xl border bg-white dark:bg-slate-800 text-slate-900 dark:text-white ${
+                    !TRANSITION_REMARKS_REGEX.test(transitionNotes)
+                      ? "border-rose-500"
+                      : "border-slate-300 dark:border-slate-700"
+                  }`}
                 />
+                {!TRANSITION_REMARKS_REGEX.test(transitionNotes) && (
+                  <p className="text-[10px] font-semibold text-rose-500 mt-1">
+                    Unsupported special characters are not allowed in remarks.
+                  </p>
+                )}
               </div>
 
               <div className="pt-3 border-t border-slate-200 dark:border-slate-800 flex justify-end gap-2">
@@ -4208,10 +4465,14 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                 </button>
                 <button
                   type="submit"
-                  disabled={isSubmittingTransition}
+                  disabled={
+                    isSubmittingTransition ||
+                    !transitionTargetType ||
+                    !TRANSITION_REMARKS_REGEX.test(transitionNotes)
+                  }
                   className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-md shadow-indigo-600/20 disabled:opacity-50 transition-all flex items-center gap-1.5"
                 >
-                  {isSubmittingTransition ? "Processing..." : "Confirm & Transition Category"}
+                  {isSubmittingTransition ? "Processing..." : "Confirm Category Transition"}
                 </button>
               </div>
             </form>

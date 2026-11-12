@@ -28,6 +28,11 @@ interface FinanceDashboardViewProps {
   onNavigate?: (tab: string) => void;
 }
 
+const dashboardStatsCache = new Map<string, any>();
+
+const pickStat = (apiVal: unknown, fallbackVal: number): number =>
+  typeof apiVal === "number" && Number.isFinite(apiVal) ? Number(apiVal) : fallbackVal;
+
 export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNavigate }) => {
   const {
     students,
@@ -42,12 +47,17 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
   } = useData();
 
   const { selectedBranch, selectedAcademicYear } = useAuth();
+  const cacheKey = `${selectedBranch || "all"}::${selectedAcademicYear || "all"}`;
 
   const { addToast } = useToast();
-  const [apiStats, setApiStats] = useState<any>(null);
+  const [apiStats, setApiStats] = useState<any>(() => dashboardStatsCache.get(cacheKey) ?? null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [apiError, setApiError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+
+  useEffect(() => {
+    setApiStats(dashboardStatsCache.get(cacheKey) ?? null);
+  }, [cacheKey]);
 
   const fetchFinanceDataRef = React.useRef(fetchFinanceData);
   fetchFinanceDataRef.current = fetchFinanceData;
@@ -66,6 +76,7 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
       if (dashRes.status === "fulfilled" && dashRes.value) {
         const stats = dashRes.value.data || dashRes.value;
         if (stats && (typeof stats.totalExpectedRevenue === "number" || typeof stats.totalOutstandingDues === "number")) {
+          dashboardStatsCache.set(cacheKey, stats);
           setApiStats(stats);
           setApiError(null);
         }
@@ -312,75 +323,30 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
   }, [apiStats, localStats.pending]);
   const todaysCollection = Number(apiStats?.todayCollectionAmount || 0);
 
-  // Module Specific Expected, Collected, Pending Amounts
-  const hostelCollected = React.useMemo(() => {
-    if (apiStats && typeof apiStats.hostelCollected === 'number' && apiStats.hostelCollected > 0) {
-      return Number(apiStats.hostelCollected);
-    }
-    return localStats.hostelColl;
-  }, [apiStats, localStats.hostelColl]);
-
-  const hostelExpected = React.useMemo(() => {
-    const exp = (apiStats && typeof apiStats.hostelExpected === 'number' && apiStats.hostelExpected > 0)
-      ? Number(apiStats.hostelExpected)
-      : localStats.hostelExp;
-    return Math.max(exp, hostelCollected);
-  }, [apiStats, localStats.hostelExp, hostelCollected]);
-
+  // Module Specific Expected, Collected, Pending Amounts (never fall back on valid 0 from API)
+  const hostelCollected = pickStat(apiStats?.hostelCollected, localStats.hostelColl);
+  const hostelExpected = Math.max(pickStat(apiStats?.hostelExpected, localStats.hostelExp), hostelCollected);
   const hostelPending = Math.max(0, hostelExpected - hostelCollected);
 
-  const transportCollected = React.useMemo(() => {
-    if (apiStats && typeof apiStats.transportCollected === 'number' && apiStats.transportCollected > 0) {
-      return Number(apiStats.transportCollected);
-    }
-    return localStats.transportColl;
-  }, [apiStats, localStats.transportColl]);
-
-  const transportExpected = React.useMemo(() => {
-    const exp = (apiStats && typeof apiStats.transportExpected === 'number' && apiStats.transportExpected > 0)
-      ? Number(apiStats.transportExpected)
-      : localStats.transportExp;
-    return Math.max(exp, transportCollected);
-  }, [apiStats, localStats.transportExp, transportCollected]);
-
+  const transportCollected = pickStat(apiStats?.transportCollected, localStats.transportColl);
+  const transportExpected = Math.max(pickStat(apiStats?.transportExpected, localStats.transportExp), transportCollected);
   const transportPending = Math.max(0, transportExpected - transportCollected);
 
-  const uniformCollected = React.useMemo(() => {
-    if (apiStats && typeof apiStats.uniformCollected === 'number' && apiStats.uniformCollected > 0) {
-      return Number(apiStats.uniformCollected);
-    }
-    return localStats.uniformColl;
-  }, [apiStats, localStats.uniformColl]);
-
-  const uniformExpected = React.useMemo(() => {
-    const exp = (apiStats && typeof apiStats.uniformExpected === 'number' && apiStats.uniformExpected > 0)
-      ? Number(apiStats.uniformExpected)
-      : localStats.uniformExp;
-    return Math.max(exp, uniformCollected);
-  }, [apiStats, localStats.uniformExp, uniformCollected]);
-
+  const uniformCollected = pickStat(apiStats?.uniformCollected, localStats.uniformColl);
+  const uniformExpected = Math.max(pickStat(apiStats?.uniformExpected, localStats.uniformExp), uniformCollected);
   const uniformPending = Math.max(0, uniformExpected - uniformCollected);
 
-  const finesExpected = React.useMemo(() => {
-    if (apiStats && typeof apiStats.finesExpected === 'number' && apiStats.finesExpected > 0) {
-      return Number(apiStats.finesExpected);
-    }
-    return localStats.finesExp;
-  }, [apiStats, localStats.finesExp]);
-
-  const finesCollected = React.useMemo(() => {
-    if (apiStats && typeof apiStats.finesCollected === 'number' && apiStats.finesCollected > 0) {
-      return Number(apiStats.finesCollected);
-    }
-    return localStats.finesColl;
-  }, [apiStats, localStats.finesColl]);
-
+  const finesExpected = pickStat(apiStats?.finesExpected, localStats.finesExp);
+  const finesCollected = pickStat(apiStats?.finesCollected, localStats.finesColl);
   const finesPending = Math.max(0, finesExpected - finesCollected);
 
-  const scholarshipAmount = Number(apiStats?.scholarshipsGranted || apiStats?.totalConcessionsGranted || localStats.concessions || 0);
+  const scholarshipAmount = pickStat(
+    apiStats?.scholarshipsGranted ?? apiStats?.totalConcessionsGranted,
+    localStats.concessions
+  );
 
   const cashBalance = React.useMemo(() => {
-    if (apiStats && typeof apiStats.cashBalance === "number" && apiStats.cashBalance > 0) {
+    if (apiStats && typeof apiStats.cashBalance === "number" && Number.isFinite(apiStats.cashBalance)) {
       return Number(apiStats.cashBalance);
     }
     return (financialAccounts || [])
@@ -389,7 +355,7 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
   }, [apiStats, financialAccounts]);
 
   const bankBalance = React.useMemo(() => {
-    if (apiStats && typeof apiStats.bankBalance === "number" && apiStats.bankBalance > 0) {
+    if (apiStats && typeof apiStats.bankBalance === "number" && Number.isFinite(apiStats.bankBalance)) {
       return Number(apiStats.bankBalance);
     }
     return (financialAccounts || [])
@@ -397,12 +363,7 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
       .reduce((sum, a) => sum + Number(a.currentBalance || 0), 0);
   }, [apiStats, financialAccounts]);
 
-  const totalLiquidity = React.useMemo(() => {
-    if (apiStats && typeof apiStats.totalLiquidity === "number" && apiStats.totalLiquidity > 0) {
-      return Number(apiStats.totalLiquidity);
-    }
-    return cashBalance + bankBalance;
-  }, [apiStats, cashBalance, bankBalance]);
+  const totalLiquidity = pickStat(apiStats?.totalLiquidity, cashBalance + bankBalance);
 
   const normalizedCategoryBreakdown = React.useMemo(() => {
     if (!apiStats?.categoryBreakdown || !Array.isArray(apiStats.categoryBreakdown) || apiStats.categoryBreakdown.length === 0) {
@@ -448,13 +409,140 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
     }
 
     return Array.from(map.values());
-  }, [apiStats?.categoryBreakdown]);
+  }, [apiStats?.categoryBreakdown, localStats.categories]);
 
   const handleCardClick = (targetTab: string) => {
     if (onNavigate) {
       onNavigate(targetTab);
     }
   };
+
+  const primaryKpiCards = [
+    {
+      label: "Total Expected Collection",
+      value: totalExpected,
+      valueClass: "text-slate-900 dark:text-white",
+      borderClass: "border-l-sky-500",
+      iconBgClass: "bg-sky-50 dark:bg-sky-950 text-sky-500 group-hover:bg-sky-500",
+      linkClass: "text-sky-600 dark:text-sky-400",
+      linkText: "View Dues",
+      targetTab: "due-fees",
+      Icon: IndianRupee,
+    },
+    {
+      label: "Total Collected",
+      value: totalCollected,
+      valueClass: "text-emerald-600 dark:text-emerald-400",
+      borderClass: "border-l-emerald-500",
+      iconBgClass: "bg-emerald-50 dark:bg-emerald-950 text-emerald-500 group-hover:bg-emerald-500",
+      linkClass: "text-emerald-600 dark:text-emerald-400",
+      linkText: "Collect Fees",
+      targetTab: "fee-collection",
+      Icon: CheckCircle,
+    },
+    {
+      label: "Total Pending Dues",
+      value: totalPending,
+      valueClass: "text-rose-600 dark:text-rose-400",
+      borderClass: "border-l-rose-500",
+      iconBgClass: "bg-rose-50 dark:bg-rose-950 text-rose-500 group-hover:bg-rose-500",
+      linkClass: "text-rose-600 dark:text-rose-400",
+      linkText: "View Dues",
+      targetTab: "student-fees",
+      Icon: AlertCircle,
+    },
+    {
+      label: "Today's Collection",
+      value: todaysCollection,
+      valueClass: "text-sky-600 dark:text-sky-400",
+      borderClass: "border-l-sky-500",
+      iconBgClass: "bg-sky-50 dark:bg-sky-950 text-sky-500 group-hover:bg-sky-500",
+      linkClass: "text-sky-600 dark:text-sky-400",
+      linkText: "Receipts",
+      targetTab: "fee-collection",
+      Icon: TrendingUp,
+    },
+    {
+      label: "Liquidity Accounts",
+      value: totalLiquidity,
+      valueClass: "text-indigo-600 dark:text-indigo-400",
+      borderClass: "border-l-indigo-500",
+      iconBgClass: "bg-indigo-50 dark:bg-indigo-950 text-indigo-500 group-hover:bg-indigo-500",
+      linkClass: "text-indigo-600 dark:text-indigo-400",
+      linkText: "View Vaults",
+      targetTab: "accounts",
+      Icon: CreditCard,
+      sublines: [
+        { label: "Bank", amount: bankBalance, cls: "text-sky-600 dark:text-sky-400 font-semibold" },
+        { label: "Cash", amount: cashBalance, cls: "text-emerald-600 dark:text-emerald-400 font-semibold" },
+      ],
+    },
+  ];
+
+  const secondaryKpiCards = [
+    {
+      label: "Transport",
+      value: transportCollected,
+      hoverBorder: "hover:border-sky-300 dark:hover:border-sky-800",
+      arrowClass: "text-sky-500",
+      iconBgClass: "bg-sky-50 text-sky-600 dark:bg-sky-950 dark:text-sky-400 group-hover:bg-sky-500",
+      targetTab: "transport",
+      Icon: Bus,
+      sublines: [
+        { label: "Expected", amount: transportExpected, cls: "text-slate-500 dark:text-slate-400" },
+        { label: "Pending", amount: transportPending, cls: "text-rose-500 font-semibold" },
+      ],
+    },
+    {
+      label: "Hostel",
+      value: hostelCollected,
+      hoverBorder: "hover:border-cyan-300 dark:hover:border-cyan-800",
+      arrowClass: "text-cyan-500",
+      iconBgClass: "bg-cyan-50 text-cyan-600 dark:bg-cyan-950 dark:text-cyan-400 group-hover:bg-cyan-500",
+      targetTab: "hostel",
+      Icon: Home,
+      sublines: [
+        { label: "Expected", amount: hostelExpected, cls: "text-slate-500 dark:text-slate-400" },
+        { label: "Pending", amount: hostelPending, cls: "text-rose-500 font-semibold" },
+      ],
+    },
+    {
+      label: "Uniform",
+      value: uniformCollected,
+      hoverBorder: "hover:border-purple-300 dark:hover:border-purple-800",
+      arrowClass: "text-purple-500",
+      iconBgClass: "bg-purple-50 text-purple-600 dark:bg-purple-950 dark:text-purple-400 group-hover:bg-purple-500",
+      targetTab: "uniforms",
+      Icon: Shirt,
+      sublines: [
+        { label: "Expected", amount: uniformExpected, cls: "text-slate-500 dark:text-slate-400" },
+        { label: "Pending", amount: uniformPending, cls: "text-rose-500 font-semibold" },
+      ],
+    },
+    {
+      label: "Scholarships",
+      value: scholarshipAmount,
+      hoverBorder: "hover:border-emerald-300 dark:hover:border-emerald-800",
+      arrowClass: "text-emerald-500",
+      iconBgClass: "bg-emerald-50 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400 group-hover:bg-emerald-500",
+      targetTab: "concessions",
+      Icon: Gift,
+      sublines: [],
+    },
+    {
+      label: "Fines",
+      value: finesCollected,
+      hoverBorder: "hover:border-rose-300 dark:hover:border-rose-800",
+      arrowClass: "text-rose-500",
+      iconBgClass: "bg-rose-50 text-rose-600 dark:bg-rose-950 dark:text-rose-400 group-hover:bg-rose-500",
+      targetTab: "student-fees",
+      Icon: AlertTriangle,
+      sublines: [
+        { label: "Assessed", amount: finesExpected, cls: "text-slate-500 dark:text-slate-400" },
+        { label: "Pending", amount: finesPending, cls: "text-rose-500 font-semibold" },
+      ],
+    },
+  ];
 
   return (
     <div className="space-y-6 animate-in fade-in">
@@ -483,244 +571,100 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
       </div>
 
       {/* Primary KPI Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        {/* Total Expected Collection */}
-        <div
-          onClick={() => handleCardClick("due-fees")}
-          className="glass-card p-5 rounded-3xl flex flex-col justify-between h-full space-y-2 border-l-4 border-l-sky-500 cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-xl group"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase">
-              Total Expected Collection
-            </span>
-            <div className="p-2 rounded-xl bg-sky-50 dark:bg-sky-950 text-sky-500 group-hover:bg-sky-500 group-hover:text-white transition-colors">
-              <IndianRupee className="w-4 h-4" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+        {primaryKpiCards.map((card) => {
+          const formatted = formatCurrency(card.value);
+          const IconComponent = card.Icon;
+          return (
+            <div
+              key={card.label}
+              onClick={() => handleCardClick(card.targetTab)}
+              className={`glass-card p-4 sm:p-5 rounded-3xl flex flex-col justify-between h-full min-w-0 overflow-hidden gap-2 border-l-4 ${card.borderClass} cursor-pointer transition-all duration-200 hover:scale-[1.01] hover:shadow-xl group`}
+            >
+              <div className="flex items-start justify-between gap-2 min-w-0">
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wide leading-snug">
+                  {card.label}
+                </span>
+                <div className={`p-2 rounded-xl shrink-0 ${card.iconBgClass} group-hover:text-white transition-colors`}>
+                  <IconComponent className="w-4 h-4" />
+                </div>
+              </div>
+              <h3
+                title={formatted}
+                className={`text-lg font-black tabular-nums leading-tight truncate ${card.valueClass}`}
+              >
+                {formatted}
+              </h3>
+              {card.sublines && card.sublines.length > 0 && (
+                <div className="flex flex-col gap-0.5 text-[11px] text-slate-500 dark:text-slate-400 min-w-0">
+                  {card.sublines.map((sub) => {
+                    const subFormatted = formatCurrency(sub.amount);
+                    return (
+                      <div key={sub.label} className="flex items-center justify-between gap-2 min-w-0">
+                        <span className="shrink-0">{sub.label}:</span>
+                        <span title={subFormatted} className={`truncate tabular-nums ${sub.cls}`}>
+                          {subFormatted}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              <div className="flex items-center justify-end mt-auto pt-1">
+                <span className={`text-[11px] font-bold ${card.linkClass} flex items-center gap-0.5 group-hover:underline`}>
+                  {card.linkText} <ArrowUpRight className="w-3.5 h-3.5" />
+                </span>
+              </div>
             </div>
-          </div>
-          <h3 className="text-2xl font-black text-slate-900 dark:text-white">
-            {formatCurrency(totalExpected)}
-          </h3>
-          <div className="flex items-center justify-end mt-auto pt-2">
-            <span className="text-[11px] font-bold text-sky-600 dark:text-sky-400 flex items-center gap-0.5 group-hover:underline">
-              View Dues <ArrowUpRight className="w-3.5 h-3.5" />
-            </span>
-          </div>
-        </div>
-
-        {/* Total Collected */}
-        <div
-          onClick={() => handleCardClick("fee-collection")}
-          className="glass-card p-5 rounded-3xl flex flex-col justify-between h-full space-y-2 border-l-4 border-l-emerald-500 cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-xl group"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase">
-              Total Collected
-            </span>
-            <div className="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950 text-emerald-500 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
-              <CheckCircle className="w-4 h-4" />
-            </div>
-          </div>
-          <h3 className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
-            {formatCurrency(totalCollected)}
-          </h3>
-          <div className="flex items-center justify-end mt-auto pt-2">
-            <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5 group-hover:underline">
-              Collect Fees <ArrowUpRight className="w-3.5 h-3.5" />
-            </span>
-          </div>
-        </div>
-
-        {/* Total Pending Dues */}
-        <div
-          onClick={() => handleCardClick("student-fees")}
-          className="glass-card p-5 rounded-3xl flex flex-col justify-between h-full space-y-2 border-l-4 border-l-rose-500 cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-xl group"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase">
-              Total Pending Dues
-            </span>
-            <div className="p-2 rounded-xl bg-rose-50 dark:bg-rose-950 text-rose-500 group-hover:bg-rose-500 group-hover:text-white transition-colors">
-              <AlertCircle className="w-4 h-4" />
-            </div>
-          </div>
-          <h3 className="text-2xl font-black text-rose-600 dark:text-rose-400">
-            {formatCurrency(totalPending)}
-          </h3>
-          <div className="flex items-center justify-end mt-auto pt-2">
-            <span className="text-[11px] font-bold text-rose-600 dark:text-rose-400 flex items-center gap-0.5 group-hover:underline">
-              View Dues <ArrowUpRight className="w-3.5 h-3.5" />
-            </span>
-          </div>
-        </div>
-
-        {/* Today's Collection */}
-        <div
-          onClick={() => handleCardClick("fee-collection")}
-          className="glass-card p-5 rounded-3xl flex flex-col justify-between h-full space-y-2 border-l-4 border-l-sky-500 cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-xl group"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase">
-              Today's Collection
-            </span>
-            <div className="p-2 rounded-xl bg-sky-50 dark:bg-sky-950 text-sky-500 group-hover:bg-sky-500 group-hover:text-white transition-colors">
-              <TrendingUp className="w-4 h-4" />
-            </div>
-          </div>
-          <h3 className="text-2xl font-black text-sky-600 dark:text-sky-400">
-            {formatCurrency(todaysCollection)}
-          </h3>
-          <div className="flex items-center justify-end mt-auto pt-2">
-            <span className="text-[11px] font-bold text-sky-600 dark:text-sky-400 flex items-center gap-0.5 group-hover:underline">
-              Receipts <ArrowUpRight className="w-3.5 h-3.5" />
-            </span>
-          </div>
-        </div>
-
-        {/* Liquidity Accounts & Vaults KPI Card */}
-        <div
-          onClick={() => handleCardClick("accounts")}
-          className="glass-card p-5 rounded-3xl flex flex-col justify-between h-full space-y-2 border-l-4 border-l-indigo-500 cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-xl group"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase">
-              Liquidity Accounts
-            </span>
-            <div className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-950 text-indigo-500 group-hover:bg-indigo-500 group-hover:text-white transition-colors">
-              <CreditCard className="w-4 h-4" />
-            </div>
-          </div>
-          <h3 className="text-2xl font-black text-indigo-600 dark:text-indigo-400">
-            {formatCurrency(totalLiquidity)}
-          </h3>
-          <div className="flex flex-col gap-0.5 text-[10px] font-semibold text-slate-500 dark:text-slate-400">
-            <span>Bank: <strong className="text-sky-600 dark:text-sky-400">{formatCurrency(bankBalance)}</strong></span>
-            <span>Cash: <strong className="text-emerald-600 dark:text-emerald-400">{formatCurrency(cashBalance)}</strong></span>
-          </div>
-          <div className="flex items-center justify-end mt-auto pt-2">
-            <span className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 flex items-center gap-0.5 group-hover:underline">
-              View Vaults <ArrowUpRight className="w-3.5 h-3.5" />
-            </span>
-          </div>
-        </div>
+          );
+        })}
       </div>
 
       {/* Module-Wise Functional KPI Cards Grid (Hostel, Transport, Uniform, Fines, Scholarships) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5">
-        {/* Transport KPI Card */}
-        <div
-          onClick={() => handleCardClick("transport")}
-          className="glass-card p-4 rounded-2xl flex flex-col justify-between cursor-pointer hover:border-sky-300 dark:hover:border-sky-800 transition-all hover:scale-[1.02] group"
-        >
-          <div className="flex items-center justify-between">
-            <p className="text-[11px] font-bold text-slate-500 uppercase flex items-center gap-1">
-              Transport <ArrowUpRight className="w-3 h-3 text-sky-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-            </p>
-            <div className="p-2 rounded-xl bg-sky-50 text-sky-600 dark:bg-sky-950 dark:text-sky-400 group-hover:bg-sky-500 group-hover:text-white transition-colors">
-              <Bus className="w-4 h-4" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+        {secondaryKpiCards.map((card) => {
+          const formatted = formatCurrency(card.value);
+          const IconComponent = card.Icon;
+          return (
+            <div
+              key={card.label}
+              onClick={() => handleCardClick(card.targetTab)}
+              className={`glass-card p-4 sm:p-5 rounded-2xl flex flex-col justify-between h-full min-w-0 overflow-hidden gap-2 cursor-pointer ${card.hoverBorder} transition-all hover:scale-[1.01] group`}
+            >
+              <div className="flex items-center justify-between gap-2 min-w-0">
+                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wide flex items-center gap-1 truncate">
+                  {card.label} <ArrowUpRight className={`w-3 h-3 shrink-0 ${card.arrowClass} opacity-0 group-hover:opacity-100 transition-opacity`} />
+                </p>
+                <div className={`p-2 rounded-xl shrink-0 ${card.iconBgClass} group-hover:text-white transition-colors`}>
+                  <IconComponent className="w-4 h-4" />
+                </div>
+              </div>
+              <div className="min-w-0">
+                <h4
+                  title={formatted}
+                  className="text-lg font-black tabular-nums leading-tight truncate text-slate-900 dark:text-white"
+                >
+                  {formatted}
+                </h4>
+                {card.sublines.length > 0 && (
+                  <div className="flex flex-col gap-0.5 mt-1.5 text-[11px] text-slate-500 dark:text-slate-400 font-medium min-w-0">
+                    {card.sublines.map((sub) => {
+                      const subFormatted = formatCurrency(sub.amount);
+                      return (
+                        <div key={sub.label} className="flex items-center justify-between gap-2 min-w-0">
+                          <span className="shrink-0">{sub.label}:</span>
+                          <span title={subFormatted} className={`truncate tabular-nums ${sub.cls}`}>
+                            {subFormatted}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-          <div className="mt-2">
-            <h4 className="text-base font-black text-slate-900 dark:text-white">
-              {formatCurrency(transportCollected)}
-            </h4>
-            <div className="flex flex-col gap-0.5 mt-1 text-[10px] text-slate-500 dark:text-slate-400 font-medium">
-              <span>Expected: {formatCurrency(transportExpected)}</span>
-              <span className="text-rose-500 font-semibold">Pending: {formatCurrency(transportPending)}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Hostel KPI Card */}
-        <div
-          onClick={() => handleCardClick("hostel")}
-          className="glass-card p-4 rounded-2xl flex flex-col justify-between cursor-pointer hover:border-cyan-300 dark:hover:border-cyan-800 transition-all hover:scale-[1.02] group"
-        >
-          <div className="flex items-center justify-between">
-            <p className="text-[11px] font-bold text-slate-500 uppercase flex items-center gap-1">
-              Hostel <ArrowUpRight className="w-3 h-3 text-cyan-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-            </p>
-            <div className="p-2 rounded-xl bg-cyan-50 text-cyan-600 dark:bg-cyan-950 dark:text-cyan-400 group-hover:bg-cyan-500 group-hover:text-white transition-colors">
-              <Home className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-2">
-            <h4 className="text-base font-black text-slate-900 dark:text-white">
-              {formatCurrency(hostelCollected)}
-            </h4>
-            <div className="flex flex-col gap-0.5 mt-1 text-[10px] text-slate-500 dark:text-slate-400 font-medium">
-              <span>Expected: {formatCurrency(hostelExpected)}</span>
-              <span className="text-rose-500 font-semibold">Pending: {formatCurrency(hostelPending)}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Uniform KPI Card */}
-        <div
-          onClick={() => handleCardClick("uniforms")}
-          className="glass-card p-4 rounded-2xl flex flex-col justify-between cursor-pointer hover:border-purple-300 dark:hover:border-purple-800 transition-all hover:scale-[1.02] group"
-        >
-          <div className="flex items-center justify-between">
-            <p className="text-[11px] font-bold text-slate-500 uppercase flex items-center gap-1">
-              Uniform <ArrowUpRight className="w-3 h-3 text-purple-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-            </p>
-            <div className="p-2 rounded-xl bg-purple-50 text-purple-600 dark:bg-purple-950 dark:text-purple-400 group-hover:bg-purple-500 group-hover:text-white transition-colors">
-              <Shirt className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-2">
-            <h4 className="text-base font-black text-slate-900 dark:text-white">
-              {formatCurrency(uniformCollected)}
-            </h4>
-            <div className="flex flex-col gap-0.5 mt-1 text-[10px] text-slate-500 dark:text-slate-400 font-medium">
-              <span>Expected: {formatCurrency(uniformExpected)}</span>
-              <span className="text-rose-500 font-semibold">Pending: {formatCurrency(uniformPending)}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Scholarships Granted KPI Card */}
-        <div
-          onClick={() => handleCardClick("concessions")}
-          className="glass-card p-4 rounded-2xl flex flex-col justify-between cursor-pointer hover:border-emerald-300 dark:hover:border-emerald-800 transition-all hover:scale-[1.02] group"
-        >
-          <div className="flex items-center justify-between">
-            <p className="text-[11px] font-bold text-slate-500 uppercase flex items-center gap-1">
-              Scholarships <ArrowUpRight className="w-3 h-3 text-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-            </p>
-            <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400 group-hover:bg-emerald-500 group-hover:text-white transition-colors">
-              <Gift className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-2">
-            <h4 className="text-base font-black text-slate-900 dark:text-white">
-              {formatCurrency(scholarshipAmount)}
-            </h4>
-          </div>
-        </div>
-
-        {/* Fines KPI Card */}
-        <div
-          onClick={() => handleCardClick("student-fees")}
-          className="glass-card p-4 rounded-2xl flex flex-col justify-between cursor-pointer hover:border-rose-300 dark:hover:border-rose-800 transition-all hover:scale-[1.02] group"
-        >
-          <div className="flex items-center justify-between">
-            <p className="text-[11px] font-bold text-slate-500 uppercase flex items-center gap-1">
-              Fines <ArrowUpRight className="w-3 h-3 text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-            </p>
-            <div className="p-2 rounded-xl bg-rose-50 text-rose-600 dark:bg-rose-950 dark:text-rose-400 group-hover:bg-rose-500 group-hover:text-white transition-colors">
-              <AlertTriangle className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-2">
-            <h4 className="text-base font-black text-slate-900 dark:text-white">
-              {formatCurrency(finesCollected)}
-            </h4>
-            <div className="flex flex-col gap-0.5 mt-1 text-[10px] text-slate-500 dark:text-slate-400 font-medium">
-              <span>Assessed: {formatCurrency(finesExpected)}</span>
-              <span className="text-rose-500 font-semibold">Pending: {formatCurrency(finesPending)}</span>
-            </div>
-          </div>
-        </div>
+          );
+        })}
       </div>
 
       {/* Visual Charts & Breakdown Section */}

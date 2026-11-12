@@ -46,12 +46,14 @@ namespace SMS.Api.Dtos
     public class CreateInventoryItemDto
     {
         [Required(ErrorMessage = "Item Name is required.")]
+        [StringLength(120, ErrorMessage = "Item Name cannot exceed 120 characters.")]
         [JsonPropertyName("itemName")]
         public string ItemName { get; set; } = string.Empty;
 
         [JsonPropertyName("category")]
         public string Category { get; set; } = "Lab Equipment";
 
+        [Range(0, 1000000, ErrorMessage = "Quantity must be between 0 and 1,000,000.")]
         [JsonPropertyName("quantity")]
         [JsonConverter(typeof(FlexibleLongConverter))]
         public int Quantity { get; set; } = 10;
@@ -64,6 +66,7 @@ namespace SMS.Api.Dtos
             set { if (value > 0) Quantity = value; }
         }
 
+        [Range(typeof(decimal), "0.01", "100000000", ErrorMessage = "Unit Price must be between 0.01 and 100,000,000.")]
         [JsonPropertyName("unitPrice")]
         [JsonConverter(typeof(FlexibleDecimalConverter))]
         public decimal UnitPrice { get; set; } = 50m;

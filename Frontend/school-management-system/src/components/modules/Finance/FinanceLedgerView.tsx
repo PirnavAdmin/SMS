@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FileSpreadsheet, RotateCcw, CreditCard, PieChart, Receipt } from 'lucide-react';
 import { TransactionsMasterLedgerView } from './TransactionsMasterLedgerView';
 import { RefundManagementView } from './RefundManagementView';
@@ -8,8 +8,27 @@ interface FinanceLedgerViewProps {
   initialTab?: string;
 }
 
+const normalizeLedgerTab = (tab?: string): string => {
+  switch (tab) {
+    case 'ledger':
+    case 'master-ledger':
+    case 'transactions':
+    case undefined:
+    case '':
+      return 'transactions';
+    case 'refund-management':
+      return 'refunds';
+    default:
+      return tab;
+  }
+};
+
 export const FinanceLedgerView: React.FC<FinanceLedgerViewProps> = ({ initialTab = 'transactions' }) => {
-  const [activeTab, setActiveTab] = useState<string>(initialTab);
+  const [activeTab, setActiveTab] = useState<string>(() => normalizeLedgerTab(initialTab));
+
+  useEffect(() => {
+    setActiveTab(normalizeLedgerTab(initialTab));
+  }, [initialTab]);
 
   const tabs = [
     { id: 'transactions', label: 'Transactions', icon: FileSpreadsheet },

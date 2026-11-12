@@ -159,6 +159,19 @@ public class InventoryController : ControllerBase
         return Ok(new { success = true, data = MapToDto(item) });
     }
 
+    private static string? ValidateInventoryInput(CreateInventoryItemDto? dto)
+    {
+        if (dto == null || string.IsNullOrWhiteSpace(dto.ItemName))
+            return "Item name is required.";
+        if (dto.ItemName.Trim().Length > 120)
+            return "Item name cannot exceed 120 characters.";
+        if (dto.Quantity < 0 || dto.Quantity > 1_000_000)
+            return "Quantity must be between 0 and 1,000,000.";
+        if (dto.UnitPrice <= 0m || dto.UnitPrice > 100_000_000m)
+            return "Unit price must be greater than 0 and cannot exceed 100,000,000.";
+        return null;
+    }
+
     // =========================================================
     // 4. CREATE INVENTORY ASSET (POST)
     // =========================================================
@@ -166,13 +179,14 @@ public class InventoryController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> CreateInventoryItem([FromBody] CreateInventoryItemDto dto)
     {
-        if (dto == null || string.IsNullOrWhiteSpace(dto.ItemName))
+        var validationError = ValidateInventoryInput(dto);
+        if (validationError != null)
         {
-            return BadRequest(new { success = false, message = "Item name is required." });
+            return BadRequest(new { success = false, message = validationError });
         }
 
-        int qty = Math.Max(0, dto.Quantity);
-        decimal price = Math.Max(0m, dto.UnitPrice);
+        int qty = dto.Quantity;
+        decimal price = dto.UnitPrice;
         string status = qty == 0 ? "Out of Stock" : (qty <= 5 ? "Low Stock" : (string.IsNullOrWhiteSpace(dto.Status) ? "In Stock" : dto.Status.Trim()));
 
         var item = new InventoryItem
@@ -210,10 +224,16 @@ public class InventoryController : ControllerBase
             return NotFound(new { success = false, message = $"Inventory asset '{id}' not found." });
         }
 
-        if (!string.IsNullOrWhiteSpace(dto.ItemName)) item.ItemName = dto.ItemName.Trim();
+        var validationError = ValidateInventoryInput(dto);
+        if (validationError != null)
+        {
+            return BadRequest(new { success = false, message = validationError });
+        }
+
+        item.ItemName = dto.ItemName.Trim();
         if (!string.IsNullOrWhiteSpace(dto.Category)) item.Category = dto.Category.Trim();
-        if (dto.Quantity >= 0) item.Quantity = dto.Quantity;
-        if (dto.UnitPrice >= 0) item.UnitPrice = dto.UnitPrice;
+        item.Quantity = dto.Quantity;
+        item.UnitPrice = dto.UnitPrice;
         if (!string.IsNullOrWhiteSpace(dto.Location)) item.Location = dto.Location.Trim();
         if (!string.IsNullOrWhiteSpace(dto.Status)) item.Status = dto.Status.Trim();
         else item.Status = item.Quantity == 0 ? "Out of Stock" : (item.Quantity <= 5 ? "Low Stock" : "In Stock");

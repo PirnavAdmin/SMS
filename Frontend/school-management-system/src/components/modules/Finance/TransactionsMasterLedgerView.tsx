@@ -12,6 +12,8 @@ import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { exportToExcel } from '../../../utils/excelExport';
+import { validateSearchQuery } from '../../../utils/validation';
+import { ValidatedSearchInput } from '../../common/ValidatedSearchInput';
 
 interface TransactionsMasterLedgerViewProps {
   filterType?: string;
@@ -79,6 +81,11 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
   });
 
   const handleApplyFilters = () => {
+    const check = validateSearchQuery(searchQuery, 30);
+    if (!check.isValid) {
+      addToast('warning', 'Invalid Search Query', check.error || 'Enter a valid search term.');
+      return;
+    }
     setAppliedFilters({
       searchQuery,
       typeFilter,
@@ -578,68 +585,68 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
       {/* SUMMARY KPI CARDS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total Income */}
-        <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-50 to-slate-50 dark:from-emerald-950/20 dark:to-slate-900 border border-emerald-200/80 dark:border-emerald-900/40 shadow-xs space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black uppercase text-emerald-600 tracking-wider">Total Income</span>
-            <div className="p-2 rounded-xl bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300">
+        <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-50 to-slate-50 dark:from-emerald-950/20 dark:to-slate-900 border border-emerald-200/80 dark:border-emerald-900/40 shadow-xs space-y-2 min-w-0 overflow-hidden">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] font-black uppercase text-emerald-600 tracking-wider">Total Income</span>
+            <div className="p-2 rounded-xl bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 shrink-0">
               <ArrowUpRight className="w-4 h-4" />
             </div>
           </div>
-          <p className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">{formatCurrency(totalIncome)}</p>
-          <div className="flex items-center justify-between text-[11px] text-slate-500">
-            <span>Today: <strong className="text-emerald-600">+{formatCurrency(todayIncome)}</strong></span>
-            <span className="text-emerald-600 font-bold">● Active Ledger</span>
+          <p title={formatCurrency(totalIncome)} className="text-xl font-black text-slate-900 dark:text-white tabular-nums truncate">{formatCurrency(totalIncome)}</p>
+          <div className="flex items-center justify-between gap-2 text-[11px] text-slate-500 min-w-0">
+            <span className="truncate">Today: <strong className="text-emerald-600 tabular-nums">+{formatCurrency(todayIncome)}</strong></span>
+            <span className="text-emerald-600 font-bold shrink-0">● Active Ledger</span>
           </div>
         </div>
 
         {/* Total Expenses */}
-        <div className="p-4 rounded-2xl bg-gradient-to-br from-rose-50 to-slate-50 dark:from-rose-950/20 dark:to-slate-900 border border-rose-200/80 dark:border-rose-900/40 shadow-xs space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black uppercase text-rose-600 tracking-wider">Total Expenses</span>
-            <div className="p-2 rounded-xl bg-rose-100 dark:bg-rose-900/60 text-rose-700 dark:text-rose-300">
+        <div className="p-4 rounded-2xl bg-gradient-to-br from-rose-50 to-slate-50 dark:from-rose-950/20 dark:to-slate-900 border border-rose-200/80 dark:border-rose-900/40 shadow-xs space-y-2 min-w-0 overflow-hidden">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] font-black uppercase text-rose-600 tracking-wider">Total Expenses</span>
+            <div className="p-2 rounded-xl bg-rose-100 dark:bg-rose-900/60 text-rose-700 dark:text-rose-300 shrink-0">
               <ArrowDownLeft className="w-4 h-4" />
             </div>
           </div>
-          <p className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">{formatCurrency(totalExpenses)}</p>
-          <div className="flex items-center justify-between text-[11px] text-slate-500">
-            <span>Today: <strong className="text-rose-600">-{formatCurrency(todayExpenses)}</strong></span>
-            <span className="text-rose-600 font-bold">● Verified Payroll/Bills</span>
+          <p title={formatCurrency(totalExpenses)} className="text-xl font-black text-slate-900 dark:text-white tabular-nums truncate">{formatCurrency(totalExpenses)}</p>
+          <div className="flex items-center justify-between gap-2 text-[11px] text-slate-500 min-w-0">
+            <span className="truncate">Today: <strong className="text-rose-600 tabular-nums">-{formatCurrency(todayExpenses)}</strong></span>
+            <span className="text-rose-600 font-bold shrink-0">● Verified Payroll/Bills</span>
           </div>
         </div>
 
         {/* Net Surplus / Balance */}
-        <div className="p-4 rounded-2xl bg-gradient-to-br from-sky-50 to-slate-50 dark:from-sky-950/20 dark:to-slate-900 border border-sky-200/80 dark:border-sky-900/40 shadow-xs space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black uppercase text-sky-600 tracking-wider">Net Financial Balance</span>
-            <div className="p-2 rounded-xl bg-sky-100 dark:bg-sky-900/60 text-sky-700 dark:text-sky-300">
+        <div className="p-4 rounded-2xl bg-gradient-to-br from-sky-50 to-slate-50 dark:from-sky-950/20 dark:to-slate-900 border border-sky-200/80 dark:border-sky-900/40 shadow-xs space-y-2 min-w-0 overflow-hidden">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] font-black uppercase text-sky-600 tracking-wider">Net Financial Balance</span>
+            <div className="p-2 rounded-xl bg-sky-100 dark:bg-sky-900/60 text-sky-700 dark:text-sky-300 shrink-0">
               <TrendingUp className="w-4 h-4" />
             </div>
           </div>
-          <p className={`text-xl sm:text-2xl font-black ${netBalance >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600'}`}>
+          <p title={formatCurrency(netBalance)} className={`text-xl font-black tabular-nums truncate ${netBalance >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600'}`}>
             {formatCurrency(netBalance)}
           </p>
-          <div className="flex items-center justify-between text-[11px] text-slate-500">
+          <div className="flex items-center justify-between gap-2 text-[11px] text-slate-500">
             <span>Overall Cash Flow</span>
             <span className="font-bold text-slate-700 dark:text-slate-300">{netBalance >= 0 ? 'Surplus' : 'Deficit'}</span>
           </div>
         </div>
 
         {/* Liquidity Accounts */}
-        <div className="p-4 rounded-2xl bg-gradient-to-br from-sky-50 to-slate-50 dark:from-sky-950/20 dark:to-slate-900 border border-sky-200/80 dark:border-sky-900/40 shadow-xs space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black uppercase text-sky-600 tracking-wider">Liquidity Accounts</span>
-            <div className="p-2 rounded-xl bg-sky-100 dark:bg-sky-900/60 text-sky-700 dark:text-sky-300">
+        <div className="p-4 rounded-2xl bg-gradient-to-br from-sky-50 to-slate-50 dark:from-sky-950/20 dark:to-slate-900 border border-sky-200/80 dark:border-sky-900/40 shadow-xs space-y-2 min-w-0 overflow-hidden">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] font-black uppercase text-sky-600 tracking-wider">Liquidity Accounts</span>
+            <div className="p-2 rounded-xl bg-sky-100 dark:bg-sky-900/60 text-sky-700 dark:text-sky-300 shrink-0">
               <CreditCard className="w-4 h-4" />
             </div>
           </div>
-          <div className="space-y-1">
-            <div className="flex justify-between text-xs font-bold text-slate-900 dark:text-white">
-              <span className="text-slate-500 font-medium">Bank Balance:</span>
-              <span className="text-sky-600">{formatCurrency(bankBalance)}</span>
+          <div className="space-y-1.5 pt-1">
+            <div className="flex justify-between gap-2 text-xs font-bold text-slate-900 dark:text-white min-w-0">
+              <span className="text-slate-500 font-medium shrink-0">Bank Balance:</span>
+              <span title={formatCurrency(bankBalance)} className="text-sky-600 tabular-nums truncate">{formatCurrency(bankBalance)}</span>
             </div>
-            <div className="flex justify-between text-xs font-bold text-slate-900 dark:text-white">
-              <span className="text-slate-500 font-medium">Cash Vault:</span>
-              <span className="text-emerald-600">{formatCurrency(cashBalance)}</span>
+            <div className="flex justify-between gap-2 text-xs font-bold text-slate-900 dark:text-white min-w-0">
+              <span className="text-slate-500 font-medium shrink-0">Cash Vault:</span>
+              <span title={formatCurrency(cashBalance)} className="text-emerald-600 tabular-nums truncate">{formatCurrency(cashBalance)}</span>
             </div>
           </div>
         </div>
@@ -687,26 +694,25 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
           
           {/* Filter Bar */}
           <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 text-xs items-center">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 text-xs items-start">
               
               {/* Search (Spans 2 columns for wide input view) */}
-              <div className="relative sm:col-span-2 lg:col-span-2">
-                <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Search Txn ID, Description, Ref No..."
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-medium outline-none focus:ring-2 focus:ring-sky-500/20"
-                />
-              </div>
+              <ValidatedSearchInput
+                value={searchQuery}
+                onChange={setSearchQuery}
+                maxLength={30}
+                placeholder="Search Txn ID, Description, Ref No..."
+                className="sm:col-span-2 lg:col-span-2"
+                inputClassName="h-[38px] font-medium"
+                ariaLabel="Search transactions by ID, description, or reference number"
+              />
 
               {/* Type Filter */}
               <div>
                 <select
                   value={typeFilter}
                   onChange={e => setTypeFilter(e.target.value as any)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold outline-none cursor-pointer"
+                  className="w-full h-[38px] px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold outline-none cursor-pointer"
                 >
                   <option value="All">All Transaction Types</option>
                   <option value="Income">Income (+)</option>
@@ -719,7 +725,7 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
                 <select
                   value={sourceModuleFilter}
                   onChange={e => setSourceModuleFilter(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold outline-none cursor-pointer"
+                  className="w-full h-[38px] px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold outline-none cursor-pointer"
                 >
                   <option value="All">All School Sections</option>
                   <option value="Student Fee Collection">Student Fee Collection</option>
@@ -738,7 +744,7 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
                 <button
                   type="button"
                   onClick={handleApplyFilters}
-                  className="w-full py-2 px-3 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-sky-500/20 transition-all cursor-pointer min-h-[38px]"
+                  className="w-full h-[38px] py-2 px-3 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-sky-500/20 transition-all cursor-pointer"
                 >
                   <Filter className="w-3.5 h-3.5" /> Apply Filters
                 </button>
@@ -749,7 +755,7 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
                 <select
                   value={categoryFilter}
                   onChange={e => setCategoryFilter(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold outline-none cursor-pointer"
+                  className="w-full h-[38px] px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold outline-none cursor-pointer"
                 >
                   <option value="All">All Categories</option>
                   {financialCategories.map(c => (
@@ -763,7 +769,7 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
                 <select
                   value={paymentModeFilter}
                   onChange={e => setPaymentModeFilter(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold outline-none cursor-pointer"
+                  className="w-full h-[38px] px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold outline-none cursor-pointer"
                 >
                   <option value="All">All Payment Modes</option>
                   <option value="Cash">Cash</option>
@@ -780,7 +786,7 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
                 <select
                   value={statusFilter}
                   onChange={e => setStatusFilter(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold outline-none cursor-pointer"
+                  className="w-full h-[38px] px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold outline-none cursor-pointer"
                 >
                   <option value="All">All Statuses</option>
                   <option value="Completed">Completed</option>
@@ -795,7 +801,7 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
                 <select
                   value={sortBy}
                   onChange={e => setSortBy(e.target.value as any)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold outline-none cursor-pointer"
+                  className="w-full h-[38px] px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold outline-none cursor-pointer"
                 >
                   <option value="date-desc">Sort: Date (Newest First)</option>
                   <option value="date-asc">Sort: Date (Oldest First)</option>
@@ -809,7 +815,7 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
                 <button
                   type="button"
                   onClick={handleResetFilters}
-                  className="w-full py-2 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer min-h-[38px]"
+                  className="w-full h-[38px] py-2 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                 >
                   <RotateCcw className="w-3.5 h-3.5" /> Reset Filters
                 </button>
@@ -823,16 +829,16 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
-                  <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-700 text-slate-500 font-bold uppercase text-[10px] tracking-wider">
-                    <th className="p-4">Txn ID & Date</th>
-                    <th className="p-4">Type & Category</th>
-                    <th className="p-4">Source Module</th>
-                    <th className="p-4">Reference No.</th>
-                    <th className="p-4">Description</th>
-                    <th className="p-4">Amount</th>
-                    <th className="p-4">Mode & Account</th>
-                    <th className="p-4">Status</th>
-                    <th className="p-4 text-right">Actions</th>
+                  <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-700 text-slate-500 font-bold uppercase text-[11px] tracking-wider">
+                    <th className="py-3.5 px-4 whitespace-nowrap">Txn ID & Date</th>
+                    <th className="py-3.5 px-4 whitespace-nowrap">Type & Category</th>
+                    <th className="py-3.5 px-4 whitespace-nowrap">Source Module</th>
+                    <th className="py-3.5 px-4 whitespace-nowrap">Reference No.</th>
+                    <th className="py-3.5 px-4 whitespace-nowrap">Description</th>
+                    <th className="py-3.5 px-4 text-right whitespace-nowrap">Amount</th>
+                    <th className="py-3.5 px-4 whitespace-nowrap">Mode & Account</th>
+                    <th className="py-3.5 px-4 text-center whitespace-nowrap">Status</th>
+                    <th className="py-3.5 px-4 text-center whitespace-nowrap">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -844,61 +850,61 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
                     </tr>
                   ) : (
                     filteredTxns.map(txn => (
-                      <tr key={txn.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
+                      <tr key={txn.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors align-middle">
                         
                         {/* Txn ID & Date */}
-                        <td className="p-4 font-mono font-bold text-slate-900 dark:text-white">
+                        <td className="py-3 px-4 font-mono font-bold text-slate-900 dark:text-white whitespace-nowrap">
                           <span className="block text-sky-600 dark:text-sky-400">{txn.transactionId}</span>
-                          <span className="text-[10px] text-slate-400 font-normal">{formatDateForDisplay(txn.date)} {txn.time || ''}</span>
+                          <span className="text-[11px] text-slate-400 font-normal">{formatDateForDisplay(txn.date)} {txn.time || ''}</span>
                         </td>
 
                         {/* Type & Category */}
-                        <td className="p-4">
+                        <td className="py-3 px-4 whitespace-nowrap">
                           <div className="space-y-1">
-                            <span className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
+                            <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
                               txn.type === 'Income'
                                 ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
                                 : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
                             }`}>
                               {txn.type}
                             </span>
-                            <p className="font-bold text-slate-900 dark:text-white">{txn.category}</p>
+                            <p className="font-semibold text-slate-900 dark:text-white text-xs">{txn.category}</p>
                           </div>
                         </td>
 
                         {/* Source Module */}
-                        <td className="p-4">
+                        <td className="py-3 px-4 whitespace-nowrap">
                           <span className="px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-[11px] inline-flex items-center gap-1 border">
                             {txn.sourceModule}
                           </span>
                         </td>
 
                         {/* Reference No */}
-                        <td className="p-4 font-mono font-bold text-slate-700 dark:text-slate-300">
-                          {txn.referenceNumber}
+                        <td className="py-3 px-4 font-mono font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap">
+                          {txn.referenceNumber && String(txn.referenceNumber).trim() !== '' ? txn.referenceNumber : 'N/A'}
                         </td>
 
                         {/* Description */}
-                        <td className="p-4 max-w-xs text-slate-700 dark:text-slate-300 font-medium">
+                        <td className="py-3 px-4 max-w-[220px] text-slate-700 dark:text-slate-300 font-medium">
                           <p className="truncate" title={txn.description}>{txn.description}</p>
                         </td>
 
                         {/* Amount */}
-                        <td className="p-4 font-mono font-black text-sm">
+                        <td className="py-3 px-4 text-right font-mono font-bold text-xs tabular-nums whitespace-nowrap">
                           <span className={txn.type === 'Income' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}>
                             {txn.type === 'Income' ? '+' : '-'}{formatCurrency(txn.amount)}
                           </span>
                         </td>
 
                         {/* Mode & Account */}
-                        <td className="p-4">
-                          <p className="font-bold text-slate-900 dark:text-white">{txn.paymentMode}</p>
-                          <p className="text-[10px] text-slate-400">{txn.account}</p>
+                        <td className="py-3 px-4 whitespace-nowrap">
+                          <p className="font-semibold text-slate-900 dark:text-white text-xs">{txn.paymentMode}</p>
+                          <p className="text-[11px] text-slate-400">{txn.account}</p>
                         </td>
 
                         {/* Status */}
-                        <td className="p-4">
-                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                        <td className="py-3 px-4 text-center whitespace-nowrap">
+                          <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold inline-block ${
                             txn.status === 'Completed' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' :
                             txn.status === 'Reversed' ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300' :
                             'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
@@ -908,8 +914,8 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
                         </td>
 
                         {/* Actions */}
-                        <td className="p-4 text-right whitespace-nowrap">
-                          <div className="flex items-center justify-end gap-1.5">
+                        <td className="py-3 px-4 text-center whitespace-nowrap">
+                          <div className="inline-flex items-center justify-center gap-1.5">
                             <button
                               onClick={() => setSelectedTxnForDetail(txn)}
                               className="p-1.5 rounded-lg text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-950 border border-sky-200 dark:border-sky-800 transition-colors"

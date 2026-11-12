@@ -9,6 +9,7 @@ import { ExportButton } from '../../common/ExportButton';
 import { PrintableFeeReceipt } from '../FeeManagement/PrintableFeeReceipt';
 import { Pagination } from '../../common/Pagination';
 import { SchoolPrintHeader } from '../../common/SchoolPrintHeader';
+import { ValidatedSearchInput } from '../../common/ValidatedSearchInput';
 
 export const FeeReceiptsView: React.FC = () => {
   const {
@@ -77,19 +78,17 @@ export const FeeReceiptsView: React.FC = () => {
     <div className="space-y-6 animate-in fade-in">
       {/* Filter */}
       <div className="glass-card p-4 rounded-2xl flex flex-col sm:flex-row items-center gap-3">
-        <div className="relative w-full sm:w-72">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-          <input
-            type="text"
-            placeholder="Search receipt no or student name..."
-            value={query}
-            onChange={(e) => {
-              setQuery(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none"
-          />
-        </div>
+        <ValidatedSearchInput
+          value={query}
+          onChange={(val) => {
+            setQuery(val);
+            setCurrentPage(1);
+          }}
+          placeholder="Search receipt no or student name..."
+          maxLength={30}
+          className="w-full sm:w-72"
+          ariaLabel="Search receipt number or student name"
+        />
 
         <div className="flex items-center gap-3 w-full sm:w-auto">
           <select

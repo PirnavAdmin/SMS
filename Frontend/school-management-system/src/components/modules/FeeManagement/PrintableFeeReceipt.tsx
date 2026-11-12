@@ -125,8 +125,17 @@ export const PrintableFeeReceipt: React.FC<PrintableFeeReceiptProps> = ({ paymen
   const receiptNo = payment.receiptNo || payment.id || "";
   const paymentDate = formatDateForDisplay(payment.paymentDate, new Date().toLocaleDateString('en-GB'));
   const payMode = payment.paymentMode || "Cash";
-  const bankName = payment.bankName || "-";
-  const transactionNumber = payment.chequeNo || payment.transactionId || "-";
+  const bankName = (payment.bankName || "").trim();
+  const transactionNumber = (
+    payment.chequeNo ||
+    payment.transactionId ||
+    (payment as any).referenceNo ||
+    (payment as any).utrNumber ||
+    ""
+  ).trim();
+  const hasBankName = bankName !== "" && bankName !== "-";
+  const hasTransactionNumber = transactionNumber !== "" && transactionNumber !== "-";
+  const showConcessionColumn = feeRows.some((r) => Number(r.con || 0) > 0);
   const counterNo = (payment as any).receivedBy || schoolProfile?.name || "Counter";
   const remarksNote = payment.remarks || "";
 
@@ -271,8 +280,10 @@ export const PrintableFeeReceipt: React.FC<PrintableFeeReceiptProps> = ({ paymen
                   <tr className="bg-gray-200 border-b border-black font-bold text-[10px]">
                     <th className="border-r border-black px-2 py-0.5 text-center w-12">SL.NO</th>
                     <th className="border-r border-black px-2 py-0.5 text-left">DESCRIPTION</th>
-                    <th className="border-r border-black px-2 py-0.5 text-right w-20">DUE</th>
-                    <th className="border-r border-black px-2 py-0.5 text-right w-16">CON</th>
+                    <th className="border-r border-black px-2 py-0.5 text-right w-24">Due Amount</th>
+                    {showConcessionColumn && (
+                      <th className="border-r border-black px-2 py-0.5 text-right w-20">Concession</th>
+                    )}
                     <th className="px-2 py-0.5 text-right w-20">PAID</th>
                   </tr>
                 </thead>
@@ -282,7 +293,9 @@ export const PrintableFeeReceipt: React.FC<PrintableFeeReceiptProps> = ({ paymen
                       <td className="border-r border-black px-2 py-1 text-center font-sans font-medium">{row.slNo}</td>
                       <td className="border-r border-black px-2 py-1 font-sans font-bold">{row.description}</td>
                       <td className="border-r border-black px-2 py-1 text-right font-sans font-medium">{row.due}</td>
-                      <td className="border-r border-black px-2 py-1 text-right font-sans font-medium">{row.con}</td>
+                      {showConcessionColumn && (
+                        <td className="border-r border-black px-2 py-1 text-right font-sans font-medium">{row.con}</td>
+                      )}
                       <td className="px-2 py-1 text-right font-sans font-bold">{row.paid}</td>
                     </tr>
                   ))}
@@ -292,7 +305,9 @@ export const PrintableFeeReceipt: React.FC<PrintableFeeReceiptProps> = ({ paymen
                       <td className="border-r border-black px-2 py-0.5 text-center">&nbsp;</td>
                       <td className="border-r border-black px-2 py-0.5">&nbsp;</td>
                       <td className="border-r border-black px-2 py-0.5 text-right">&nbsp;</td>
-                      <td className="border-r border-black px-2 py-0.5 text-right">&nbsp;</td>
+                      {showConcessionColumn && (
+                        <td className="border-r border-black px-2 py-0.5 text-right">&nbsp;</td>
+                      )}
                       <td className="px-2 py-0.5 text-right">&nbsp;</td>
                     </tr>
                   )}
@@ -310,10 +325,16 @@ export const PrintableFeeReceipt: React.FC<PrintableFeeReceiptProps> = ({ paymen
                   <div className="flex"><span className="w-24 font-bold text-gray-900">Pay Mode</span><span className="font-sans">: {payMode}</span></div>
                   <div className="flex"><span className="w-24 font-bold text-gray-900">Date</span><span className="font-sans">: {paymentDate}</span></div>
                 </div>
-                <div className="grid grid-cols-2 gap-x-6">
-                  <div className="flex"><span className="w-24 font-bold text-gray-900">Bank</span><span className="font-sans">: {bankName}</span></div>
-                  <div className="flex"><span className="w-24 font-bold text-gray-900">Number</span><span className="font-sans">: {transactionNumber}</span></div>
-                </div>
+                {(hasBankName || hasTransactionNumber) && (
+                  <div className="grid grid-cols-2 gap-x-6">
+                    {hasBankName && (
+                      <div className="flex"><span className="w-24 font-bold text-gray-900">Bank</span><span className="font-sans">: {bankName}</span></div>
+                    )}
+                    {hasTransactionNumber && (
+                      <div className="flex"><span className="w-24 font-bold text-gray-900">Reference No</span><span className="font-sans">: {transactionNumber}</span></div>
+                    )}
+                  </div>
+                )}
 
                 {/* Financial Summary Breakdown Row if concession/discount exists */}
                 {discountVal > 0 && (
