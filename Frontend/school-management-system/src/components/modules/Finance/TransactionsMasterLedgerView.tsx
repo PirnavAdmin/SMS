@@ -58,7 +58,8 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
       hasAttemptedFinanceFetchRef.current = true;
       fetchFinanceData().catch(() => {});
     }
-  }, [financialAccounts, financialCategories, fetchFinanceData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     let active = true;

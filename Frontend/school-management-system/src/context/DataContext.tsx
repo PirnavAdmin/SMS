@@ -785,7 +785,7 @@ interface DataContextType {
   ) => Promise<string | null>;
   resendParentWelcomeEmail: (id: string | number) => Promise<any>;
   fetchAdmissions: () => Promise<void>;
-  fetchStudents: () => Promise<void>;
+  fetchStudents: (force?: boolean) => Promise<void>;
   fetchStaff: () => Promise<void>;
   fetchAcademicClasses: (force?: boolean) => Promise<void>;
   fetchSubjects: (force?: boolean) => Promise<void>;
@@ -798,9 +798,9 @@ interface DataContextType {
   fetchHomeworkData: () => Promise<void>;
   fetchStudentAttendanceData: (query?: any) => Promise<void>;
   saveBulkStudentAttendance: (payload: any) => Promise<any>;
-  fetchInventoryData: () => Promise<void>;
+  fetchInventoryData: (force?: boolean) => Promise<void>;
   fetchUniformData: () => Promise<void>;
-  fetchFinanceData: () => Promise<void>;
+  fetchFinanceData: (force?: boolean) => Promise<void>;
   fetchFacultyTrainingData: () => Promise<void>;
   fetchLeaveTypes: () => Promise<void>;
   fetchLeaveApplications: () => Promise<void>;
@@ -1532,6 +1532,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 }) => {
   const { addToast } = useToast();
   const activeRequests = useRef<Record<string, any>>({});
+  const lastFetchedAt = useRef<Record<string, number>>({});
+  const FETCH_COOLDOWN_MS = 5000;
   const {
     user,
     token,
@@ -3731,13 +3733,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const classUpdatesRef = useRef<Record<string, Partial<AcademicClass>>>({});
 
-  const fetchAcademicClasses = useCallback(async () => {
+  const fetchAcademicClasses = useCallback(async (force = false) => {
     if (!isAuthenticated || !token) return;
     if (activeRequests.current["classes"]) {
       return activeRequests.current["classes"];
     }
+    const now = Date.now();
+    if (!force && lastFetchedAt.current["classes"] && now - lastFetchedAt.current["classes"] < FETCH_COOLDOWN_MS) {
+      return;
+    }
     const promise = (async () => {
       try {
+        lastFetchedAt.current["classes"] = Date.now();
         const [data, taData]: [any, any] = await Promise.all([
           fetchClassesApi(),
           fetchClassTeacherAssignmentsApi().catch(() => null),
@@ -4833,13 +4840,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   // FETCH FUNCTIONS — REAL API REPLACEMENTS FOR MOCK DATA
   // =========================================================
 
-  const fetchStudents = useCallback(async () => {
+  const fetchStudents = useCallback(async (force = false) => {
     if (!isAuthenticated || !token) return;
     if (activeRequests.current["students"]) {
       return activeRequests.current["students"];
     }
+    const now = Date.now();
+    if (!force && lastFetchedAt.current["students"] && now - lastFetchedAt.current["students"] < FETCH_COOLDOWN_MS) {
+      return;
+    }
     const promise = (async () => {
       try {
+        lastFetchedAt.current["students"] = Date.now();
         const response: any = await fetchStudentsApi();
         const items = Array.isArray(response)
           ? response
@@ -5156,23 +5168,38 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, []);
 
-  const fetchInventoryData = useCallback(async () => {
-    try {
-      const response: any = await fetchInventoryItemsApi();
-      const items = Array.isArray(response)
-        ? response
-        : response?.data?.items || response?.data || [];
-      if (Array.isArray(items) && items.length > 0) {
-        setInventory((prev) => {
-          const apiIds = new Set(items.map((i: any) => i.id));
-          const localOnly = (prev || []).filter((i: any) => !apiIds.has(i.id));
-          return [...items, ...localOnly];
-        });
-      }
-    } catch (err) {
-      console.warn("Failed to fetch inventory from API", err);
+  const fetchInventoryData = useCallback(async (force = false) => {
+    if (!isAuthenticated || !token) return;
+    if (activeRequests.current["inventory"]) {
+      return activeRequests.current["inventory"];
     }
-  }, []);
+    const now = Date.now();
+    if (!force && lastFetchedAt.current["inventory"] && now - lastFetchedAt.current["inventory"] < FETCH_COOLDOWN_MS) {
+      return;
+    }
+    const promise = (async () => {
+      try {
+        lastFetchedAt.current["inventory"] = Date.now();
+        const response: any = await fetchInventoryItemsApi();
+        const items = Array.isArray(response)
+          ? response
+          : response?.data?.items || response?.data || [];
+        if (Array.isArray(items) && items.length > 0) {
+          setInventory((prev) => {
+            const apiIds = new Set(items.map((i: any) => i.id));
+            const localOnly = (prev || []).filter((i: any) => !apiIds.has(i.id));
+            return [...items, ...localOnly];
+          });
+        }
+      } catch (err) {
+        console.warn("Failed to fetch inventory from API", err);
+      } finally {
+        delete activeRequests.current["inventory"];
+      }
+    })();
+    activeRequests.current["inventory"] = promise;
+    return promise;
+  }, [isAuthenticated, token]);
 
   const fetchStudentAttendanceData = useCallback(async (query?: any) => {
     if (!isAuthenticated || !token) return;
@@ -5629,7 +5656,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       console.warn("Failed to fetch meetings from API", err);
     }
   }, []);
-  const fetchFinanceData = useCallback(async () => {
+  const fetchFinanceData = useCallback(async (force = false) => {
     if (!isAuthenticated || !token) return;
     const userRole = (role || user?.role || "").toLowerCase().replace(/[\s_-]+/g, "");
     const allowedFinanceRoles = ["admin", "superadmin", "accountant", "finance", "staff", "principal", "teacher", "management", "director", "chairperson"];
@@ -5639,8 +5666,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     if (activeRequests.current["finance-data"]) {
       return activeRequests.current["finance-data"];
     }
+    const now = Date.now();
+    if (!force && lastFetchedAt.current["finance-data"] && now - lastFetchedAt.current["finance-data"] < FETCH_COOLDOWN_MS) {
+      return;
+    }
     const promise = (async () => {
       try {
+        lastFetchedAt.current["finance-data"] = Date.now();
         const [
           headsRes,
           structsRes,
@@ -6616,6 +6648,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       cancelPendingRequests();
       initializedSessionRef.current = null;
       activeRequests.current = {};
+      lastFetchedAt.current = {};
       setStudents([]);
       setStaff([]);
       setAcademicClasses([]);
@@ -6652,7 +6685,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const handleFinanceUpdated = () => {
       const userRole = (role || user?.role || "").toLowerCase().replace(/[\s_-]+/g, "");
       if (userRole === "parent" || userRole === "student") return;
-      fetchFinanceData().catch(() => {});
+      fetchFinanceData(true).catch(() => {});
     };
     window.addEventListener("finance_updated", handleFinanceUpdated);
     window.addEventListener("finance_data_updated", handleFinanceUpdated);

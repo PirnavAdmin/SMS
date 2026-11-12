@@ -69,7 +69,8 @@ export const FeeScheduleView: React.FC = () => {
     if ((!academicYearFeeSchedules || academicYearFeeSchedules.length === 0) && fetchFinanceData) {
       fetchFinanceData().catch(() => {});
     }
-  }, [academicYearFeeSchedules, fetchFinanceData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Find source-of-truth Academic Year configuration
   const currentAYMaster = academicYears.find(

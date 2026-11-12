@@ -56,7 +56,8 @@ export const FeeHeadsView: React.FC = () => {
     if ((!feeHeads || feeHeads.length === 0) && fetchFinanceData) {
       fetchFinanceData().catch(() => {});
     }
-  }, [academicClasses, feeHeads, fetchAcademicClasses, fetchFinanceData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const classOptions = useMemo(() => {
     if (academicClasses && academicClasses.length > 0) {

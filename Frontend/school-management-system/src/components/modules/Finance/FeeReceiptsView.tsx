@@ -31,7 +31,8 @@ export const FeeReceiptsView: React.FC = () => {
     if ((!students || students.length === 0) && fetchStudents) {
       fetchStudents().catch(() => {});
     }
-  }, [academicClasses, feePayments, students, fetchAcademicClasses, fetchFinanceData, fetchStudents]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [query, setQuery] = useState('');
   const [filterClass, setFilterClass] = useState('All');
   const [filterSection, setFilterSection] = useState('All');

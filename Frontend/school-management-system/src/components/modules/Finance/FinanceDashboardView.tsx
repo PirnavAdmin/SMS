@@ -70,7 +70,7 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
     try {
       const [dashRes] = await Promise.allSettled([
         FinanceAPI.fetchFinanceDashboardStatsApi(selectedBranch, selectedAcademicYear),
-        fetchFinanceDataRef.current ? fetchFinanceDataRef.current() : Promise.resolve(),
+        fetchFinanceDataRef.current ? fetchFinanceDataRef.current(isManual) : Promise.resolve(),
       ]);
 
       if (dashRes.status === "fulfilled" && dashRes.value) {

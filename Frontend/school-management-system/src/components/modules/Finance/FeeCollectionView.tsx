@@ -191,7 +191,9 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     if ((!feeHeads || feeHeads.length === 0) && fetchFinanceData) {
       fetchFinanceData().catch(() => {});
     }
-  }, [students, academicClasses, feeHeads, fetchStudents, fetchAcademicClasses, fetchFinanceData]);
+    // Run once on mount; mutations refresh via DataContext events
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Fetch dynamic backend fee profile whenever selectedStudent changes
   useEffect(() => {

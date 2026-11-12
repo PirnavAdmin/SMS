@@ -84,7 +84,8 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
     if ((!feeHeads || feeHeads.length === 0 || !dynamicFeeStructures || dynamicFeeStructures.length === 0) && fetchFinanceData) {
       fetchFinanceData().catch(() => {});
     }
-  }, [academicClasses, feeHeads, dynamicFeeStructures, fetchAcademicClasses, fetchFinanceData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [query, setQuery] = useState("");
   const [selectedClassFilter, setSelectedClassFilter] = useState<string>("All");
