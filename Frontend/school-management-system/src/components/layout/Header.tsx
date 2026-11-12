@@ -888,8 +888,14 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
 
       {/* Theme Customizer Modal Dialog */}
       {showThemeCustomizer && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-2xl w-full shadow-2xl border border-sky-300 dark:border-sky-800 relative overflow-hidden">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 md:p-8 bg-slate-950/60 backdrop-blur-xs"
+          onClick={() => setShowThemeCustomizer(false)}
+        >
+          <div
+            className="bg-white dark:bg-slate-900 rounded-3xl max-w-2xl w-full shadow-2xl border border-slate-200 dark:border-slate-800 relative max-h-[90vh] overflow-y-auto my-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
             <ThemeCustomizer onClose={() => setShowThemeCustomizer(false)} />
           </div>
         </div>
