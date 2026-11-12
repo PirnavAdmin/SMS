@@ -47,7 +47,8 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
     if ((!financialAccounts || financialAccounts.length === 0 || !financialCategories || financialCategories.length === 0) && fetchFinanceData) {
       fetchFinanceData().catch(() => {});
     }
-  }, [financialAccounts, financialCategories, fetchFinanceData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Filter States
   const [searchQuery, setSearchQuery] = useState('');

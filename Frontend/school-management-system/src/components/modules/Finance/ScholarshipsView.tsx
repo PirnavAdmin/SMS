@@ -61,10 +61,11 @@ export const ScholarshipsView: React.FC = () => {
     if (fetchFinanceData) {
       fetchFinanceData().catch(() => {});
     }
-    if (fetchStudents) {
+    if ((!students || students.length === 0) && fetchStudents) {
       fetchStudents().catch(() => {});
     }
-  }, [academicClasses, fetchAcademicClasses, fetchFinanceData, fetchStudents]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [activeTab, setActiveTab] = useState<"master" | "allocated">("master");
   const [query, setQuery] = useState("");

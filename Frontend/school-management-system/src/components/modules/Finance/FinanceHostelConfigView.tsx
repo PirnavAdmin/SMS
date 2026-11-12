@@ -222,7 +222,8 @@ export const FinanceHostelConfigView: React.FC = () => {
     if ((!financeHostelConfigs || financeHostelConfigs.length === 0) && fetchFinanceData) {
       fetchFinanceData().catch(() => {});
     }
-  }, [financeHostelConfigs, fetchFinanceData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const getHostelFeeHeadForBlock = useCallback((hostelName?: string) => {
     if (!hostelName || hostelName === "All") {

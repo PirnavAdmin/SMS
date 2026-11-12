@@ -42,7 +42,8 @@ export const StudentFeeAssignmentView: React.FC = () => {
     if ((!students || students.length === 0) && fetchStudents) {
       fetchStudents().catch(() => {});
     }
-  }, [academicClasses, students, fetchAcademicClasses, fetchFinanceData, fetchStudents]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [selectedClass, setSelectedClass] = useState('All');
   const [selectedSection, setSelectedSection] = useState('All');

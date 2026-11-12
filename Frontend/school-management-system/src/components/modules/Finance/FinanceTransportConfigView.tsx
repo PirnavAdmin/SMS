@@ -67,7 +67,8 @@ export const FinanceTransportConfigView: React.FC = () => {
     if ((!financeTransportConfigs || financeTransportConfigs.length === 0) && fetchFinanceData) {
       fetchFinanceData().catch(() => {});
     }
-  }, [financeTransportConfigs, fetchFinanceData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const currentAYFromMaster = useMemo(() => {
     const active = (academicYears || []).find((a: any) => a.isCurrent || a.isActive);

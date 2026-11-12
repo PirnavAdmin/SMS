@@ -650,7 +650,8 @@ export const AttendanceView = () => {
     if (fetchStudentAttendanceData) {
       fetchStudentAttendanceData();
     }
-  }, [fetchStudents, allStudents, fetchStudentAttendanceData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     setIsEditable(false);

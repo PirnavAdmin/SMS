@@ -90,20 +90,18 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({
 
     const handleUpdate = () => {
       if (fetchFinanceData) {
-        fetchFinanceData().catch(() => {});
+        fetchFinanceData(true).catch(() => {});
       }
     };
 
     window.addEventListener("finance_updated", handleUpdate);
     window.addEventListener("finance_data_updated", handleUpdate);
     window.addEventListener("fee_payment_collected", handleUpdate);
-    window.addEventListener("focus", handleUpdate);
 
     return () => {
       window.removeEventListener("finance_updated", handleUpdate);
       window.removeEventListener("finance_data_updated", handleUpdate);
       window.removeEventListener("fee_payment_collected", handleUpdate);
-      window.removeEventListener("focus", handleUpdate);
     };
   }, [fetchFinanceData]);
 
@@ -111,7 +109,7 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({
     setIsRefreshing(true);
     try {
       if (fetchFinanceData) {
-        await fetchFinanceData();
+        await fetchFinanceData(true);
       }
       addToast("success", "Dues Refreshed", "Synchronized live student dues and payments from database.");
     } catch (err: any) {
