@@ -422,10 +422,10 @@ export const ThemeCustomizer = ({ className = '', onClose = undefined }) => {
           type="button"
           onClick={handleReset}
           disabled={isDefault}
-          className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+          className={`px-3 py-1.5 rounded-2xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 ${
             isDefault
-              ? 'text-slate-300 dark:text-slate-600 cursor-not-allowed'
-              : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+              ? 'text-slate-300 dark:text-slate-600 cursor-not-allowed opacity-50'
+              : 'btn-glass-secondary text-slate-600 dark:text-slate-300'
           }`}
         >
           <RotateCcw className="w-3.5 h-3.5" />
@@ -437,7 +437,7 @@ export const ThemeCustomizer = ({ className = '', onClose = undefined }) => {
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              className="px-4 py-2 rounded-2xl text-xs font-semibold btn-glass-secondary text-slate-600 dark:text-slate-300 cursor-pointer active:scale-95"
             >
               Cancel
             </button>
@@ -446,10 +446,9 @@ export const ThemeCustomizer = ({ className = '', onClose = undefined }) => {
           <button
             type="button"
             onClick={handleApply}
-            className="px-5 py-2 rounded-xl text-xs font-black text-white shadow-md transition-all flex items-center gap-1.5 cursor-pointer hover:opacity-95 active:scale-98"
+            className="px-6 py-2.5 rounded-2xl text-xs font-black text-white btn-glass-primary shadow-lg flex items-center gap-1.5 cursor-pointer active:scale-95"
             style={{
               backgroundColor: selectedPrimary,
-              boxShadow: `0 4px 12px color-mix(in srgb, ${selectedPrimary} 35%, transparent)`,
             }}
           >
             <Check className="w-4 h-4" />

@@ -1044,60 +1044,75 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
         </div>
       </div>
 
-      {/* Quick Actions Panel */}
-      <div className="bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 shadow-xs p-6 rounded-2xl flex flex-col gap-4 animate-in fade-in duration-300">
+      {/* Quick Actions Panel - iPhone Liquid Glass Style */}
+      <div className="glass-card p-6 rounded-3xl flex flex-col gap-4 animate-in fade-in duration-300">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-bold text-slate-900 dark:text-white">Quick Actions</h3>
+          <div>
+            <h3 className="text-base font-extrabold text-slate-900 dark:text-white tracking-tight">Quick Actions</h3>
+          </div>
           <button 
             onClick={() => onNavigate('events')} 
-            className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-sky-50 text-sky-700 dark:bg-slate-850 dark:text-sky-400 text-xs font-bold hover:bg-sky-100 border border-sky-200 dark:border-sky-800 transition-colors shrink-0"
+            className="btn-glass-pill flex items-center gap-2 px-3.5 py-1.5 rounded-2xl text-xs font-bold text-sky-600 dark:text-sky-400 shrink-0 cursor-pointer active:scale-95"
           >
-            <Calendar className="w-3.5 h-3.5 text-sky-500" />
-            View Calendar <ArrowRight className="w-3 h-3 ml-0.5" />
+            <Calendar className="w-3.5 h-3.5 text-sky-500 stroke-[2.2]" />
+            <span>View Calendar</span>
+            <ArrowRight className="w-3 h-3 stroke-[2.5]" />
           </button>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 sm:gap-3.5">
           <button 
             onClick={() => onNavigate('students')} 
-            className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border border-sky-200 dark:border-sky-800 text-xs font-bold text-slate-700 dark:text-slate-350 bg-white hover:bg-sky-50/50 hover:border-sky-400 dark:bg-slate-850 dark:hover:bg-slate-800 transition-all hover:-translate-y-0.5 hover:shadow-sm"
+            className="btn-glass-pill flex flex-col sm:flex-row items-center justify-center gap-2.5 px-3 py-3 rounded-2xl text-xs font-bold text-slate-700 dark:text-slate-200 group active:scale-95 transition-all cursor-pointer"
           >
-            <UserPlus className="w-4 h-4 text-blue-500" />
-            Add Student
+            <div className="w-8 h-8 rounded-xl bg-blue-500/12 text-blue-600 dark:text-blue-400 border border-blue-500/20 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+              <UserPlus className="w-4 h-4 stroke-[2.2]" />
+            </div>
+            <span className="truncate">Add Student</span>
           </button>
           <button 
             onClick={() => onNavigate('staff')} 
-            className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border border-sky-200 dark:border-sky-800 text-xs font-bold text-slate-700 dark:text-slate-350 bg-white hover:bg-sky-50/50 hover:border-sky-400 dark:bg-slate-850 dark:hover:bg-slate-800 transition-all hover:-translate-y-0.5 hover:shadow-sm"
+            className="btn-glass-pill flex flex-col sm:flex-row items-center justify-center gap-2.5 px-3 py-3 rounded-2xl text-xs font-bold text-slate-700 dark:text-slate-200 group active:scale-95 transition-all cursor-pointer"
           >
-            <UserPlus className="w-4 h-4 text-emerald-500" />
-            Add Staff
+            <div className="w-8 h-8 rounded-xl bg-emerald-500/12 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+              <UserPlus className="w-4 h-4 stroke-[2.2]" />
+            </div>
+            <span className="truncate">Add Staff</span>
           </button>
           <button 
             onClick={() => onNavigate('academics')} 
-            className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border border-sky-200 dark:border-sky-800 text-xs font-bold text-slate-700 dark:text-slate-350 bg-white hover:bg-sky-50/50 hover:border-sky-400 dark:bg-slate-850 dark:hover:bg-slate-800 transition-all hover:-translate-y-0.5 hover:shadow-sm"
+            className="btn-glass-pill flex flex-col sm:flex-row items-center justify-center gap-2.5 px-3 py-3 rounded-2xl text-xs font-bold text-slate-700 dark:text-slate-200 group active:scale-95 transition-all cursor-pointer"
           >
-            <BookOpen className="w-4 h-4 text-amber-500" />
-            Create Class
+            <div className="w-8 h-8 rounded-xl bg-amber-500/12 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+              <BookOpen className="w-4 h-4 stroke-[2.2]" />
+            </div>
+            <span className="truncate">Create Class</span>
           </button>
           <button 
             onClick={() => onNavigate('examination')} 
-            className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border border-sky-200 dark:border-sky-800 text-xs font-bold text-slate-700 dark:text-slate-350 bg-white hover:bg-sky-50/50 hover:border-sky-400 dark:bg-slate-850 dark:hover:bg-slate-800 transition-all hover:-translate-y-0.5 hover:shadow-sm"
+            className="btn-glass-pill flex flex-col sm:flex-row items-center justify-center gap-2.5 px-3 py-3 rounded-2xl text-xs font-bold text-slate-700 dark:text-slate-200 group active:scale-95 transition-all cursor-pointer"
           >
-            <ClipboardList className="w-4 h-4 text-rose-500" />
-            Create Exam
+            <div className="w-8 h-8 rounded-xl bg-rose-500/12 text-rose-600 dark:text-rose-400 border border-rose-500/20 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+              <ClipboardList className="w-4 h-4 stroke-[2.2]" />
+            </div>
+            <span className="truncate">Create Exam</span>
           </button>
           <button 
             onClick={() => onNavigate('attendance')} 
-            className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border border-sky-200 dark:border-sky-800 text-xs font-bold text-slate-700 dark:text-slate-350 bg-white hover:bg-sky-50/50 hover:border-sky-400 dark:bg-slate-850 dark:hover:bg-slate-800 transition-all hover:-translate-y-0.5 hover:shadow-sm"
+            className="btn-glass-pill flex flex-col sm:flex-row items-center justify-center gap-2.5 px-3 py-3 rounded-2xl text-xs font-bold text-slate-700 dark:text-slate-200 group active:scale-95 transition-all cursor-pointer"
           >
-            <UserCheck className="w-4 h-4 text-indigo-500" />
-            Student Attendance
+            <div className="w-8 h-8 rounded-xl bg-indigo-500/12 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+              <UserCheck className="w-4 h-4 stroke-[2.2]" />
+            </div>
+            <span className="truncate">Attendance</span>
           </button>
           <button 
             onClick={() => onNavigate('communication')} 
-            className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border border-sky-200 dark:border-sky-800 text-xs font-bold text-slate-700 dark:text-slate-350 bg-white hover:bg-sky-50/50 hover:border-sky-400 dark:bg-slate-850 dark:hover:bg-slate-800 transition-all hover:-translate-y-0.5 hover:shadow-sm"
+            className="btn-glass-pill flex flex-col sm:flex-row items-center justify-center gap-2.5 px-3 py-3 rounded-2xl text-xs font-bold text-slate-700 dark:text-slate-200 group active:scale-95 transition-all cursor-pointer"
           >
-            <Megaphone className="w-4 h-4 text-purple-500" />
-            New Announcement
+            <div className="w-8 h-8 rounded-xl bg-purple-500/12 text-purple-600 dark:text-purple-400 border border-purple-500/20 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+              <Megaphone className="w-4 h-4 stroke-[2.2]" />
+            </div>
+            <span className="truncate">Announcement</span>
           </button>
         </div>
       </div>
@@ -1106,12 +1121,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
         {/* Top Row: Student Attendance, Staff Attendance, Events & Holidays */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
           {/* Student Attendance Donut */}
-          <div onClick={() => onNavigate('attendance')} className="lg:col-span-4 bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 shadow-xs hover:shadow-md hover:border-sky-400 dark:hover:border-sky-600 transition-all duration-300 p-4.5 sm:p-5 rounded-2xl cursor-pointer flex flex-col justify-between h-[255px]">
+          <div onClick={() => onNavigate('attendance')} className="lg:col-span-4 glass-card p-5 rounded-3xl cursor-pointer flex flex-col justify-between h-[260px] active:scale-[0.99] transition-all">
             {/* Header */}
             <div className="shrink-0 space-y-0.5 text-left">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white leading-tight">Student Attendance</h3>
+              <h3 className="text-base font-extrabold text-slate-900 dark:text-white leading-tight tracking-tight">Student Attendance</h3>
               <div className="flex items-center justify-between min-h-[22px]">
-                <p className="text-[11px] text-slate-500">Today's overall student attendance</p>
+                <p className="text-[11px] text-slate-400 font-medium">Today's overall student attendance</p>
               </div>
             </div>
             
@@ -1121,35 +1136,35 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
           </div>
 
           {/* Staff Attendance Donut */}
-          <div onClick={() => onNavigate('staff-attendance')} className="lg:col-span-4 bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 shadow-xs hover:shadow-md hover:border-sky-400 dark:hover:border-sky-600 transition-all duration-300 p-4.5 sm:p-5 rounded-2xl cursor-pointer flex flex-col justify-between h-[255px]">
+          <div onClick={() => onNavigate('staff-attendance')} className="lg:col-span-4 glass-card p-5 rounded-3xl cursor-pointer flex flex-col justify-between h-[260px] active:scale-[0.99] transition-all">
             {/* Header */}
             <div className="shrink-0 space-y-0.5 text-left">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white leading-tight">Staff Attendance</h3>
+              <h3 className="text-base font-extrabold text-slate-900 dark:text-white leading-tight tracking-tight">Staff Attendance</h3>
               <div className="flex items-center justify-between min-h-[22px] gap-2">
-                <p className="text-[11px] text-slate-500 truncate">
+                <p className="text-[11px] text-slate-400 font-medium truncate">
                   Today's {staffAttendanceTab.toLowerCase()} staff
                 </p>
-                {/* Down right toggle button */}
+                {/* iOS Segmented Control */}
                 <div
-                  className="flex bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-sky-200 dark:border-sky-800 shrink-0"
+                  className="flex bg-slate-200/50 dark:bg-slate-800/80 p-0.5 rounded-xl border border-white/60 dark:border-white/10 shrink-0 backdrop-blur-md"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <button
                     onClick={() => setStaffAttendanceTab('Teaching')}
-                    className={`px-2 py-0.5 text-[10px] font-bold rounded-md transition-all duration-200 ${
+                    className={`px-2.5 py-0.5 text-[10px] font-bold rounded-lg transition-all cursor-pointer ${
                       staffAttendanceTab === 'Teaching'
                         ? 'bg-white dark:bg-slate-700 text-sky-600 dark:text-sky-400 shadow-xs'
-                        : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                        : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
                     }`}
                   >
                     Teaching
                   </button>
                   <button
                     onClick={() => setStaffAttendanceTab('Non-Teaching')}
-                    className={`px-2 py-0.5 text-[10px] font-bold rounded-md transition-all duration-200 ${
+                    className={`px-2.5 py-0.5 text-[10px] font-bold rounded-lg transition-all cursor-pointer ${
                       staffAttendanceTab === 'Non-Teaching'
                         ? 'bg-white dark:bg-slate-700 text-sky-600 dark:text-sky-400 shadow-xs'
-                        : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                        : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
                     }`}
                   >
                     Non-Teaching
@@ -1164,20 +1179,22 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
           </div>
 
           {/* Events & Holidays */}
-          <div onClick={() => onNavigate('events')} className="lg:col-span-4 bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 shadow-xs hover:shadow-md hover:border-sky-400 dark:hover:border-sky-600 transition-all duration-300 p-4.5 sm:p-5 rounded-2xl cursor-pointer flex flex-col justify-between h-[255px]">
+          <div onClick={() => onNavigate('events')} className="lg:col-span-4 glass-card p-5 rounded-3xl cursor-pointer flex flex-col justify-between h-[260px] active:scale-[0.99] transition-all">
             <div className="shrink-0 space-y-0.5 text-left">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 min-w-0 text-left">
-                  <Calendar className="w-4.5 h-4.5 text-sky-600 shrink-0" />
-                  <h3 className="text-base font-bold text-slate-900 dark:text-white tracking-tight leading-tight truncate">Events & Holidays</h3>
+                  <div className="w-6 h-6 rounded-lg bg-sky-500/12 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
+                    <Calendar className="w-3.5 h-3.5 stroke-[2.2]" />
+                  </div>
+                  <h3 className="text-base font-extrabold text-slate-900 dark:text-white tracking-tight leading-tight truncate">Events & Holidays</h3>
                 </div>
-                <span className="text-[10px] font-bold text-sky-600 hover:underline shrink-0">View All</span>
+                <span className="text-[11px] font-bold text-sky-600 dark:text-sky-400 hover:underline shrink-0">View All</span>
               </div>
               <div className="min-h-[22px] flex items-center">
-                <p className="text-[11px] text-slate-500">Upcoming calendar activities</p>
+                <p className="text-[11px] text-slate-400 font-medium">Upcoming calendar activities</p>
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto space-y-2 pr-1 scrollbar-thin max-h-[160px] pt-1">
+            <div className="flex-1 overflow-y-auto space-y-2 pr-1 scrollbar-thin max-h-[175px] pt-1.5 no-scrollbar">
               {upcomingEventsAndHolidays.length === 0 ? (
                 <p className="text-xs text-slate-500 py-2 text-center">No upcoming events.</p>
               ) : upcomingEventsAndHolidays.map(e => {
@@ -1187,26 +1204,26 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
                 
                 const categoryLabel = e.type === 'Holiday' ? 'Holiday' : (e.category?.includes('Exam') ? 'Exam' : 'Meeting');
                 const badgeColors: Record<string, string> = {
-                  'Meeting': 'bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200 dark:border-purple-800',
-                  'Holiday': 'bg-amber-50 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200 dark:border-amber-800',
-                  'Exam': 'bg-sky-50 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300 border border-sky-200 dark:border-sky-800',
+                  'Meeting': 'bg-purple-500/12 text-purple-700 dark:text-purple-300 border border-purple-500/25',
+                  'Holiday': 'bg-amber-500/12 text-amber-700 dark:text-amber-300 border border-amber-500/25',
+                  'Exam': 'bg-sky-500/12 text-sky-700 dark:text-sky-300 border border-sky-500/25',
                 };
                 
                 return (
-                  <div key={e.id} className="flex items-center justify-between p-2 rounded-xl bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 hover:border-sky-400 dark:hover:border-sky-600 transition-colors shadow-2xs">
+                  <div key={e.id} className="flex items-center justify-between p-2.5 rounded-2xl glass-surface border border-white/60 dark:border-white/5 hover:border-sky-400/50 transition-all text-xs active:scale-[0.98]">
                     <div className="flex items-center gap-2.5 min-w-0 flex-1 mr-2">
-                      <div className="flex flex-col items-center justify-center p-1 rounded-lg bg-sky-50/60 dark:bg-slate-800 border border-sky-200 dark:border-sky-800 font-mono shrink-0 w-9 h-9">
+                      <div className="flex flex-col items-center justify-center p-1 rounded-xl btn-glass-secondary font-mono shrink-0 w-9 h-9">
                         <span className="text-xs font-black text-slate-850 dark:text-white leading-none">{dayStr}</span>
                         <span className="text-[7.5px] font-black text-sky-600 dark:text-sky-400 mt-0.5 leading-none">{monthStr}</span>
                       </div>
                       <div className="text-left min-w-0 flex-1">
                         <p className="font-bold text-slate-850 dark:text-slate-100 text-xs truncate leading-snug">{e.title}</p>
-                        <p className="text-[9.5px] text-slate-500 truncate mt-0.5">
+                        <p className="text-[9.5px] text-slate-400 truncate mt-0.5">
                           {e.type === 'Holiday' ? 'School Closed' : 'Scheduled Event'}
                         </p>
                       </div>
                     </div>
-                    <span className={`font-bold px-2 py-0.5 rounded-md text-[9px] shrink-0 ${badgeColors[categoryLabel] || 'bg-slate-100 text-slate-750'}`}>
+                    <span className={`font-bold px-2 py-0.5 rounded-full text-[9px] shrink-0 ${badgeColors[categoryLabel] || 'bg-slate-100 text-slate-750'}`}>
                       {categoryLabel}
                     </span>
                   </div>
@@ -1219,48 +1236,50 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
         {/* Bottom Row: Pending Approvals, Upcoming Examinations and Teacher Birthdays */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
           {/* Pending Approvals */}
-          <div className="lg:col-span-4 bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 shadow-xs hover:shadow-md hover:border-sky-400 dark:hover:border-sky-600 transition-all duration-300 p-4.5 sm:p-5 rounded-2xl flex flex-col justify-between h-[255px]">
+          <div className="lg:col-span-4 glass-card p-5 rounded-3xl flex flex-col justify-between h-[260px]">
             <div className="flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2">
-                <Bell className="w-4.5 h-4.5 text-amber-500" />
-                <h3 className="text-base font-bold text-slate-900 dark:text-white">Pending Approvals</h3>
+                <div className="w-6 h-6 rounded-lg bg-amber-500/12 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                  <Bell className="w-3.5 h-3.5 stroke-[2.2]" />
+                </div>
+                <h3 className="text-base font-extrabold text-slate-900 dark:text-white tracking-tight">Pending Approvals</h3>
               </div>
-              <button onClick={() => onNavigate('staff-leave')} className="text-xs font-bold text-sky-600 hover:text-sky-700">View All</button>
+              <button onClick={() => onNavigate('staff-leave')} className="text-xs font-bold text-sky-600 dark:text-sky-400 hover:text-sky-700 cursor-pointer">View All</button>
             </div>
-            <div className="flex-1 overflow-y-auto flex flex-col gap-2 pr-1 scrollbar-thin max-h-[180px] pt-1">
+            <div className="flex-1 overflow-y-auto flex flex-col gap-2 pr-1 scrollbar-thin max-h-[180px] pt-2 no-scrollbar">
               <div 
                 onClick={isLibrarian ? undefined : () => onNavigate('admissions')} 
-                className="flex items-center justify-between p-2.5 rounded-xl bg-white dark:bg-slate-800/40 border border-sky-200 dark:border-sky-800 hover:border-sky-400 hover:bg-sky-50/40 cursor-pointer transition-all text-xs shadow-2xs"
+                className="flex items-center justify-between p-2.5 rounded-2xl glass-surface border border-white/60 dark:border-white/5 hover:border-sky-400/50 cursor-pointer transition-all text-xs active:scale-[0.98]"
               >
-                <span className="font-bold text-slate-800 dark:text-slate-300">Admission Approvals</span>
-                <span className="w-5 h-5 rounded-full flex items-center justify-center font-black text-[10px] bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-450 border border-rose-200">
+                <span className="font-bold text-slate-800 dark:text-slate-200">Admission Approvals</span>
+                <span className="w-5 h-5 rounded-full flex items-center justify-center font-black text-[10px] bg-rose-500/12 text-rose-600 dark:text-rose-400 border border-rose-500/20">
                   {summaryData ? summaryData.pendingAdmissions : pendingAdmissions.length}
                 </span>
               </div>
               <div 
                 onClick={isLibrarian ? undefined : () => onNavigate('staff')} 
-                className="flex items-center justify-between p-2.5 rounded-xl bg-white dark:bg-slate-800/40 border border-sky-200 dark:border-sky-800 hover:border-sky-400 hover:bg-sky-50/40 cursor-pointer transition-all text-xs shadow-2xs"
+                className="flex items-center justify-between p-2.5 rounded-2xl glass-surface border border-white/60 dark:border-white/5 hover:border-sky-400/50 cursor-pointer transition-all text-xs active:scale-[0.98]"
               >
-                <span className="font-bold text-slate-800 dark:text-slate-300">Staff Requests</span>
-                <span className="w-5 h-5 rounded-full flex items-center justify-center font-black text-[10px] bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-450 border border-amber-200">
+                <span className="font-bold text-slate-800 dark:text-slate-200">Staff Requests</span>
+                <span className="w-5 h-5 rounded-full flex items-center justify-center font-black text-[10px] bg-amber-500/12 text-amber-600 dark:text-amber-400 border border-amber-500/20">
                   {(staff || []).filter(s => s.profileStatus === 'Incomplete').length || 3}
                 </span>
               </div>
               <div 
                 onClick={isLibrarian ? undefined : () => onNavigate('staff-leave')} 
-                className="flex items-center justify-between p-2.5 rounded-xl bg-white dark:bg-slate-800/40 border border-sky-200 dark:border-sky-800 hover:border-sky-400 hover:bg-sky-50/40 cursor-pointer transition-all text-xs shadow-2xs"
+                className="flex items-center justify-between p-2.5 rounded-2xl glass-surface border border-white/60 dark:border-white/5 hover:border-sky-400/50 cursor-pointer transition-all text-xs active:scale-[0.98]"
               >
-                <span className="font-bold text-slate-800 dark:text-slate-300">Leave Requests</span>
-                <span className="w-5 h-5 rounded-full flex items-center justify-center font-black text-[10px] bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-450 border border-emerald-200">
+                <span className="font-bold text-slate-800 dark:text-slate-200">Leave Requests</span>
+                <span className="w-5 h-5 rounded-full flex items-center justify-center font-black text-[10px] bg-emerald-500/12 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                   {pendingLeaves.length}
                 </span>
               </div>
               <div 
                 onClick={isLibrarian ? undefined : () => onNavigate('finance-fee-collection')} 
-                className="flex items-center justify-between p-2.5 rounded-xl bg-white dark:bg-slate-800/40 border border-sky-200 dark:border-sky-800 hover:border-sky-400 hover:bg-sky-50/40 cursor-pointer transition-all text-xs shadow-2xs"
+                className="flex items-center justify-between p-2.5 rounded-2xl glass-surface border border-white/60 dark:border-white/5 hover:border-sky-400/50 cursor-pointer transition-all text-xs active:scale-[0.98]"
               >
-                <span className="font-bold text-slate-800 dark:text-slate-300">Fee Concessions</span>
-                <span className="w-5 h-5 rounded-full flex items-center justify-center font-black text-[10px] bg-sky-50 text-sky-600 dark:bg-sky-950/40 dark:text-sky-450 border border-sky-200">
+                <span className="font-bold text-slate-800 dark:text-slate-200">Fee Concessions</span>
+                <span className="w-5 h-5 rounded-full flex items-center justify-center font-black text-[10px] bg-sky-500/12 text-sky-600 dark:text-sky-400 border border-sky-500/20">
                   1
                 </span>
               </div>
@@ -1268,15 +1287,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
           </div>
 
           {/* Upcoming Examinations */}
-          <div className="lg:col-span-4 bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 shadow-xs hover:shadow-md hover:border-sky-400 dark:hover:border-sky-600 transition-all duration-300 p-4.5 sm:p-5 rounded-2xl flex flex-col justify-between h-[255px]">
+          <div className="lg:col-span-4 glass-card p-5 rounded-3xl flex flex-col justify-between h-[260px]">
             <div className="flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2">
-                <ClipboardList className="w-4.5 h-4.5 text-indigo-500" />
-                <h3 className="text-base font-bold text-slate-900 dark:text-white">Upcoming Examinations</h3>
+                <div className="w-6 h-6 rounded-lg bg-indigo-500/12 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                  <ClipboardList className="w-3.5 h-3.5 stroke-[2.2]" />
+                </div>
+                <h3 className="text-base font-extrabold text-slate-900 dark:text-white tracking-tight">Upcoming Examinations</h3>
               </div>
-              <button onClick={() => onNavigate('examination')} className="text-xs font-bold text-sky-600 hover:text-sky-700">View All</button>
+              <button onClick={() => onNavigate('examination')} className="text-xs font-bold text-sky-600 dark:text-sky-400 hover:text-sky-700 cursor-pointer">View All</button>
             </div>
-            <div className="flex-1 overflow-y-auto space-y-2 pr-1 scrollbar-thin max-h-[180px] pt-1">
+            <div className="flex-1 overflow-y-auto space-y-2 pr-1 scrollbar-thin max-h-[180px] pt-2 no-scrollbar">
               {validExams.length === 0 ? (
                 <p className="text-xs text-slate-500 py-4 text-center">No exams scheduled.</p>
               ) : validExams.map(ex => {
@@ -1284,19 +1305,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
                   ? `${ex.applicableClasses.length} Classes`
                   : '2 Classes';
                 return (
-                  <div key={ex.id} className="flex items-center justify-between p-2.5 rounded-xl bg-white dark:bg-slate-800/40 border border-sky-200 dark:border-sky-800 hover:border-sky-400 hover:bg-sky-50/40 text-xs transition-all shadow-2xs">
+                  <div key={ex.id} className="flex items-center justify-between p-2.5 rounded-2xl glass-surface border border-white/60 dark:border-white/5 hover:border-sky-400/50 text-xs transition-all active:scale-[0.98]">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200">
-                        <Calendar className="w-4 h-4" />
+                      <div className="w-8 h-8 rounded-xl bg-emerald-500/12 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center shrink-0">
+                        <Calendar className="w-4 h-4 stroke-[2]" />
                       </div>
                       <div className="text-left min-w-0">
                         <p className="font-bold text-slate-900 dark:text-white truncate">{ex.name}</p>
-                        <p className="text-[10px] text-slate-500 truncate mt-0.5">
+                        <p className="text-[10px] text-slate-400 truncate mt-0.5">
                           {ex.startDate ? new Date(ex.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Aug 28, 2026'}
                         </p>
                       </div>
                     </div>
-                    <span className="font-semibold px-2 py-0.5 rounded-md text-[9px] shrink-0 bg-sky-50 text-sky-700 dark:bg-slate-800 dark:text-sky-400 border border-sky-200 dark:border-sky-800">
+                    <span className="font-bold px-2 py-0.5 rounded-full text-[9px] shrink-0 bg-sky-500/12 text-sky-600 dark:text-sky-400 border border-sky-500/20">
                       {classLabel}
                     </span>
                   </div>
@@ -1306,20 +1327,22 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
           </div>
 
           {/* Upcoming Teacher Birthdays */}
-          <div className="lg:col-span-4 bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 shadow-xs hover:shadow-md hover:border-sky-400 dark:hover:border-sky-600 transition-all duration-300 p-4.5 sm:p-5 rounded-2xl flex flex-col justify-between h-[255px]">
+          <div className="lg:col-span-4 glass-card p-5 rounded-3xl flex flex-col justify-between h-[260px]">
             <div className="flex items-center gap-2 shrink-0">
-              <Cake className="w-4.5 h-4.5 text-rose-500" />
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">Faculty & Staff Birthday's</h3>
+              <div className="w-6 h-6 rounded-lg bg-rose-500/12 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
+                <Cake className="w-3.5 h-3.5 stroke-[2.2]" />
+              </div>
+              <h3 className="text-base font-extrabold text-slate-900 dark:text-white tracking-tight">Faculty Birthdays</h3>
             </div>
-            <div className="flex-1 overflow-y-auto space-y-2 pr-1 scrollbar-thin max-h-[180px] pt-1">
+            <div className="flex-1 overflow-y-auto space-y-2 pr-1 scrollbar-thin max-h-[180px] pt-2 no-scrollbar">
               {upcomingBirthdays.length === 0 ? (
                  <p className="text-xs text-slate-500 py-4 text-center">No upcoming birthdays.</p>
               ) : upcomingBirthdays.map(b => (
-                <div key={b.id} className="flex items-center gap-2.5 p-2 rounded-xl bg-rose-50/20 dark:bg-rose-950/15 text-xs border border-rose-100/50 dark:border-rose-950/50 hover:bg-rose-100/40 transition-colors border-l-3 border-l-rose-400">
-                  <img src={b.avatar || 'https://ui-avatars.com/api/?name='+b.name} alt="" className="w-7 h-7 rounded-full object-cover shrink-0 border border-rose-200/50" />
+                <div key={b.id} className="flex items-center gap-2.5 p-2.5 rounded-2xl glass-surface border border-white/60 dark:border-white/5 text-xs transition-colors border-l-4 border-l-rose-500">
+                  <img src={b.avatar || 'https://ui-avatars.com/api/?name='+b.name} alt="" className="w-7 h-7 rounded-full object-cover shrink-0 ring-2 ring-rose-500/20" />
                   <div className="flex-1 min-w-0 text-left">
                     <p className="text-xs font-bold text-slate-900 dark:text-white truncate">{b.name}</p>
-                    <p className="text-[9px] text-slate-550 truncate mt-0.5">{b.dob} • {b.role}</p>
+                    <p className="text-[9px] text-slate-400 truncate mt-0.5">{b.dob} • {b.role}</p>
                   </div>
                 </div>
               ))}

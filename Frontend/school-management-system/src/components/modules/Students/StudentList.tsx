@@ -1412,15 +1412,15 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
             <div className="flex flex-wrap items-center gap-2.5">
               <button
                 onClick={() => setIsImportModalOpen(true)}
-                className="inline-flex items-center gap-2 rounded-2xl border border-sky-200 dark:border-sky-800 bg-sky-50 dark:bg-sky-950/60 px-3.5 py-2.5 text-xs font-extrabold text-sky-700 dark:text-sky-300 hover:bg-sky-100 transition-colors shadow-xs cursor-pointer"
+                className="btn-glass-secondary inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 text-xs font-bold shadow-xs cursor-pointer active:scale-95"
                 title="Upload Excel / Import Records"
               >
-                <Upload className="h-4 w-4" /> Upload Excel / Import
+                <Upload className="h-4 w-4 text-sky-600 dark:text-sky-400" /> Upload Excel / Import
               </button>
               {onNavigate && canAddStudent && (
                 <button
                   onClick={() => onNavigate('admissions')}
-                  className="inline-flex items-center gap-2 rounded-2xl bg-brand-600 px-4 py-2.5 text-xs font-black text-white shadow-md shadow-brand-600/20 hover:bg-brand-500 transition-colors cursor-pointer"
+                  className="btn-glass-primary inline-flex items-center gap-2 rounded-2xl px-5 py-2.5 text-xs font-black shadow-lg cursor-pointer active:scale-95"
                 >
                   <Plus className="h-4 w-4" /> Add Student
                 </button>
@@ -1431,9 +1431,9 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
           {/* SUMMARY METRIC CARDS */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
             {/* Total Classes */}
-            <div className="glass-card p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs flex items-center gap-2.5">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-50 text-brand-600 dark:bg-brand-950/50 dark:text-brand-300 shrink-0">
-                <School className="h-4.5 w-4.5" />
+            <div className="glass-card p-3 rounded-2xl flex items-center gap-2.5">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl glass-icon-tile text-brand-600 dark:text-brand-300 shrink-0">
+                <School className="h-5 w-5" />
               </div>
               <div>
                 <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 leading-tight">Total Classes</p>
@@ -1442,9 +1442,9 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
             </div>
 
             {/* Total Sections */}
-            <div className="glass-card p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs flex items-center gap-2.5">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-50 text-sky-600 dark:bg-sky-950/50 dark:text-sky-300 shrink-0">
-                <BookOpen className="h-4.5 w-4.5" />
+            <div className="glass-card p-3 rounded-2xl flex items-center gap-2.5">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl glass-icon-tile text-sky-600 dark:text-sky-300 shrink-0">
+                <BookOpen className="h-5 w-5" />
               </div>
               <div>
                 <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 leading-tight">Total Sections</p>
@@ -1453,9 +1453,9 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
             </div>
 
             {/* Total Active Students */}
-            <div className="glass-card p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs flex items-center gap-2.5">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-300 shrink-0">
-                <Users className="h-4.5 w-4.5" />
+            <div className="glass-card p-3 rounded-2xl flex items-center gap-2.5">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl glass-icon-tile text-emerald-600 dark:text-emerald-300 shrink-0">
+                <Users className="h-5 w-5" />
               </div>
               <div>
                 <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 leading-tight">Total Active Students</p>
@@ -1466,12 +1466,12 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
             {/* Inactive Students (Clickable to view inactive roster) */}
             <div
               onClick={handleViewInactiveStudents}
-              className="glass-card p-3 rounded-2xl border border-rose-200/80 dark:border-rose-900/60 bg-white dark:bg-slate-900 shadow-xs flex items-center justify-between cursor-pointer hover:border-rose-400 dark:hover:border-rose-600 hover:shadow-md transition-all group"
+              className="glass-card p-3 rounded-2xl flex items-center justify-between cursor-pointer hover:border-rose-400! dark:hover:border-rose-600! hover:shadow-md transition-all group active:scale-[0.98]"
               title="Click to view all inactive students"
             >
               <div className="flex items-center gap-2.5 min-w-0">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400 shrink-0 group-hover:scale-105 transition-transform">
-                  <UserX className="h-4.5 w-4.5" />
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl glass-icon-tile text-rose-600 dark:text-rose-400 shrink-0 group-hover:scale-105 transition-transform">
+                  <UserX className="h-5 w-5" />
                 </div>
                 <div>
                   <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 leading-tight">Inactive Students</p>
@@ -1482,9 +1482,9 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
             </div>
 
             {/* New Admissions */}
-            <div className="glass-card p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs flex items-center gap-2.5">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-50 text-amber-600 dark:bg-amber-950/50 dark:text-amber-300 shrink-0">
-                <Sparkles className="h-4.5 w-4.5" />
+            <div className="glass-card p-3 rounded-2xl flex items-center gap-2.5">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl glass-icon-tile text-amber-600 dark:text-amber-300 shrink-0">
+                <Sparkles className="h-5 w-5" />
               </div>
               <div>
                 <p className="text-[9px] font-bold uppercase tracking-wider text-slate-400 leading-tight">New Admissions</p>
@@ -1509,7 +1509,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
                   placeholder="Search classes..."
                   value={searchClassQuery}
                   onChange={e => setSearchClassQuery(e.target.value.slice(0, 30))}
-                  className={`w-full pl-10 ${searchClassQuery ? 'pr-9' : 'pr-4'} py-2.5 rounded-2xl bg-white dark:bg-slate-900 border border-brand-400 dark:border-brand-800 text-xs font-bold text-slate-900 dark:text-white shadow-xs outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 transition-all`}
+                  className={`w-full pl-10 ${searchClassQuery ? 'pr-9' : 'pr-4'} py-2.5 rounded-2xl glass-input text-xs font-bold text-slate-900 dark:text-white shadow-xs outline-none focus:ring-2 focus:ring-brand-500/20 transition-all`}
                 />
                 {searchClassQuery && (
                   <button
@@ -1529,13 +1529,13 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
               {filteredClassOverview.map(cls => (
                 <div
                   key={cls.className}
-                  className="glass-card rounded-2xl p-4 border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs hover:border-brand-400 dark:hover:border-brand-600 transition-all duration-200 flex flex-col justify-between"
+                  className="glass-card rounded-3xl p-5 hover:border-brand-400! dark:hover:border-brand-600! transition-all duration-200 flex flex-col justify-between"
                 >
                   {/* Compact Card Header */}
                   <div>
-                    <div className="flex items-start justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-2.5">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-50 text-brand-600 dark:bg-brand-950/60 dark:text-brand-400 shrink-0">
+                    <div className="flex items-start justify-between gap-2 border-b border-slate-200/50 dark:border-slate-800 pb-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-2xl glass-icon-tile text-brand-600 dark:text-brand-400 shrink-0">
                           <GraduationCap className="h-5 w-5" />
                         </div>
                         <div className="min-w-0">
@@ -1548,24 +1548,24 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
                         </div>
                       </div>
 
-                      <span className="px-2.5 py-1 rounded-xl bg-sky-50 dark:bg-sky-950/60 border border-sky-100 dark:border-sky-900/60 text-[11px] font-black text-sky-700 dark:text-sky-300 shrink-0">
+                      <span className="px-3 py-1 rounded-full btn-glass-pill text-[11px] font-black text-sky-700 dark:text-sky-300 shrink-0">
                         {cls.totalClassStudents} Total
                       </span>
                     </div>
 
                     {/* Compact Section Chips (Auto-wrapping) */}
-                    <div className="pt-3">
-                      <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-2">Sections</p>
-                      <div className="flex flex-wrap gap-1.5">
+                    <div className="pt-3.5">
+                      <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-2.5">Sections</p>
+                      <div className="flex flex-wrap gap-2">
                         {cls.sections.map(sec => (
                           <button
                             key={sec.sectionName}
                             onClick={() => handleSelectSectionChip(cls.className, sec.sectionName)}
-                            className="group/chip inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-700/80 bg-slate-50 dark:bg-slate-800/60 hover:bg-brand-600 hover:border-brand-600 text-slate-700 dark:text-slate-200 hover:text-white transition-all cursor-pointer shadow-2xs"
+                            className="group/chip inline-flex items-center gap-2 px-3 py-1.5 rounded-2xl btn-glass-pill text-slate-700 dark:text-slate-200 hover:text-brand-600 dark:hover:text-brand-400 transition-all cursor-pointer active:scale-95"
                             title={`View students in ${cls.className} - ${sec.sectionName.toLowerCase() === 'unassigned' ? 'Unassigned' : `Section ${sec.sectionName}`}`}
                           >
                             <span className="text-xs font-bold">{sec.sectionName.toLowerCase() === 'unassigned' ? 'Unassigned' : `Section ${sec.sectionName}`}</span>
-                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-white/80 dark:bg-slate-900/80 group-hover/chip:bg-white/20 text-[10px] font-black text-slate-800 dark:text-slate-200 group-hover/chip:text-white">
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-slate-200/50 dark:bg-slate-800/80 text-[10px] font-black text-slate-800 dark:text-slate-200">
                               👥 {sec.count}
                             </span>
                           </button>
@@ -1575,7 +1575,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
                   </div>
 
                   {/* Footer subtext */}
-                  <div className="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between text-[10px] text-slate-400">
+                  <div className="mt-3.5 pt-2.5 border-t border-slate-200/50 dark:border-slate-800/60 flex items-center justify-between text-[10px] text-slate-400">
                     <span>Click section to open list</span>
                     <span className="font-mono font-bold text-slate-500">{selectedAcademicYear || ""}</span>
                   </div>
@@ -1596,7 +1596,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
           <div className="flex items-center gap-3 no-print">
             <button
               onClick={handleBackToOverview}
-              className="p-2 rounded-xl bg-white hover:bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 shadow-xs transition-colors shrink-0 flex items-center justify-center cursor-pointer h-9 w-9"
+              className="w-9 h-9 rounded-2xl btn-glass-secondary text-slate-600 dark:text-slate-300 shadow-xs shrink-0 flex items-center justify-center cursor-pointer active:scale-90"
               title="Back to Overview"
             >
               <ArrowLeft className="w-4.5 h-4.5" />
@@ -1620,12 +1620,12 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
           </div>
 
           {/* ROSTER TABLE FILTERS BAR (Hidden in Print) */}
-          <div className="glass-card p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 no-print">
+          <div className="glass-card p-3 rounded-2xl no-print">
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
               {/* Search Name */}
               <div className="flex flex-col w-full sm:w-72 md:w-80">
                 <div className="relative w-full">
-                  <Search className={`w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none transition-colors ${
+                  <Search className={`w-3.5 h-3.5 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none transition-colors ${
                     searchError ? 'text-rose-500' : 'text-slate-400'
                   }`} />
                   <input
@@ -1634,10 +1634,10 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
                     placeholder="Search by student name..."
                     value={searchName}
                     onChange={e => handleSearchNameChange(e.target.value)}
-                    className={`w-full pl-9 ${searchName ? 'pr-8' : 'pr-3'} py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border ${
+                    className={`w-full pl-9 ${searchName ? 'pr-8' : 'pr-3'} py-2 rounded-2xl glass-input ${
                       searchError
-                        ? 'border-rose-500 focus:border-rose-500 ring-1 ring-rose-500/20'
-                        : 'border-slate-200 dark:border-slate-700 focus:border-brand-500'
+                        ? 'border-rose-500! ring-1 ring-rose-500/20'
+                        : ''
                     } text-xs font-bold text-slate-900 dark:text-white outline-none transition`}
                   />
                   {searchName && (
@@ -1774,35 +1774,34 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
 
                         {/* 8. Status */}
                         <td className="py-3 px-4 text-center">
-                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${
-                            st.status === 'Active'
-                              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
-                              : 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
-                          }`}>
+                          <Badge
+                            variant={st.status === 'Active' ? 'success' : 'danger'}
+                            size="sm"
+                          >
                             {st.status}
-                          </span>
+                          </Badge>
                         </td>
 
                         {/* 9. Actions */}
                         <td className="py-3 px-4 text-center">
-                          <div className="flex items-center justify-center gap-1">
+                          <div className="flex items-center justify-center gap-1.5">
                             <button
                               onClick={() => setSelectedStudent(st)}
-                              className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300"
+                              className="w-8 h-8 rounded-xl btn-glass-secondary flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-sky-600 dark:hover:text-sky-400 active:scale-90 transition-transform cursor-pointer"
                               title="View Profile"
                             >
                               <Eye className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => { setStudentToEdit(st); setIsEditOpen(true); }}
-                              className="p-1.5 rounded-lg hover:bg-sky-50 dark:hover:bg-sky-900/30 text-sky-600 dark:text-sky-400"
+                              className="w-8 h-8 rounded-xl btn-glass-secondary flex items-center justify-center text-sky-600 dark:text-sky-400 hover:text-sky-500 active:scale-90 transition-transform cursor-pointer"
                               title="Edit Details"
                             >
                               <Edit className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => setStudentToDelete(st)}
-                              className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 text-red-600 dark:text-red-400"
+                              className="w-8 h-8 rounded-xl btn-glass-secondary flex items-center justify-center text-rose-500 hover:text-rose-600 active:scale-90 transition-transform cursor-pointer"
                               title="Delete Record"
                             >
                               <Trash2 className="w-4 h-4" />

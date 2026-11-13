@@ -802,17 +802,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <aside
-      className={`fixed top-0 left-0 bottom-0 z-40 bg-brand-50 dark:bg-brand-950 border-r border-slate-200/80 dark:border-slate-800 flex flex-col transition-all duration-300 ${
+      className={`fixed top-0 left-0 bottom-0 z-40 bg-brand-50/90 dark:bg-brand-950/90 backdrop-blur-2xl border-r border-brand-200/60 dark:border-brand-800/40 flex flex-col transition-all duration-300 shadow-xs ${
         collapsed ? "w-20" : "w-56"
       }`}
     >
       {/* Brand Header */}
       <div
-        className={`h-16 flex items-center justify-center border-b border-slate-200/80 dark:border-slate-800 px-2`}
+        className={`h-16 flex items-center justify-center border-b border-brand-200/60 dark:border-brand-800/40 px-2`}
       >
         {collapsed ? (
           <div
-            className="flex items-center justify-center w-12 h-10 rounded-xl border border-sky-100 dark:border-sky-900 bg-white dark:bg-slate-900 shadow-sm cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors overflow-hidden p-1"
+            className="flex items-center justify-center w-12 h-10 rounded-2xl btn-glass-secondary cursor-pointer overflow-hidden p-1 active:scale-95 transition-all"
             onClick={() => setCollapsed(false)}
             title={schoolProfile?.name || "School Dashboard"}
           >
@@ -825,12 +825,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 className="max-h-8 max-w-8 object-contain"
               />
             ) : (
-              <School className="w-5 h-5 text-sky-600 dark:text-sky-400" />
+              <School className="w-5 h-5 text-sky-600 dark:text-sky-400 stroke-[2.2]" />
             )}
           </div>
         ) : (
           <div
-            className={`flex items-center justify-center select-none cursor-pointer border border-sky-100 dark:border-sky-900 bg-white dark:bg-slate-900 shadow-sm transition-all hover:bg-slate-50 dark:hover:bg-slate-800/80 overflow-hidden ${
+            className={`flex items-center justify-center select-none cursor-pointer btn-glass-secondary transition-all overflow-hidden active:scale-98 ${
               logoMeta && Math.abs(logoMeta.ratio - 1) < 0.3
                 ? "w-12 h-12 rounded-2xl p-1.5 shrink-0"
                 : "h-12 w-auto max-w-[190px] px-3 py-1 rounded-2xl shrink-0"
@@ -1739,15 +1739,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       setAcademicsExpanded(false);
                     }}
                     title={collapsed ? item.label : undefined}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all ${
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-2xl text-xs transition-all active:scale-98 ${
                       isActive
-                        ? "bg-sky-600 text-white shadow-md shadow-sky-500/20 font-bold"
-                        : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white font-semibold"
+                        ? "btn-glass-primary font-bold"
+                        : "text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white font-semibold"
                     }`}
                   >
                     <div className="flex items-center gap-3 truncate">
                       <Icon
-                        className={`w-4 h-4 shrink-0 ${isActive ? "text-white" : "text-slate-400 group-hover:text-slate-600"}`}
+                        className={`w-4 h-4 shrink-0 stroke-[2] ${isActive ? "text-white" : "text-slate-400 group-hover:text-slate-600"}`}
                       />
                       {!collapsed && (
                         <span className="truncate">{item.label}</span>
