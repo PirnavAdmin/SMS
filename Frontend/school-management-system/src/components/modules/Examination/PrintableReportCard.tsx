@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { X, Printer, Award, AlertTriangle, GraduationCap } from 'lucide-react';
 import { Student, ExamSetup, ExamMark, ProcessedResult } from '../../../types';
 import { useData } from '../../../context/DataContext';
@@ -30,272 +30,336 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
   coScholastic: propCoScholastic
 }) => {
   const contextData = useData();
-  const schoolProfile = propSchoolProfile || contextData.schoolProfile;
+  const schoolProfile = propSchoolProfile || contextData.schoolProfile || {};
 
   const rawLogo = schoolProfile?.logoUrl || contextData.schoolProfile?.logoUrl;
   const logoUrl = resolveMediaUrl(rawLogo);
 
-  const allExamMarks = contextData.examMarks;
-  const allProcessedResults = contextData.processedResults;
-  const examSchedules = contextData.examSchedules;
-  const gradeConfigurations = contextData.gradeConfigurations;
-  const students = contextData.students;
+  const {
+    examMarks: allExamMarks = [],
+    processedResults: allProcessedResults = [],
+    examSchedules = [],
+    gradeConfigurations = [],
+    students = [],
+    exams = [],
+    academicYears = []
+  } = contextData;
 
-  const effectiveStudent: Student | null = student || (propProcessedResult ? {
-    id: propProcessedResult.studentId || '1',
-    firstName: (propProcessedResult.studentName || 'Student').trim().split(' ')[0] || 'Student',
-    lastName: (propProcessedResult.studentName || '').trim().split(' ').slice(1).join(' ') || '',
-    rollNo: propProcessedResult.rollNo || '',
-    admissionNo: propProcessedResult.admissionNo || propProcessedResult.studentId || '',
-    className: propProcessedResult.className || '',
-    section: propProcessedResult.section || '',
-    fatherName: 'Parent/Guardian',
-    status: 'Active'
-  } as Student : null);
+  // Resolve matching student from database to populate missing fields (e.g. father/guardian name, roll number)
+  const dbStudent = useMemo(() => {
+    const studentId = student?.id || propProcessedResult?.studentId;
+    const admissionNo = student?.admissionNo || propProcessedResult?.admissionNo;
+    const rollNo = student?.rollNo || propProcessedResult?.rollNo;
+
+    return students.find(s =>
+      (studentId && String(s.id) === String(studentId)) ||
+      (admissionNo && String(s.admissionNo).trim().toLowerCase() === String(admissionNo).trim().toLowerCase()) ||
+      (rollNo && String(s.rollNo).trim().toLowerCase() === String(rollNo).trim().toLowerCase())
+    );
+  }, [students, student, propProcessedResult]);
+
+  // Construct normalized active student
+  const activeStudent: Student | null = useMemo(() => {
+    if (student) {
+      return {
+        ...student,
+        fatherName: student.fatherName || (dbStudent as any)?.fatherName || (dbStudent as any)?.parentName || ''
+      };
+    }
+    if (dbStudent) return dbStudent;
+    if (propProcessedResult) {
+      const nameParts = (propProcessedResult.studentName || 'Student').trim().split(' ');
+      return {
+        id: propProcessedResult.studentId || '',
+        firstName: nameParts[0] || 'Student',
+        lastName: nameParts.slice(1).join(' ') || '',
+        rollNo: propProcessedResult.rollNo || '',
+        admissionNo: propProcessedResult.admissionNo || propProcessedResult.studentId || '',
+        className: propProcessedResult.className || '',
+        section: propProcessedResult.section || '',
+        fatherName: (propProcessedResult as any).fatherName || (propProcessedResult as any).parentName || '',
+        status: 'Active'
+      } as Student;
+    }
+    return null;
+  }, [student, dbStudent, propProcessedResult]);
 
   const currentAcademicYear =
     schoolProfile?.academicYear ||
-    contextData.academicYears?.find((y: any) => y.status === 'Active')?.academicYear ||
-    contextData.academicYears?.[0]?.academicYear ||
+    academicYears.find((y: any) => y.status === 'Active')?.academicYear ||
+    academicYears[0]?.academicYear ||
     '';
 
-  const effectiveExam: ExamSetup | null = exam || (propProcessedResult ? ({
-    id: propProcessedResult.examId || '1',
-    name: 'Academic Examination',
-    academicYear: currentAcademicYear,
-    className: propProcessedResult.className || '',
-    startDate: new Date().toISOString().split('T')[0],
-    endDate: new Date().toISOString().split('T')[0],
-    status: 'Published',
-    publishStatus: 'Published'
-  } as unknown as ExamSetup) : null);
-
-  if (!effectiveStudent || !effectiveExam) return null;
-
-  const activeStudent = effectiveStudent;
-  const activeExam = effectiveExam;
+  // Construct normalized active exam
+  const activeExam: ExamSetup | null = useMemo(() => {
+    if (exam) return exam;
+    const examId = propProcessedResult?.examId;
+    const foundExam = exams.find((e: any) => String(e.id) === String(examId));
+    if (foundExam) return foundExam;
+    if (propProcessedResult) {
+      return {
+        id: propProcessedResult.examId || '',
+        name: (propProcessedResult as any).examName || 'Examination',
+        academicYear: currentAcademicYear,
+        className: propProcessedResult.className || '',
+        startDate: '',
+        endDate: '',
+        status: 'Published',
+        publishStatus: 'Published'
+      } as unknown as ExamSetup;
+    }
+    return null;
+  }, [exam, propProcessedResult, exams, currentAcademicYear]);
 
   // Find processed result for aggregate values
-  const result = propProcessedResult || allProcessedResults.find(r => 
-    r.examId === activeExam.id && 
-    (
-      String(r.studentId) === String(activeStudent.id)
-    )
+  const result = useMemo(() => {
+    if (propProcessedResult) return propProcessedResult;
+    if (!activeExam || !activeStudent) return undefined;
+    return allProcessedResults.find(r =>
+      String(r.examId) === String(activeExam.id) && String(r.studentId) === String(activeStudent.id)
+    );
+  }, [propProcessedResult, allProcessedResults, activeExam, activeStudent]);
+
+  const isReleased = Boolean(
+    activeExam?.publishStatus === 'Published' ||
+    activeExam?.status === 'Results Published' ||
+    result?.status === 'Published'
   );
-  const isReleased = activeExam.publishStatus === 'Published' || activeExam.status === 'Results Published' || result?.status === 'Published';
 
-  // Get student marks list and deduplicate by subject name
-  const rawMarks = (propExamMarks && propExamMarks.length > 0)
-    ? propExamMarks
-    : allExamMarks.filter(m => 
-        m.examId === activeExam.id && 
-        (
-          String(m.studentId) === String(activeStudent.id)
-        )
-      );
+  // Subject schedules & grading configuration
+  const classSchedules = useMemo(() => {
+    if (!activeExam || !activeStudent) return [];
+    return examSchedules.filter(s => s.examId === activeExam.id && s.className === activeStudent.className);
+  }, [examSchedules, activeExam, activeStudent]);
 
-  const uniqueMarksMap = new Map<string, ExamMark>();
-  rawMarks.forEach(m => {
-    const sName = (m.subject || '').trim();
-    if (sName && !uniqueMarksMap.has(sName)) {
-      uniqueMarksMap.set(sName, m);
-    }
-  });
-  const marks = Array.from(uniqueMarksMap.values());
-
-  const classSchedules = examSchedules.filter(s => s.examId === activeExam.id && s.className === activeStudent.className);
-
-  // Compute subjects list (unique subject names)
-  const subjectsList = Array.from(new Set([
-    ...classSchedules.map(s => s.subject),
-    ...marks.map(m => m.subject),
-    ...(result?.subjectMarks || []).map((sm: any) => sm.subject || sm.subjectName || sm.name)
-  ].map(s => (s || '').trim()))).filter(Boolean);
-
-  const fullExam = (contextData.exams || []).find((e: any) => String(e.id) === String(activeExam.id));
-  const effectiveExamType = (activeExam as any).examType || 
-    (activeExam as any).assessmentType || 
-    fullExam?.examType || 
-    (fullExam as any)?.assessmentType || 
-    (result as any)?.examType || 
-    (result as any)?.assessmentType || 
-    (activeExam as any).gradeSchemeName ||
-    '';
-
-  // Get custom subject wise specs (max & pass marks)
-  const subjectWiseMap: Record<string, { maxMarks: number; passMarks: number }> = {};
-  classSchedules.forEach(s => {
-    if (s.subject) {
-      subjectWiseMap[s.subject] = { maxMarks: s.maxMarks, passMarks: s.passMarks };
-    }
-  });
-
-  const res: any = calculateStudentResult(marks, subjectsList, gradeConfigurations, subjectWiseMap, effectiveExamType);
-
-  // If result has official subjectMarks from the database/release, deduplicate and use them!
-  if (result?.subjectMarks && Array.isArray(result.subjectMarks) && result.subjectMarks.length > 0) {
-    const subMap = new Map<string, any>();
-    result.subjectMarks.forEach((sm: any) => {
-      const sName = (sm.subject || sm.subjectName || sm.name || '').trim();
-      if (sName && !subMap.has(sName)) {
-        subMap.set(sName, sm);
+  const subjectWiseMap = useMemo(() => {
+    const map: Record<string, { maxMarks: number; passMarks: number }> = {};
+    classSchedules.forEach(s => {
+      if (s.subject) {
+        map[s.subject] = { maxMarks: s.maxMarks, passMarks: s.passMarks };
+        map[s.subject.toLowerCase()] = { maxMarks: s.maxMarks, passMarks: s.passMarks };
       }
     });
-    res.subjectMarks = Array.from(subMap.values());
-    const sumSubObtained = res.subjectMarks.reduce((sum: number, sm: any) => {
-      const obt = sm.obtainedMarks ?? sm.marks;
-      if (obt === 'AB' || String(obt).toLowerCase() === 'absent') return sum;
-      return sum + (typeof obt === 'number' ? obt : (Number(obt) || 0));
-    }, 0);
-    const sumSubMax = res.subjectMarks.reduce((sum: number, sm: any) => sum + (Number(sm.maxMarks || sm.totalMarks) || 100), 0);
+    return map;
+  }, [classSchedules]);
 
-    const explicitObt = result.totalObtainedMarks ?? (result as any).totalMarksObtained ?? (result as any).totalMarks ?? (result as any).totalObtained ?? (result as any).obtainedMarks;
-    res.totalObtained = (explicitObt !== undefined && explicitObt !== null && Number(explicitObt) > 0)
-      ? Number(explicitObt)
-      : (sumSubObtained > 0 ? sumSubObtained : (res.totalObtained > 0 ? res.totalObtained : 0));
+  const fullExam = useMemo(() => {
+    if (!activeExam) return undefined;
+    return exams.find((e: any) => String(e.id) === String(activeExam.id));
+  }, [exams, activeExam]);
 
-    const explicitMax = result.totalMaxMarks ?? (result as any).totalMax ?? (result as any).maxMarks;
-    res.totalMax = (explicitMax !== undefined && explicitMax !== null && Number(explicitMax) > 0)
-      ? Number(explicitMax)
-      : (sumSubMax > 0 ? sumSubMax : (res.totalMax > 0 ? res.totalMax : 0));
+  const effectiveExamType =
+    (activeExam as any)?.examType ||
+    (activeExam as any)?.assessmentType ||
+    fullExam?.examType ||
+    (fullExam as any)?.assessmentType ||
+    (result as any)?.examType ||
+    (result as any)?.assessmentType ||
+    (activeExam as any)?.gradeSchemeName ||
+    '';
 
-    res.percentage = (result.percentage !== undefined && result.percentage !== null && result.percentage > 0)
-      ? result.percentage
-      : (res.totalMax > 0 ? parseFloat(((res.totalObtained / res.totalMax) * 100).toFixed(1)) : 0);
-    res.finalGrade = result.finalGrade || result.overallGrade || (result as any).grade || res.finalGrade || '';
-    res.overallGrade = res.finalGrade;
-    res.passStatus = result.passStatus || (result as any).resultStatus || (result as any).result || (result as any).status || '-';
-  } else if (result) {
-    const explicitObt = result.totalObtainedMarks ?? (result as any).totalMarksObtained ?? (result as any).totalMarks ?? (result as any).totalObtained ?? (result as any).obtainedMarks;
-    if (explicitObt !== undefined && explicitObt !== null) {
-      res.totalObtained = Number(explicitObt);
+  // Compute normalized subject rows and grand totals cleanly without boilerplate
+  const performance = useMemo(() => {
+    if (!activeStudent || !activeExam) {
+      return {
+        subjectMarks: [] as any[],
+        totalObtained: 0,
+        totalMax: 0,
+        percentage: 0,
+        overallGrade: '—',
+        overallResult: '—',
+        gpa: 0
+      };
     }
-    const explicitMax = result.totalMaxMarks ?? (result as any).totalMax ?? (result as any).maxMarks;
-    if (explicitMax !== undefined && explicitMax !== null) {
-      res.totalMax = Number(explicitMax);
-    }
-    if (result.percentage !== undefined && result.percentage !== null) {
-      res.percentage = result.percentage;
-    }
-    if (result.finalGrade || result.overallGrade || (result as any).grade) {
-      res.finalGrade = result.finalGrade || result.overallGrade || (result as any).grade;
-      res.overallGrade = res.finalGrade;
-    }
-  }
 
-  // Deduplicate res.subjectMarks by subject name and resolve pass/max marks dynamically
-  if (Array.isArray(res.subjectMarks)) {
-    const finalSubMap = new Map<string, any>();
-    res.subjectMarks.forEach((sm: any) => {
-      const sName = (sm.subject || sm.subjectName || sm.name || '').trim();
-      if (!sName) return;
-      const key = sName.toLowerCase();
-      if (!finalSubMap.has(key)) {
-        const spec = (subjectWiseMap && subjectWiseMap[sName]) || (subjectWiseMap && subjectWiseMap[key]) || {};
-        const maxM = Number(sm.maxMarks || sm.totalMarks || spec.maxMarks || 0) || 100;
-        const passM = (Number(sm.passMarks || sm.passLimit || spec.passMarks || 0) && Number(sm.passMarks || sm.passLimit || spec.passMarks || 0) > 0)
-          ? Number(sm.passMarks || sm.passLimit || spec.passMarks || 0)
-          : Math.round(maxM * 0.35);
+    const rawSubjectList: any[] = [];
+    if (result?.subjectMarks && Array.isArray(result.subjectMarks) && result.subjectMarks.length > 0) {
+      rawSubjectList.push(...result.subjectMarks);
+    } else {
+      const studentMarks = (propExamMarks && propExamMarks.length > 0)
+        ? propExamMarks
+        : allExamMarks.filter(m => m.examId === activeExam.id && String(m.studentId) === String(activeStudent.id));
+      rawSubjectList.push(...studentMarks);
+    }
 
-        const obtainedM = sm.obtainedMarks !== undefined ? sm.obtainedMarks : (sm.marks !== undefined ? sm.marks : 0);
-        const isAbsent = obtainedM === 'AB' || String(obtainedM).toLowerCase() === 'absent';
-        const numObtained = typeof obtainedM === 'number' ? obtainedM : (parseFloat(String(obtainedM || 0)) || 0);
-        const isPass = isAbsent ? false : (sm.isPass !== undefined ? Boolean(sm.isPass) : numObtained >= passM);
-        
-        const subPct = maxM > 0 ? (numObtained / maxM) * 100 : 0;
-        const subGrade = (sm.grade && sm.grade !== '-' && sm.grade !== '—' && sm.grade !== '') 
-          ? sm.grade 
-          : (isAbsent ? '-' : calculateGrade(subPct, gradeConfigurations, 'Percentage', effectiveExamType));
+    const subjectMap = new Map<string, any>();
+    rawSubjectList.forEach(item => {
+      const name = (item.subject || item.subjectName || item.name || '').trim();
+      if (!name) return;
+      const key = name.toLowerCase();
+      if (!subjectMap.has(key)) {
+        const spec = subjectWiseMap[name] || subjectWiseMap[key] || {};
+        const maxMarks = Number(item.maxMarks || item.totalMarks || spec.maxMarks) || 100;
+        const passMarks = Number(item.passMarks || item.passLimit || spec.passMarks) || Math.round(maxMarks * 0.35);
 
-        finalSubMap.set(key, {
-          ...sm,
-          subject: sName,
-          maxMarks: maxM,
-          passMarks: passM,
-          obtainedMarks: obtainedM,
-          grade: subGrade,
+        const rawObtained = item.obtainedMarks !== undefined ? item.obtainedMarks : item.marks;
+        const isAbsent = rawObtained === 'AB' || String(rawObtained).toLowerCase() === 'absent';
+        const numObtained = isAbsent ? 0 : (typeof rawObtained === 'number' ? rawObtained : (parseFloat(String(rawObtained || 0)) || 0));
+        const isPass = isAbsent ? false : (item.isPass !== undefined ? Boolean(item.isPass) : numObtained >= passMarks);
+
+        const subjectPct = maxMarks > 0 ? (numObtained / maxMarks) * 100 : 0;
+        const subjectGrade = (item.grade && item.grade !== '-' && item.grade !== '—' && item.grade !== '')
+          ? item.grade
+          : (isAbsent ? '-' : calculateGrade(subjectPct, gradeConfigurations, 'Percentage', effectiveExamType));
+
+        subjectMap.set(key, {
+          subject: name,
+          maxMarks,
+          passMarks,
+          obtainedMarks: isAbsent ? 'AB' : numObtained,
+          grade: subjectGrade,
           isPass
         });
       }
     });
-    res.subjectMarks = Array.from(finalSubMap.values());
 
-    // If totalObtained was 0 but subject marks are present, recalculate grand total
-    const sumCalculatedObt = res.subjectMarks.reduce((sum: number, sm: any) => {
-      const obt = sm.obtainedMarks;
-      if (obt === 'AB' || String(obt).toLowerCase() === 'absent') return sum;
-      return sum + (typeof obt === 'number' ? obt : (Number(obt) || 0));
+    const subjectMarks = Array.from(subjectMap.values());
+
+    const sumObtained = subjectMarks.reduce((sum, sm) => {
+      if (sm.obtainedMarks === 'AB') return sum;
+      return sum + (Number(sm.obtainedMarks) || 0);
     }, 0);
-    const sumCalculatedMax = res.subjectMarks.reduce((sum: number, sm: any) => sum + (Number(sm.maxMarks) || 100), 0);
-    if (!res.totalObtained || res.totalObtained === 0) {
-      res.totalObtained = sumCalculatedObt;
-    }
-    if (!res.totalMax || res.totalMax === 0) {
-      res.totalMax = sumCalculatedMax;
-    }
-    if (!res.percentage || res.percentage === 0) {
-      res.percentage = res.totalMax > 0 ? parseFloat(((res.totalObtained / res.totalMax) * 100).toFixed(1)) : 0;
-    }
-  }
+    const sumMax = subjectMarks.reduce((sum, sm) => sum + (Number(sm.maxMarks) || 0), 0);
 
-  if (!res.finalGrade || res.finalGrade === '-') {
-    res.finalGrade = calculateGrade(res.percentage, gradeConfigurations, 'Percentage', effectiveExamType);
-    res.overallGrade = res.finalGrade;
-  }
+    const explicitObt = result?.totalObtainedMarks ?? (result as any)?.totalMarksObtained ?? (result as any)?.totalMarks ?? (result as any)?.totalObtained;
+    const totalObtained = (explicitObt !== undefined && explicitObt !== null && Number(explicitObt) > 0)
+      ? Number(explicitObt)
+      : sumObtained;
 
-  // Compute Overall Result status dynamically if absent or fails are present
-  const hasSubjectFails = (res.subjectMarks || []).some((sub: any) => !sub.isPass);
-  const allSubjAbsent = (res.subjectMarks || []).length > 0 && (res.subjectMarks || []).every((sub: any) => sub.obtainedMarks === 'AB' || String(sub.obtainedMarks).toLowerCase() === 'absent');
-  res.overallResult = allSubjAbsent ? 'ABSENT' : (hasSubjectFails || res.percentage < 35 ? 'FAIL' : 'PASS');
-  // Calculate Rank in Class Section (using standard competition ranking)
-  const classStudents = students.filter(s => s.className === activeStudent.className && (!s.section || s.section === activeStudent.section));
-  const studentScores = classStudents.map(st => {
-    const stMarks = allExamMarks.filter(m => m.examId === activeExam.id && m.studentId === st.id);
-    const calculated = calculateStudentResult(stMarks, subjectsList, gradeConfigurations, subjectWiseMap, effectiveExamType);
-    return { studentId: st.id, score: calculated.totalObtained };
-  });
-  
-  const ranksMap = calculateCompetitionRanks(studentScores);
-  const rank = result?.rank ?? ranksMap[activeStudent.id] ?? '';
+    const explicitMax = result?.totalMaxMarks ?? (result as any)?.totalMax ?? (result as any)?.maxMarks;
+    const totalMax = (explicitMax !== undefined && explicitMax !== null && Number(explicitMax) > 0)
+      ? Number(explicitMax)
+      : (sumMax > 0 ? sumMax : 100);
 
-  // Attendance stats
-  const attData = propAttendance || (contextData as any).studentAttendance?.find((a: any) => a.studentId === activeStudent.id) || null;
-  const workingDays = Number(attData?.workingDays) || 0;
-  const presentDays = Number(attData?.presentDays) || 0;
-  const absentDays = Math.max(0, workingDays - presentDays);
-  const attendanceRate = workingDays > 0 ? ((presentDays / workingDays) * 100).toFixed(1) : '0.0';
+    const percentage = (result?.percentage !== undefined && result.percentage !== null && Number(result.percentage) > 0)
+      ? Number(result.percentage)
+      : (totalMax > 0 ? parseFloat(((totalObtained / totalMax) * 100).toFixed(1)) : 0);
 
-  // Co-Scholastic parameters
-  const csData = propCoScholastic || contextData.coScholasticAssessments?.find((c: any) => c.studentId === activeStudent.id) || null;
+    const overallGrade = result?.finalGrade || (result as any)?.overallGrade || (result as any)?.grade || calculateGrade(percentage, gradeConfigurations, 'Percentage', effectiveExamType);
+
+    const allAbsent = subjectMarks.length > 0 && subjectMarks.every(sm => sm.obtainedMarks === 'AB');
+    const hasFails = subjectMarks.some(sm => !sm.isPass);
+    const overallResult = allAbsent ? 'ABSENT' : (hasFails || percentage < 35 ? 'FAIL' : 'PASS');
+    const gpa = Number((result as any)?.gpa || (result as any)?.gradePoint) || 0;
+
+    return {
+      subjectMarks,
+      totalObtained,
+      totalMax,
+      percentage,
+      overallGrade,
+      overallResult,
+      gpa
+    };
+  }, [activeStudent, activeExam, result, propExamMarks, allExamMarks, subjectWiseMap, gradeConfigurations, effectiveExamType]);
+
+  // Calculate Rank in Class Section
+  const rank = useMemo(() => {
+    if (result?.rank) return String(result.rank);
+    if (!activeStudent || !activeExam) return '';
+    const classStudents = students.filter(s => s.className === activeStudent.className && (!s.section || s.section === activeStudent.section));
+    const scores = classStudents.map(st => {
+      const stMarks = allExamMarks.filter(m => m.examId === activeExam.id && m.studentId === st.id);
+      const calculated = calculateStudentResult(stMarks, [], gradeConfigurations, subjectWiseMap, effectiveExamType);
+      return { studentId: st.id, score: calculated.totalObtained };
+    });
+    const ranksMap = calculateCompetitionRanks(scores);
+    return ranksMap[activeStudent.id] || '';
+  }, [result, activeStudent, activeExam, students, allExamMarks, gradeConfigurations, subjectWiseMap, effectiveExamType]);
+
+  if (!activeStudent || !activeExam) return null;
 
   const handlePrint = () => {
     window.print();
   };
 
   const wrapContent = (
-    <div className="text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-900 p-6 space-y-5 print:p-2 print:space-y-4 print:overflow-visible report-card-sheet text-xs">
+    <div
+      id="printable-report-card-sheet"
+      className="text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-900 p-6 space-y-5 print:p-2 print:space-y-4 print:overflow-visible report-card-sheet text-xs"
+    >
       <style>{`
         @media print {
           @page {
             size: A4 portrait;
-            margin: 5mm 8mm;
+            margin: 8mm 10mm !important;
           }
           html, body {
-            height: 100% !important;
-            overflow: hidden !important;
-            background-color: white !important;
-            color: black !important;
+            height: auto !important;
+            min-height: 0 !important;
+            overflow: visible !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: #ffffff !important;
+            color: #0f172a !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
-          .no-print { display: none !important; }
-          .report-card-sheet {
-            page-break-after: avoid !important;
-            page-break-inside: avoid !important;
+          body * {
+            visibility: hidden !important;
+          }
+          .no-print, .no-print * {
+            display: none !important;
+          }
+          .printable-report-card-backdrop {
+            position: static !important;
             padding: 0 !important;
             margin: 0 !important;
+            background: transparent !important;
+            filter: none !important;
+            backdrop-filter: none !important;
+            transform: none !important;
+          }
+          .printable-report-card-dialog {
+            position: static !important;
+            border: none !important;
+            box-shadow: none !important;
+            max-height: none !important;
+            overflow: visible !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            background: transparent !important;
+          }
+          #printable-report-card-sheet,
+          #printable-report-card-sheet * {
+            visibility: visible !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          #printable-report-card-sheet {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 auto !important;
+            padding: 4px 6px !important;
             box-shadow: none !important;
             border: none !important;
+            background: #ffffff !important;
+            color: #0f172a !important;
+            page-break-after: avoid !important;
+            break-after: avoid !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+          #printable-report-card-sheet table {
             width: 100% !important;
-            max-height: 100vh !important;
+            border-collapse: collapse !important;
+          }
+          #printable-report-card-sheet th {
+            background-color: #f1f5f9 !important;
+            color: #334155 !important;
+            font-weight: 800 !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          #printable-report-card-sheet td {
+            color: #0f172a !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
         }
       `}</style>
@@ -315,14 +379,15 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
           {logoUrl ? (
             <img 
               src={logoUrl} 
-              alt={schoolProfile.name || 'School Logo'} 
-              className="h-16 w-auto max-w-[140px] object-contain rounded-xl shadow-xs"
+              alt={schoolProfile?.name || 'School Logo'} 
+              style={{ width: '130px', height: '60px', maxHeight: '60px', maxWidth: '130px', objectFit: 'contain' }}
+              className="rounded-xl shadow-xs"
             />
           ) : (
             <div className="flex items-center justify-center gap-2 px-4 py-2 rounded-2xl border border-sky-100 dark:border-sky-900 bg-white dark:bg-slate-800 shadow-xs">
               <GraduationCap className="w-6 h-6 text-sky-600 dark:text-sky-400" />
               <span className="text-xl font-black italic tracking-wider text-sky-700 dark:text-sky-400">
-                PIRNAV <span className="text-[9px] font-bold tracking-widest uppercase block text-sky-600 dark:text-sky-400 text-center not-italic">SCHOOLS</span>
+                {(schoolProfile?.name || 'School').split(' ')[0]} <span className="text-[9px] font-bold tracking-widest uppercase block text-sky-600 dark:text-sky-400 text-center not-italic">EDUCATION</span>
               </span>
             </div>
           )}
@@ -331,41 +396,63 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
         {/* Center School Details */}
         <div className="flex-1 text-center font-sans space-y-1">
           <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 dark:text-white uppercase leading-none">
-            {schoolProfile.name || 'Pirnav Educational Institutions'}
+            {schoolProfile?.name || 'Pirnav Educational Institution'}
           </h1>
-          <p className="text-[11px] text-slate-600 dark:text-slate-300 font-bold max-w-xl mx-auto leading-tight">
-            {schoolProfile.address || ''}
-          </p>
-          <p className="text-[10px] text-slate-500 font-bold">
-            Ph: {schoolProfile.phone || '+91 9123456789'} • Email: {schoolProfile.email || 'contact@pirnavschools.edu'}
-          </p>
+          {schoolProfile?.address && (
+            <p className="text-[11px] text-slate-600 dark:text-slate-300 font-bold max-w-xl mx-auto leading-tight">
+              {schoolProfile.address}
+            </p>
+          )}
+          {(schoolProfile?.phone || schoolProfile?.email) && (
+            <p className="text-[10px] text-slate-500 font-bold">
+              {[
+                schoolProfile?.phone ? `Ph: ${schoolProfile.phone}` : null,
+                schoolProfile?.email ? `Email: ${schoolProfile.email}` : null
+              ].filter(Boolean).join(' • ')}
+            </p>
+          )}
 
-          <div className="pt-1 flex items-center justify-center gap-2">
-            <span className="inline-block px-4 py-1 rounded-full bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 text-[10px] font-black tracking-widest uppercase shadow-xs">
+          <div className="pt-1 flex items-center justify-center gap-2 flex-wrap">
+            <span
+              style={{ backgroundColor: '#0f172a', color: '#ffffff' }}
+              className="inline-block px-4 py-1 rounded-full text-[10px] font-black tracking-widest uppercase shadow-xs"
+            >
               STUDENT ACADEMIC PROGRESS REPORT CARD
             </span>
-            <span className="text-xs font-black text-sky-600 dark:text-sky-400 uppercase">({activeExam.name})</span>
+            {activeExam.name && (
+              <span
+                style={{ color: '#eab308' }}
+                className="text-xs font-black uppercase"
+              >
+                ({activeExam.name})
+              </span>
+            )}
           </div>
         </div>
       </div>
 
       {/* Student Profile Information Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-xs font-semibold">
+      <div
+        style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '16px' }}
+        className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-xs font-semibold"
+      >
         <div>
           <span className="block text-[10px] uppercase font-bold text-slate-400">Student Full Name</span>
           <p className="font-black text-slate-900 dark:text-white text-xs mt-0.5">{activeStudent.firstName} {activeStudent.lastName}</p>
         </div>
         <div>
           <span className="block text-[10px] uppercase font-bold text-slate-400">Student ID / Roll No</span>
-          <p className="font-mono font-black text-slate-800 dark:text-slate-200 text-xs mt-0.5">ID: {activeStudent.id} / Roll: {activeStudent.rollNo || 'N/A'}</p>
+          <p className="font-mono font-black text-slate-800 dark:text-slate-200 text-xs mt-0.5">ID: {activeStudent.admissionNo || activeStudent.id} / Roll: {activeStudent.rollNo || '—'}</p>
         </div>
         <div>
           <span className="block text-[10px] uppercase font-bold text-slate-400">Class & Section</span>
-          <p className="font-bold text-slate-800 dark:text-slate-200 text-xs mt-0.5">{activeStudent.className}{activeStudent.section ? (activeStudent.section.toLowerCase() === 'unassigned' ? ' (Unassigned)' : ` (Section ${activeStudent.section})`) : ''}</p>
+          <p className="font-bold text-slate-800 dark:text-slate-200 text-xs mt-0.5">
+            {activeStudent.className || '—'}{activeStudent.section ? (activeStudent.section.toLowerCase() === 'unassigned' ? ' (Unassigned)' : ` (Section ${activeStudent.section})`) : ''}
+          </p>
         </div>
         <div>
           <span className="block text-[10px] uppercase font-bold text-slate-400">Father / Guardian Name</span>
-          <p className="font-bold text-slate-800 dark:text-slate-200 text-xs mt-0.5">{activeStudent.fatherName || 'Parent/Guardian'}</p>
+          <p className="font-bold text-slate-800 dark:text-slate-200 text-xs mt-0.5">{activeStudent.fatherName || '—'}</p>
         </div>
       </div>
 
@@ -384,12 +471,12 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
             </tr>
           </thead>
           <tbody className="font-semibold text-slate-800 dark:text-slate-200 text-xs">
-            {res.subjectMarks.length === 0 ? (
+            {performance.subjectMarks.length === 0 ? (
               <tr>
                 <td colSpan={6} className="p-4 text-center text-slate-400 italic">No subject marks recorded for this examination.</td>
               </tr>
             ) : (
-              res.subjectMarks.map((sub: any, index: number) => {
+              performance.subjectMarks.map((sub: any, index: number) => {
                 const isAbsent = sub.obtainedMarks === 'AB';
                 return (
                   <tr key={`${sub.subject}-${index}`} className="border-b border-slate-200 dark:border-slate-800 hover:bg-slate-50/50">
@@ -418,34 +505,37 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
             {/* Total Row */}
             <tr className="bg-slate-100 dark:bg-slate-800 font-black text-xs border-t-2 border-slate-350 dark:border-slate-700">
               <td className="py-2.5 px-3.5 border-r border-slate-300 dark:border-slate-700">Aggregate Total</td>
-              <td className="py-2.5 px-3.5 border-r border-slate-300 dark:border-slate-700 text-center font-mono">{res.totalMax}</td>
+              <td className="py-2.5 px-3.5 border-r border-slate-300 dark:border-slate-700 text-center font-mono">{performance.totalMax}</td>
               <td className="py-2.5 px-3.5 border-r border-slate-300 dark:border-slate-700 text-center font-mono">—</td>
-              <td className="py-2.5 px-3.5 border-r border-slate-300 dark:border-slate-700 text-center font-mono text-sky-600">{res.totalObtained}</td>
-              <td className="py-2.5 px-3.5 border-r border-slate-300 dark:border-slate-700 text-center text-emerald-600 font-extrabold">{res.percentage}%</td>
-              <td className="py-2.5 px-3.5 text-center font-mono font-bold text-xs">{res.overallResult}</td>
+              <td className="py-2.5 px-3.5 border-r border-slate-300 dark:border-slate-700 text-center font-mono text-amber-500 font-black">{performance.totalObtained}</td>
+              <td className="py-2.5 px-3.5 border-r border-slate-300 dark:border-slate-700 text-center text-emerald-600 font-extrabold">{performance.percentage}%</td>
+              <td className="py-2.5 px-3.5 text-center font-mono font-bold text-xs">{performance.overallResult}</td>
             </tr>
           </tbody>
         </table>
       </div>
 
       {/* Performance Summary Metrics Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3.5 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 text-center font-bold">
+      <div
+        style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '12px' }}
+        className="p-3.5 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-700 text-center font-bold"
+      >
         <div className="space-y-0.5">
           <span className="block text-[9px] uppercase text-slate-400">Class Rank</span>
-          <p className="text-sky-600 font-black text-base">{rank ? `#${rank}` : '—'}</p>
+          <p className="text-amber-500 font-black text-base">{rank ? `#${rank}` : '—'}</p>
         </div>
         <div className="space-y-0.5">
           <span className="block text-[9px] uppercase text-slate-400">Aggregate Percentage</span>
-          <p className="text-slate-900 dark:text-white font-black text-base">{res.percentage}%</p>
+          <p className="text-slate-900 dark:text-white font-black text-base">{performance.percentage}%</p>
         </div>
         <div className="space-y-0.5">
-          <span className="block text-[9px] uppercase text-slate-400">{res.gpa > 0 ? 'GPA / Grade' : 'Grade'}</span>
-          <p className="text-emerald-600 font-black text-base">{res.gpa > 0 ? `${res.gpa.toFixed(1)} / ` : ''}{res.overallGrade || '—'}</p>
+          <span className="block text-[9px] uppercase text-slate-400">{performance.gpa > 0 ? 'GPA / Grade' : 'Grade'}</span>
+          <p className="text-emerald-600 font-black text-base">{performance.gpa > 0 ? `${performance.gpa.toFixed(1)} / ` : ''}{performance.overallGrade || '—'}</p>
         </div>
         <div className="space-y-0.5">
           <span className="block text-[9px] uppercase text-slate-400">Final Result</span>
-          <p className={`font-black text-base uppercase ${res.overallResult === 'PASS' ? 'text-emerald-600' : res.overallResult === 'FAIL' ? 'text-rose-600' : 'text-slate-700 dark:text-slate-300'}`}>
-            {res.overallResult || '—'}
+          <p className={`font-black text-base uppercase ${performance.overallResult === 'PASS' ? 'text-emerald-600' : performance.overallResult === 'FAIL' ? 'text-rose-600' : 'text-slate-700 dark:text-slate-300'}`}>
+            {performance.overallResult || '—'}
           </p>
         </div>
       </div>
@@ -461,7 +551,10 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
       )}
 
       {/* Bottom Official Signatures Block */}
-      <div className="grid grid-cols-2 gap-8 items-center pt-5 border-t border-slate-200 dark:border-slate-800">
+      <div
+        style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '32px' }}
+        className="items-center pt-5 border-t border-slate-200 dark:border-slate-800"
+      >
         <div className="text-center space-y-1">
           <div className="w-40 mx-auto border-t-2 border-slate-900 dark:border-slate-100 pt-2 text-[10px] font-extrabold text-slate-700 dark:text-slate-300 uppercase">
             Class Teacher Signature
@@ -480,13 +573,13 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
   if (!isOpen) return wrapContent;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-in fade-in overflow-y-auto">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-805 rounded-3xl max-w-4xl w-full shadow-2xl overflow-hidden flex flex-col my-6 max-h-[92vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-in fade-in overflow-y-auto printable-report-card-backdrop">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-4xl w-full shadow-2xl overflow-hidden flex flex-col my-6 max-h-[92vh] printable-report-card-dialog">
         
         {/* Top Controls Header Bar */}
-        <div className="p-4 bg-slate-105 dark:bg-slate-800/80 flex items-center justify-between border-b shrink-0 border-slate-200 dark:border-slate-700 no-print">
-          <div className="flex items-center gap-2 text-slate-805 dark:text-slate-200">
-            <div className="p-2 bg-sky-600 text-white rounded-xl shadow-md">
+        <div className="p-4 bg-slate-100 dark:bg-slate-800/80 flex items-center justify-between border-b shrink-0 border-slate-200 dark:border-slate-700 no-print">
+          <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200">
+            <div className="p-2 bg-rose-600 text-white rounded-xl shadow-md">
               <Award className="w-4 h-4" />
             </div>
             <div>
@@ -497,14 +590,16 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
           
           <div className="flex items-center gap-2">
             <button
+              type="button"
               onClick={handlePrint}
-              className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-md transition-all"
+              className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-md transition-all cursor-pointer"
             >
               <Printer className="w-4 h-4" /> Print / Save PDF
             </button>
             <button
+              type="button"
               onClick={onClose}
-              className="p-2 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-750 rounded-xl transition-colors"
+              className="p-2 text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>

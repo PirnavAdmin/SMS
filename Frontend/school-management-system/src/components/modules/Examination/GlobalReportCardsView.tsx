@@ -713,14 +713,14 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
     const lastName = nameParts.slice(1).join(' ') || '';
 
     return {
-      id: previewResult.studentId || '1',
+      id: previewResult.studentId || '',
       firstName,
       lastName,
       rollNo: previewResult.rollNo || '',
       admissionNo: previewResult.admissionNo || previewResult.studentId || '',
-      className: previewResult.className || selectedClass || '5',
-      section: previewResult.section || selectedSection || 'A',
-      fatherName: 'Parent/Guardian',
+      className: previewResult.className || selectedClass || '',
+      section: previewResult.section || selectedSection || '',
+      fatherName: (previewResult as any).fatherName || (previewResult as any).parentName || '',
       status: 'Active'
     } as Student;
   }, [previewResult, students, selectedClass, selectedSection]);
@@ -730,17 +730,18 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
     const found = (exams || []).find(e => String(e.id) === String(previewResult.examId));
     if (found) return found;
     return activeExamObj || ({
-      id: previewResult.examId || '1',
-      name: 'Academic Examination',
+      id: previewResult.examId || '',
+      name: (previewResult as any).examName || activeExamObj?.name || 'Examination',
       academicYear: currentAcademicYear,
       status: 'Results Published',
       publishStatus: 'Published'
     } as ExamSetup);
-  }, [previewResult, exams, activeExamObj]);
+  }, [previewResult, exams, activeExamObj, currentAcademicYear]);
 
   return (
     <div className="space-y-4 text-left w-full">
-      {/* 1. Page Header Card */}
+      <div className={previewResult ? "space-y-4 no-print print:hidden" : "space-y-4"}>
+        {/* 1. Page Header Card */}
       <div className="py-4 px-5 sm:px-6 rounded-3xl border border-sky-400 bg-white dark:bg-slate-900 shadow-xs flex flex-wrap items-center justify-between gap-4 no-print">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-sky-600 text-white flex items-center justify-center shadow-md shadow-sky-600/20 shrink-0">
@@ -1361,6 +1362,7 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
             </div>
           </div>
         )}
+      </div>
       </div>
 
       {/* 5. Printable Report Card Modal Preview */}

@@ -315,6 +315,7 @@ export const ReportCards: React.FC<ReportCardsProps> = ({
 
   return (
     <div className="space-y-4 text-left">
+      <div className={previewResult ? "no-print print:hidden" : ""}>
       <Panel
         title="Student Report Cards"
         action={
@@ -703,54 +704,59 @@ export const ReportCards: React.FC<ReportCardsProps> = ({
             </div>
           )}
         </div>
+      </Panel>
+      </div>
 
-        {/* Modal: Interactive Single Report Card Viewer */}
-        {previewResult && previewStudent && (
-          <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 print:hidden">
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6 space-y-4 shadow-2xl">
-              <div className="flex items-center justify-between border-b pb-4">
-                <div>
-                  <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase">Official Report Card Preview</h3>
-                  <p className="text-xs text-slate-500 font-medium">Verify scholastic breakdown and attendance summary before printing.</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => handlePrintSingle(previewResult)}
-                    className="px-3.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm cursor-pointer"
-                  >
-                    Print Now
-                  </button>
-                  <button
-                    onClick={() => handleDownloadSingle(previewResult)}
-                    className="px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <Download className="w-3.5 h-3.5" />
-                    <span>Download PDF</span>
-                  </button>
-                  <button
-                    onClick={() => setPreviewResult(null)}
-                    className="px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold text-slate-600 dark:text-slate-400 cursor-pointer"
-                  >
-                    Close
-                  </button>
-                </div>
+      {/* Modal: Interactive Single Report Card Viewer */}
+      {previewResult && previewStudent && (
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b pb-4 no-print">
+              <div>
+                <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase">Official Report Card Preview</h3>
+                <p className="text-xs text-slate-500 font-medium">Verify scholastic breakdown and attendance summary before printing.</p>
               </div>
-
-              {/* Printable Component Body */}
-              <div className="rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
-                <PrintableReportCard
-                  student={previewStudent}
-                  exam={exam}
-                  processedResult={previewResult}
-                  attendance={getAttendanceForStudent(previewResult.studentId)}
-                  coScholastic={getCoScholasticForStudent(previewResult.studentId)}
-                  onClose={() => setPreviewResult(null)}
-                />
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handlePrintSingle(previewResult)}
+                  className="px-3.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm cursor-pointer"
+                >
+                  Print Now
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDownloadSingle(previewResult)}
+                  className="px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Download PDF</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreviewResult(null)}
+                  className="px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold text-slate-600 dark:text-slate-400 cursor-pointer"
+                >
+                  Close
+                </button>
               </div>
             </div>
+
+            {/* Printable Component Body */}
+            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+              <PrintableReportCard
+                student={previewStudent}
+                exam={exam}
+                processedResult={previewResult}
+                attendance={getAttendanceForStudent(previewResult.studentId)}
+                coScholastic={getCoScholasticForStudent(previewResult.studentId)}
+                isOpen={false}
+                onClose={() => setPreviewResult(null)}
+              />
+            </div>
           </div>
-        )}
-      </Panel>
+        </div>
+      )}
     </div>
   );
 };

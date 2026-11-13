@@ -9,10 +9,13 @@ export function generateReportCardHtml(
   subjects: SubjectItem[] = [],
   gradeRules?: GradeConfig[]
 ): string {
-  const schoolName = schoolProfile?.name || 'Central School ERP';
-  const schoolAddress = schoolProfile?.address || 'Institutional Campus, Main Road';
-  const schoolContact = `${schoolProfile?.phone ? `Ph: ${schoolProfile.phone} ` : ''}${schoolProfile?.email ? `• Email: ${schoolProfile.email}` : ''}`;
-  const examName = exam?.name || 'Term Assessment Examination';
+  const schoolName = schoolProfile?.name || 'School';
+  const schoolAddress = schoolProfile?.address || '';
+  const schoolContact = [
+    schoolProfile?.phone ? `Ph: ${schoolProfile.phone}` : null,
+    schoolProfile?.email ? `Email: ${schoolProfile.email}` : null
+  ].filter(Boolean).join(' • ');
+  const examName = exam?.name || 'Examination';
   const academicYear = exam?.academicYear || '';
 
   const rawSubjects = (data.subjectMarks || []) as any[];
@@ -155,7 +158,7 @@ export function generateReportCardHtml(
         </div>
         <div style="background: #ffffff; border: 1px solid #e0f2fe; border-radius: 6px; padding: 6px 2px;">
           <label style="display: block; font-size: 8.5px; font-weight: 800; text-transform: uppercase; color: #64748b; margin-bottom: 1px;">Class Rank</label>
-          <div style="font-size: 12.5px; font-weight: 900; color: #d97706;">#${data.rank || 1}</div>
+          <div style="font-size: 12.5px; font-weight: 900; color: #d97706;">${data.rank ? `#${data.rank}` : '—'}</div>
         </div>
         <div style="background: #ffffff; border: 1px solid #e0f2fe; border-radius: 6px; padding: 6px 2px;">
           <label style="display: block; font-size: 8.5px; font-weight: 800; text-transform: uppercase; color: #64748b; margin-bottom: 1px;">Final Status</label>
