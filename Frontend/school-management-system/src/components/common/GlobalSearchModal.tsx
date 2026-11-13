@@ -153,28 +153,32 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ isOpen, on
 
   return (
     <div 
-      className="fixed inset-0 z-50 flex items-start justify-center pt-20 p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in"
+      className="fixed inset-0 z-50 flex items-start justify-center pt-20 p-4 bg-slate-950/40 backdrop-blur-md animate-in fade-in"
       onClick={onClose}
     >
       <div 
-        className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-xl w-full shadow-2xl overflow-hidden"
+        className="glass-surface border border-white/60 dark:border-white/10 rounded-3xl max-w-xl w-full shadow-2xl overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
         {/* Search Input */}
-        <div className="flex items-center gap-3 px-4 py-3.5 border-b border-slate-200 dark:border-slate-800">
+        <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-200/50 dark:border-slate-800/50">
           <Search className="w-5 h-5 text-slate-400" />
           <input
             ref={inputRef}
             type="text"
-            placeholder="Search"
+            placeholder="Search modules, students, teachers..."
             title="Search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             autoFocus
-            className="flex-1 bg-transparent border-none outline-none text-slate-900 dark:text-white placeholder-slate-400 text-sm"
+            className="flex-1 bg-transparent border-none outline-none text-slate-900 dark:text-white placeholder-slate-400 text-sm font-semibold"
           />
-          <button onClick={handleClearOrClose} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-lg">
-            <X className="w-5 h-5" />
+          <button 
+            onClick={handleClearOrClose} 
+            className="w-7 h-7 rounded-full btn-glass-secondary flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer active:scale-90"
+            title="Close"
+          >
+            <X className="w-4 h-4" />
           </button>
         </div>
 
@@ -192,7 +196,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ isOpen, on
                   <div
                     key={s.id}
                     onClick={() => { onNavigate('students'); onClose(); }}
-                    className="flex items-center justify-between p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer transition-colors"
+                    className="flex items-center justify-between p-2.5 rounded-2xl hover:bg-white/60 dark:hover:bg-slate-800/60 cursor-pointer transition-all active:scale-[0.99]"
                   >
                     <div className="flex items-center gap-3">
                       <img src={s.avatar} alt="" className="w-8 h-8 rounded-full object-cover" />

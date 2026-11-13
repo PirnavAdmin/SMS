@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Search, Sun, Moon, Palette, Bell, Shield, LogOut, Key, Calendar, CheckCircle2,
   Megaphone, Building2, Plus, Edit, Trash2, ChevronDown, X, Menu, User
@@ -95,8 +96,8 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
   }, [staff, driverMasters, user, role]);
 
   const displayName = useMemo(() => {
-    return (user?.name || '').trim();
-  }, [user?.name]);
+    return (user?.name || (user as any)?.username || (user?.email ? user.email.split('@')[0] : '') || '').trim();
+  }, [user]);
 
   const [showRoleMenu, setShowRoleMenu] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -442,25 +443,40 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
   };
 
   const displayRole = useMemo(() => {
-    const userRole = (role || user?.role || '').toLowerCase();
+    const userRole = (role || user?.role || '').toLowerCase().trim();
     if (userRole === 'parent' || (user?.role && user.role.toLowerCase() === 'parent') || (user?.email && user.email.toLowerCase().includes('parent'))) return 'Parent';
     if (userRole === 'student') return 'Student';
-    return role || user?.role || 'User';
+    if (userRole === 'superadmin' || userRole === 'super admin') return 'Super Admin';
+    if (userRole === 'admin') return 'Admin';
+    if (userRole === 'teacher') return 'Teacher';
+    if (userRole === 'principal') return 'Principal';
+    if (userRole === 'hr') return 'HR';
+    if (userRole === 'accountant') return 'Accountant';
+    if (userRole === 'librarian') return 'Librarian';
+    if (userRole === 'transport manager' || userRole === 'transportmanager') return 'Transport Manager';
+    if (userRole === 'driver') return 'Driver';
+    if (userRole === 'hostel warden' || userRole === 'warden') return 'Hostel Warden';
+    if (userRole === 'receptionist') return 'Receptionist';
+    if (userRole === 'staff') return 'Staff';
+    if (role) return role.charAt(0).toUpperCase() + role.slice(1);
+    if (user?.role) return user.role.charAt(0).toUpperCase() + user.role.slice(1);
+    return 'User';
   }, [role, user]);
 
   return (
     <header
-      className={`fixed top-0 right-0 z-40 h-16 bg-brand-50 dark:bg-brand-950 border-b border-slate-200/80 dark:border-slate-800 shadow-xs transition-all duration-300 flex items-center justify-between gap-4 sm:gap-6 px-4 sm:px-6 ${
+      className={`fixed top-0 right-0 z-40 h-16 bg-brand-50/90 dark:bg-brand-950/90 backdrop-blur-2xl border-b border-brand-200/60 dark:border-brand-800/40 shadow-xs transition-all duration-300 flex items-center justify-between gap-4 sm:gap-6 px-4 sm:px-6 ${
         collapsed ? 'left-20' : 'left-56'
       }`}
     >
       <div className="flex items-center flex-1 min-w-0">
-        {/* Sidebar Toggle Hamburger (in circle) */}
+        {/* Sidebar Toggle Hamburger (iOS frosted squircle) */}
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="w-10 h-10 rounded-full border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors mr-4 sm:mr-6 shrink-0"
+          className="w-10 h-10 rounded-2xl btn-glass-secondary flex items-center justify-center text-slate-600 dark:text-slate-300 mr-4 sm:mr-6 shrink-0 active:scale-95"
+          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
-          <Menu className="w-5 h-5" />
+          <Menu className="w-5 h-5 stroke-[2.2]" />
         </button>
 
         {/* Search & Branch & Academic Year Selectors */}
@@ -469,10 +485,11 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
             onClick={onOpenSearch}
             title="Search"
             aria-label="Search"
-            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 text-slate-500 dark:text-slate-400 text-xs font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-all w-40 sm:w-60 shrink min-w-0 h-9"
+            className="flex items-center gap-2.5 px-3.5 py-2 rounded-2xl btn-glass-pill text-slate-500 dark:text-slate-400 text-xs font-semibold w-40 sm:w-60 shrink min-w-0 h-9.5 group"
           >
-            <Search className="w-4 h-4 shrink-0 text-slate-400" />
-            <span className="truncate">Search</span>
+            <Search className="w-4 h-4 shrink-0 text-slate-400 group-hover:text-sky-500 transition-colors stroke-[2.2]" />
+            <span className="truncate">Search...</span>
+            <span className="ml-auto hidden sm:inline-block text-[10px] font-mono px-1.5 py-0.5 rounded-lg bg-slate-200/60 dark:bg-slate-700/60 text-slate-400">⌘K</span>
           </button>
 
         {/* Global Branch Selector with Permissions */}
@@ -480,17 +497,19 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
           <div className="relative animate-in fade-in" ref={branchRef}>
             <button
               onClick={() => setShowBranchMenu(!showBranchMenu)}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white dark:bg-slate-800 border border-sky-200 dark:border-sky-800 text-xs hover:bg-sky-50/50 dark:hover:bg-slate-700 transition-colors h-9 cursor-pointer"
+              className="flex items-center gap-2 px-3.5 py-2 rounded-2xl btn-glass-pill text-xs h-9.5 cursor-pointer active:scale-95"
             >
-              <Building2 className="w-4 h-4 text-sky-600 dark:text-sky-400 shrink-0" />
+              <div className="w-5 h-5 rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
+                <Building2 className="w-3.5 h-3.5 stroke-[2.2]" />
+              </div>
               <span className="max-w-32 truncate font-bold text-slate-900 dark:text-white">
                 {selectedBranch || (authorizedBranches.length > 0 ? authorizedBranches[0] : "Select Campus")}
               </span>
-              <ChevronDown className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400 shrink-0" />
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0 stroke-[2.2]" />
             </button>
 
             {showBranchMenu && (
-              <div className="absolute left-0 mt-2 w-48 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl z-50 p-2 animate-in fade-in zoom-in-95">
+              <div className="absolute left-0 mt-2 w-52 rounded-3xl glass-surface border border-white/60 dark:border-white/10 shadow-2xl z-50 p-2 animate-in fade-in zoom-in-95">
                 {canManageBranch && (
                   <button
                     onClick={() => {
@@ -568,18 +587,20 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
           <div className="relative animate-in fade-in" ref={ayRef}>
             <button
               onClick={() => setShowAYMenu(!showAYMenu)}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white dark:bg-slate-800 border border-sky-200 dark:border-sky-800 text-xs hover:bg-sky-50/50 dark:hover:bg-slate-700 transition-colors h-9 cursor-pointer"
+              className="flex items-center gap-2 px-3.5 py-2 rounded-2xl btn-glass-pill text-xs h-9.5 cursor-pointer active:scale-95"
             >
-              <Calendar className="w-4 h-4 text-sky-600 dark:text-sky-400 shrink-0" />
-              <span className="text-sky-600 dark:text-sky-400 font-semibold whitespace-nowrap">Academic Year:</span>
+              <div className="w-5 h-5 rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
+                <Calendar className="w-3.5 h-3.5 stroke-[2.2]" />
+              </div>
+              <span className="text-slate-500 dark:text-slate-400 font-medium whitespace-nowrap">Academic Year:</span>
               <span className="font-bold text-slate-900 dark:text-white whitespace-nowrap">
                 {formatAYDisplay(selectedAcademicYear) || (ayOptions.length > 0 ? formatAYDisplay(ayOptions[0].academicYear) : "Select Academic Year")}
               </span>
-              <ChevronDown className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400 shrink-0" />
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0 stroke-[2.2]" />
             </button>
 
             {showAYMenu && (
-              <div className="absolute left-0 mt-2 w-52 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl z-50 p-2 animate-in fade-in zoom-in-95 space-y-1">
+              <div className="absolute left-0 mt-2 w-56 rounded-3xl glass-surface border border-white/60 dark:border-white/10 shadow-2xl z-50 p-2 animate-in fade-in zoom-in-95 space-y-1">
                 {ayOptions.map((item) => {
                   const isSelected = selectedAcademicYear === item.academicYear || formatAYDisplay(selectedAcademicYear) === formatAYDisplay(item.academicYear);
                   return (
@@ -589,15 +610,15 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
                         setSelectedAcademicYear(item.academicYear);
                         setShowAYMenu(false);
                       }}
-                      className={`w-full flex items-center justify-between px-3 py-2 text-xs rounded-xl transition-colors font-medium text-left cursor-pointer ${
+                      className={`w-full flex items-center justify-between px-3 py-2 text-xs rounded-2xl transition-all font-semibold text-left cursor-pointer ${
                         isSelected
-                          ? 'bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 font-bold'
-                          : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
+                          ? 'btn-glass-primary font-extrabold'
+                          : 'text-slate-700 dark:text-slate-200 hover:bg-white/60 dark:hover:bg-slate-800/60'
                       }`}
                     >
                       <span className="font-semibold">{formatAYDisplay(item.academicYear)}</span>
                       {item.isCurrent && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 font-normal">
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${isSelected ? 'bg-white/20 text-white' : 'bg-sky-500/12 text-sky-600 dark:text-sky-400'}`}>
                           Current
                         </span>
                       )}
@@ -612,17 +633,17 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
       </div>
 
       {/* Right side tools: Notifications & User Profile */}
-      <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+      <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
         {/* Theme Customizer Quick Studio Toggle */}
         <button
           type="button"
           onClick={() => setShowThemeCustomizer((prev) => !prev)}
-          className="p-2 rounded-xl text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors relative cursor-pointer"
+          className="w-9.5 h-9.5 rounded-2xl btn-glass-secondary flex items-center justify-center relative cursor-pointer active:scale-95"
           title="Customize Theme Colors"
         >
-          <Palette className="w-5 h-5 text-sky-600 dark:text-sky-400" />
+          <Palette className="w-4.5 h-4.5 text-sky-600 dark:text-sky-400 stroke-[2.2]" />
           <span
-            className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full ring-1 ring-white dark:ring-slate-900"
+            className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full ring-2 ring-white dark:ring-slate-900"
             style={{ backgroundColor: 'var(--secondary-color)' }}
           />
         </button>
@@ -630,20 +651,20 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
         {/* Dark Mode Toggle */}
         <button
           onClick={toggleDarkMode}
-          className="p-2 rounded-xl text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+          className="w-9.5 h-9.5 rounded-2xl btn-glass-secondary flex items-center justify-center cursor-pointer active:scale-95"
           title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
         >
-          {isDarkMode ? <Sun className="w-5 h-5 text-amber-400" /> : <Moon className="w-5 h-5 text-slate-600" />}
+          {isDarkMode ? <Sun className="w-4.5 h-4.5 text-amber-400 stroke-[2.2]" /> : <Moon className="w-4.5 h-4.5 text-slate-600 stroke-[2.2]" />}
         </button>
 
         {/* Notifications Dropdown */}
         <div className="relative" ref={notifRef}>
           <button
             onClick={toggleNotifMenu}
-            className="p-2 rounded-xl text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors relative cursor-pointer"
+            className="w-9.5 h-9.5 rounded-2xl btn-glass-secondary flex items-center justify-center relative cursor-pointer active:scale-95"
             title={unreadCount > 0 ? `${unreadCount} unread notification${unreadCount > 1 ? 's' : ''}` : 'Notifications'}
           >
-            <Bell className="w-5 h-5" />
+            <Bell className="w-4.5 h-4.5 text-slate-600 dark:text-slate-300 stroke-[2.2]" />
             {unreadCount > 0 && (
               <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-black leading-none flex items-center justify-center ring-2 ring-white dark:ring-slate-900 shadow-sm animate-in zoom-in-75">
                 {unreadCount > 9 ? '9+' : unreadCount}
@@ -652,18 +673,18 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
           </button>
 
           {showNotifMenu && (
-            <div className="absolute right-0 mt-2 w-80 sm:w-[350px] rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in-95">
+            <div className="absolute right-0 mt-2 w-80 sm:w-[360px] rounded-3xl glass-surface border border-white/60 dark:border-white/10 shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95">
               {/* Header */}
-              <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/60">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800 bg-white/40 dark:bg-slate-900/40 backdrop-blur-md">
                 <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-md bg-sky-100 dark:bg-sky-950/70 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
-                    <Megaphone className="w-3.5 h-3.5" />
+                  <div className="w-6 h-6 rounded-lg bg-sky-500/12 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
+                    <Megaphone className="w-3.5 h-3.5 stroke-[2.2]" />
                   </div>
-                  <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                  <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">
                     Notifications
                   </h3>
                   {unreadCount > 0 && (
-                    <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-rose-100 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400">
+                    <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/20">
                       {unreadCount > 9 ? '9+' : unreadCount} new
                     </span>
                   )}
@@ -671,9 +692,9 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
                 {unreadCount > 0 && (
                   <button
                     onClick={markAllAsRead}
-                    className="text-[11px] font-medium text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300 hover:underline flex items-center gap-1 cursor-pointer transition-colors"
+                    className="text-[11px] font-bold text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300 flex items-center gap-1 cursor-pointer transition-colors"
                   >
-                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <CheckCircle2 className="w-3.5 h-3.5 stroke-[2.2]" />
                     Mark all read
                   </button>
                 )}
@@ -700,10 +721,10 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
                             onNavigate('communication');
                           }
                         }}
-                        className={`p-2.5 rounded-xl border transition-all cursor-pointer ${
+                        className={`p-3 rounded-2xl border transition-all cursor-pointer ${
                           isUnread
-                            ? 'bg-sky-50/70 dark:bg-sky-950/30 border-sky-200/80 dark:border-sky-800/80 hover:bg-sky-100/60 dark:hover:bg-sky-900/40 hover:border-sky-300 dark:hover:border-sky-700 shadow-2xs'
-                            : 'bg-slate-50/50 dark:bg-slate-800/30 border-slate-100 dark:border-slate-800/60 hover:bg-slate-100/70 dark:hover:bg-slate-800/60 hover:border-slate-200 dark:hover:border-slate-700'
+                            ? 'bg-sky-500/10 border-sky-500/25 hover:bg-sky-500/15 shadow-2xs'
+                            : 'bg-white/40 dark:bg-slate-800/40 border-slate-100 dark:border-slate-800/60 hover:bg-white/70 dark:hover:bg-slate-800/70'
                         }`}
                       >
                         <div className="flex items-center justify-between gap-1.5 mb-1">
@@ -716,7 +737,7 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
                             </span>
                           </div>
                           {ann.category && (
-                            <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-md bg-slate-200/80 dark:bg-slate-800 text-slate-600 dark:text-slate-300 shrink-0 tracking-wide uppercase">
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-slate-200/80 dark:bg-slate-800 text-slate-600 dark:text-slate-300 shrink-0 tracking-wide uppercase">
                               {ann.category}
                             </span>
                           )}
@@ -738,13 +759,13 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
 
               {/* Footer */}
               {userNotifications.length > 0 && onNavigate && (
-                <div className="px-3 py-2 border-t border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/60 text-center">
+                <div className="px-3 py-2 border-t border-slate-100 dark:border-slate-800 bg-white/40 dark:bg-slate-900/40 text-center">
                   <button
                     onClick={() => {
                       setShowNotifMenu(false);
                       onNavigate('communication');
                     }}
-                    className="w-full py-1 text-xs font-semibold text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300 hover:bg-sky-100/50 dark:hover:bg-sky-950/50 rounded-lg transition-colors cursor-pointer flex items-center justify-center gap-1"
+                    className="w-full py-1.5 text-xs font-bold text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300 hover:bg-sky-500/10 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1 active:scale-98"
                   >
                     <span>View All in Communication Hub</span>
                     <span>→</span>
@@ -759,7 +780,7 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
         <div className="relative" ref={userRef}>
           <button
             onClick={() => setShowUserMenu(!showUserMenu)}
-            className="flex items-center gap-2.5 p-1 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            className="flex items-center gap-2.5 py-1 px-2.5 rounded-2xl btn-glass-pill transition-all cursor-pointer active:scale-95"
           >
             <img
               key={user?.avatar || currentStaff?.avatar || 'avatar'}
@@ -772,19 +793,25 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
                   target.src = fallback;
                 }
               }}
-              className="w-8 h-8 rounded-full object-cover ring-2 ring-brand-500/20"
+              className="w-7.5 h-7.5 rounded-full object-cover ring-2 ring-sky-500/30 shrink-0"
             />
-            <div className="hidden md:block text-left">
-              <p className="text-xs font-bold text-slate-900 dark:text-white leading-tight">{displayName}</p>
-              <p className="text-[10px] text-slate-400 leading-tight">{displayRole}</p>
-            </div>
+            {displayName && (
+              <div className="hidden md:block text-left">
+                <p className="text-xs font-bold text-slate-900 dark:text-white leading-tight">{displayName}</p>
+                {displayRole && (
+                  <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 leading-tight">
+                    {displayRole}
+                  </p>
+                )}
+              </div>
+            )}
           </button>
 
           {showUserMenu && (
-            <div className="absolute right-0 mt-2 w-52 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl z-50 p-1.5 animate-in fade-in zoom-in-95 space-y-1">
-              <div className="p-2.5 bg-slate-50 dark:bg-slate-800/80 rounded-xl mb-1">
+            <div className="absolute right-0 mt-2 w-56 rounded-3xl glass-surface border border-white/60 dark:border-white/10 shadow-2xl z-50 p-2 animate-in fade-in zoom-in-95 space-y-1">
+              <div className="p-3 bg-white/60 dark:bg-slate-800/60 rounded-2xl border border-white/50 dark:border-white/5 mb-1.5 shadow-2xs">
                 <p className="text-xs font-bold text-slate-900 dark:text-white">{displayName}</p>
-                <p className="text-[10px] text-slate-500 dark:text-slate-400">{displayRole} • {currentStaff?.email || user?.email}</p>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">{displayRole} • {currentStaff?.email || user?.email}</p>
               </div>
 
               {['Admin', 'Super Admin', 'Principal', 'HR', 'Receptionist', 'Transport Manager', 'Teacher', 'Librarian', 'Hostel Warden', 'Accountant', 'Driver', 'Staff'].some(r => (role || '').toLowerCase().includes(r.toLowerCase())) && (
@@ -800,26 +827,26 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
                       onNavigate?.('profile-completion');
                     }
                   }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-white/70 dark:hover:bg-slate-800/70 rounded-2xl transition-all cursor-pointer active:scale-98"
                 >
-                  <User className="w-4 h-4 text-sky-500" />
+                  <User className="w-4 h-4 text-sky-500 stroke-[2.2]" />
                   <span>My Profile</span>
                 </button>
               )}
 
               <button
                 onClick={() => { setShowUserMenu(false); onOpenChangePass(); }}
-                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-white/70 dark:hover:bg-slate-800/70 rounded-2xl transition-all cursor-pointer active:scale-98"
               >
-                <Key className="w-4 h-4 text-amber-500" />
+                <Key className="w-4 h-4 text-amber-500 stroke-[2.2]" />
                 <span>Change Password</span>
               </button>
 
               <button
                 onClick={() => { setShowUserMenu(false); if (onNavigate) onNavigate('dashboard'); logout(); }}
-                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-colors"
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 rounded-2xl transition-all cursor-pointer active:scale-98"
               >
-                <LogOut className="w-4 h-4" />
+                <LogOut className="w-4 h-4 stroke-[2.2]" />
                 <span>Sign Out</span>
               </button>
             </div>
@@ -827,9 +854,9 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
         </div>
       </div>
 
-      {branchModalOpen && (
-        <div className="fixed inset-0 z-[80] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl p-5">
+      {branchModalOpen && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[100] bg-slate-900/50 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in">
+          <div className="w-full max-w-md rounded-3xl glass-surface border border-white/60 dark:border-white/10 shadow-2xl p-6">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h3 className="text-sm font-black text-slate-900 dark:text-white">{editingBranchName ? 'Edit Branch' : 'Create Branch'}</h3>
@@ -841,7 +868,7 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
                   setEditingBranchName(null);
                   setBranchDraftName('');
                 }}
-                className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400"
+                className="w-7 h-7 rounded-full btn-glass-secondary flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -851,30 +878,31 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
               value={branchDraftName}
               onChange={e => setBranchDraftName(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && saveBranch()}
-              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm outline-none focus:ring-2 focus:ring-brand-500 mb-4"
               placeholder="e.g. East Campus"
               autoFocus
             />
-            <div className="flex justify-end gap-2 mt-5">
+            <div className="flex justify-end gap-2">
               <button
                 onClick={() => {
                   setBranchModalOpen(false);
                   setEditingBranchName(null);
                   setBranchDraftName('');
                 }}
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
+                className="px-4 py-2.5 rounded-2xl text-xs font-bold btn-glass-secondary active:scale-95 cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={saveBranch}
-                className="px-4 py-2 rounded-xl text-xs font-bold bg-brand-600 text-white hover:bg-brand-700"
+                className="px-5 py-2.5 rounded-2xl text-xs font-black btn-glass-primary active:scale-95 cursor-pointer"
               >
                 {editingBranchName ? 'Save Branch' : 'Create Branch'}
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       <ConfirmModal
@@ -888,18 +916,19 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
       />
 
       {/* Theme Customizer Modal Dialog */}
-      {showThemeCustomizer && (
+      {showThemeCustomizer && typeof document !== 'undefined' && createPortal(
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 md:p-8 bg-slate-950/60 backdrop-blur-xs"
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 md:p-8 bg-slate-950/50 backdrop-blur-md animate-in fade-in"
           onClick={() => setShowThemeCustomizer(false)}
         >
           <div
-            className="bg-white dark:bg-slate-900 rounded-3xl max-w-2xl w-full shadow-2xl border border-slate-200 dark:border-slate-800 relative max-h-[90vh] overflow-y-auto my-auto"
+            className="glass-surface rounded-3xl max-w-2xl w-full shadow-2xl border border-white/60 dark:border-white/10 relative max-h-[90vh] overflow-y-auto my-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <ThemeCustomizer onClose={() => setShowThemeCustomizer(false)} />
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </header>
   );

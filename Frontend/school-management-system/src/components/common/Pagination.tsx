@@ -73,7 +73,7 @@ export const Pagination: React.FC<PaginationProps> = ({
       </div>
 
       {/* Right side: Page Navigation */}
-      <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
+      <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
           {/* First Page Button */}
           <button
             type="button"
@@ -81,7 +81,7 @@ export const Pagination: React.FC<PaginationProps> = ({
             disabled={page <= 1}
             title="First Page"
             aria-label="First Page"
-            className="p-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 disabled:opacity-35 disabled:bg-slate-100 dark:disabled:bg-slate-800/40 disabled:text-slate-400 dark:disabled:text-slate-600 disabled:cursor-not-allowed flex items-center justify-center"
+            className="w-8 h-8 rounded-xl text-xs font-bold transition-all cursor-pointer btn-glass-secondary disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center active:scale-90"
           >
             <ChevronsLeft className="w-4 h-4" />
           </button>
@@ -93,23 +93,23 @@ export const Pagination: React.FC<PaginationProps> = ({
             disabled={page <= 1}
             title="Previous Page"
             aria-label="Previous Page"
-            className="p-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 disabled:opacity-35 disabled:bg-slate-100 dark:disabled:bg-slate-800/40 disabled:text-slate-400 dark:disabled:text-slate-600 disabled:cursor-not-allowed flex items-center justify-center"
+            className="w-8 h-8 rounded-xl text-xs font-bold transition-all cursor-pointer btn-glass-secondary disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center active:scale-90"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
 
           {/* Page Numbers */}
-          <div className="flex items-center gap-1 px-1">
+          <div className="flex items-center gap-1 px-0.5">
             {getPageNumbers().map((p, idx) => (
               typeof p === 'number' ? (
                 <button
                   key={p}
                   type="button"
                   onClick={() => onPageChange(p)}
-                  className={`min-w-[32px] h-8 px-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center ${
+                  className={`min-w-[32px] h-8 px-2.5 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center active:scale-90 ${
                     page === p
-                      ? 'bg-sky-600 text-white shadow-xs dark:bg-sky-500'
-                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700'
+                      ? 'btn-glass-primary shadow-sm'
+                      : 'btn-glass-secondary text-slate-700 dark:text-slate-200'
                   }`}
                 >
                   {p}
@@ -129,7 +129,7 @@ export const Pagination: React.FC<PaginationProps> = ({
             disabled={page >= totalPages}
             title="Next Page"
             aria-label="Next Page"
-            className="p-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 disabled:opacity-35 disabled:bg-slate-100 dark:disabled:bg-slate-800/40 disabled:text-slate-400 dark:disabled:text-slate-600 disabled:cursor-not-allowed flex items-center justify-center"
+            className="w-8 h-8 rounded-xl text-xs font-bold transition-all cursor-pointer btn-glass-secondary disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center active:scale-90"
           >
             <ChevronRight className="w-4 h-4" />
           </button>
@@ -141,7 +141,7 @@ export const Pagination: React.FC<PaginationProps> = ({
             disabled={page >= totalPages}
             title="Last Page"
             aria-label="Last Page"
-            className="p-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 disabled:opacity-35 disabled:bg-slate-100 dark:disabled:bg-slate-800/40 disabled:text-slate-400 dark:disabled:text-slate-600 disabled:cursor-not-allowed flex items-center justify-center"
+            className="w-8 h-8 rounded-xl text-xs font-bold transition-all cursor-pointer btn-glass-secondary disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center active:scale-90"
           >
             <ChevronsRight className="w-4 h-4" />
           </button>

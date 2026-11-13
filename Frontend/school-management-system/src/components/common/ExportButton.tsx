@@ -69,7 +69,7 @@ export function ExportButton<T extends Record<string, any>>({
   };
 
   const defaultClasses =
-    "px-4 py-2.5 flex items-center gap-2 rounded-xl text-xs font-bold bg-emerald-50 dark:bg-emerald-500/10 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 transition-all shadow-xs border border-emerald-200/50 dark:border-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer";
+    "btn-glass-pill px-4 py-2 flex items-center gap-2 rounded-2xl text-xs font-bold text-emerald-600 dark:text-emerald-400 border border-emerald-500/25 bg-emerald-500/10 hover:bg-emerald-500/20 transition-all shadow-xs disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer active:scale-95";
 
   return (
     <button

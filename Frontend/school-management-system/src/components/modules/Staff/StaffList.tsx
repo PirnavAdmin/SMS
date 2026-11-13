@@ -677,17 +677,17 @@ export const StaffList: React.FC<{
           </h2>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2.5">
           <button
             onClick={openBulkModal}
-            className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold shadow-sm flex items-center gap-2 transition-all cursor-pointer"
+            className="px-4 py-2.5 rounded-2xl btn-glass-secondary text-slate-700 dark:text-slate-300 text-xs font-bold shadow-xs flex items-center gap-2 transition-all cursor-pointer active:scale-95"
           >
-            <Upload className="w-4 h-4" /> Upload Excel
+            <Upload className="w-4 h-4 text-sky-600 dark:text-sky-400" /> Upload Excel
           </button>
           <button
             onClick={handleExportStaffExcel}
             disabled={isExporting}
-            className="px-4 py-2.5 flex items-center gap-2 rounded-xl text-xs font-bold bg-emerald-50 dark:bg-emerald-500/10 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 transition-all shadow-xs border border-emerald-200/50 dark:border-emerald-500/20 cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed"
+            className="px-4 py-2.5 flex items-center gap-2 rounded-2xl text-xs font-bold btn-glass-pill text-emerald-600 dark:text-emerald-400 transition-all shadow-xs cursor-pointer disabled:opacity-75 disabled:cursor-not-allowed active:scale-95"
             title="Download tabbed Excel directory report"
           >
             {isExporting ? (
@@ -699,7 +699,7 @@ export const StaffList: React.FC<{
           </button>
           <button
             onClick={openStaffRegistration}
-            className="px-4 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold shadow-lg shadow-brand-500/20 flex items-center gap-2 transition-all"
+            className="px-5 py-2.5 rounded-2xl btn-glass-primary text-white text-xs font-bold shadow-lg flex items-center gap-2 transition-all cursor-pointer active:scale-95"
           >
             <Plus className="w-4 h-4" />{" "}
             {`Add ${getCategoryLabel(activeCategory)}`}
@@ -708,7 +708,7 @@ export const StaffList: React.FC<{
       </div>
 
       {/* Top Segmented Tab Switches (Hidden in Print) */}
-      <div className="inline-flex flex-wrap items-center gap-1.5 p-1 rounded-2xl bg-slate-100 dark:bg-slate-800/60 w-full sm:w-fit border border-slate-200/40 dark:border-slate-800 no-print">
+      <div className="inline-flex flex-wrap items-center gap-1.5 p-1.5 rounded-2xl btn-glass-pill w-full sm:w-fit no-print">
         {[
           {
             key: "Teaching Staff",
@@ -734,9 +734,9 @@ export const StaffList: React.FC<{
             <button
               key={tab.key}
               onClick={() => handleTabChange(tab.key)}
-              className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              className={`flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-95 ${
                 isActive
-                  ? "bg-white dark:bg-slate-950 text-brand-600 dark:text-brand-400 shadow-sm"
+                  ? "bg-white dark:bg-slate-900 text-brand-600 dark:text-brand-400 shadow-md font-black"
                   : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
               }`}
             >
@@ -1061,14 +1061,14 @@ export const StaffList: React.FC<{
                         <div className="flex items-center justify-center gap-1.5">
                           <button
                             onClick={() => setSelectedStaff(st)}
-                            className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300"
+                            className="w-8 h-8 rounded-xl btn-glass-secondary flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-sky-600 dark:hover:text-sky-400 active:scale-90 transition-transform cursor-pointer"
                             title={`View Profile Details - ${st.firstName} ${st.lastName}`}
                           >
                             <Eye className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => setLetterStaffTarget(st)}
-                            className="p-1.5 rounded-lg hover:bg-sky-50 dark:hover:bg-sky-950/40 text-sky-600 dark:text-sky-400"
+                            className="w-8 h-8 rounded-xl btn-glass-secondary flex items-center justify-center text-sky-600 dark:text-sky-400 hover:text-sky-500 active:scale-90 transition-transform cursor-pointer"
                             title={`Generate & View Official Letters (Offer / Relieving) - ${st.firstName} ${st.lastName}`}
                           >
                             <FileText className="w-4 h-4" />
@@ -1078,7 +1078,7 @@ export const StaffList: React.FC<{
                               setStaffToEdit(st);
                               setIsAddOpen(true);
                             }}
-                            className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-brand-600"
+                            className="w-8 h-8 rounded-xl btn-glass-secondary flex items-center justify-center text-brand-600 active:scale-90 transition-transform cursor-pointer"
                             title={`Edit Basic Details - ${st.firstName} ${st.lastName}`}
                           >
                             <Edit className="w-4 h-4" />
@@ -1088,14 +1088,14 @@ export const StaffList: React.FC<{
                             <>
                               <button
                                 onClick={() => setStatusConfirmTarget({ staff: st, nextStatus: "Inactive" })}
-                                className="p-1.5 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-950/40 text-amber-600 dark:text-amber-400"
+                                className="w-8 h-8 rounded-xl btn-glass-secondary flex items-center justify-center text-amber-600 dark:text-amber-400 active:scale-90 transition-transform cursor-pointer"
                                 title={`Mark Inactive - ${st.firstName} ${st.lastName}`}
                               >
                                 <UserX className="w-4 h-4" />
                               </button>
                               <button
                                 onClick={() => setStatusConfirmTarget({ staff: st, nextStatus: "Resigned" })}
-                                className="p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-600 dark:text-rose-400"
+                                className="w-8 h-8 rounded-xl btn-glass-secondary flex items-center justify-center text-rose-500 hover:text-rose-600 active:scale-90 transition-transform cursor-pointer"
                                 title={`Mark Resigned - ${st.firstName} ${st.lastName}`}
                               >
                                 <UserMinus className="w-4 h-4" />
@@ -1104,7 +1104,7 @@ export const StaffList: React.FC<{
                           ) : (
                             <button
                               onClick={() => setStatusConfirmTarget({ staff: st, nextStatus: "Active" })}
-                              className="p-1.5 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400"
+                              className="w-8 h-8 rounded-xl btn-glass-secondary flex items-center justify-center text-emerald-600 dark:text-emerald-400 active:scale-90 transition-transform cursor-pointer"
                               title={`Mark Active - ${st.firstName} ${st.lastName}`}
                             >
                               <UserCheck className="w-4 h-4" />
@@ -1113,7 +1113,7 @@ export const StaffList: React.FC<{
 
                           <button
                             onClick={() => setStaffToDelete(st)}
-                            className="p-1.5 rounded-lg hover:bg-rose-50 text-rose-600"
+                            className="w-8 h-8 rounded-xl btn-glass-secondary flex items-center justify-center text-rose-600 hover:text-rose-700 active:scale-90 transition-transform cursor-pointer"
                             title={`Delete Record - ${st.firstName} ${st.lastName}`}
                           >
                             <Trash2 className="w-4 h-4" />
