@@ -54,6 +54,21 @@ public class FinanceMasterRepository : IFinanceMasterRepository
         return accounts.FirstOrDefault(a => !a.Type.Contains("Cash", StringComparison.OrdinalIgnoreCase)) ?? accounts[0];
     }
 
+    private async Task<string> GetCurrentAcademicYearNameAsync()
+    {
+        var activeAy = await _context.AcademicYears.AsNoTracking()
+            .Where(a => !a.IsDeleted)
+            .OrderByDescending(a => a.IsCurrent)
+            .ThenByDescending(a => a.StartDate)
+            .FirstOrDefaultAsync();
+        if (activeAy != null && !string.IsNullOrWhiteSpace(activeAy.AcademicYearName))
+        {
+            return activeAy.AcademicYearName;
+        }
+        int yr = DateTime.UtcNow.Year;
+        return $"{yr}-{yr + 1}";
+    }
+
     public async Task<List<FinanceTransactionDto>> GetTransactionsAsync(
         string? search, string? type, string? module, string? category, string? paymentMode, string? status, int page, int pageSize)
     {
@@ -61,6 +76,15 @@ public class FinanceMasterRepository : IFinanceMasterRepository
 
         var accounts = await _context.FinancialAccounts.AsNoTracking().ToListAsync();
         var accountNameById = accounts.ToDictionary(a => a.Id, a => a.Name);
+        var defaultCashAcct = accounts.FirstOrDefault(a => (a.Type ?? string.Empty).Contains("Cash", StringComparison.OrdinalIgnoreCase) || (a.Name ?? string.Empty).Contains("Cash", StringComparison.OrdinalIgnoreCase))?.Name ?? string.Empty;
+        var defaultBankAcct = accounts.FirstOrDefault(a => !(a.Type ?? string.Empty).Contains("Cash", StringComparison.OrdinalIgnoreCase))?.Name ?? string.Empty;
+
+        var academicYearsList = await _context.AcademicYears.AsNoTracking().Where(a => !a.IsDeleted).ToListAsync();
+        var ayNameById = academicYearsList.ToDictionary(a => a.AcademicYearId, a => a.AcademicYearName);
+        var fallbackAyName = academicYearsList
+            .OrderByDescending(a => a.IsCurrent)
+            .ThenByDescending(a => a.StartDate)
+            .FirstOrDefault()?.AcademicYearName ?? $"{DateTime.UtcNow.Year}-{DateTime.UtcNow.Year + 1}";
 
         // 1. FeePayments -> Income Transactions (exclude negative refund entries handled in LedgerEntries)
         var payments = await _context.FeePayments.AsNoTracking()
@@ -72,6 +96,7 @@ public class FinanceMasterRepository : IFinanceMasterRepository
                 s.StudentId,
                 s.AdmissionNumber,
                 s.StudentName,
+                s.AcademicYearId,
                 ClassName = s.ClassGrade != null ? s.ClassGrade.ClassName : string.Empty
             })
             .ToListAsync();
@@ -105,13 +130,13 @@ public class FinanceMasterRepository : IFinanceMasterRepository
                 Description = $"Fee Collection — {stName} ({cName})",
                 Amount = p.Amount,
                 PaymentMode = p.PaymentMethod ?? "Cash",
-                Account = (p.PaymentMethod == "Cash") ? "School Petty Cash" : "Main Bank Account",
+                Account = (p.PaymentMethod == "Cash") ? defaultCashAcct : defaultBankAcct,
                 TransactionDate = p.PaymentDate,
                 Status = txnStatus,
                 ReferenceNumber = p.TransactionId ?? "",
                 CreatedBy = "Accounts Counter",
                 Branch = string.Empty,
-                AcademicYear = "2026-2027"
+                AcademicYear = (st != null && st.AcademicYearId > 0 && ayNameById.TryGetValue(st.AcademicYearId, out var stAy)) ? stAy : fallbackAyName
             });
         }
 
@@ -125,7 +150,7 @@ public class FinanceMasterRepository : IFinanceMasterRepository
         {
             string acctName = e.FinancialAccountId.HasValue && accountNameById.TryGetValue(e.FinancialAccountId.Value, out var an)
                 ? an
-                : (string.Equals(e.PaymentMethod, "Cash", StringComparison.OrdinalIgnoreCase) ? "School Petty Cash" : "Main Bank Account");
+                : (string.Equals(e.PaymentMethod, "Cash", StringComparison.OrdinalIgnoreCase) ? defaultCashAcct : defaultBankAcct);
 
             result.Add(new FinanceTransactionDto
             {
@@ -143,7 +168,7 @@ public class FinanceMasterRepository : IFinanceMasterRepository
                 ReferenceNumber = e.ReferenceNo ?? "",
                 CreatedBy = "Admin",
                 Branch = string.Empty,
-                AcademicYear = "2026-2027",
+                AcademicYear = (e.AcademicYearId > 0 && ayNameById.TryGetValue(e.AcademicYearId, out var expAy)) ? expAy : fallbackAyName,
                 Notes = e.Vendor ?? ""
             });
         }
@@ -162,7 +187,7 @@ public class FinanceMasterRepository : IFinanceMasterRepository
             bool isReversed = (l.Particulars ?? "").Contains("[Reversed", StringComparison.OrdinalIgnoreCase);
             string acctName = l.FinancialAccountId.HasValue && accountNameById.TryGetValue(l.FinancialAccountId.Value, out var an)
                 ? an
-                : (!string.IsNullOrWhiteSpace(l.AdmissionNo) && !l.StudentId.HasValue ? l.AdmissionNo : "Main Bank Account");
+                : (!string.IsNullOrWhiteSpace(l.AdmissionNo) && !l.StudentId.HasValue ? l.AdmissionNo : defaultBankAcct);
 
             result.Add(new FinanceTransactionDto
             {
@@ -180,7 +205,7 @@ public class FinanceMasterRepository : IFinanceMasterRepository
                 ReferenceNumber = l.ReferenceNo ?? "",
                 CreatedBy = "Admin",
                 Branch = string.Empty,
-                AcademicYear = "2026-2027",
+                AcademicYear = (l.AcademicYearId > 0 && ayNameById.TryGetValue(l.AcademicYearId, out var ledAy)) ? ledAy : fallbackAyName,
                 Notes = l.Particulars ?? ""
             });
         }
@@ -374,13 +399,13 @@ public class FinanceMasterRepository : IFinanceMasterRepository
             Description = ledgerEntry.Particulars,
             Amount = request.Amount,
             PaymentMode = request.PaymentMode ?? "Bank Transfer",
-            Account = targetAccount?.Name ?? request.Account ?? "Main Bank Account",
+            Account = targetAccount?.Name ?? request.Account ?? string.Empty,
             TransactionDate = ledgerEntry.TransactionDate,
             Status = "Completed",
             ReferenceNumber = ledgerEntry.ReferenceNo,
             CreatedBy = "Admin",
             Branch = request.Branch ?? string.Empty,
-            AcademicYear = request.AcademicYear ?? "2026-2027",
+            AcademicYear = string.IsNullOrWhiteSpace(request.AcademicYear) ? await GetCurrentAcademicYearNameAsync() : request.AcademicYear,
             Notes = request.Notes ?? "",
             AttachmentName = request.AttachmentName ?? ""
         };
@@ -889,7 +914,7 @@ public class FinanceMasterRepository : IFinanceMasterRepository
         {
             CategoryName = string.IsNullOrWhiteSpace(budget.CategoryName) ? (budget.Department ?? "General") : budget.CategoryName,
             Department = string.IsNullOrWhiteSpace(budget.Department) ? (budget.CategoryName ?? "General") : budget.Department,
-            AcademicYear = string.IsNullOrWhiteSpace(budget.AcademicYear) ? "2026-27" : budget.AcademicYear,
+            AcademicYear = string.IsNullOrWhiteSpace(budget.AcademicYear) ? await GetCurrentAcademicYearNameAsync() : budget.AcademicYear,
             Branch = budget.Branch ?? string.Empty,
             BranchId = budget.BranchId,
             AllocatedAmount = budget.AllocatedAmount,
@@ -1260,7 +1285,7 @@ public class FinanceMasterRepository : IFinanceMasterRepository
     public async Task<bool> SaveFeeScheduleAsync(FeeScheduleConfigDto schedule)
     {
         if (schedule == null) return false;
-        string ay = string.IsNullOrWhiteSpace(schedule.AcademicYear) ? "2026-2027" : schedule.AcademicYear.Trim();
+        string ay = string.IsNullOrWhiteSpace(schedule.AcademicYear) ? await GetCurrentAcademicYearNameAsync() : schedule.AcademicYear.Trim();
         string ayCompact = ay.Replace(" ", "");
         string ayPrefix = ay.Contains('-') ? ay.Split('-')[0] : ay;
         string sId = string.IsNullOrWhiteSpace(schedule.Id) ? $"SCH-{ay}" : schedule.Id;
@@ -1575,7 +1600,7 @@ public class FinanceMasterRepository : IFinanceMasterRepository
             var st = students.FirstOrDefault(s => s.StudentId.ToString() == p.StudentId || s.AdmissionNumber == p.StudentId);
             rows.Add(new DailyCollectionReportRowDto
             {
-                ReceiptNo = !string.IsNullOrEmpty(p.ReceiptNo) ? p.ReceiptNo : $"REC-2026-{p.Id:D4}",
+                ReceiptNo = !string.IsNullOrEmpty(p.ReceiptNo) ? p.ReceiptNo : $"REC-{p.PaymentDate.Year}-{p.Id:D4}",
                 StudentName = st?.StudentName ?? $"Student #{p.StudentId}",
                 AdmissionNo = st?.AdmissionNumber ?? p.StudentId,
                 ClassName = st?.ClassGrade?.ClassName ?? string.Empty,
@@ -1713,8 +1738,8 @@ public class FinanceMasterRepository : IFinanceMasterRepository
             FixedAmount = dto.FixedAmount,
             ApplicableFeeHeadIdsJson = JsonSerializer.Serialize(dto.ApplicableFeeHeadIds ?? new List<string>()),
             ApplicableClassesJson = JsonSerializer.Serialize(dto.ApplicableClasses ?? new List<string>()),
-            StartDate = string.IsNullOrWhiteSpace(dto.StartDate) ? "2026-04-01" : dto.StartDate,
-            EndDate = string.IsNullOrWhiteSpace(dto.EndDate) ? "2027-03-31" : dto.EndDate,
+            StartDate = string.IsNullOrWhiteSpace(dto.StartDate) ? DateTime.UtcNow.ToString("yyyy-MM-dd") : dto.StartDate,
+            EndDate = string.IsNullOrWhiteSpace(dto.EndDate) ? DateTime.UtcNow.AddYears(1).ToString("yyyy-MM-dd") : dto.EndDate,
             Eligibility = dto.Eligibility ?? string.Empty,
             Description = dto.Description ?? string.Empty,
             Status = string.IsNullOrWhiteSpace(dto.Status) ? "Active" : dto.Status,
@@ -2119,7 +2144,7 @@ public class FinanceMasterRepository : IFinanceMasterRepository
         var entity = new FineRule
         {
             RuleName = rule.RuleName?.Trim() ?? string.Empty,
-            DueDate = string.IsNullOrWhiteSpace(rule.DueDate) ? "2026-08-15" : rule.DueDate.Trim(),
+            DueDate = string.IsNullOrWhiteSpace(rule.DueDate) ? DateTime.UtcNow.ToString("yyyy-MM-dd") : rule.DueDate.Trim(),
             GraceDays = Math.Max(0, rule.GraceDays),
             FineType = string.IsNullOrWhiteSpace(rule.FineType) ? "Daily Fine" : rule.FineType.Trim(),
             DailyFine = Math.Max(0m, rule.DailyFine),
@@ -2289,7 +2314,7 @@ public class FinanceMasterRepository : IFinanceMasterRepository
             EndClass = dto.EndClass,
             ClassRange = classRange,
             ApplicableClasses = dto.ApplicableClasses,
-            AcademicYear = string.IsNullOrWhiteSpace(dto.AcademicYear) ? "2025-2026" : dto.AcademicYear,
+            AcademicYear = string.IsNullOrWhiteSpace(dto.AcademicYear) ? await GetCurrentAcademicYearNameAsync() : dto.AcademicYear,
             Branch = dto.Branch ?? string.Empty,
             FeePlan = string.IsNullOrWhiteSpace(dto.FeePlan) ? "Annual" : dto.FeePlan,
             HostelFee = dto.HostelFee,
