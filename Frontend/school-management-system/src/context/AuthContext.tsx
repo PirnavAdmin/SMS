@@ -386,6 +386,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     cancelPendingRequests();
     try {
       window.dispatchEvent(new CustomEvent('auth_logout'));
+      window.dispatchEvent(new CustomEvent('auth_user_changed', { detail: null }));
     } catch {}
     setSelectedBranchState('');
     setSelectedAcademicYearState('');
@@ -587,6 +588,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.removeItem('session_resume_module');
       localStorage.removeItem('session_timeout_occurred');
 
+      try {
+        window.dispatchEvent(new CustomEvent('auth_login', { detail: loggedUser }));
+        window.dispatchEvent(new CustomEvent('auth_user_changed', { detail: loggedUser }));
+      } catch {}
+
       return true;
     } catch (err: any) {
       console.error('Login failed:', err);
@@ -642,6 +648,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.removeItem('user');
       } catch (e) {}
     }
+    try {
+      window.dispatchEvent(new CustomEvent('auth_user_changed', { detail: newUser }));
+    } catch {}
   };
 
   return (

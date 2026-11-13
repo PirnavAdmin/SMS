@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { HexColorPicker, HexColorInput } from 'react-colorful';
 import { useTheme, DEFAULT_THEME } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import {
   Palette,
@@ -10,6 +11,9 @@ import {
   Sliders,
   X,
   Pipette,
+  Globe,
+  User,
+  Shield,
 } from 'lucide-react';
 
 const PRESET_THEMES = [
@@ -75,7 +79,29 @@ const PRIMARY_SWATCHES = ['#0284c7', '#059669', '#4f46e5', '#7c3aed', '#dc2626',
 const SECONDARY_SWATCHES = ['#f59e0b', '#f43f5e', '#ec4899', '#eab308', '#06b6d4', '#64748b'];
 
 export const ThemeCustomizer = ({ className = '', onClose = undefined }) => {
-  const { primary, secondary, updateColor, applyTheme, resetTheme } = useTheme();
+  const {
+    primary,
+    secondary,
+    schoolDefaultTheme,
+    isUserOverride,
+    applySchoolDefaultTheme,
+    applyUserTheme,
+    resetUserTheme,
+    resetSchoolDefaultTheme,
+    applyTheme,
+    resetTheme,
+  } = useTheme();
+
+  let authUser = null;
+  let authRole = null;
+  try {
+    const auth = useAuth();
+    authUser = auth?.user;
+    authRole = auth?.role;
+  } catch {
+    // If mounted outside AuthProvider
+  }
+
   let addToast = null;
   try {
     const toast = useToast();
@@ -84,13 +110,44 @@ export const ThemeCustomizer = ({ className = '', onClose = undefined }) => {
     // Optional toast
   }
 
+  // Detect whether active user has administrative rights to configure School Default Theme
+  const isAdmin = useMemo(() => {
+    if (authRole === 'Admin' || authRole === 'Super Admin') return true;
+    if (authUser?.role === 'Admin' || authUser?.role === 'Super Admin') return true;
+    if (
+      authUser?.email &&
+      (authUser.email.toLowerCase().includes('admin') ||
+        authUser.email.toLowerCase().includes('pirnavsms'))
+    ) {
+      return true;
+    }
+    try {
+      const saved = localStorage.getItem('auth_user');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const r = (parsed?.role || '').toLowerCase().replace(/[_\s-]+/g, '');
+        if (r === 'admin' || r === 'superadmin') return true;
+      }
+    } catch {}
+    return false;
+  }, [authRole, authUser]);
+
+  // Target Scope: 'school' (all users default) or 'personal' (current user screen only)
+  const [applyScope, setApplyScope] = useState(isAdmin ? 'school' : 'personal');
+
+  useEffect(() => {
+    setApplyScope(isAdmin ? 'school' : 'personal');
+  }, [isAdmin]);
+
   const [activeTab, setActiveTab] = useState('presets'); // 'presets' | 'custom'
   const [selectedPrimary, setSelectedPrimary] = useState(primary || DEFAULT_THEME.primary);
   const [selectedSecondary, setSelectedSecondary] = useState(secondary || DEFAULT_THEME.secondary);
 
-  const isDefault =
-    selectedPrimary?.toLowerCase() === DEFAULT_THEME.primary.toLowerCase() &&
-    selectedSecondary?.toLowerCase() === DEFAULT_THEME.secondary.toLowerCase();
+  // Sync state if context primary/secondary changes externally
+  useEffect(() => {
+    if (primary) setSelectedPrimary(primary);
+    if (secondary) setSelectedSecondary(secondary);
+  }, [primary, secondary]);
 
   const handlePrimaryChange = (hex) => {
     if (!hex) return;
@@ -109,16 +166,73 @@ export const ThemeCustomizer = ({ className = '', onClose = undefined }) => {
     setSelectedSecondary(s);
   };
 
-  const handleApply = () => {
-    if (applyTheme) {
-      applyTheme(selectedPrimary, selectedSecondary);
-    } else {
-      updateColor('primary', selectedPrimary);
-      updateColor('secondary', selectedSecondary);
+  // Determine if Reset button should be disabled
+  const isResetDisabled = useMemo(() => {
+    if (isAdmin && applyScope === 'school') {
+      const activeSchoolPrimary = (schoolDefaultTheme?.primary || DEFAULT_THEME.primary).toLowerCase();
+      const activeSchoolSecondary = (schoolDefaultTheme?.secondary || DEFAULT_THEME.secondary).toLowerCase();
+      const isAlreadyDefault =
+        selectedPrimary?.toLowerCase() === DEFAULT_THEME.primary.toLowerCase() &&
+        selectedSecondary?.toLowerCase() === DEFAULT_THEME.secondary.toLowerCase() &&
+        activeSchoolPrimary === DEFAULT_THEME.primary.toLowerCase() &&
+        activeSchoolSecondary === DEFAULT_THEME.secondary.toLowerCase();
+      return isAlreadyDefault;
     }
 
-    if (addToast) {
-      addToast('success', 'Theme Applied', 'New theme colors are now active.');
+    const schoolP = (schoolDefaultTheme?.primary || DEFAULT_THEME.primary).toLowerCase();
+    const schoolS = (schoolDefaultTheme?.secondary || DEFAULT_THEME.secondary).toLowerCase();
+    const matchesSchool =
+      selectedPrimary?.toLowerCase() === schoolP &&
+      selectedSecondary?.toLowerCase() === schoolS;
+
+    return !isUserOverride && matchesSchool;
+  }, [isAdmin, applyScope, selectedPrimary, selectedSecondary, schoolDefaultTheme, isUserOverride]);
+
+  const resetLabel = useMemo(() => {
+    if (isAdmin && applyScope === 'school') {
+      return 'Reset School Default';
+    }
+    return isUserOverride ? 'Reset to School Default' : 'Reset Defaults';
+  }, [isAdmin, applyScope, isUserOverride]);
+
+  const applyLabel = useMemo(() => {
+    if (isAdmin && applyScope === 'school') {
+      return 'Apply as School Default';
+    }
+    return 'Apply to My Screen';
+  }, [isAdmin, applyScope]);
+
+  const handleApply = () => {
+    if (isAdmin && applyScope === 'school') {
+      // 1. Admin applies School-wide default theme (displays to ALL users by default)
+      if (applySchoolDefaultTheme) {
+        applySchoolDefaultTheme(selectedPrimary, selectedSecondary);
+      } else if (applyTheme) {
+        applyTheme(selectedPrimary, selectedSecondary);
+      }
+
+      if (addToast) {
+        addToast(
+          'success',
+          'School Default Theme Applied',
+          'Theme updated. Visible to all students, staff, and parents by default.'
+        );
+      }
+    } else {
+      // 2. User applies personal theme (applies strictly within this user's screen)
+      if (applyUserTheme) {
+        applyUserTheme(selectedPrimary, selectedSecondary);
+      } else if (applyTheme) {
+        applyTheme(selectedPrimary, selectedSecondary);
+      }
+
+      if (addToast) {
+        addToast(
+          'success',
+          'Personal Theme Applied',
+          'Saved to your screen only. Other users will not be affected.'
+        );
+      }
     }
 
     if (onClose) {
@@ -127,18 +241,36 @@ export const ThemeCustomizer = ({ className = '', onClose = undefined }) => {
   };
 
   const handleReset = () => {
-    setSelectedPrimary(DEFAULT_THEME.primary);
-    setSelectedSecondary(DEFAULT_THEME.secondary);
-    if (resetTheme) {
-      resetTheme();
-    }
-    if (addToast) {
-      addToast('info', 'Theme Reset', 'Restored default school colors.');
+    if (isAdmin && applyScope === 'school') {
+      // Admin resets school default back to Sky & Amber
+      if (resetSchoolDefaultTheme) {
+        resetSchoolDefaultTheme();
+      } else if (resetTheme) {
+        resetTheme();
+      }
+      setSelectedPrimary(DEFAULT_THEME.primary);
+      setSelectedSecondary(DEFAULT_THEME.secondary);
+      if (addToast) {
+        addToast('info', 'School Theme Reset', 'Restored default school colors (Sky & Amber) for all users.');
+      }
+    } else {
+      // Regular user resets personal override -> reverts back to school default theme
+      if (resetUserTheme) {
+        resetUserTheme();
+      } else if (resetTheme) {
+        resetTheme();
+      }
+      const schoolTheme = schoolDefaultTheme || DEFAULT_THEME;
+      setSelectedPrimary(schoolTheme.primary);
+      setSelectedSecondary(schoolTheme.secondary);
+      if (addToast) {
+        addToast('info', 'Personal Theme Cleared', 'Restored the school default theme set by administration.');
+      }
     }
   };
 
   return (
-    <div className={`p-6 sm:p-7 space-y-6 select-none ${className}`}>
+    <div className={`p-6 sm:p-7 space-y-5 select-none ${className}`}>
       {/* Header */}
       <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
         <div className="flex items-center gap-3">
@@ -152,11 +284,26 @@ export const ThemeCustomizer = ({ className = '', onClose = undefined }) => {
             <Palette className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="font-extrabold text-base text-slate-900 dark:text-white">
-              Theme & Colors
-            </h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Select a curated theme or pick custom brand colors
+            <div className="flex items-center gap-2">
+              <h3 className="font-extrabold text-base text-slate-900 dark:text-white">
+                Theme & Colors
+              </h3>
+              {isAdmin ? (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                  <Shield className="w-3 h-3" />
+                  Admin Studio
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                  <User className="w-3 h-3" />
+                  Personal Screen
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              {isAdmin
+                ? 'Configure school-wide default theme or personalize your own screen'
+                : 'Personalize your workspace colors (applies to your screen only)'}
             </p>
           </div>
         </div>
@@ -172,6 +319,88 @@ export const ThemeCustomizer = ({ className = '', onClose = undefined }) => {
           </button>
         )}
       </div>
+
+      {/* Target Scope Banner / Selector */}
+      {isAdmin ? (
+        <div className="p-3.5 rounded-2xl border border-sky-200 dark:border-sky-900/60 bg-sky-50/60 dark:bg-sky-950/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
+              <Globe className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-extrabold text-xs text-slate-900 dark:text-white">
+                  Target Scope:
+                </span>
+                <span
+                  className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                    applyScope === 'school'
+                      ? 'bg-sky-500 text-white shadow-2xs'
+                      : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200'
+                  }`}
+                >
+                  {applyScope === 'school' ? 'School Default (All Users)' : 'My Screen Only'}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                {applyScope === 'school'
+                  ? 'Displays to all students, teachers, parents & staff by default.'
+                  : 'Applies within your screen only. Other users will not see this change.'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1 p-1 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shrink-0">
+            <button
+              type="button"
+              onClick={() => setApplyScope('school')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                applyScope === 'school'
+                  ? 'bg-sky-500 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              School Default
+            </button>
+            <button
+              type="button"
+              onClick={() => setApplyScope('personal')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                applyScope === 'personal'
+                  ? 'bg-sky-500 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+            >
+              My Screen Only
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/30 flex items-center gap-2.5 shadow-2xs">
+          <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+            <User className="w-4 h-4" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-xs text-slate-800 dark:text-slate-200">
+                Personal Screen Theme
+              </span>
+              {isUserOverride ? (
+                <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                  Customized
+                </span>
+              ) : (
+                <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-slate-200/70 dark:bg-slate-700 text-slate-600 dark:text-slate-400">
+                  Using School Default
+                </span>
+              )}
+            </div>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+              Theme changes apply strictly within your screen. The school default set by administrators remains unchanged.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Mode Switcher Tabs */}
       <div className="flex p-1 bg-slate-100 dark:bg-slate-800/80 rounded-2xl w-full max-w-sm mx-auto">
@@ -264,7 +493,7 @@ export const ThemeCustomizer = ({ className = '', onClose = undefined }) => {
               </span>
             </div>
 
-            {/* Color Canvas & Hue Slider with 12px vertical gap */}
+            {/* Color Canvas & Hue Slider */}
             <div className="w-full">
               <HexColorPicker
                 color={selectedPrimary}
@@ -288,7 +517,7 @@ export const ThemeCustomizer = ({ className = '', onClose = undefined }) => {
               ))}
             </div>
 
-            {/* Hex Input & Native Eyedropper / Pencil */}
+            {/* Hex Input & Eyedropper */}
             <div className="flex items-center gap-2.5 pt-1">
               <div className="relative group shrink-0" title="Native color picker">
                 <input
@@ -331,7 +560,7 @@ export const ThemeCustomizer = ({ className = '', onClose = undefined }) => {
               </span>
             </div>
 
-            {/* Color Canvas & Hue Slider with 12px vertical gap */}
+            {/* Color Canvas & Hue Slider */}
             <div className="w-full">
               <HexColorPicker
                 color={selectedSecondary}
@@ -355,7 +584,7 @@ export const ThemeCustomizer = ({ className = '', onClose = undefined }) => {
               ))}
             </div>
 
-            {/* Hex Input & Native Eyedropper / Pencil */}
+            {/* Hex Input & Eyedropper */}
             <div className="flex items-center gap-2.5 pt-1">
               <div className="relative group shrink-0" title="Native color picker">
                 <input
@@ -386,10 +615,10 @@ export const ThemeCustomizer = ({ className = '', onClose = undefined }) => {
       )}
 
       {/* Live Preview Strip */}
-      <div className="p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/30 flex items-center justify-between gap-3 flex-wrap">
+      <div className="p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/30 flex items-center justify-between gap-3 flex-wrap shadow-2xs">
         <div className="flex items-center gap-2.5 text-xs">
           <span className="font-bold text-slate-500 dark:text-slate-400">Live Preview:</span>
-          {/* Mock active sidebar item */}
+          {/* Mock active navigation item */}
           <span
             className="px-3 py-1 rounded-xl text-white font-bold text-xs shadow-2xs transition-colors"
             style={{ backgroundColor: selectedPrimary }}
@@ -416,20 +645,21 @@ export const ThemeCustomizer = ({ className = '', onClose = undefined }) => {
         </div>
       </div>
 
-      {/* Clean Single Footer */}
+      {/* Footer Controls */}
       <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800">
         <button
           type="button"
           onClick={handleReset}
-          disabled={isDefault}
-          className={`px-3 py-1.5 rounded-2xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 ${
-            isDefault
+          disabled={isResetDisabled}
+          className={`px-3.5 py-1.5 rounded-2xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 ${
+            isResetDisabled
               ? 'text-slate-300 dark:text-slate-600 cursor-not-allowed opacity-50'
               : 'btn-glass-secondary text-slate-600 dark:text-slate-300'
           }`}
+          title={resetLabel}
         >
           <RotateCcw className="w-3.5 h-3.5" />
-          <span>Reset Defaults</span>
+          <span>{resetLabel}</span>
         </button>
 
         <div className="flex items-center gap-2.5">
@@ -452,7 +682,7 @@ export const ThemeCustomizer = ({ className = '', onClose = undefined }) => {
             }}
           >
             <Check className="w-4 h-4" />
-            <span>Apply Theme</span>
+            <span>{applyLabel}</span>
           </button>
         </div>
       </div>

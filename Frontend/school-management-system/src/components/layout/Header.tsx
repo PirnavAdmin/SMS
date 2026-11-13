@@ -641,7 +641,7 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
           className="w-9.5 h-9.5 rounded-2xl btn-glass-secondary flex items-center justify-center relative cursor-pointer active:scale-95"
           title="Customize Theme Colors"
         >
-          <Palette className="w-4.5 h-4.5 text-sky-600 dark:text-sky-400 stroke-[2.2]" />
+          <Palette className="w-4.5 h-4.5 stroke-[2.2]" style={{ color: 'var(--primary-color)' }} />
           <span
             className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full ring-2 ring-white dark:ring-slate-900"
             style={{ backgroundColor: 'var(--secondary-color)' }}
