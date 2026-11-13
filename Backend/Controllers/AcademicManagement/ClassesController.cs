@@ -1228,13 +1228,14 @@ namespace SMS.Api.Controllers.AcademicManagement
                     .FirstOrDefaultAsync(s => s.AdmissionNumber == admission.ApplicationNo);
             }
 
-            // 3. Fallback: Search AdmissionApplications table
+            // 3. Fallback: Search AdmissionApplications table (enrolled / admitted only)
             if (studentEntity == null && admission == null)
             {
                 var app = await _context.AdmissionApplications.FirstOrDefaultAsync(a => 
-                    a.RegistrationNo == student_id || 
+                    !a.IsDeleted && (a.Status == "Enrolled" || a.Status == "Admitted" || a.Status == "Active") &&
+                    (a.RegistrationNo == student_id || 
                     a.AdmissionNo == student_id || 
-                    (numericId > 0 && a.Id == numericId));
+                    (numericId > 0 && a.Id == numericId)));
                 if (app != null)
                 {
                     if (!string.IsNullOrEmpty(app.AdmissionNo))

@@ -104,7 +104,8 @@ namespace SMS.Api.Services.Implementations
                     }
                     else
                     {
-                        var app = await _context.AdmissionApplications.AsNoTracking().FirstOrDefaultAsync(a => a.Id == dto.StudentId.Value);
+                        var app = await _context.AdmissionApplications.AsNoTracking()
+                            .FirstOrDefaultAsync(a => a.Id == dto.StudentId.Value && !a.IsDeleted && (a.Status == "Enrolled" || a.Status == "Admitted" || a.Status == "Active"));
                         if (app != null && !string.IsNullOrWhiteSpace(app.RegistrationNo))
                         {
                             dto.AdmissionNo = app.RegistrationNo;

@@ -493,7 +493,11 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
 
     // 1. Primary source for enrolled students: Enrolled admissions (e.g. REG-2044)
     (admissions || [])
-      .filter((adm) => adm && (adm.status === "Enrolled" || adm.status === "Approved"))
+      .filter((adm) => {
+        if (!adm) return false;
+        const st = String(adm.status || "").toLowerCase().trim();
+        return st === "enrolled" || st === "admitted" || st === "active";
+      })
       .forEach((adm) => {
         const admId = adm.id || adm.applicationNo || adm.registrationNo;
         const admNo = adm.registrationNo || adm.applicationNo || adm.id;

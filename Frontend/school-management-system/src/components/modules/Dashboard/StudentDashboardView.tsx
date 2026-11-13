@@ -134,7 +134,9 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ onNa
 
     // 2. Check in Admissions array
     const matchedAdmission = (admissions || []).find((a: any) => {
-      if (!a || a.status === 'Rejected' || a.status === 'Cancelled') return false;
+      if (!a) return false;
+      const st = String(a.status || '').toLowerCase().trim();
+      if (st !== 'enrolled' && st !== 'admitted' && st !== 'active') return false;
       const aId = String(a.id || '').trim().toLowerCase();
       const aAdm = String(a.admissionNo || '').trim().toLowerCase();
       const aReg = String(a.registrationNo || (a as any).applicationNo || '').trim().toLowerCase();

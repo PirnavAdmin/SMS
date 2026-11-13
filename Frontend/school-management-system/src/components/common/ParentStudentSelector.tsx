@@ -189,7 +189,9 @@ export function useParentWards() {
 
       // Check admissions collection if not found in students
       const matchedAdm = (admissions || []).find((a: any) => {
-        if (!a || a.status === 'Rejected' || a.status === 'Cancelled') return false;
+        if (!a) return false;
+        const aSt = String(a.status || '').toLowerCase().trim();
+        if (aSt !== 'enrolled' && aSt !== 'admitted' && aSt !== 'active') return false;
         const aAdm = String(a.admissionNo || '').trim().toLowerCase();
         const aReg = String(a.registrationNo || (a as any).applicationNo || '').trim().toLowerCase();
         const aName = String(a.applicantName || `${a.firstName || ''} ${a.lastName || ''}`).trim().toLowerCase();
@@ -347,7 +349,7 @@ export function useParentWards() {
       (admissions || []).forEach((a: any) => {
         if (!a) return;
         const aStatus = String(a.status || '').toLowerCase().trim();
-        if (aStatus && ['rejected', 'cancelled', 'deleted'].includes(aStatus)) return;
+        if (aStatus !== 'enrolled' && aStatus !== 'admitted' && aStatus !== 'active') return;
 
         const fContact = String(a.fatherContact || a.fatherMobileNo || a.fatherPhone || '').replace(/\D/g, '');
         const mContact = String(a.motherContact || a.motherMobileNo || a.motherPhone || '').replace(/\D/g, '');

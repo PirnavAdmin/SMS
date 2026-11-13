@@ -596,10 +596,10 @@ public class HostelService : IHostelService
                         p.Status != "Failed" && p.Status != "Cancelled" && p.Status != "Refunded")
             .ToListAsync();
 
-        // 4. Fetch candidate applications
+        // 4. Fetch candidate applications (enrolled / admitted only)
         var applications = await _context.AdmissionApplications
             .Include(a => a.AppliedClass)
-            .Where(a => a.Status != "Rejected" && a.Status != "Withdrawn" && a.Status != "Cancelled")
+            .Where(a => !a.IsDeleted && (a.Status == "Enrolled" || a.Status == "Admitted" || a.Status == "Active"))
             .ToListAsync();
 
         // Fetch enrolled students

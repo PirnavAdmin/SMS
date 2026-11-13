@@ -52,7 +52,8 @@ export const TransportConfigView: React.FC = () => {
 
     (admissions || []).forEach(a => {
       const aAny = a as any;
-      if (aAny.isDeleted || a.status === 'Rejected' || a.studentType === 'Residential' || a.transportRequired === false) return;
+      const aSt = String(a?.status || '').toLowerCase().trim();
+      if (aAny.isDeleted || (aSt !== 'enrolled' && aSt !== 'admitted' && aSt !== 'active') || a.studentType === 'Residential' || a.transportRequired === false) return;
       const aBusRoute = (aAny.busRoute || '').trim().toLowerCase();
       if (!aBusRoute) return;
 

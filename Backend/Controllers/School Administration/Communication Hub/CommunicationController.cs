@@ -95,7 +95,7 @@ public class CommunicationController : ControllerBase
                 ParticipantId = pId,
                 ParticipantName = $"{s.FatherName ?? "Parent"} (Parent of {sName})",
                 ParticipantType = "Parent",
-                Phone = s.FatherMobile ?? "9876543210",
+                Phone = s.FatherMobile ?? string.Empty,
                 StudentName = sName,
                 AdmissionNo = s.ApplicationNo ?? $"ADM-{s.AdmissionId}",
                 ClassName = $"Class-{s.SectionLetter ?? "A"}"
@@ -109,7 +109,7 @@ public class CommunicationController : ControllerBase
                 ParticipantId = st.StaffId,
                 ParticipantName = $"{st.FirstName} {st.LastName}",
                 ParticipantType = "Staff",
-                Phone = st.Phone ?? "9876543211",
+                Phone = st.Phone ?? string.Empty,
                 StudentName = "N/A",
                 AdmissionNo = st.EmployeeId ?? $"STAFF-{st.StaffId}",
                 ClassName = st.Department ?? "Faculty"
