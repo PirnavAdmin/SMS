@@ -290,7 +290,7 @@ export const HomeworkView: React.FC = () => {
         ))
       );
       const matchedAdm = !matchedStud ? (admissions || []).find(a =>
-        (a.status !== 'Rejected' && a.status !== 'Cancelled') && (
+        (() => { const st = String(a?.status || '').toLowerCase().trim(); return st === 'enrolled' || st === 'admitted' || st === 'active'; })() && (
           (userEmail && (a.email?.toLowerCase().trim() === userEmail || (a as any).studentEmail?.toLowerCase().trim() === userEmail || (a as any).parentEmail?.toLowerCase().trim() === userEmail)) ||
           (userPhone && userPhone.length >= 7 && (a.phone && a.phone.replace(/\D/g, '').endsWith(userPhone)))
         )

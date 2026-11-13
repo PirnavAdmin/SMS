@@ -402,9 +402,11 @@ export const StudentHostelAssignmentView: React.FC = () => {
       }
     });
 
-    // 2. Add students from Admissions store (only if not already enrolled)
+    // 2. Add students from Admissions store (only if enrolled / admitted)
     rawAdmissions.forEach((a: any) => {
       if (!a) return;
+      const aStatus = String(a.status || "").toLowerCase().trim();
+      if (aStatus !== "enrolled" && aStatus !== "admitted" && aStatus !== "active") return;
       const aId = String(a.id || "").trim();
       const aAdm = normalize(
         a.admissionNo || a.applicationNo || a.registrationNo || aId,

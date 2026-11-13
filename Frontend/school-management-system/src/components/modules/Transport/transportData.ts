@@ -246,12 +246,15 @@ export const resolveAssignedStudentsForTrip = (
       (st.studentName && (`${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase() === st.studentName.trim().toLowerCase() || s.name?.trim().toLowerCase() === st.studentName.trim().toLowerCase()))
     );
 
-    const matchedAdm = !matchedStudent ? (admissions || []).find((a: any) =>
+    const matchedAdm = !matchedStudent ? (admissions || []).find((a: any) => {
+      const aSt = String(a?.status || '').toLowerCase().trim();
+      if (aSt !== 'enrolled' && aSt !== 'admitted' && aSt !== 'active') return false;
+      return
       (st.admissionNo && a.registrationNo && a.registrationNo.trim().toLowerCase() === st.admissionNo.trim().toLowerCase()) ||
       (st.admissionNo && a.applicationNo && a.applicationNo.trim().toLowerCase() === st.admissionNo.trim().toLowerCase()) ||
       (st.studentId && a.id && String(a.id).trim().toLowerCase() === String(st.studentId).trim().toLowerCase()) ||
-      (st.studentName && a.applicantName && a.applicantName.trim().toLowerCase() === st.studentName.trim().toLowerCase())
-    ) : null;
+      (st.studentName && a.applicantName && a.applicantName.trim().toLowerCase() === st.studentName.trim().toLowerCase());
+    }) : null;
 
     const resolvedName = (
       (matchedStudent?.firstName ? `${matchedStudent.firstName} ${matchedStudent.lastName || ''}`.trim() : '') ||
@@ -397,7 +400,8 @@ export const resolveAssignedStudentsForTrip = (
 
   // 3. Process admitted students who opted for transport on this route
   (admissions || []).forEach((adm: any) => {
-    if (adm.status === 'Cancelled' || adm.status === 'Rejected') return;
+    const aStatus = String(adm.status || '').toLowerCase().trim();
+    if (aStatus !== 'enrolled' && aStatus !== 'admitted' && aStatus !== 'active') return;
 
     const isTransportEnrolled =
       adm.transportRequired === true ||
@@ -528,12 +532,15 @@ export const resolveAllActiveTransportStudents = (
       (st.studentName && (`${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase() === st.studentName.trim().toLowerCase() || s.name?.trim().toLowerCase() === st.studentName.trim().toLowerCase()))
     );
 
-    const matchedAdm = !matchedStudent ? (admissions || []).find((a: any) =>
+    const matchedAdm = !matchedStudent ? (admissions || []).find((a: any) => {
+      const aSt = String(a?.status || '').toLowerCase().trim();
+      if (aSt !== 'enrolled' && aSt !== 'admitted' && aSt !== 'active') return false;
+      return
       (st.admissionNo && a.registrationNo && a.registrationNo.trim().toLowerCase() === st.admissionNo.trim().toLowerCase()) ||
       (st.admissionNo && a.applicationNo && a.applicationNo.trim().toLowerCase() === st.admissionNo.trim().toLowerCase()) ||
       (st.studentId && a.id && String(a.id).trim().toLowerCase() === String(st.studentId).trim().toLowerCase()) ||
-      (st.studentName && a.applicantName && a.applicantName.trim().toLowerCase() === st.studentName.trim().toLowerCase())
-    ) : null;
+      (st.studentName && a.applicantName && a.applicantName.trim().toLowerCase() === st.studentName.trim().toLowerCase());
+    }) : null;
 
     const resolvedName = (
       (matchedStudent?.firstName ? `${matchedStudent.firstName} ${matchedStudent.lastName || ''}`.trim() : '') ||
@@ -618,7 +625,8 @@ export const resolveAllActiveTransportStudents = (
 
   // 4. Process remaining admitted students who opted for transport
   (admissions || []).forEach((adm: any) => {
-    if (adm.status === 'Cancelled' || adm.status === 'Rejected') return;
+    const aStatus = String(adm.status || '').toLowerCase().trim();
+    if (aStatus !== 'enrolled' && aStatus !== 'admitted' && aStatus !== 'active') return;
 
     const isTransportEnrolled =
       adm.transportRequired === true ||

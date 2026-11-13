@@ -349,7 +349,12 @@ export const HostelReportsView: React.FC = () => {
           const allocatedNames = new Set(allocations.map(a => String(a.studentName || '').trim().toLowerCase()));
           const seenCandidateKeys = new Set<string>();
 
-          const allCandidates = [...students, ...admissions];
+          const enrolledAdmissions = (admissions || []).filter((a: any) => {
+            if (!a) return false;
+            const st = String(a.status || "").toLowerCase().trim();
+            return st === "enrolled" || st === "admitted" || st === "active";
+          });
+          const allCandidates = [...students, ...enrolledAdmissions];
 
           allCandidates.forEach((s: any) => {
             const sId = String(s.id || '').trim().toLowerCase();

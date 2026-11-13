@@ -291,7 +291,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             .ToListAsync();
 
         var transportApps = await _context.AdmissionApplications.AsNoTracking()
-            .Where(a => a.TransportRequired == true)
+            .Where(a => !a.IsDeleted && (a.Status == "Enrolled" || a.Status == "Admitted" || a.Status == "Active") && a.TransportRequired == true)
             .ToListAsync();
 
         var allRoutes = await _context.TransportRoutes.AsNoTracking().ToListAsync();

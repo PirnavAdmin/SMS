@@ -515,7 +515,8 @@ export const FinanceTransportConfigView: React.FC = () => {
 
     // Source 3: Check admissions (enrolled / admitted students who opted for transport)
     (admissions || []).forEach((adm: any) => {
-      if (adm.status === 'Cancelled' || adm.status === 'Rejected') return;
+      const aSt = String(adm?.status || '').toLowerCase().trim();
+      if (aSt !== 'enrolled' && aSt !== 'admitted' && aSt !== 'active') return;
 
       const isTransportEnrolled =
         adm.transportRequired === true ||

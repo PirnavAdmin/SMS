@@ -175,8 +175,8 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
     const sourceApps = (admissions && admissions.length > 0 ? admissions : applications) || [];
     const admittedFromApps: Student[] = sourceApps
       .filter(app => {
-        const st = (app.status || '').toLowerCase();
-        return st === 'approved' || st === 'admitted' || st === 'enrolled' || st === 'active';
+        const st = (app.status || '').toLowerCase().trim();
+        return st === 'admitted' || st === 'enrolled' || st === 'active';
       })
       .map(app => {
         const fullName = (app.applicantName || (app as any).studentName || `${app.firstName || ''} ${app.lastName || ''}`).trim();
@@ -365,7 +365,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
       const isBranchMatch = !selectedBranch || selectedBranch === 'All' || selectedBranch === 'All Branches' || 
         (a.branch || (a as any).branchName || '').toLowerCase() === selectedBranch.toLowerCase();
       const st = (a.status || '').toLowerCase().trim();
-      return isBranchMatch && (st === 'enrolled' || st === 'admitted' || st === 'pending');
+      return isBranchMatch && (st === 'enrolled' || st === 'admitted' || st === 'active');
     }).length;
 
     return {

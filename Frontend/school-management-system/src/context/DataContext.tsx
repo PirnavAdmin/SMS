@@ -15725,6 +15725,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const admApp =
       admissions.find((a) => {
         if (!a) return false;
+        const admStatus = String(a.status || "").toLowerCase().trim();
+        if (admStatus !== "enrolled" && admStatus !== "admitted" && admStatus !== "active") return false;
         const aId = a.id != null ? String(a.id).trim().toLowerCase() : "";
         const aApp = a.applicationNo
           ? String(a.applicationNo).trim().toLowerCase()
@@ -17132,6 +17134,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           (() => {
             const matchedAdm = admissions.find((a) => {
               if (!a) return false;
+              const admStatus = String(a.status || "").toLowerCase().trim();
+              if (admStatus !== "enrolled" && admStatus !== "admitted" && admStatus !== "active") return false;
               const aId = a.id != null ? String(a.id).trim().toLowerCase() : "";
               const aApp = a.applicationNo
                 ? String(a.applicationNo).trim().toLowerCase()
@@ -18393,6 +18397,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         const sId = sIdLower;
         const adm = (admissions || []).find((a) => {
           if (!a) return false;
+          const admStatus = String(a.status || "").toLowerCase().trim();
+          if (admStatus !== "enrolled" && admStatus !== "admitted" && admStatus !== "active") return false;
           const aId = a.id != null ? String(a.id).trim().toLowerCase() : "";
           const aApp = a.applicationNo
             ? String(a.applicationNo).trim().toLowerCase()
@@ -21131,6 +21137,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         const sId = sIdLower;
         const adm = (admissions || []).find((a) => {
           if (!a) return false;
+          const admStatus = String(a.status || "").toLowerCase().trim();
+          if (admStatus !== "enrolled" && admStatus !== "admitted" && admStatus !== "active") return false;
           const aId = a.id != null ? String(a.id).trim().toLowerCase() : "";
           const aApp = a.applicationNo
             ? String(a.applicationNo).trim().toLowerCase()
@@ -26417,18 +26425,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       filterByBranch(studentUniformIssues).filter((i) => {
         const name = (i?.studentName || "").toLowerCase();
         const adm = (i?.admissionNo || i?.studentId || "").toUpperCase();
-        const isDummy =
-          name.includes("fahim") ||
-          name.includes("mahesh") ||
-          name.includes("alexander") ||
-          name.includes("wright") ||
-          name.includes("rahul") ||
-          name.includes("kiriti") ||
-          name.includes("kiran") ||
-          (name.includes("vishnu") && name.includes("n")) ||
-          adm === "REG-1022" ||
-          adm === "REG-1021";
-        return !isDummy;
+        // Check that record has a valid student name or ID
+        return Boolean(i && (i.studentName || i.studentId || i.admissionNo));
       }),
     [studentUniformIssues, selectedBranch, selectedAcademicYear],
   );

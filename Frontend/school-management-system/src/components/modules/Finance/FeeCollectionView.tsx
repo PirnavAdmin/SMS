@@ -595,9 +595,13 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
   const allEnrolledStudents = React.useMemo(() => {
     const map = new Map<string, Student>();
 
-    // 1. Primary source for enrolled students: Enrolled admissions (e.g. REG-2044)
+    // 1. Primary source for enrolled students: Enrolled/Admitted admissions (e.g. REG-2044)
     (admissions || [])
-      .filter((adm) => adm && adm.status !== "Rejected")
+      .filter((adm) => {
+        if (!adm) return false;
+        const st = String(adm.status || "").toLowerCase().trim();
+        return st === "enrolled" || st === "admitted" || st === "active";
+      })
       .forEach((adm) => {
         const admId = adm.id || adm.applicationNo || adm.registrationNo;
         const admNo = (adm as any).admissionNo || (adm as any).admissionNumber || adm.registrationNo || adm.applicationNo || adm.id;

@@ -82,8 +82,14 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
       });
     });
 
-    // Add admission application records
-    (admissions || []).forEach(adm => {
+    // Add admission application records (enrolled / admitted only)
+    (admissions || [])
+      .filter((adm) => {
+        if (!adm) return false;
+        const st = String(adm.status || '').toLowerCase().trim();
+        return st === 'enrolled' || st === 'admitted' || st === 'active';
+      })
+      .forEach(adm => {
       const name = (adm.applicantName || `${adm.firstName || ''} ${adm.lastName || ''}`).trim();
       const admNo = adm.admissionNo || adm.applicationNo || adm.id;
       if (name && !list.some(item => item.admissionNo === admNo || item.name.toLowerCase() === name.toLowerCase())) {
