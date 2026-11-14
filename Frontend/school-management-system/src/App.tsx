@@ -12,6 +12,9 @@ import { DataProvider, useData } from "./context/DataContext";
 import { Sidebar } from "./components/layout/Sidebar";
 import { Header } from "./components/layout/Header";
 import { GlobalSearchModal } from "./components/common/GlobalSearchModal";
+import { FloatingQuickActionDock } from "./components/common/FloatingQuickActionDock";
+import { ThemeCustomizer } from "./components/ThemeCustomizer";
+import { createPortal } from "react-dom";
 import { ErrorBoundary } from "./components/common/ErrorBoundary";
 import { LandingView } from "./components/modules/Auth/LandingView";
 import { LoginView } from "./components/modules/Auth/LoginView";
@@ -182,6 +185,7 @@ const MainLayout: React.FC = () => {
   };
   const [searchOpen, setSearchOpen] = useState(false);
   const [changePassOpen, setChangePassOpen] = useState(false);
+  const [themeStudioOpen, setThemeStudioOpen] = useState(false);
   const [selectedClassId, setSelectedClassIdState] = useState<string>(() => {
     try {
       return localStorage.getItem("active_selected_class_id") || "";
@@ -820,6 +824,26 @@ const MainLayout: React.FC = () => {
         isOpen={changePassOpen}
         onClose={() => setChangePassOpen(false)}
       />
+
+      <FloatingQuickActionDock
+        onOpenSearch={() => setSearchOpen(true)}
+        onOpenTheme={() => setThemeStudioOpen(true)}
+      />
+
+      {themeStudioOpen && typeof document !== "undefined" && createPortal(
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 md:p-8 bg-slate-950/50 backdrop-blur-md animate-in fade-in"
+          onClick={() => setThemeStudioOpen(false)}
+        >
+          <div
+            className="glass-surface rounded-3xl max-w-2xl w-full shadow-2xl border border-white/60 dark:border-white/10 relative max-h-[90vh] overflow-y-auto my-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <ThemeCustomizer onClose={() => setThemeStudioOpen(false)} />
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 };

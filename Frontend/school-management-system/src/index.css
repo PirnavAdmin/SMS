@@ -194,7 +194,7 @@
     inset 0 1px 0 0 rgba(255, 255, 255, 0.12) !important;
 }
 
-/* 2. iOS Frosted Glass Cards */
+/* 2. iOS Frosted Glass Cards & Container Transitions */
 .glass-card {
   background: rgba(255, 255, 255, 0.82) !important;
   backdrop-filter: blur(16px) saturate(180%) !important;
@@ -204,7 +204,7 @@
     0 8px 24px -4px rgba(0, 0, 0, 0.04),
     0 2px 6px -1px rgba(0, 0, 0, 0.02),
     inset 0 1px 0 0 rgba(255, 255, 255, 0.95) !important;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease, box-shadow 0.25s ease !important;
 }
 
 .dark .glass-card {
@@ -215,26 +215,31 @@
   box-shadow: 
     0 8px 25px -4px rgba(0, 0, 0, 0.35),
     inset 0 1px 0 0 rgba(255, 255, 255, 0.1) !important;
+  transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease, box-shadow 0.25s ease !important;
 }
 
 .glass-card:hover {
-  transform: translateY(-2px);
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--primary-color) 45%, rgba(226, 232, 240, 0.75)) !important;
   box-shadow: 
-    0 16px 36px -6px rgba(0, 0, 0, 0.08),
-    0 4px 12px -2px rgba(0, 0, 0, 0.03),
+    0 16px 36px -6px color-mix(in srgb, var(--primary-color) 14%, rgba(0, 0, 0, 0.06)),
+    0 4px 14px -2px color-mix(in srgb, var(--primary-color) 10%, transparent),
     inset 0 1px 0 0 rgba(255, 255, 255, 1) !important;
 }
 
 .dark .glass-card:hover {
-  border-color: rgba(255, 255, 255, 0.18) !important;
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--primary-color) 55%, rgba(255, 255, 255, 0.15)) !important;
   box-shadow: 
-    0 16px 38px -6px rgba(0, 0, 0, 0.5),
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.16) !important;
+    0 18px 40px -6px color-mix(in srgb, var(--primary-color) 25%, rgba(0, 0, 0, 0.6)),
+    0 4px 16px -2px color-mix(in srgb, var(--primary-color) 15%, transparent),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.2) !important;
 }
 
 /* 3. iPhone Liquid Glass Primary Action Button */
 .btn-glass-primary {
   position: relative;
+  overflow: hidden;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.24) 0%, rgba(255, 255, 255, 0) 100%), var(--primary-color) !important;
   color: #ffffff !important;
   border: 1px solid rgba(255, 255, 255, 0.3) !important;
@@ -244,20 +249,40 @@
     inset 0 -1px 1px 0 rgba(0, 0, 0, 0.15) !important;
   backdrop-filter: blur(12px) !important;
   -webkit-backdrop-filter: blur(12px) !important;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1), filter 0.2s ease !important;
   cursor: pointer;
 }
 
+/* Liquid Sheen Light-Sweep across primary button on hover */
+.btn-glass-primary::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -90%;
+  width: 50%;
+  height: 200%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+  transform: rotate(25deg);
+  opacity: 0;
+  transition: left 0.65s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
+  pointer-events: none;
+}
+
+.btn-glass-primary:hover::after {
+  left: 140%;
+  opacity: 1;
+}
+
 .btn-glass-primary:hover {
-  filter: brightness(1.05);
-  transform: translateY(-1px);
+  filter: brightness(1.06);
+  transform: translateY(-1.5px);
   box-shadow: 
-    0 8px 24px -2px color-mix(in srgb, var(--primary-color) 55%, transparent),
-    inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.75) !important;
+    0 8px 24px -2px color-mix(in srgb, var(--primary-color) 60%, transparent),
+    inset 0 1px 1.5px 0 rgba(255, 255, 255, 0.8) !important;
 }
 
 .btn-glass-primary:active {
-  transform: scale(0.97) translateY(0);
+  transform: scale(0.96) translateY(0);
   box-shadow: 
     0 2px 8px color-mix(in srgb, var(--primary-color) 35%, transparent),
     inset 0 1px 2px 0 rgba(0, 0, 0, 0.2) !important;
@@ -274,7 +299,7 @@
   box-shadow: 
     0 4px 14px -2px rgba(0, 0, 0, 0.05),
     inset 0 1px 0 0 rgba(255, 255, 255, 0.95) !important;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease, color 0.2s ease !important;
   cursor: pointer;
 }
 
@@ -288,24 +313,26 @@
 }
 
 .btn-glass-secondary:hover {
-  background: rgba(255, 255, 255, 0.9) !important;
-  border-color: rgba(255, 255, 255, 1) !important;
-  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.92) !important;
+  border-color: color-mix(in srgb, var(--primary-color) 60%, rgba(255, 255, 255, 0.8)) !important;
+  color: var(--primary-color) !important;
+  transform: translateY(-1.5px);
   box-shadow: 
-    0 8px 20px -3px rgba(0, 0, 0, 0.08),
+    0 8px 20px -3px color-mix(in srgb, var(--primary-color) 16%, rgba(0, 0, 0, 0.06)),
     inset 0 1px 0 0 #ffffff !important;
 }
 
 .dark .btn-glass-secondary:hover {
-  background: rgba(51, 65, 85, 0.85) !important;
-  border-color: rgba(255, 255, 255, 0.18) !important;
+  background: rgba(51, 65, 85, 0.88) !important;
+  border-color: color-mix(in srgb, var(--primary-color) 65%, rgba(255, 255, 255, 0.2)) !important;
+  color: #ffffff !important;
   box-shadow: 
-    0 8px 22px -3px rgba(0, 0, 0, 0.45),
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.15) !important;
+    0 8px 22px -3px color-mix(in srgb, var(--primary-color) 25%, rgba(0, 0, 0, 0.45)),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.2) !important;
 }
 
 .btn-glass-secondary:active {
-  transform: scale(0.97) translateY(0);
+  transform: scale(0.96) translateY(0);
 }
 
 /* 5. iOS Quick Action / Pill Glass Button */
@@ -780,3 +807,215 @@ input::-ms-clear {
   background-size: 200% 100%;
   animation: shimmerAnimation 1.5s infinite linear;
 }
+
+/* ==========================================================================
+   PRIMARY COLOR BORDERS, 3D FLIP SYSTEM, ROLLOUT ANIMATIONS & TRANSITIONS
+   ========================================================================== */
+
+/* 1. Dynamic Primary Border Classes */
+.border-primary-interactive {
+  border-width: 1px !important;
+  border-style: solid !important;
+  border-color: color-mix(in srgb, var(--primary-color, #0284c7) 35%, rgba(226, 232, 240, 0.8)) !important;
+  transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.dark .border-primary-interactive {
+  border-color: color-mix(in srgb, var(--primary-color, #0284c7) 40%, rgba(255, 255, 255, 0.12)) !important;
+}
+
+.border-primary-interactive:hover,
+.border-primary-interactive:focus-within {
+  border-color: color-mix(in srgb, var(--primary-color, #0284c7) 80%, transparent) !important;
+  box-shadow: 
+    0 12px 32px -6px color-mix(in srgb, var(--primary-color, #0284c7) 22%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--primary-color, #0284c7) 45%, transparent) !important;
+}
+
+.dark .border-primary-interactive:hover,
+.dark .border-primary-interactive:focus-within {
+  border-color: color-mix(in srgb, var(--primary-color, #0284c7) 88%, transparent) !important;
+  box-shadow: 
+    0 14px 36px -6px color-mix(in srgb, var(--primary-color, #0284c7) 36%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--primary-color, #0284c7) 55%, transparent) !important;
+}
+
+.border-primary-dynamic {
+  border-color: color-mix(in srgb, var(--primary-color, #0284c7) 45%, transparent) !important;
+  transition: border-color 0.22s ease, box-shadow 0.22s ease !important;
+}
+
+.border-primary-dynamic:hover {
+  border-color: var(--primary-color, #0284c7) !important;
+}
+
+.ring-primary-dynamic:focus {
+  outline: none !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color, #0284c7) 30%, transparent) !important;
+  border-color: var(--primary-color, #0284c7) !important;
+}
+
+/* 2. Rollout / Rollin Accordion & Dropdown Keyframes */
+@keyframes rollout {
+  0% {
+    opacity: 0;
+    transform: translateY(-8px) scaleY(0.92);
+    transform-origin: top center;
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scaleY(1);
+    transform-origin: top center;
+  }
+}
+
+@keyframes rollin {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scaleY(1);
+    transform-origin: top center;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-8px) scaleY(0.92);
+    transform-origin: top center;
+  }
+}
+
+@keyframes rollExpand {
+  0% {
+    opacity: 0;
+    max-height: 0;
+    transform: scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    max-height: 800px;
+    transform: scale(1);
+  }
+}
+
+.animate-rollout {
+  animation: rollout 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-rollin {
+  animation: rollin 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* 3. 3D Perspective & Flip Card System */
+.flip-perspective {
+  perspective: 1200px;
+  -webkit-perspective: 1200px;
+}
+
+.flip-card-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  text-align: inherit;
+  transition: transform 0.65s cubic-bezier(0.16, 1, 0.3, 1);
+  transform-style: preserve-3d;
+  -webkit-transform-style: preserve-3d;
+}
+
+.flip-card-inner.is-flipped {
+  transform: rotateY(180deg);
+}
+
+.hover-flip:hover .flip-card-inner {
+  transform: rotateY(180deg);
+}
+
+.flip-card-front,
+.flip-card-back {
+  width: 100%;
+  height: 100%;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  border-radius: inherit;
+}
+
+.flip-card-front {
+  transform: rotateY(0deg);
+  z-index: 2;
+}
+
+.flip-card-back {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform: rotateY(180deg);
+  z-index: 1;
+}
+
+/* 4. 3D Entrance Flip Animations */
+@keyframes flipInX {
+  0% {
+    opacity: 0;
+    transform: perspective(600px) rotateX(90deg);
+  }
+  40% {
+    transform: perspective(600px) rotateX(-12deg);
+  }
+  70% {
+    transform: perspective(600px) rotateX(6deg);
+  }
+  100% {
+    opacity: 1;
+    transform: perspective(600px) rotateX(0deg);
+  }
+}
+
+@keyframes flipInY {
+  0% {
+    opacity: 0;
+    transform: perspective(600px) rotateY(90deg);
+  }
+  40% {
+    transform: perspective(600px) rotateY(-12deg);
+  }
+  70% {
+    transform: perspective(600px) rotateY(6deg);
+  }
+  100% {
+    opacity: 1;
+    transform: perspective(600px) rotateY(0deg);
+  }
+}
+
+.animate-flip-x {
+  animation: flipInX 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-flip-y {
+  animation: flipInY 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* 5. 3D Tactile Hover Tilt */
+.hover-tilt {
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.28s ease, border-color 0.25s ease !important;
+}
+
+.hover-tilt:hover {
+  transform: translateY(-4px) scale(1.012);
+}
+
+.hover-tilt:active {
+  transform: scale(0.985);
+}
+
+/* 6. Primary Glow Pulse Animation */
+@keyframes pulsePrimaryGlow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--primary-color, #0284c7) 45%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 8px color-mix(in srgb, var(--primary-color, #0284c7) 0%, transparent);
+  }
+}
+
+.pulse-primary {
+  animation: pulsePrimaryGlow 2.4s infinite cubic-bezier(0.16, 1, 0.3, 1);
+}
+

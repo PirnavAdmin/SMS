@@ -950,7 +950,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       </button>
 
                       {!collapsed && financeExpanded && (
-                        <div className="pl-3 border-l-2 border-slate-200 dark:border-slate-800 ml-3 space-y-0.5 my-1">
+                        <div className="pl-3 border-l-2 border-[var(--primary-color)]/35 dark:border-[var(--primary-color)]/40 ml-3 space-y-0.5 my-1 animate-rollout origin-top">
                           {financeSubItems.map((sub) => {
                             const SubIcon = sub.icon;
                             const isSubActive =
@@ -1074,7 +1074,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       </button>
 
                       {!collapsed && hostelExpanded && (
-                        <div className="pl-3 border-l-2 border-indigo-200 dark:border-indigo-900 ml-3 space-y-0.5 my-1">
+                        <div className="pl-3 border-l-2 border-[var(--primary-color)]/35 dark:border-[var(--primary-color)]/40 ml-3 space-y-0.5 my-1 animate-rollout origin-top">
                           {hostelSubItems.map((sub) => {
                             const SubIcon = sub.icon;
                             const isSubActive =
@@ -1192,7 +1192,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       </button>
 
                       {!collapsed && transportExpanded && (
-                        <div className="pl-3 border-l-2 border-slate-200 dark:border-slate-800 ml-3 space-y-0.5 my-1">
+                        <div className="pl-3 border-l-2 border-[var(--primary-color)]/35 dark:border-[var(--primary-color)]/40 ml-3 space-y-0.5 my-1 animate-rollout origin-top">
                           {transportSubItems.map((sub) => {
                             const SubIcon = sub.icon;
                             const isSubActive =
@@ -1283,7 +1283,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       </button>
 
                       {!collapsed && uniformExpanded && (
-                        <div className="pl-3 border-l-2 border-slate-200 dark:border-slate-800 ml-3 space-y-0.5 my-1">
+                        <div className="pl-3 border-l-2 border-[var(--primary-color)]/35 dark:border-[var(--primary-color)]/40 ml-3 space-y-0.5 my-1 animate-rollout origin-top">
                           {uniformSubItems.map((sub) => {
                             const SubIcon = sub.icon;
                             const isSubActive =
@@ -1380,7 +1380,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       </button>
 
                       {!collapsed && libraryExpanded && (
-                        <div className="pl-3 border-l-2 border-slate-200 dark:border-slate-800 ml-3 space-y-0.5 my-1">
+                        <div className="pl-3 border-l-2 border-[var(--primary-color)]/35 dark:border-[var(--primary-color)]/40 ml-3 space-y-0.5 my-1 animate-rollout origin-top">
                           {librarySubItems.map((sub) => {
                             const SubIcon = sub.icon;
                             const isSubActive =
@@ -1494,7 +1494,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       </button>
 
                       {!collapsed && academicsExpanded && (
-                        <div className="pl-3 border-l-2 border-sky-200 dark:border-sky-950 ml-3 space-y-0.5 my-1">
+                        <div className="pl-3 border-l-2 border-[var(--primary-color)]/35 dark:border-[var(--primary-color)]/40 ml-3 space-y-0.5 my-1 animate-rollout origin-top">
                           {academicSubItems.map((sub) => {
                             const SubIcon = sub.icon;
                             const isSubActive =
@@ -1612,7 +1612,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       </button>
 
                       {!collapsed && staffExpanded && (
-                        <div className="pl-3 border-l-2 border-sky-200 dark:border-sky-950 ml-3 space-y-0.5 my-1">
+                        <div className="pl-3 border-l-2 border-[var(--primary-color)]/35 dark:border-[var(--primary-color)]/40 ml-3 space-y-0.5 my-1 animate-rollout origin-top">
                           {staffSubItems.map((sub) => {
                             const SubIcon = sub.icon;
                             const isPayroll = sub.id === "staff-payroll";

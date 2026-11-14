@@ -1000,45 +1000,45 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total Students */}
-        <div onClick={() => onNavigate('students')} className="bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 shadow-xs hover:shadow-md hover:border-sky-400 dark:hover:border-sky-600 hover:-translate-y-1 transition-all duration-300 p-4 rounded-2xl flex items-center justify-between cursor-pointer group">
+        <div onClick={() => onNavigate('students')} className="glass-card border-primary-interactive hover-tilt p-5 rounded-3xl flex items-center justify-between cursor-pointer group">
           <div className="space-y-1 text-left">
-            <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">Total Students</span>
+            <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-400 tracking-wider">Total Students</span>
             <p className="text-2xl font-black text-slate-900 dark:text-white mt-1">{displayTotalStudents.toLocaleString()}</p>
           </div>
-          <div className="p-3 rounded-2xl bg-sky-50 dark:bg-sky-950/40 text-sky-600 dark:text-sky-400 group-hover:bg-sky-600 group-hover:text-white transition-all duration-300 border border-sky-200 dark:border-sky-800">
+          <div className="p-3.5 rounded-2xl bg-sky-500/10 text-sky-600 dark:text-sky-400 group-hover:bg-sky-600 group-hover:text-white transition-all duration-300 border border-sky-500/20 shadow-xs">
             <TrendingUp className="w-5 h-5" />
           </div>
         </div>
         
         {/* Total Teaching Staff */}
-        <div onClick={() => onNavigate('staff')} className="bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 shadow-xs hover:shadow-md hover:border-sky-400 dark:hover:border-sky-600 hover:-translate-y-1 transition-all duration-300 p-4 rounded-2xl flex items-center justify-between cursor-pointer group">
+        <div onClick={() => onNavigate('staff')} className="glass-card border-primary-interactive hover-tilt p-5 rounded-3xl flex items-center justify-between cursor-pointer group">
           <div className="space-y-1 text-left">
-            <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">Teaching Staff</span>
+            <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-400 tracking-wider">Teaching Staff</span>
             <p className="text-2xl font-black text-slate-900 dark:text-white mt-1">{displayTeachingStaff.toLocaleString()}</p>
           </div>
-          <div className="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 group-hover:bg-emerald-600 group-hover:text-white transition-all duration-300 border border-emerald-200 dark:border-emerald-800">
+          <div className="p-3.5 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 group-hover:bg-emerald-600 group-hover:text-white transition-all duration-300 border border-emerald-500/20 shadow-xs">
             <UserCheck className="w-5 h-5" />
           </div>
         </div>
 
         {/* Total Non-Teaching Staff */}
-        <div onClick={() => onNavigate('staff-non-teaching')} className="bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 shadow-xs hover:shadow-md hover:border-sky-400 dark:hover:border-sky-600 hover:-translate-y-1 transition-all duration-300 p-4 rounded-2xl flex items-center justify-between cursor-pointer group">
+        <div onClick={() => onNavigate('staff-non-teaching')} className="glass-card border-primary-interactive hover-tilt p-5 rounded-3xl flex items-center justify-between cursor-pointer group">
           <div className="space-y-1 text-left">
-            <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">Non-Teaching Staff</span>
+            <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-400 tracking-wider">Non-Teaching Staff</span>
             <p className="text-2xl font-black text-slate-900 dark:text-white mt-1">{displayNonTeachingStaff.toLocaleString()}</p>
           </div>
-          <div className="p-3 rounded-2xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 group-hover:bg-rose-600 group-hover:text-white transition-all duration-300 border border-rose-200 dark:border-rose-800">
+          <div className="p-3.5 rounded-2xl bg-rose-500/10 text-rose-600 dark:text-rose-400 group-hover:bg-rose-600 group-hover:text-white transition-all duration-300 border border-rose-500/20 shadow-xs">
             <Users className="w-5 h-5" />
           </div>
         </div>
 
         {/* Total Classes */}
-        <div onClick={() => onNavigate('academics')} className="bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 shadow-xs hover:shadow-md hover:border-sky-400 dark:hover:border-sky-600 hover:-translate-y-1 transition-all duration-300 p-4 rounded-2xl flex items-center justify-between cursor-pointer group">
+        <div onClick={() => onNavigate('academics')} className="glass-card border-primary-interactive hover-tilt p-5 rounded-3xl flex items-center justify-between cursor-pointer group">
           <div className="space-y-1 text-left">
-            <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">Total Classes</span>
+            <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-400 tracking-wider">Total Classes</span>
             <p className="text-2xl font-black text-slate-900 dark:text-white mt-1">{(summaryData ? summaryData.totalClasses : academicClasses.length).toLocaleString()}</p>
           </div>
-          <div className="p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 group-hover:bg-amber-600 group-hover:text-white transition-all duration-300 border border-amber-200 dark:border-amber-800">
+          <div className="p-3.5 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 group-hover:bg-amber-600 group-hover:text-white transition-all duration-300 border border-amber-500/20 shadow-xs">
             <BookOpen className="w-5 h-5" />
           </div>
         </div>
