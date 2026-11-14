@@ -183,6 +183,7 @@ const MainLayout: React.FC = () => {
       return next;
     });
   };
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [changePassOpen, setChangePassOpen] = useState(false);
   const [themeStudioOpen, setThemeStudioOpen] = useState(false);
@@ -290,6 +291,7 @@ const MainLayout: React.FC = () => {
   }, [isAuthenticated]);
 
   useEffect(() => {
+    setMobileOpen(false);
     window.scrollTo({ top: 0, behavior: "instant" });
     document.documentElement.scrollTop = 0;
     document.body.scrollTop = 0;
@@ -300,6 +302,7 @@ const MainLayout: React.FC = () => {
   }, [activeModule]);
 
   useEffect(() => {
+    setMobileOpen(false);
     window.scrollTo({ top: 0, behavior: "instant" });
     document.documentElement.scrollTop = 0;
     document.body.scrollTop = 0;
@@ -788,25 +791,32 @@ const MainLayout: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-brand-50 dark:bg-brand-950 text-slate-900 dark:text-slate-100 font-sans">
+    <div className="min-h-screen bg-brand-50 dark:bg-brand-950 text-slate-900 dark:text-slate-100 font-sans overflow-x-hidden">
       <Sidebar
         activeModule={activeModule}
         setActiveModule={setActiveModule}
         collapsed={collapsed}
         setCollapsed={setCollapsed}
+        mobileOpen={mobileOpen}
+        setMobileOpen={setMobileOpen}
       />
 
       <Header
         collapsed={collapsed}
         setCollapsed={setCollapsed}
+        mobileOpen={mobileOpen}
+        setMobileOpen={setMobileOpen}
         onOpenSearch={() => setSearchOpen(true)}
         onOpenChangePass={() => setChangePassOpen(true)}
-        onNavigate={(mod) => setActiveModule(mod)}
+        onNavigate={(mod) => {
+          setActiveModule(mod);
+          setMobileOpen(false);
+        }}
       />
 
       <main
-        className={`pt-20 pb-4 sm:pb-6 px-4 sm:px-6 transition-all duration-300 print:ml-0 print:m-0 print:p-0 print:w-full ${
-          collapsed ? "ml-20" : "ml-56"
+        className={`pt-[106px] sm:pt-20 pb-4 sm:pb-6 px-3 sm:px-6 transition-all duration-300 print:ml-0 print:m-0 print:p-0 print:w-full ml-0 ${
+          collapsed ? "lg:ml-20" : "lg:ml-56"
         }`}
       >
         <ErrorBoundary key={activeModule}>

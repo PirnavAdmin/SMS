@@ -41,6 +41,7 @@ import {
   Link2,
   TrendingUp,
   ClipboardList,
+  X,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useData } from "../../context/DataContext";
@@ -52,6 +53,8 @@ interface SidebarProps {
   setActiveModule: (mod: string) => void;
   collapsed: boolean;
   setCollapsed: (col: boolean) => void;
+  mobileOpen?: boolean;
+  setMobileOpen?: (open: boolean) => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -59,10 +62,52 @@ export const Sidebar: React.FC<SidebarProps> = ({
   setActiveModule,
   collapsed,
   setCollapsed,
+  mobileOpen = false,
+  setMobileOpen,
 }) => {
+  const [isDesktop, setIsDesktop] = useState(() => {
+    if (typeof window !== "undefined") {
+      return window.innerWidth >= 1024;
+    }
+    return true;
+  });
+
+  React.useEffect(() => {
+    const handleResize = () => {
+      const desktop = window.innerWidth >= 1024;
+      setIsDesktop(desktop);
+      if (desktop && mobileOpen && setMobileOpen) {
+        setMobileOpen(false);
+      }
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [mobileOpen, setMobileOpen]);
+
+  React.useEffect(() => {
+    if (!isDesktop && mobileOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isDesktop, mobileOpen]);
+
+  const effectiveCollapsed = isDesktop ? collapsed : false;
+
+  const handleNav = (mod: string) => {
+    setActiveModule(mod);
+    if (!isDesktop && setMobileOpen) {
+      setMobileOpen(false);
+    }
+  };
   const authCtx = useAuth() || {};
   const role = authCtx.role || 'admin';
   const user = authCtx.user;
+  const selectedBranch = authCtx.selectedBranch;
+  const selectedAcademicYear = authCtx.selectedAcademicYear;
   const safeRole = (role || user?.role || '').toLowerCase();
   const dataCtx = useData() || {};
   const schoolProfile = dataCtx.schoolProfile;
@@ -783,72 +828,117 @@ export const Sidebar: React.FC<SidebarProps> = ({
   // Handled above
 
   return (
-    <aside
-      className={`fixed top-0 left-0 bottom-0 z-40 bg-brand-50/90 dark:bg-brand-950/90 backdrop-blur-2xl border-r border-brand-200/60 dark:border-brand-800/40 flex flex-col transition-all duration-300 shadow-xs ${
-        collapsed ? "w-20" : "w-56"
-      }`}
-    >
-      {/* Brand Header */}
-      <div
-        className={`h-16 flex items-center justify-center border-b border-brand-200/60 dark:border-brand-800/40 px-2`}
+    <>
+      {/* Mobile Backdrop Overlay */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-xs transition-opacity lg:hidden"
+          onClick={() => setMobileOpen?.(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      <aside
+        className={`fixed top-0 left-0 bottom-0 z-50 lg:z-40 bg-brand-50/95 dark:bg-brand-950/95 backdrop-blur-2xl border-r border-brand-200/60 dark:border-brand-800/40 flex flex-col transition-transform duration-300 ease-in-out lg:transition-all shadow-2xl lg:shadow-xs ${
+          mobileOpen ? "translate-x-0" : "-translate-x-full"
+        } lg:translate-x-0 ${
+          effectiveCollapsed ? "w-20" : "w-72 lg:w-56"
+        } max-w-[85vw]`}
       >
-        {collapsed ? (
-          <div
-            className="flex items-center justify-center w-11 h-11 rounded-2xl btn-glass-secondary cursor-pointer overflow-hidden p-1 active:scale-95 transition-all"
-            onClick={() => setCollapsed(false)}
-            title={schoolProfile?.name || "School Dashboard"}
-          >
-            {currentLogoUrl && !logoLoadError ? (
-              <img
-                src={resolveMediaUrl(currentLogoUrl)}
-                alt=""
-                onError={handleSidebarLogoError}
-                onLoad={handleSidebarLogoLoad}
-                className="max-h-8 max-w-8 object-contain"
-              />
-            ) : (
-              <School className="w-5 h-5 text-sky-600 dark:text-sky-400 stroke-[2.2]" />
-            )}
-          </div>
-        ) : (
-          <div
-            className={`flex items-center justify-center select-none cursor-pointer btn-glass-secondary transition-all overflow-hidden active:scale-98 ${
-              logoMeta && Math.abs(logoMeta.ratio - 1) < 0.3
-                ? "w-12 h-12 rounded-2xl p-1.5 shrink-0"
-                : "h-12 w-auto max-w-[190px] px-3 py-1 rounded-2xl shrink-0"
-            }`}
-            onClick={() => setActiveModule("dashboard")}
-            title={schoolProfile?.name || "School Dashboard"}
-          >
-            {currentLogoUrl && !logoLoadError ? (
-              <img
-                src={resolveMediaUrl(currentLogoUrl)}
-                alt=""
-                onError={handleSidebarLogoError}
-                onLoad={handleSidebarLogoLoad}
-                className={`object-contain ${
+        {/* Brand Header */}
+        <div
+          className={`h-16 flex items-center justify-between border-b border-brand-200/60 dark:border-brand-800/40 px-3`}
+        >
+          {effectiveCollapsed ? (
+            <div
+              className="flex items-center justify-center w-11 h-11 rounded-2xl btn-glass-secondary cursor-pointer overflow-hidden p-1 active:scale-95 transition-all mx-auto"
+              onClick={() => setCollapsed(false)}
+              title={schoolProfile?.name || "School Dashboard"}
+            >
+              {currentLogoUrl && !logoLoadError ? (
+                <img
+                  src={resolveMediaUrl(currentLogoUrl)}
+                  alt=""
+                  onError={handleSidebarLogoError}
+                  onLoad={handleSidebarLogoLoad}
+                  className="max-h-8 max-w-8 object-contain"
+                />
+              ) : (
+                <School className="w-5 h-5 text-sky-600 dark:text-sky-400 stroke-[2.2]" />
+              )}
+            </div>
+          ) : (
+            <div className="flex items-center justify-between w-full min-w-0">
+              <div
+                className={`flex items-center justify-center select-none cursor-pointer btn-glass-secondary transition-all overflow-hidden active:scale-98 ${
                   logoMeta && Math.abs(logoMeta.ratio - 1) < 0.3
-                    ? "max-h-9 max-w-9"
-                    : "max-h-10 max-w-full w-auto"
+                    ? "w-12 h-12 rounded-2xl p-1.5 shrink-0"
+                    : "h-12 w-auto max-w-[190px] px-3 py-1 rounded-2xl shrink-0"
                 }`}
-              />
-            ) : (
-              <div className="flex items-center gap-2 px-2">
-                <School className="w-6 h-6 text-sky-600 dark:text-sky-400 shrink-0" />
-                <span className="font-extrabold text-xs text-slate-800 dark:text-white truncate max-w-[145px]">
-                  {schoolProfile?.name || "School Portal"}
-                </span>
+                onClick={() => handleNav("dashboard")}
+                title={schoolProfile?.name || "School Dashboard"}
+              >
+                {currentLogoUrl && !logoLoadError ? (
+                  <img
+                    src={resolveMediaUrl(currentLogoUrl)}
+                    alt=""
+                    onError={handleSidebarLogoError}
+                    onLoad={handleSidebarLogoLoad}
+                    className={`object-contain ${
+                      logoMeta && Math.abs(logoMeta.ratio - 1) < 0.3
+                        ? "max-h-9 max-w-9"
+                        : "max-h-10 max-w-full w-auto"
+                    }`}
+                  />
+                ) : (
+                  <div className="flex items-center gap-2 px-2">
+                    <School className="w-6 h-6 text-sky-600 dark:text-sky-400 shrink-0" />
+                    <span className="font-extrabold text-xs text-slate-800 dark:text-white truncate max-w-[145px]">
+                      {schoolProfile?.name || "School Portal"}
+                    </span>
+                  </div>
+                )}
               </div>
-            )}
+
+              {/* Mobile Drawer Close Button */}
+              <button
+                type="button"
+                onClick={() => setMobileOpen?.(false)}
+                className="lg:hidden p-2 rounded-2xl btn-glass-secondary text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors ml-2 shrink-0 active:scale-95 cursor-pointer"
+                title="Close menu"
+              >
+                <X className="w-5 h-5 stroke-[2.2]" />
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Mobile Campus & Academic Year Context Chip */}
+        {!isDesktop && (selectedBranch || selectedAcademicYear) && (
+          <div className="px-3 pt-2 pb-0.5 lg:hidden">
+            <div className="flex items-center justify-between gap-1.5 px-3 py-1.5 rounded-2xl bg-brand-500/10 border border-brand-500/20 text-[11px] font-bold text-slate-700 dark:text-slate-200 shadow-2xs">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <Building2 className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400 shrink-0" />
+                <span className="truncate">{selectedBranch || "Campus"}</span>
+              </div>
+              {selectedAcademicYear && (
+                <>
+                  <span className="text-slate-300 dark:text-slate-700">•</span>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <Calendar className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400 shrink-0" />
+                    <span>{selectedAcademicYear}</span>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         )}
-      </div>
 
       {/* Nav Menu */}
       <div
         ref={navRef}
         className={`flex-1 overflow-y-auto py-4 space-y-6 no-scrollbar ${
-          collapsed ? "px-0 w-full flex flex-col items-center" : "px-3"
+          effectiveCollapsed ? "px-0 w-full flex flex-col items-center" : "px-3"
         }`}
       >
         {menuGroups.map((group, idx) => {
@@ -895,10 +985,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <div
               key={idx}
               className={`space-y-1.5 ${
-                collapsed ? "w-full flex flex-col items-center" : ""
+                effectiveCollapsed ? "w-full flex flex-col items-center" : ""
               }`}
             >
-              {!collapsed && (
+              {!effectiveCollapsed && (
                 <h3 className="px-3 text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                   {group.title}
                 </h3>
@@ -909,7 +999,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   {hasModuleAccess(role, "fees") && (
                     <div
                       className={`space-y-1 ${
-                        collapsed ? "w-full flex flex-col items-center" : ""
+                        effectiveCollapsed ? "w-full flex flex-col items-center" : ""
                       }`}
                     >
                       <button
@@ -932,7 +1022,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           }
                         }}
                         title={
-                          collapsed
+                          effectiveCollapsed
                             ? role.toLowerCase() === "parent" ||
                               role.toLowerCase() === "student"
                               ? "Fee Details"
@@ -940,14 +1030,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             : undefined
                         }
                         className={`flex items-center transition-all ${
-                          collapsed
+                          effectiveCollapsed
                             ? "w-11 h-11 p-0 rounded-2xl justify-center mx-auto"
                             : "w-full justify-between px-3 py-2 rounded-xl text-xs"
                         } ${
                           isFinanceActive
                             ? financeExpanded &&
                               financeSubItems.length > 0 &&
-                              !collapsed
+                              !effectiveCollapsed
                               ? "text-sky-700 dark:text-sky-400 font-bold"
                               : "btn-glass-primary font-bold"
                             : "text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white font-semibold"
@@ -955,25 +1045,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       >
                         <div
                           className={`flex items-center ${
-                            collapsed
+                            effectiveCollapsed
                               ? "justify-center w-full h-full"
                               : "gap-3 truncate"
                           }`}
                         >
                           <IndianRupee
                             className={`${
-                              collapsed ? "w-5 h-5" : "w-4 h-4"
+                              effectiveCollapsed ? "w-5 h-5" : "w-4 h-4"
                             } shrink-0 ${
                               isFinanceActive
                                 ? financeExpanded &&
                                   financeSubItems.length > 0 &&
-                                  !collapsed
+                                  !effectiveCollapsed
                                   ? "text-sky-600 dark:text-sky-400"
                                   : "text-white"
                                 : "text-sky-500"
                             }`}
                           />
-                          {!collapsed && (
+                          {!effectiveCollapsed && (
                             <span className="font-bold">
                               {role.toLowerCase() === "parent" ||
                               role.toLowerCase() === "student"
@@ -982,14 +1072,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             </span>
                           )}
                         </div>
-                        {!collapsed && financeSubItems.length > 0 && (
+                        {!effectiveCollapsed && financeSubItems.length > 0 && (
                           <ChevronDown
                             className={`w-3.5 h-3.5 transition-transform duration-200 ${financeExpanded ? "rotate-180" : ""}`}
                           />
                         )}
                       </button>
 
-                      {!collapsed && financeExpanded && (
+                      {!effectiveCollapsed && financeExpanded && (
                         <div className="pl-3 border-l-2 border-[var(--primary-color)]/35 dark:border-[var(--primary-color)]/40 ml-3 space-y-0.5 my-1 animate-rollout origin-top">
                           {financeSubItems.map((sub) => {
                             const SubIcon = sub.icon;
@@ -1042,7 +1132,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                               <button
                                 key={sub.id}
                                 data-active={isSubActive ? "true" : undefined}
-                                onClick={() => setActiveModule(sub.id)}
+                                onClick={() => handleNav(sub.id)}
                                 title={sub.label}
                                 className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                                   isSubActive
@@ -1065,7 +1155,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   {hasModuleAccess(role, "hostel") && isHosteller && (
                     <div
                       className={`space-y-1 pt-1 ${
-                        collapsed ? "w-full flex flex-col items-center" : ""
+                        effectiveCollapsed ? "w-full flex flex-col items-center" : ""
                       }`}
                     >
                       <button
@@ -1088,7 +1178,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           }
                         }}
                         title={
-                          collapsed
+                          effectiveCollapsed
                             ? role.toLowerCase() === "parent" ||
                               role.toLowerCase() === "student"
                               ? "Hostel"
@@ -1096,14 +1186,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             : undefined
                         }
                         className={`flex items-center transition-all ${
-                          collapsed
+                          effectiveCollapsed
                             ? "w-11 h-11 p-0 rounded-2xl justify-center mx-auto"
                             : "w-full justify-between px-3 py-2 rounded-xl text-xs"
                         } ${
                           isHostelActive
                             ? hostelExpanded &&
                               hostelSubItems.length > 0 &&
-                              !collapsed
+                              !effectiveCollapsed
                               ? "text-sky-700 dark:text-sky-400 font-bold"
                               : "btn-glass-primary font-bold"
                             : "text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white font-semibold"
@@ -1111,25 +1201,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       >
                         <div
                           className={`flex items-center ${
-                            collapsed
+                            effectiveCollapsed
                               ? "justify-center w-full h-full"
                               : "gap-3 truncate"
                           }`}
                         >
                           <Home
                             className={`${
-                              collapsed ? "w-5 h-5" : "w-4 h-4"
+                              effectiveCollapsed ? "w-5 h-5" : "w-4 h-4"
                             } shrink-0 ${
                               isHostelActive
                                 ? hostelExpanded &&
                                   hostelSubItems.length > 0 &&
-                                  !collapsed
+                                  !effectiveCollapsed
                                   ? "text-sky-600 dark:text-sky-400"
                                   : "text-white"
                                 : "text-indigo-500"
                             }`}
                           />
-                          {!collapsed && (
+                          {!effectiveCollapsed && (
                             <span className="font-bold">
                               {role.toLowerCase() === "parent" ||
                               role.toLowerCase() === "student"
@@ -1138,14 +1228,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             </span>
                           )}
                         </div>
-                        {!collapsed && hostelSubItems.length > 0 && (
+                        {!effectiveCollapsed && hostelSubItems.length > 0 && (
                           <ChevronDown
                             className={`w-3.5 h-3.5 transition-transform duration-200 ${hostelExpanded ? "rotate-180" : ""}`}
                           />
                         )}
                       </button>
 
-                      {!collapsed && hostelExpanded && (
+                      {!effectiveCollapsed && hostelExpanded && (
                         <div className="pl-3 border-l-2 border-[var(--primary-color)]/35 dark:border-[var(--primary-color)]/40 ml-3 space-y-0.5 my-1 animate-rollout origin-top">
                           {hostelSubItems.map((sub) => {
                             const SubIcon = sub.icon;
@@ -1186,7 +1276,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                               <button
                                 key={sub.id}
                                 data-active={isSubActive ? "true" : undefined}
-                                onClick={() => setActiveModule(sub.id)}
+                                onClick={() => handleNav(sub.id)}
                                 title={sub.label}
                                 className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                                   isSubActive
@@ -1209,7 +1299,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   {hasModuleAccess(role, "transport") && usesTransport && (
                     <div
                       className={`space-y-1 pt-1 ${
-                        collapsed ? "w-full flex flex-col items-center" : ""
+                        effectiveCollapsed ? "w-full flex flex-col items-center" : ""
                       }`}
                     >
                       <button
@@ -1236,7 +1326,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           }
                         }}
                         title={
-                          collapsed
+                          effectiveCollapsed
                             ? role.toLowerCase() === "parent" ||
                               role.toLowerCase() === "student"
                               ? "Transport"
@@ -1246,14 +1336,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             : undefined
                         }
                         className={`flex items-center transition-all ${
-                          collapsed
+                          effectiveCollapsed
                             ? "w-11 h-11 p-0 rounded-2xl justify-center mx-auto"
                             : "w-full justify-between px-3 py-2 rounded-xl text-xs"
                         } ${
                           isTransportActive
                             ? transportExpanded &&
                               transportSubItems.length > 0 &&
-                              !collapsed
+                              !effectiveCollapsed
                               ? "text-sky-700 dark:text-sky-400 font-bold"
                               : "btn-glass-primary font-bold"
                             : "text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white font-semibold"
@@ -1261,25 +1351,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       >
                         <div
                           className={`flex items-center ${
-                            collapsed
+                            effectiveCollapsed
                               ? "justify-center w-full h-full"
                               : "gap-3 truncate"
                           }`}
                         >
                           <Bus
                             className={`${
-                              collapsed ? "w-5 h-5" : "w-4 h-4"
+                              effectiveCollapsed ? "w-5 h-5" : "w-4 h-4"
                             } shrink-0 ${
                               isTransportActive
                                 ? transportExpanded &&
                                   transportSubItems.length > 0 &&
-                                  !collapsed
+                                  !effectiveCollapsed
                                   ? "text-sky-600 dark:text-sky-400"
                                   : "text-white"
                                 : "text-slate-400"
                             }`}
                           />
-                          {!collapsed && (
+                          {!effectiveCollapsed && (
                             <span className="font-bold">
                               {role.toLowerCase() === "parent" ||
                               role.toLowerCase() === "student"
@@ -1290,14 +1380,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             </span>
                           )}
                         </div>
-                        {!collapsed && transportSubItems.length > 0 && (
+                        {!effectiveCollapsed && transportSubItems.length > 0 && (
                           <ChevronDown
                             className={`w-3.5 h-3.5 transition-transform duration-200 ${transportExpanded ? "rotate-180" : ""}`}
                           />
                         )}
                       </button>
 
-                      {!collapsed && transportExpanded && (
+                      {!effectiveCollapsed && transportExpanded && (
                         <div className="pl-3 border-l-2 border-[var(--primary-color)]/35 dark:border-[var(--primary-color)]/40 ml-3 space-y-0.5 my-1 animate-rollout origin-top">
                           {transportSubItems.map((sub) => {
                             const SubIcon = sub.icon;
@@ -1325,7 +1415,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                               <button
                                 key={sub.id}
                                 data-active={isSubActive ? "true" : undefined}
-                                onClick={() => setActiveModule(sub.id)}
+                                onClick={() => handleNav(sub.id)}
                                 title={sub.label}
                                 className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                                   isSubActive
@@ -1348,7 +1438,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   {hasModuleAccess(role, "uniforms") && (
                     <div
                       className={`space-y-1 pt-1 ${
-                        collapsed ? "w-full flex flex-col items-center" : ""
+                        effectiveCollapsed ? "w-full flex flex-col items-center" : ""
                       }`}
                     >
                       <button
@@ -1365,16 +1455,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             setActiveModule("uniform-dashboard");
                           }
                         }}
-                        title={collapsed ? "Uniform Management" : undefined}
+                        title={effectiveCollapsed ? "Uniform Management" : undefined}
                         className={`flex items-center transition-all ${
-                          collapsed
+                          effectiveCollapsed
                             ? "w-11 h-11 p-0 rounded-2xl justify-center mx-auto"
                             : "w-full justify-between px-3 py-2 rounded-xl text-xs"
                         } ${
                           isUniformActive
                             ? uniformExpanded &&
                               uniformSubItems.length > 0 &&
-                              !collapsed
+                              !effectiveCollapsed
                               ? "text-sky-700 dark:text-sky-400 font-bold"
                               : "btn-glass-primary font-bold"
                             : "text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white font-semibold"
@@ -1382,38 +1472,38 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       >
                         <div
                           className={`flex items-center ${
-                            collapsed
+                            effectiveCollapsed
                               ? "justify-center w-full h-full"
                               : "gap-3 truncate"
                           }`}
                         >
                           <Shirt
                             className={`${
-                              collapsed ? "w-5 h-5" : "w-4 h-4"
+                              effectiveCollapsed ? "w-5 h-5" : "w-4 h-4"
                             } shrink-0 ${
                               isUniformActive
                                 ? uniformExpanded &&
                                   uniformSubItems.length > 0 &&
-                                  !collapsed
+                                  !effectiveCollapsed
                                   ? "text-sky-600 dark:text-sky-400"
                                   : "text-white"
                                 : "text-slate-400"
                             }`}
                           />
-                          {!collapsed && (
+                          {!effectiveCollapsed && (
                             <span className="font-bold">
                               Uniform Management
                             </span>
                           )}
                         </div>
-                        {!collapsed && (
+                        {!effectiveCollapsed && (
                           <ChevronDown
                             className={`w-3.5 h-3.5 transition-transform duration-200 ${uniformExpanded ? "rotate-180" : ""}`}
                           />
                         )}
                       </button>
 
-                      {!collapsed && uniformExpanded && (
+                      {!effectiveCollapsed && uniformExpanded && (
                         <div className="pl-3 border-l-2 border-[var(--primary-color)]/35 dark:border-[var(--primary-color)]/40 ml-3 space-y-0.5 my-1 animate-rollout origin-top">
                           {uniformSubItems.map((sub) => {
                             const SubIcon = sub.icon;
@@ -1442,7 +1532,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                               <button
                                 key={sub.id}
                                 data-active={isSubActive ? "true" : undefined}
-                                onClick={() => setActiveModule(sub.id)}
+                                onClick={() => handleNav(sub.id)}
                                 title={sub.label}
                                 className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                                   isSubActive
@@ -1468,7 +1558,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     hasModuleAccess(role, "library") && (
                     <div
                       className={`space-y-1 pt-1 ${
-                        collapsed ? "w-full flex flex-col items-center" : ""
+                        effectiveCollapsed ? "w-full flex flex-col items-center" : ""
                       }`}
                     >
                       <button
@@ -1487,16 +1577,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             setActiveModule("library");
                           }
                         }}
-                        title={collapsed ? "Library Management" : undefined}
+                        title={effectiveCollapsed ? "Library Management" : undefined}
                         className={`flex items-center transition-all ${
-                          collapsed
+                          effectiveCollapsed
                             ? "w-11 h-11 p-0 rounded-2xl justify-center mx-auto"
                             : "w-full justify-between px-3 py-2 rounded-xl text-xs"
                         } ${
                           isLibraryActive
                             ? libraryExpanded &&
                               librarySubItems.length > 0 &&
-                              !collapsed
+                              !effectiveCollapsed
                               ? "text-sky-700 dark:text-sky-400 font-bold"
                               : "btn-glass-primary font-bold"
                             : "text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white font-semibold"
@@ -1504,38 +1594,38 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       >
                         <div
                           className={`flex items-center ${
-                            collapsed
+                            effectiveCollapsed
                               ? "justify-center w-full h-full"
                               : "gap-3 truncate"
                           }`}
                         >
                           <Library
                             className={`${
-                              collapsed ? "w-5 h-5" : "w-4 h-4"
+                              effectiveCollapsed ? "w-5 h-5" : "w-4 h-4"
                             } shrink-0 ${
                               isLibraryActive
                                 ? libraryExpanded &&
                                   librarySubItems.length > 0 &&
-                                  !collapsed
+                                  !effectiveCollapsed
                                   ? "text-sky-600 dark:text-sky-400"
                                   : "text-white"
                                 : "text-slate-400"
                             }`}
                           />
-                          {!collapsed && (
+                          {!effectiveCollapsed && (
                             <span className="font-bold">
                               Library Management
                             </span>
                           )}
                         </div>
-                        {!collapsed && (
+                        {!effectiveCollapsed && (
                           <ChevronDown
                             className={`w-3.5 h-3.5 transition-transform duration-200 ${libraryExpanded ? "rotate-180" : ""}`}
                           />
                         )}
                       </button>
 
-                      {!collapsed && libraryExpanded && (
+                      {!effectiveCollapsed && libraryExpanded && (
                         <div className="pl-3 border-l-2 border-[var(--primary-color)]/35 dark:border-[var(--primary-color)]/40 ml-3 space-y-0.5 my-1 animate-rollout origin-top">
                           {librarySubItems.map((sub) => {
                             const SubIcon = sub.icon;
@@ -1558,7 +1648,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                               <button
                                 key={sub.id}
                                 data-active={isSubActive ? "true" : undefined}
-                                onClick={() => setActiveModule(sub.id)}
+                                onClick={() => handleNav(sub.id)}
                                 title={sub.label}
                                 className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                                   isSubActive
@@ -1609,7 +1699,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <div
                       key={item.id}
                       className={`space-y-1 ${
-                        collapsed ? "w-full flex flex-col items-center" : ""
+                        effectiveCollapsed ? "w-full flex flex-col items-center" : ""
                       }`}
                     >
                       <button
@@ -1627,16 +1717,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             setActiveModule("academic-dashboard");
                           }
                         }}
-                        title={collapsed ? "Academic Management" : undefined}
+                        title={effectiveCollapsed ? "Academic Management" : undefined}
                         className={`flex items-center transition-all ${
-                          collapsed
+                          effectiveCollapsed
                             ? "w-11 h-11 p-0 rounded-2xl justify-center mx-auto"
                             : "w-full justify-between px-3 py-2 rounded-xl text-xs"
                         } ${
                           isAcademicsActive
                             ? academicsExpanded &&
                               academicSubItems.length > 0 &&
-                              !collapsed
+                              !effectiveCollapsed
                               ? "text-sky-700 dark:text-sky-400 font-bold"
                               : "btn-glass-primary font-bold"
                             : "text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white font-semibold"
@@ -1644,38 +1734,38 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       >
                         <div
                           className={`flex items-center ${
-                            collapsed
+                            effectiveCollapsed
                               ? "justify-center w-full h-full"
                               : "gap-3 truncate"
                           }`}
                         >
                           <Presentation
                             className={`${
-                              collapsed ? "w-5 h-5" : "w-4 h-4"
+                              effectiveCollapsed ? "w-5 h-5" : "w-4 h-4"
                             } shrink-0 ${
                               isAcademicsActive
                                 ? academicsExpanded &&
                                   academicSubItems.length > 0 &&
-                                  !collapsed
+                                  !effectiveCollapsed
                                   ? "text-sky-600 dark:text-sky-400"
                                   : "text-white"
                                 : "text-sky-500"
                             }`}
                           />
-                          {!collapsed && (
+                          {!effectiveCollapsed && (
                             <span className="font-bold">
                               Academic Management
                             </span>
                           )}
                         </div>
-                        {!collapsed && academicSubItems.length > 0 && (
+                        {!effectiveCollapsed && academicSubItems.length > 0 && (
                           <ChevronDown
                             className={`w-3.5 h-3.5 transition-transform duration-200 ${academicsExpanded ? "rotate-180" : ""}`}
                           />
                         )}
                       </button>
 
-                      {!collapsed && academicsExpanded && (
+                      {!effectiveCollapsed && academicsExpanded && (
                         <div className="pl-3 border-l-2 border-[var(--primary-color)]/35 dark:border-[var(--primary-color)]/40 ml-3 space-y-0.5 my-1 animate-rollout origin-top">
                           {academicSubItems.map((sub) => {
                             const SubIcon = sub.icon;
@@ -1703,7 +1793,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                               <button
                                 key={sub.id}
                                 data-active={isSubActive ? "true" : undefined}
-                                onClick={() => setActiveModule(sub.id)}
+                                onClick={() => handleNav(sub.id)}
                                 title={sub.label}
                                 className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                                   isSubActive
@@ -1729,7 +1819,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <div
                       key={item.id}
                       className={`space-y-1 ${
-                        collapsed ? "w-full flex flex-col items-center" : ""
+                        effectiveCollapsed ? "w-full flex flex-col items-center" : ""
                       }`}
                     >
                       <button
@@ -1763,7 +1853,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           }
                         }}
                         title={
-                          collapsed
+                          effectiveCollapsed
                             ? safeRole === "parent" ||
                               safeRole === "student"
                               ? "Teachers"
@@ -1777,14 +1867,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             : undefined
                         }
                         className={`flex items-center transition-all ${
-                          collapsed
+                          effectiveCollapsed
                             ? "w-11 h-11 p-0 rounded-2xl justify-center mx-auto"
                             : "w-full justify-between px-3 py-2 rounded-xl text-xs"
                         } ${
                           isStaffActive
                             ? staffExpanded &&
                               staffSubItems.length > 0 &&
-                              !collapsed
+                              !effectiveCollapsed
                               ? "text-sky-700 dark:text-sky-400 font-bold"
                               : "btn-glass-primary font-bold"
                             : "text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white font-semibold"
@@ -1792,25 +1882,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       >
                         <div
                           className={`flex items-center ${
-                            collapsed
+                            effectiveCollapsed
                               ? "justify-center w-full h-full"
                               : "gap-3 truncate"
                           }`}
                         >
                           <Users
                             className={`${
-                              collapsed ? "w-5 h-5" : "w-4 h-4"
+                              effectiveCollapsed ? "w-5 h-5" : "w-4 h-4"
                             } shrink-0 ${
                               isStaffActive
                                 ? staffExpanded &&
                                   staffSubItems.length > 0 &&
-                                  !collapsed
+                                  !effectiveCollapsed
                                   ? "text-sky-600 dark:text-sky-400"
                                   : "text-white"
                                 : "text-sky-500"
                             }`}
                           />
-                          {!collapsed && (
+                          {!effectiveCollapsed && (
                             <span className="font-bold">
                               {safeRole === "parent" ||
                               safeRole === "student"
@@ -1825,14 +1915,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             </span>
                           )}
                         </div>
-                        {!collapsed && staffSubItems.length > 0 && (
+                        {!effectiveCollapsed && staffSubItems.length > 0 && (
                           <ChevronDown
                             className={`w-3.5 h-3.5 transition-transform duration-200 ${staffExpanded ? "rotate-180" : ""}`}
                           />
                         )}
                       </button>
 
-                      {!collapsed && staffExpanded && (
+                      {!effectiveCollapsed && staffExpanded && (
                         <div className="pl-3 border-l-2 border-[var(--primary-color)]/35 dark:border-[var(--primary-color)]/40 ml-3 space-y-0.5 my-1 animate-rollout origin-top">
                           {staffSubItems.map((sub) => {
                             const SubIcon = sub.icon;
@@ -1870,7 +1960,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                               <button
                                 key={sub.id}
                                 data-active={isSubActive ? "true" : undefined}
-                                onClick={() => setActiveModule(sub.id)}
+                                onClick={() => handleNav(sub.id)}
                                 title={sub.label}
                                 className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                                   isSubActive
@@ -1918,7 +2008,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     key={item.id}
                     data-active={isActive ? "true" : undefined}
                     onClick={() => {
-                      setActiveModule(item.id);
+                      handleNav(item.id);
                       setStaffExpanded(false);
                       setFinanceExpanded(false);
                       setHostelExpanded(false);
@@ -1926,9 +2016,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       setUniformExpanded(false);
                       setAcademicsExpanded(false);
                     }}
-                    title={collapsed ? item.label : undefined}
+                    title={effectiveCollapsed ? item.label : undefined}
                     className={`flex items-center transition-all active:scale-98 ${
-                      collapsed
+                      effectiveCollapsed
                         ? "w-11 h-11 p-0 rounded-2xl justify-center mx-auto"
                         : "w-full justify-between px-3 py-2 rounded-2xl text-xs"
                     } ${
@@ -1939,26 +2029,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   >
                     <div
                       className={`flex items-center ${
-                        collapsed
+                        effectiveCollapsed
                           ? "justify-center w-full h-full"
                           : "gap-3 truncate"
                       }`}
                     >
                       <Icon
                         className={`${
-                          collapsed ? "w-5 h-5" : "w-4 h-4"
+                          effectiveCollapsed ? "w-5 h-5" : "w-4 h-4"
                         } shrink-0 stroke-[2] ${
                           isActive
                             ? "text-white"
                             : "text-slate-400 dark:text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200"
                         }`}
                       />
-                      {!collapsed && (
+                      {!effectiveCollapsed && (
                         <span className="truncate">{item.label}</span>
                       )}
                     </div>
 
-                    {!collapsed && (item as any).badge && (
+                    {!effectiveCollapsed && (item as any).badge && (
                       <span
                         className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                           isActive
@@ -1977,5 +2067,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
         })}
       </div>
     </aside>
+    </>
   );
 };

@@ -17,12 +17,22 @@ import { isAnnouncementAudienceMatch } from '../../utils/rbac';
 interface HeaderProps {
   collapsed: boolean;
   setCollapsed: (val: boolean) => void;
+  mobileOpen?: boolean;
+  setMobileOpen?: (val: boolean | ((prev: boolean) => boolean)) => void;
   onOpenSearch: () => void;
   onOpenChangePass: () => void;
   onNavigate?: (module: string) => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenSearch, onOpenChangePass, onNavigate }) => {
+export const Header: React.FC<HeaderProps> = ({
+  collapsed,
+  setCollapsed,
+  mobileOpen = false,
+  setMobileOpen,
+  onOpenSearch,
+  onOpenChangePass,
+  onNavigate,
+}) => {
   const { user, role, setRole, selectedBranch, setSelectedBranch, selectedAcademicYear, setSelectedAcademicYear, logout } = useAuth();
   const { isDarkMode, toggleDarkMode } = useTheme();
   const [showThemeCustomizer, setShowThemeCustomizer] = useState(false);
@@ -114,7 +124,9 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
 
   const notifRef = useRef<HTMLDivElement>(null);
   const branchRef = useRef<HTMLDivElement>(null);
+  const mobileBranchRef = useRef<HTMLDivElement>(null);
   const ayRef = useRef<HTMLDivElement>(null);
+  const mobileAyRef = useRef<HTMLDivElement>(null);
   const userRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -123,10 +135,18 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
       if (showNotifMenu && notifRef.current && !notifRef.current.contains(targetNode)) {
         setShowNotifMenu(false);
       }
-      if (showBranchMenu && branchRef.current && !branchRef.current.contains(targetNode)) {
+      if (
+        showBranchMenu &&
+        branchRef.current && !branchRef.current.contains(targetNode) &&
+        (!mobileBranchRef.current || !mobileBranchRef.current.contains(targetNode))
+      ) {
         setShowBranchMenu(false);
       }
-      if (showAYMenu && ayRef.current && !ayRef.current.contains(targetNode)) {
+      if (
+        showAYMenu &&
+        ayRef.current && !ayRef.current.contains(targetNode) &&
+        (!mobileAyRef.current || !mobileAyRef.current.contains(targetNode))
+      ) {
         setShowAYMenu(false);
       }
       if (showUserMenu && userRef.current && !userRef.current.contains(targetNode)) {
@@ -467,418 +487,498 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
     return 'User';
   }, [role, user]);
 
+  const renderBranchDropdownContent = () => (
+    <>
+      {canManageBranch && (
+        <button
+          onClick={() => {
+            setShowBranchMenu(false);
+            window.dispatchEvent(new CustomEvent('settings_tab_change', { detail: { tab: 'campus' } }));
+            if (onNavigate) {
+              onNavigate('settings');
+            }
+          }}
+          className="w-full flex items-center justify-between px-2.5 py-1.5 text-xs font-bold text-brand-600 dark:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-900/30 rounded-xl transition-colors mb-1 cursor-pointer"
+        >
+          <span className="flex items-center gap-1.5">
+            <Plus className="w-3.5 h-3.5" />
+            Add New Campus
+          </span>
+        </button>
+      )}
+
+      <div className="max-h-56 overflow-y-auto space-y-1 no-scrollbar">
+        {branchOptions.map((branch, idx) => {
+          const isSelected = selectedBranch === branch;
+          const isInactive = (inactiveBranches || []).includes(branch);
+          return (
+            <div
+              key={idx}
+              onClick={() => selectBranch(branch)}
+              className={`flex items-center justify-between group px-3 py-2 text-xs rounded-2xl transition-all font-semibold text-left cursor-pointer ${
+                isSelected
+                  ? 'btn-glass-primary font-extrabold'
+                  : 'text-slate-700 dark:text-slate-200 hover:bg-brand-500/12 dark:hover:bg-brand-500/20 hover:text-brand-600 dark:hover:text-brand-400'
+              }`}
+            >
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  selectBranch(branch);
+                }}
+                className={`flex-1 flex items-center justify-between text-xs text-left cursor-pointer ${
+                  isSelected ? 'text-white font-extrabold' : 'text-slate-700 dark:text-slate-200'
+                }`}
+              >
+                <span className="truncate">{branch}</span>
+                {isInactive && (
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-normal ${
+                    isSelected ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-500'
+                  }`}>
+                    Inactive
+                  </span>
+                )}
+              </button>
+              {canManageBranch && (
+                <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 pl-1.5 transition-opacity">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditingBranchName(branch);
+                      setBranchDraftName(branch);
+                      setBranchModalOpen(true);
+                    }}
+                    className={`p-1 rounded ${
+                      isSelected
+                        ? 'hover:bg-white/20 text-white/90 hover:text-white'
+                        : 'hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500'
+                    } cursor-pointer`}
+                    title="Edit branch"
+                  >
+                    <Edit className="w-3 h-3" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeletingBranch(branch);
+                    }}
+                    className={`p-1 rounded ${
+                      isSelected
+                        ? 'hover:bg-white/20 text-white/90 hover:text-white'
+                        : 'hover:bg-rose-100 dark:hover:bg-rose-900/40 text-rose-500'
+                    } cursor-pointer`}
+                    title="Delete campus branch"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </>
+  );
+
+  const renderAYDropdownContent = () => (
+    <div className="max-h-56 overflow-y-auto space-y-1 no-scrollbar">
+      {ayOptions.map((item) => {
+        const isSelected = selectedAcademicYear === item.academicYear || formatAYDisplay(selectedAcademicYear) === formatAYDisplay(item.academicYear);
+        return (
+          <button
+            key={item.id}
+            onClick={() => {
+              setSelectedAcademicYear(item.academicYear);
+              setShowAYMenu(false);
+            }}
+            className={`w-full flex items-center justify-between px-3 py-2 text-xs rounded-2xl transition-all font-semibold text-left cursor-pointer ${
+              isSelected
+                ? 'btn-glass-primary font-extrabold'
+                : 'text-slate-700 dark:text-slate-200 hover:bg-brand-500/12 dark:hover:bg-brand-500/20 hover:text-brand-600 dark:hover:text-brand-400'
+            }`}
+          >
+            <span className="font-semibold">{formatAYDisplay(item.academicYear)}</span>
+            {item.isCurrent && (
+              <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${isSelected ? 'bg-white/20 text-white' : 'bg-sky-500/12 text-sky-600 dark:text-sky-400'}`}>
+                Current
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+
   return (
     <header
-      className={`fixed top-0 right-0 z-40 h-16 bg-brand-50/90 dark:bg-brand-950/90 backdrop-blur-2xl border-b border-brand-200/60 dark:border-brand-800/40 shadow-xs transition-all duration-300 flex items-center justify-between gap-4 sm:gap-6 px-4 sm:px-6 ${
-        collapsed ? 'left-20' : 'left-56'
+      className={`fixed top-0 right-0 z-40 bg-brand-50/90 dark:bg-brand-950/90 backdrop-blur-2xl border-b border-brand-200/60 dark:border-brand-800/40 shadow-xs transition-all duration-300 left-0 ${
+        collapsed ? 'lg:left-20' : 'lg:left-56'
       }`}
     >
-      <div className="flex items-center flex-1 min-w-0">
-        {/* Sidebar Toggle Hamburger (iOS frosted squircle) */}
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="w-10 h-10 rounded-2xl btn-glass-secondary flex items-center justify-center text-slate-600 dark:text-slate-300 mr-4 sm:mr-6 shrink-0 active:scale-95"
-          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-        >
-          <Menu className="w-5 h-5 stroke-[2.2]" />
-        </button>
-
-        {/* Search & Branch & Academic Year Selectors */}
-        <div className="flex items-center gap-3 min-w-0">
+      {/* Top Row: Hamburger, Search, Desktop Selectors, and Right Tools */}
+      <div className="h-14 sm:h-16 flex items-center justify-between gap-1.5 sm:gap-4 px-2.5 sm:px-4 lg:px-6">
+        <div className="flex items-center flex-1 min-w-0">
+          {/* Sidebar Toggle Hamburger (iOS frosted squircle) */}
           <button
-            onClick={onOpenSearch}
-            title="Search"
-            aria-label="Search"
-            className="flex items-center gap-2.5 px-3.5 py-2 rounded-2xl btn-glass-pill text-slate-500 dark:text-slate-400 text-xs font-semibold w-40 sm:w-60 shrink min-w-0 h-9.5 group"
+            onClick={() => {
+              if (window.innerWidth < 1024) {
+                setMobileOpen?.((prev: boolean) => !prev);
+              } else {
+                setCollapsed(!collapsed);
+              }
+            }}
+            className="w-9.5 h-9.5 sm:w-10 sm:h-10 rounded-2xl btn-glass-secondary flex items-center justify-center text-slate-600 dark:text-slate-300 mr-1.5 sm:mr-3 lg:mr-4 shrink-0 active:scale-95 cursor-pointer"
+            title={window.innerWidth < 1024 ? (mobileOpen ? "Close menu" : "Open menu") : (collapsed ? "Expand sidebar" : "Collapse sidebar")}
           >
-            <Search className="w-4 h-4 shrink-0 text-slate-400 group-hover:text-sky-500 transition-colors stroke-[2.2]" />
-            <span className="truncate">Search...</span>
-            <span className="ml-auto hidden sm:inline-block text-[10px] font-mono px-1.5 py-0.5 rounded-lg bg-slate-200/60 dark:bg-slate-700/60 text-slate-400">⌘K</span>
+            <Menu className="w-5 h-5 stroke-[2.2]" />
           </button>
 
-        {/* Global Branch Selector with Permissions */}
-        {canViewBranch && (
-          <div className="relative animate-in fade-in" ref={branchRef}>
+          {/* Search Button */}
+          <div className="flex items-center gap-2 min-w-0">
             <button
-              onClick={() => setShowBranchMenu(!showBranchMenu)}
-              className="flex items-center gap-2 px-3.5 py-2 rounded-2xl btn-glass-pill text-xs h-9.5 cursor-pointer active:scale-95"
+              onClick={onOpenSearch}
+              title="Search (⌘K)"
+              aria-label="Search"
+              className="flex items-center justify-center sm:justify-start gap-2 sm:gap-2.5 px-2.5 sm:px-3.5 py-2 rounded-2xl btn-glass-pill text-slate-500 dark:text-slate-400 text-xs font-semibold w-9.5 h-9.5 sm:w-36 md:w-52 lg:w-60 shrink-0 sm:shrink min-w-0 h-9.5 group cursor-pointer"
             >
-              <div className="w-5 h-5 rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
-                <Building2 className="w-3.5 h-3.5 stroke-[2.2]" />
-              </div>
-              <span className="max-w-32 truncate font-bold text-slate-900 dark:text-white">
-                {selectedBranch || (authorizedBranches.length > 0 ? authorizedBranches[0] : "Select Campus")}
-              </span>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0 stroke-[2.2]" />
+              <Search className="w-4 h-4 shrink-0 text-slate-400 group-hover:text-sky-500 transition-colors stroke-[2.2]" />
+              <span className="truncate hidden sm:inline">Search...</span>
+              <span className="ml-auto hidden md:inline-block text-[10px] font-mono px-1.5 py-0.5 rounded-lg bg-slate-200/60 dark:bg-slate-700/60 text-slate-400">⌘K</span>
             </button>
 
-            {showBranchMenu && (
-              <div className="absolute left-0 mt-2 w-52 rounded-3xl glass-surface border border-white/60 dark:border-white/10 shadow-2xl z-50 p-2 animate-in fade-in zoom-in-95">
-                {canManageBranch && (
-                  <button
-                    onClick={() => {
-                      setShowBranchMenu(false);
-                      window.dispatchEvent(new CustomEvent('settings_tab_change', { detail: { tab: 'campus' } }));
-                      if (onNavigate) {
-                        onNavigate('settings');
-                      }
-                    }}
-                    className="w-full flex items-center justify-between px-2.5 py-1.5 text-xs font-bold text-brand-600 dark:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-900/30 rounded-xl transition-colors mb-1 cursor-pointer"
-                  >
-                    <span className="flex items-center gap-1.5">
-                      <Plus className="w-3.5 h-3.5" />
-                      Add New Campus
-                    </span>
-                  </button>
-                )}
-
-                <div className="max-h-56 overflow-y-auto space-y-1 no-scrollbar">
-                  {branchOptions.map((branch, idx) => {
-                    const isSelected = selectedBranch === branch;
-                    const isInactive = (inactiveBranches || []).includes(branch);
-                    return (
-                      <div
-                        key={idx}
-                        onClick={() => selectBranch(branch)}
-                        className={`flex items-center justify-between group px-3 py-2 text-xs rounded-2xl transition-all font-semibold text-left cursor-pointer ${
-                          isSelected
-                            ? 'btn-glass-primary font-extrabold'
-                            : 'text-slate-700 dark:text-slate-200 hover:bg-brand-500/12 dark:hover:bg-brand-500/20 hover:text-brand-600 dark:hover:text-brand-400'
-                        }`}
-                      >
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            selectBranch(branch);
-                          }}
-                          className={`flex-1 flex items-center justify-between text-xs text-left cursor-pointer ${
-                            isSelected ? 'text-white font-extrabold' : 'text-slate-700 dark:text-slate-200'
-                          }`}
-                        >
-                          <span className="truncate">{branch}</span>
-                          {isInactive && (
-                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-normal ${
-                              isSelected ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700 text-slate-500'
-                            }`}>
-                              Inactive
-                            </span>
-                          )}
-                        </button>
-                        {canManageBranch && (
-                          <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 pl-1.5 transition-opacity">
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setEditingBranchName(branch);
-                                setBranchDraftName(branch);
-                                setBranchModalOpen(true);
-                              }}
-                              className={`p-1 rounded ${
-                                isSelected
-                                  ? 'hover:bg-white/20 text-white/90 hover:text-white'
-                                  : 'hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500'
-                              } cursor-pointer`}
-                              title="Edit branch"
-                            >
-                              <Edit className="w-3 h-3" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setDeletingBranch(branch);
-                              }}
-                              className={`p-1 rounded ${
-                                isSelected
-                                  ? 'hover:bg-white/20 text-white/90 hover:text-white'
-                                  : 'hover:bg-rose-100 dark:hover:bg-rose-900/40 text-rose-500'
-                              } cursor-pointer`}
-                              title="Delete campus branch"
-                            >
-                              <Trash2 className="w-3 h-3" />
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Global Academic Year Selector */}
-        {canViewAcademicYear && (
-          <div className="relative animate-in fade-in" ref={ayRef}>
-            <button
-              onClick={() => setShowAYMenu(!showAYMenu)}
-              className="flex items-center gap-2 px-3.5 py-2 rounded-2xl btn-glass-pill text-xs h-9.5 cursor-pointer active:scale-95"
-            >
-              <div className="w-5 h-5 rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
-                <Calendar className="w-3.5 h-3.5 stroke-[2.2]" />
-              </div>
-              <span className="text-slate-500 dark:text-slate-400 font-medium whitespace-nowrap">Academic Year:</span>
-              <span className="font-bold text-slate-900 dark:text-white whitespace-nowrap">
-                {formatAYDisplay(selectedAcademicYear) || (ayOptions.length > 0 ? formatAYDisplay(ayOptions[0].academicYear) : "Select Academic Year")}
-              </span>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0 stroke-[2.2]" />
-            </button>
-
-            {showAYMenu && (
-              <div className="absolute left-0 mt-2 w-56 rounded-3xl glass-surface border border-white/60 dark:border-white/10 shadow-2xl z-50 p-2 animate-in fade-in zoom-in-95 space-y-1">
-                {ayOptions.map((item) => {
-                  const isSelected = selectedAcademicYear === item.academicYear || formatAYDisplay(selectedAcademicYear) === formatAYDisplay(item.academicYear);
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => {
-                        setSelectedAcademicYear(item.academicYear);
-                        setShowAYMenu(false);
-                      }}
-                      className={`w-full flex items-center justify-between px-3 py-2 text-xs rounded-2xl transition-all font-semibold text-left cursor-pointer ${
-                        isSelected
-                          ? 'btn-glass-primary font-extrabold'
-                          : 'text-slate-700 dark:text-slate-200 hover:bg-brand-500/12 dark:hover:bg-brand-500/20 hover:text-brand-600 dark:hover:text-brand-400'
-                      }`}
-                    >
-                      <span className="font-semibold">{formatAYDisplay(item.academicYear)}</span>
-                      {item.isCurrent && (
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${isSelected ? 'bg-white/20 text-white' : 'bg-sky-500/12 text-sky-600 dark:text-sky-400'}`}>
-                          Current
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
-        </div>
-      </div>
-
-      {/* Right side tools: Notifications & User Profile */}
-      <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
-        {/* Theme Customizer Quick Studio Toggle */}
-        <button
-          type="button"
-          onClick={() => setShowThemeCustomizer((prev) => !prev)}
-          className="w-9.5 h-9.5 rounded-2xl btn-glass-secondary flex items-center justify-center relative cursor-pointer active:scale-95"
-          title="Customize Theme Colors"
-        >
-          <Palette className="w-4.5 h-4.5 stroke-[2.2]" style={{ color: 'var(--primary-color)' }} />
-          <span
-            className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full ring-2 ring-white dark:ring-slate-900"
-            style={{ backgroundColor: 'var(--secondary-color)' }}
-          />
-        </button>
-
-        {/* Dark Mode Toggle */}
-        <button
-          onClick={toggleDarkMode}
-          className="w-9.5 h-9.5 rounded-2xl btn-glass-secondary flex items-center justify-center cursor-pointer active:scale-95"
-          title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-        >
-          {isDarkMode ? <Sun className="w-4.5 h-4.5 text-amber-400 stroke-[2.2]" /> : <Moon className="w-4.5 h-4.5 text-slate-600 stroke-[2.2]" />}
-        </button>
-
-        {/* Notifications Dropdown */}
-        <div className="relative" ref={notifRef}>
-          <button
-            onClick={toggleNotifMenu}
-            className="w-9.5 h-9.5 rounded-2xl btn-glass-secondary flex items-center justify-center relative cursor-pointer active:scale-95"
-            title={unreadCount > 0 ? `${unreadCount} unread notification${unreadCount > 1 ? 's' : ''}` : 'Notifications'}
-          >
-            <Bell className="w-4.5 h-4.5 text-slate-600 dark:text-slate-300 stroke-[2.2]" />
-            {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[10px] font-black leading-none flex items-center justify-center ring-2 ring-white dark:ring-slate-900 shadow-sm animate-in zoom-in-75">
-                {unreadCount > 9 ? '9+' : unreadCount}
-              </span>
-            )}
-          </button>
-
-          {showNotifMenu && (
-            <div className="absolute right-0 mt-2 w-80 sm:w-[360px] rounded-3xl glass-surface border border-white/60 dark:border-white/10 shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95">
-              {/* Header */}
-              <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800 bg-white/40 dark:bg-slate-900/40 backdrop-blur-md">
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-lg bg-sky-500/12 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
-                    <Megaphone className="w-3.5 h-3.5 stroke-[2.2]" />
+            {/* Desktop & Tablet Branch Selector (hidden on mobile < sm) */}
+            {canViewBranch && (
+              <div className="relative animate-in fade-in hidden sm:block" ref={branchRef}>
+                <button
+                  onClick={() => setShowBranchMenu(!showBranchMenu)}
+                  className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2 rounded-2xl btn-glass-pill text-xs h-9.5 cursor-pointer active:scale-95"
+                >
+                  <div className="w-5 h-5 rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
+                    <Building2 className="w-3.5 h-3.5 stroke-[2.2]" />
                   </div>
-                  <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">
-                    Notifications
-                  </h3>
+                  <span className="max-w-28 md:max-w-36 truncate font-bold text-slate-900 dark:text-white">
+                    {selectedBranch || (authorizedBranches.length > 0 ? authorizedBranches[0] : "Select Campus")}
+                  </span>
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0 stroke-[2.2]" />
+                </button>
+
+                {showBranchMenu && (
+                  <div className="absolute left-0 mt-2 w-52 max-w-[calc(100vw-2rem)] rounded-3xl glass-surface border border-white/60 dark:border-white/10 shadow-2xl z-50 p-2 animate-in fade-in zoom-in-95">
+                    {renderBranchDropdownContent()}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Desktop & Tablet Academic Year Selector (hidden on mobile < sm) */}
+            {canViewAcademicYear && (
+              <div className="relative animate-in fade-in hidden sm:block" ref={ayRef}>
+                <button
+                  onClick={() => setShowAYMenu(!showAYMenu)}
+                  className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2 rounded-2xl btn-glass-pill text-xs h-9.5 cursor-pointer active:scale-95"
+                >
+                  <div className="w-5 h-5 rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
+                    <Calendar className="w-3.5 h-3.5 stroke-[2.2]" />
+                  </div>
+                  <span className="text-slate-500 dark:text-slate-400 font-medium whitespace-nowrap hidden lg:inline">Academic Year:</span>
+                  <span className="font-bold text-slate-900 dark:text-white whitespace-nowrap max-w-[75px] md:max-w-none truncate">
+                    {formatAYDisplay(selectedAcademicYear) || (ayOptions.length > 0 ? formatAYDisplay(ayOptions[0].academicYear) : "Select AY")}
+                  </span>
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0 stroke-[2.2]" />
+                </button>
+
+                {showAYMenu && (
+                  <div className="absolute left-0 mt-2 w-56 max-w-[calc(100vw-2rem)] rounded-3xl glass-surface border border-white/60 dark:border-white/10 shadow-2xl z-50 p-2 animate-in fade-in zoom-in-95 space-y-1">
+                    {renderAYDropdownContent()}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Right side tools: Notifications & User Profile */}
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+          {/* Theme Customizer Quick Studio Toggle */}
+          <button
+            type="button"
+            onClick={() => setShowThemeCustomizer((prev) => !prev)}
+            className="w-8.5 h-8.5 sm:w-9.5 sm:h-9.5 rounded-2xl btn-glass-secondary flex items-center justify-center relative cursor-pointer active:scale-95"
+            title="Customize Theme Colors"
+          >
+            <Palette className="w-4 sm:w-4.5 h-4 sm:h-4.5 stroke-[2.2]" style={{ color: 'var(--primary-color)' }} />
+            <span
+              className="absolute top-1.5 right-1.5 w-1.5 sm:w-2 h-1.5 sm:h-2 rounded-full ring-2 ring-white dark:ring-slate-900"
+              style={{ backgroundColor: 'var(--secondary-color)' }}
+            />
+          </button>
+
+          {/* Dark Mode Toggle */}
+          <button
+            onClick={toggleDarkMode}
+            className="w-8.5 h-8.5 sm:w-9.5 sm:h-9.5 rounded-2xl btn-glass-secondary flex items-center justify-center cursor-pointer active:scale-95"
+            title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+          >
+            {isDarkMode ? <Sun className="w-4 sm:w-4.5 h-4 sm:h-4.5 text-amber-400 stroke-[2.2]" /> : <Moon className="w-4 sm:w-4.5 h-4 sm:h-4.5 text-slate-600 stroke-[2.2]" />}
+          </button>
+
+          {/* Notifications Dropdown */}
+          <div className="relative" ref={notifRef}>
+            <button
+              onClick={toggleNotifMenu}
+              className="w-8.5 h-8.5 sm:w-9.5 sm:h-9.5 rounded-2xl btn-glass-secondary flex items-center justify-center relative cursor-pointer active:scale-95"
+              title={unreadCount > 0 ? `${unreadCount} unread notification${unreadCount > 1 ? 's' : ''}` : 'Notifications'}
+            >
+              <Bell className="w-4 sm:w-4.5 h-4 sm:h-4.5 text-slate-600 dark:text-slate-300 stroke-[2.2]" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[16px] sm:min-w-[18px] h-[16px] sm:h-[18px] px-1 rounded-full bg-rose-500 text-white text-[9px] sm:text-[10px] font-black leading-none flex items-center justify-center ring-2 ring-white dark:ring-slate-900 shadow-sm animate-in zoom-in-75">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </button>
+
+            {showNotifMenu && (
+              <div className="absolute right-0 mt-2 w-72 sm:w-[360px] max-w-[calc(100vw-1.5rem)] rounded-3xl glass-surface border border-white/60 dark:border-white/10 shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95">
+                {/* Header */}
+                <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800 bg-white/40 dark:bg-slate-900/40 backdrop-blur-md">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-lg bg-sky-500/12 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
+                      <Megaphone className="w-3.5 h-3.5 stroke-[2.2]" />
+                    </div>
+                    <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">
+                      Notifications
+                    </h3>
+                    {unreadCount > 0 && (
+                      <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/20">
+                        {unreadCount > 9 ? '9+' : unreadCount} new
+                      </span>
+                    )}
+                  </div>
                   {unreadCount > 0 && (
-                    <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/20">
-                      {unreadCount > 9 ? '9+' : unreadCount} new
-                    </span>
+                    <button
+                      onClick={markAllAsRead}
+                      className="text-[11px] font-bold text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300 flex items-center gap-1 cursor-pointer transition-colors"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5 stroke-[2.2]" />
+                      Mark all read
+                    </button>
                   )}
                 </div>
-                {unreadCount > 0 && (
-                  <button
-                    onClick={markAllAsRead}
-                    className="text-[11px] font-bold text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300 flex items-center gap-1 cursor-pointer transition-colors"
-                  >
-                    <CheckCircle2 className="w-3.5 h-3.5 stroke-[2.2]" />
-                    Mark all read
-                  </button>
-                )}
-              </div>
 
-              {/* Notification List */}
-              <div className="max-h-72 overflow-y-auto p-2 space-y-1.5 no-scrollbar">
-                {userNotifications.length === 0 ? (
-                  <div className="text-center py-6 px-4">
-                    <Bell className="w-7 h-7 text-slate-300 dark:text-slate-600 mx-auto mb-1.5 opacity-60" />
-                    <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">No notifications yet</p>
-                    <p className="text-[11px] text-slate-400 dark:text-slate-500">You're all caught up!</p>
-                  </div>
-                ) : (
-                  userNotifications.map((ann) => {
-                    const isUnread = !(readNotifIds || []).includes(ann.id);
-                    return (
-                      <div
-                        key={ann.id}
-                        onClick={() => {
-                          markSingleAsRead(ann.id);
-                          if (onNavigate) {
-                            setShowNotifMenu(false);
-                            onNavigate('communication');
-                          }
-                        }}
-                        className={`p-3 rounded-2xl border transition-all cursor-pointer ${
-                          isUnread
-                            ? 'bg-sky-500/10 border-sky-500/25 hover:bg-sky-500/15 shadow-2xs'
-                            : 'bg-white/40 dark:bg-slate-800/40 border-slate-100 dark:border-slate-800/60 hover:bg-white/70 dark:hover:bg-slate-800/70'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between gap-1.5 mb-1">
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            {isUnread && (
-                              <span className="w-1.5 h-1.5 rounded-full bg-sky-500 shrink-0" />
+                {/* Notification List */}
+                <div className="max-h-72 overflow-y-auto p-2 space-y-1.5 no-scrollbar">
+                  {userNotifications.length === 0 ? (
+                    <div className="text-center py-6 px-4">
+                      <Bell className="w-7 h-7 text-slate-300 dark:text-slate-600 mx-auto mb-1.5 opacity-60" />
+                      <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">No notifications yet</p>
+                      <p className="text-[11px] text-slate-400 dark:text-slate-500">You're all caught up!</p>
+                    </div>
+                  ) : (
+                    userNotifications.map((ann) => {
+                      const isUnread = !(readNotifIds || []).includes(ann.id);
+                      return (
+                        <div
+                          key={ann.id}
+                          onClick={() => {
+                            markSingleAsRead(ann.id);
+                            if (onNavigate) {
+                              setShowNotifMenu(false);
+                              onNavigate('communication');
+                            }
+                          }}
+                          className={`p-3 rounded-2xl border transition-all cursor-pointer ${
+                            isUnread
+                              ? 'bg-sky-500/10 border-sky-500/25 hover:bg-sky-500/15 shadow-2xs'
+                              : 'bg-white/40 dark:bg-slate-800/40 border-slate-100 dark:border-slate-800/60 hover:bg-white/70 dark:hover:bg-slate-800/70'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-1.5 mb-1">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              {isUnread && (
+                                <span className="w-1.5 h-1.5 rounded-full bg-sky-500 shrink-0" />
+                              )}
+                              <span className={`text-xs truncate ${isUnread ? 'font-bold text-slate-900 dark:text-white' : 'font-medium text-slate-700 dark:text-slate-300'}`}>
+                                {ann.title}
+                              </span>
+                            </div>
+                            {ann.category && (
+                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-slate-200/80 dark:bg-slate-800 text-slate-600 dark:text-slate-300 shrink-0 tracking-wide uppercase">
+                                {ann.category}
+                              </span>
                             )}
-                            <span className={`text-xs truncate ${isUnread ? 'font-bold text-slate-900 dark:text-white' : 'font-medium text-slate-700 dark:text-slate-300'}`}>
-                              {ann.title}
-                            </span>
                           </div>
-                          {ann.category && (
-                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-slate-200/80 dark:bg-slate-800 text-slate-600 dark:text-slate-300 shrink-0 tracking-wide uppercase">
-                              {ann.category}
-                            </span>
+                          {ann.content && (
+                            <p className="text-[11px] text-slate-600 dark:text-slate-300 line-clamp-2 leading-relaxed mb-1.5">
+                              {ann.content}
+                            </p>
                           )}
+                          <div className="flex items-center justify-between text-[10px] text-slate-400 dark:text-slate-500">
+                            {ann.author ? <span>{ann.author}</span> : <span />}
+                            <span>{ann.date}</span>
+                          </div>
                         </div>
-                        {ann.content && (
-                          <p className="text-[11px] text-slate-600 dark:text-slate-300 line-clamp-2 leading-relaxed mb-1.5">
-                            {ann.content}
-                          </p>
-                        )}
-                        <div className="flex items-center justify-between text-[10px] text-slate-400 dark:text-slate-500">
-                          {ann.author ? <span>{ann.author}</span> : <span />}
-                          <span>{ann.date}</span>
-                        </div>
-                      </div>
-                    );
-                  })
+                      );
+                    })
+                  )}
+                </div>
+
+                {/* Footer */}
+                {userNotifications.length > 0 && onNavigate && (
+                  <div className="px-3 py-2 border-t border-slate-100 dark:border-slate-800 bg-white/40 dark:bg-slate-900/40 text-center">
+                    <button
+                      onClick={() => {
+                        setShowNotifMenu(false);
+                        onNavigate('communication');
+                      }}
+                      className="w-full py-1.5 text-xs font-bold text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300 hover:bg-sky-500/10 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1 active:scale-98"
+                    >
+                      <span>View All in Communication Hub</span>
+                      <span>→</span>
+                    </button>
+                  </div>
                 )}
               </div>
+            )}
+          </div>
 
-              {/* Footer */}
-              {userNotifications.length > 0 && onNavigate && (
-                <div className="px-3 py-2 border-t border-slate-100 dark:border-slate-800 bg-white/40 dark:bg-slate-900/40 text-center">
+          {/* User Profile */}
+          <div className="relative" ref={userRef}>
+            <button
+              onClick={() => setShowUserMenu(!showUserMenu)}
+              className="flex items-center gap-1.5 sm:gap-2.5 py-1 px-1.5 sm:px-2.5 rounded-2xl btn-glass-pill transition-all cursor-pointer active:scale-95"
+            >
+              <img
+                key={user?.avatar || currentStaff?.avatar || 'avatar'}
+                src={resolveMediaUrl(user?.avatar || currentStaff?.avatar) || getInitialsAvatar(displayName, user?.email)}
+                alt=""
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement;
+                  const fallback = getInitialsAvatar(displayName, user?.email);
+                  if (target.src !== fallback) {
+                    target.src = fallback;
+                  }
+                }}
+                className="w-7 h-7 sm:w-7.5 sm:h-7.5 rounded-full object-cover ring-2 ring-sky-500/30 shrink-0"
+              />
+              {displayName && (
+                <div className="hidden lg:block text-left max-w-[100px] xl:max-w-[140px] truncate">
+                  <p className="text-xs font-bold text-slate-900 dark:text-white leading-tight truncate">{displayName}</p>
+                  {displayRole && (
+                    <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 leading-tight truncate">
+                      {displayRole}
+                    </p>
+                  )}
+                </div>
+              )}
+            </button>
+
+            {showUserMenu && (
+              <div className="absolute right-0 mt-2 w-56 max-w-[calc(100vw-1.5rem)] rounded-3xl glass-surface border border-white/60 dark:border-white/10 shadow-2xl z-50 p-2 animate-in fade-in zoom-in-95 space-y-1">
+                <div className="p-3 bg-white/60 dark:bg-slate-800/60 rounded-2xl border border-white/50 dark:border-white/5 mb-1.5 shadow-2xs">
+                  <p className="text-xs font-bold text-slate-900 dark:text-white">{displayName}</p>
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">{displayRole} • {currentStaff?.email || user?.email}</p>
+                </div>
+
+                {['Admin', 'Super Admin', 'Principal', 'HR', 'Receptionist', 'Transport Manager', 'Teacher', 'Librarian', 'Hostel Warden', 'Accountant', 'Driver', 'Staff'].some(r => (role || '').toLowerCase().includes(r.toLowerCase())) && (
                   <button
                     onClick={() => {
-                      setShowNotifMenu(false);
-                      onNavigate('communication');
+                      setShowUserMenu(false);
+                      const cleanRole = (role || '').toLowerCase();
+                      if (['driver', 'teacher', 'librarian', 'warden', 'hostel warden', 'accountant', 'finance', 'hr', 'receptionist', 'transport manager', 'staff'].some(r => cleanRole.includes(r))) {
+                        onNavigate?.('teacher-profile');
+                      } else {
+                        onNavigate?.('profile-completion');
+                      }
                     }}
-                    className="w-full py-1.5 text-xs font-bold text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300 hover:bg-sky-500/10 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1 active:scale-98"
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-brand-500/12 dark:hover:bg-brand-500/20 hover:text-brand-600 dark:hover:text-brand-400 rounded-2xl transition-all cursor-pointer active:scale-98 group"
                   >
-                    <span>View All in Communication Hub</span>
-                    <span>→</span>
+                    <User className="w-4 h-4 text-brand-500 group-hover:scale-110 transition-transform stroke-[2.2]" />
+                    <span>My Profile</span>
                   </button>
+                )}
+
+                <button
+                  onClick={() => { setShowUserMenu(false); onOpenChangePass(); }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-brand-500/12 dark:hover:bg-brand-500/20 hover:text-brand-600 dark:hover:text-brand-400 rounded-2xl transition-all cursor-pointer active:scale-98 group"
+                >
+                  <Key className="w-4 h-4 text-amber-500 group-hover:scale-110 transition-transform stroke-[2.2]" />
+                  <span>Change Password</span>
+                </button>
+
+                <button
+                  onClick={() => { setShowUserMenu(false); if (onNavigate) onNavigate('dashboard'); logout(); }}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-500/12 dark:hover:bg-rose-500/20 hover:text-rose-700 dark:hover:text-rose-300 rounded-2xl transition-all cursor-pointer active:scale-98 group"
+                >
+                  <LogOut className="w-4 h-4 stroke-[2.2] group-hover:scale-110 transition-transform" />
+                  <span>Sign Out</span>
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile Sub-Row: Branch & Academic Year Selectors (visible on mobile < sm, hidden on desktop sm:) */}
+      {(canViewBranch || canViewAcademicYear) && (
+        <div className="flex sm:hidden items-center gap-2 px-2.5 pb-2.5 pt-1 border-t border-brand-200/40 dark:border-brand-800/30">
+          {/* Mobile Campus Selector */}
+          {canViewBranch && (
+            <div className="relative flex-1 min-w-0" ref={mobileBranchRef}>
+              <button
+                type="button"
+                onClick={() => setShowBranchMenu(!showBranchMenu)}
+                className="w-full flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-2xl btn-glass-pill text-xs h-9 cursor-pointer active:scale-95"
+              >
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <div className="w-5 h-5 rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
+                    <Building2 className="w-3.5 h-3.5 stroke-[2.2]" />
+                  </div>
+                  <span className="truncate font-bold text-slate-900 dark:text-white text-[11px]">
+                    {selectedBranch || (authorizedBranches.length > 0 ? authorizedBranches[0] : "Campus")}
+                  </span>
+                </div>
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0 stroke-[2.2]" />
+              </button>
+
+              {showBranchMenu && (
+                <div className="absolute left-0 top-full mt-1.5 w-60 max-w-[calc(100vw-1.5rem)] rounded-3xl glass-surface border border-white/60 dark:border-white/10 shadow-2xl z-50 p-2 animate-in fade-in zoom-in-95">
+                  {renderBranchDropdownContent()}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Mobile Academic Year Selector */}
+          {canViewAcademicYear && (
+            <div className="relative flex-1 min-w-0" ref={mobileAyRef}>
+              <button
+                type="button"
+                onClick={() => setShowAYMenu(!showAYMenu)}
+                className="w-full flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-2xl btn-glass-pill text-xs h-9 cursor-pointer active:scale-95"
+              >
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <div className="w-5 h-5 rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
+                    <Calendar className="w-3.5 h-3.5 stroke-[2.2]" />
+                  </div>
+                  <span className="truncate font-bold text-slate-900 dark:text-white text-[11px]">
+                    {formatAYDisplay(selectedAcademicYear) || (ayOptions.length > 0 ? formatAYDisplay(ayOptions[0].academicYear) : "AY")}
+                  </span>
+                </div>
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0 stroke-[2.2]" />
+              </button>
+
+              {showAYMenu && (
+                <div className="absolute right-0 top-full mt-1.5 w-56 max-w-[calc(100vw-1.5rem)] rounded-3xl glass-surface border border-white/60 dark:border-white/10 shadow-2xl z-50 p-2 animate-in fade-in zoom-in-95 space-y-1">
+                  {renderAYDropdownContent()}
                 </div>
               )}
             </div>
           )}
         </div>
-
-        {/* User Profile */}
-        <div className="relative" ref={userRef}>
-          <button
-            onClick={() => setShowUserMenu(!showUserMenu)}
-            className="flex items-center gap-2.5 py-1 px-2.5 rounded-2xl btn-glass-pill transition-all cursor-pointer active:scale-95"
-          >
-            <img
-              key={user?.avatar || currentStaff?.avatar || 'avatar'}
-              src={resolveMediaUrl(user?.avatar || currentStaff?.avatar) || getInitialsAvatar(displayName, user?.email)}
-              alt=""
-              onError={(e) => {
-                const target = e.target as HTMLImageElement;
-                const fallback = getInitialsAvatar(displayName, user?.email);
-                if (target.src !== fallback) {
-                  target.src = fallback;
-                }
-              }}
-              className="w-7.5 h-7.5 rounded-full object-cover ring-2 ring-sky-500/30 shrink-0"
-            />
-            {displayName && (
-              <div className="hidden md:block text-left">
-                <p className="text-xs font-bold text-slate-900 dark:text-white leading-tight">{displayName}</p>
-                {displayRole && (
-                  <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 leading-tight">
-                    {displayRole}
-                  </p>
-                )}
-              </div>
-            )}
-          </button>
-
-          {showUserMenu && (
-            <div className="absolute right-0 mt-2 w-56 rounded-3xl glass-surface border border-white/60 dark:border-white/10 shadow-2xl z-50 p-2 animate-in fade-in zoom-in-95 space-y-1">
-              <div className="p-3 bg-white/60 dark:bg-slate-800/60 rounded-2xl border border-white/50 dark:border-white/5 mb-1.5 shadow-2xs">
-                <p className="text-xs font-bold text-slate-900 dark:text-white">{displayName}</p>
-                <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">{displayRole} • {currentStaff?.email || user?.email}</p>
-              </div>
-
-              {['Admin', 'Super Admin', 'Principal', 'HR', 'Receptionist', 'Transport Manager', 'Teacher', 'Librarian', 'Hostel Warden', 'Accountant', 'Driver', 'Staff'].some(r => (role || '').toLowerCase().includes(r.toLowerCase())) && (
-                <button
-                  onClick={() => {
-                    setShowUserMenu(false);
-                    const cleanRole = (role || '').toLowerCase();
-                    if (['driver', 'teacher', 'librarian', 'warden', 'hostel warden', 'accountant', 'finance', 'hr', 'receptionist', 'transport manager', 'staff'].some(r => cleanRole.includes(r))) {
-                      onNavigate?.('teacher-profile');
-                    } else {
-                      onNavigate?.('profile-completion');
-                    }
-                  }}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-brand-500/12 dark:hover:bg-brand-500/20 hover:text-brand-600 dark:hover:text-brand-400 rounded-2xl transition-all cursor-pointer active:scale-98 group"
-                >
-                  <User className="w-4 h-4 text-brand-500 group-hover:scale-110 transition-transform stroke-[2.2]" />
-                  <span>My Profile</span>
-                </button>
-              )}
-
-              <button
-                onClick={() => { setShowUserMenu(false); onOpenChangePass(); }}
-                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-brand-500/12 dark:hover:bg-brand-500/20 hover:text-brand-600 dark:hover:text-brand-400 rounded-2xl transition-all cursor-pointer active:scale-98 group"
-              >
-                <Key className="w-4 h-4 text-amber-500 group-hover:scale-110 transition-transform stroke-[2.2]" />
-                <span>Change Password</span>
-              </button>
-
-              <button
-                onClick={() => { setShowUserMenu(false); if (onNavigate) onNavigate('dashboard'); logout(); }}
-                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-500/12 dark:hover:bg-rose-500/20 hover:text-rose-700 dark:hover:text-rose-300 rounded-2xl transition-all cursor-pointer active:scale-98 group"
-              >
-                <LogOut className="w-4 h-4 stroke-[2.2] group-hover:scale-110 transition-transform" />
-                <span>Sign Out</span>
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
+      )}
 
       {branchModalOpen && typeof document !== 'undefined' && createPortal(
         <div className="fixed inset-0 z-[100] bg-slate-900/50 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in">
