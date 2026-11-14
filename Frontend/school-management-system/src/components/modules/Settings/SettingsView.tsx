@@ -30,6 +30,8 @@ import {
   Camera,
   Key,
   Lock,
+  Eye,
+  EyeOff,
   Upload,
   Sparkles,
   UserCheck,
@@ -565,6 +567,9 @@ export const SettingsView: React.FC = () => {
     newPassword: "",
     confirmPassword: "",
   });
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [idForm, setIdForm] = useState<IdSequenceSettings>(() => getIdSequenceSettings());
   const [editingIdCards, setEditingIdCards] = useState<Record<string, boolean>>({
@@ -771,6 +776,18 @@ export const SettingsView: React.FC = () => {
   const [deletingCampus, setDeletingCampus] = useState<CampusItem | null>(null);
   const [campusErrors, setCampusErrors] = useState<{ name?: string; code?: string; address?: string; phone?: string; email?: string; status?: string }>({});
   const [schoolProfileErrors, setSchoolProfileErrors] = useState<{ name?: string; email?: string; principalName?: string; boardType?: string }>({});
+  const [isEditingSchoolProfile, setIsEditingSchoolProfile] = useState(false);
+  const [isSavingSchoolProfile, setIsSavingSchoolProfile] = useState(false);
+
+  const handleToggleEditSchoolProfile = () => {
+    if (isEditingSchoolProfile) {
+      setProfileForm(schoolProfile);
+      setSchoolProfileErrors({});
+      setIsEditingSchoolProfile(false);
+    } else {
+      setIsEditingSchoolProfile(true);
+    }
+  };
   const [isCodeManuallyEdited, setIsCodeManuallyEdited] = useState(false);
 
   const generateCampusCode = (name: string): string => {
@@ -850,7 +867,7 @@ export const SettingsView: React.FC = () => {
     }
   };
 
-  const handleSaveProfile = (e: React.SyntheticEvent) => {
+  const handleSaveProfile = async (e: React.SyntheticEvent) => {
     e.preventDefault();
 
     if (!profileForm.name || !profileForm.name.trim()) {
@@ -910,21 +927,30 @@ export const SettingsView: React.FC = () => {
       return;
     }
 
-    updateSchoolProfile(profileForm);
+    setIsSavingSchoolProfile(true);
     try {
-      localStorage.setItem("edu_db_profile", JSON.stringify(profileForm));
-      localStorage.setItem("profile", JSON.stringify(profileForm));
-      const logoVal = profileForm.logoUrl ?? "";
-      localStorage.setItem("school_logo", logoVal);
-      localStorage.setItem("logoUrl", logoVal);
-      localStorage.setItem("schoolLogo", logoVal);
-    } catch (err) {}
-    window.dispatchEvent(new Event("school_profile_updated"));
-    addToast(
-      "success",
-      "Settings Saved",
-      "School branding profile updated successfully.",
-    );
+      await new Promise((r) => setTimeout(r, 600));
+      updateSchoolProfile(profileForm);
+      try {
+        localStorage.setItem("edu_db_profile", JSON.stringify(profileForm));
+        localStorage.setItem("profile", JSON.stringify(profileForm));
+        const logoVal = profileForm.logoUrl ?? "";
+        localStorage.setItem("school_logo", logoVal);
+        localStorage.setItem("logoUrl", logoVal);
+        localStorage.setItem("schoolLogo", logoVal);
+      } catch (err) {}
+      window.dispatchEvent(new Event("school_profile_updated"));
+      addToast(
+        "success",
+        "Settings Saved",
+        "School branding profile updated successfully.",
+      );
+      setIsEditingSchoolProfile(false);
+    } catch (err: any) {
+      addToast("error", "Save Failed", "Failed to save school profile.");
+    } finally {
+      setIsSavingSchoolProfile(false);
+    }
   };
 
   const handleUpdateTemplate = (
@@ -1381,13 +1407,18 @@ export const SettingsView: React.FC = () => {
   return (
     <div className="space-y-3 animate-in fade-in">
       {/* Settings Header */}
-      <div className="flex items-center gap-2.5">
-        <div className="p-1.5 bg-sky-50 dark:bg-sky-950/40 rounded-lg text-sky-600 dark:text-sky-400 border border-sky-100 dark:border-sky-900/50">
-          <SettingsIcon className="w-5 h-5 text-[#0088cc] dark:text-sky-400" />
+      <div className="flex items-center gap-3">
+        <div className="p-2 bg-brand-50 dark:bg-brand-950/50 rounded-xl text-brand-600 dark:text-brand-400 border border-brand-200/60 dark:border-brand-800/60 shadow-xs">
+          <SettingsIcon className="w-5 h-5 text-brand-600 dark:text-brand-400" />
         </div>
-        <h2 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
-          Settings
-        </h2>
+        <div>
+          <h2 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
+            Settings
+          </h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+            System preferences, profile configurations, and institution settings
+          </p>
+        </div>
       </div>
 
       {/* Settings Navigation Tabs */}
@@ -1402,7 +1433,7 @@ export const SettingsView: React.FC = () => {
             type="button"
             onClick={() => handleScrollTabs("left")}
             aria-label="Scroll tabs left"
-            className="pointer-events-auto p-1.5 ml-1 rounded-xl bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 shadow-sm border border-slate-200 dark:border-slate-700 hover:bg-sky-50 dark:hover:bg-slate-700 hover:text-sky-600 dark:hover:text-sky-400 transition-all cursor-pointer active:scale-95"
+            className="pointer-events-auto p-1.5 ml-1 rounded-xl bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 shadow-sm border border-slate-200 dark:border-slate-700 hover:bg-brand-50 dark:hover:bg-slate-700 hover:text-brand-600 dark:hover:text-brand-400 transition-all cursor-pointer active:scale-95"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
@@ -1416,7 +1447,7 @@ export const SettingsView: React.FC = () => {
           onMouseMove={handleTabsMouseMove}
           onMouseUp={handleTabsMouseUpOrLeave}
           onMouseLeave={handleTabsMouseUpOrLeave}
-          className={`p-1.5 bg-white dark:bg-slate-900 rounded-2xl flex items-center gap-1.5 overflow-x-auto border border-sky-300 dark:border-sky-700 shadow-xs select-none no-scrollbar ${
+          className={`p-1.5 bg-white/95 dark:bg-slate-900/95 rounded-2xl flex items-center gap-1.5 overflow-x-auto border border-slate-200/90 dark:border-slate-800 shadow-xs select-none no-scrollbar ${
             isDraggingTabs ? "cursor-grabbing" : "cursor-grab"
           }`}
           style={{
@@ -1495,7 +1526,7 @@ export const SettingsView: React.FC = () => {
                   }}
                   className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all duration-150 cursor-pointer whitespace-nowrap shrink-0 text-center select-none ${
                     isActive
-                      ? "bg-sky-600 dark:bg-sky-500 text-white shadow-xs font-extrabold border border-sky-600 dark:border-sky-500"
+                      ? "bg-brand-600 text-white shadow-xs font-extrabold border border-brand-600"
                       : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100/70 dark:hover:bg-slate-800/60 font-semibold border border-transparent"
                   }`}
                 >
@@ -1516,7 +1547,7 @@ export const SettingsView: React.FC = () => {
             type="button"
             onClick={() => handleScrollTabs("right")}
             aria-label="Scroll tabs right"
-            className="pointer-events-auto p-1.5 mr-1 rounded-xl bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 shadow-sm border border-slate-200 dark:border-slate-700 hover:bg-sky-50 dark:hover:bg-slate-700 hover:text-sky-600 dark:hover:text-sky-400 transition-all cursor-pointer active:scale-95"
+            className="pointer-events-auto p-1.5 mr-1 rounded-xl bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 shadow-sm border border-slate-200 dark:border-slate-700 hover:bg-brand-50 dark:hover:bg-slate-700 hover:text-brand-600 dark:hover:text-brand-400 transition-all cursor-pointer active:scale-95"
           >
             <ChevronRight className="w-4 h-4" />
           </button>
@@ -1525,168 +1556,54 @@ export const SettingsView: React.FC = () => {
 
       {/* TAB 0: PERSONAL BASIC DETAILS & PHOTO (FOR ALL ROLES INCLUDING WARDEN & ADMIN) */}
       {activeTab === "my-profile" && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
           {/* Main Basic Details Form Card */}
-          <div className="lg:col-span-2 glass-card p-4 sm:p-5 rounded-2xl space-y-3 border border-sky-300 dark:border-sky-700 bg-white dark:bg-slate-900 shadow-xs">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2.5">
-              <div>
-                <h3 className="font-extrabold text-lg text-slate-900 dark:text-white flex items-center gap-2">
-                  <UserCheck className="w-5 h-5 text-brand-600" /> Basic Details
-                  & Profile Setup
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={handleToggleEditProfile}
-                className={`px-3 py-1.5 rounded-xl border flex items-center gap-1.5 text-xs font-extrabold transition cursor-pointer active:scale-95 ${
-                  isEditingProfile
-                    ? "bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 border-rose-200 dark:border-rose-800 shadow-xs hover:bg-rose-100 dark:hover:bg-rose-900/50"
-                    : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700"
-                }`}
-                title={isEditingProfile ? "Cancel Editing" : "Edit Profile"}
-              >
-                {isEditingProfile ? (
-                  <>
-                    <X className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
-                    <span>Cancel</span>
-                  </>
-                ) : (
-                  <>
-                    <Edit className="w-3.5 h-3.5 text-brand-600" />
-                    <span>Edit</span>
-                  </>
-                )}
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveMyProfile} className="space-y-3 text-sm">
-              <div className="flex flex-col md:flex-row items-center gap-4 md:gap-5">
-                {/* Left: Input Fields Grid */}
-                <div className="flex-1 w-full grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block font-extrabold text-sm text-slate-800 dark:text-slate-200 mb-1">
-                      Full Name <span className="text-rose-500 font-bold">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      disabled={!isEditingProfile}
-                      placeholder="Enter your full name"
-                      value={myProfileForm.name}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setMyProfileForm((prev) => ({ ...prev, name: val }));
-                        const res = validateFullName(val, true);
-                        setProfileErrors((prev) => ({ ...prev, name: res.error }));
-                      }}
-                      className={`w-full px-4 py-2.5 rounded-xl border font-semibold text-sm text-slate-900 dark:text-white focus:ring-2 transition disabled:bg-slate-100/80 dark:disabled:bg-slate-800/60 disabled:text-slate-500 disabled:cursor-not-allowed ${
-                        !isEditingProfile
-                          ? "bg-slate-100/70 dark:bg-slate-800/70 border-slate-200/80 dark:border-slate-700/80"
-                          : profileErrors.name
-                          ? "border-rose-500 focus:border-rose-500 focus:ring-rose-500/20 bg-rose-50/20"
-                          : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 focus:ring-brand-500/20 focus:border-brand-500"
-                      }`}
-                    />
-                    {profileErrors.name && (
-                      <p className="mt-1 text-xs font-bold text-rose-500 flex items-center gap-1">
-                        <span>⚠️</span> {profileErrors.name}
-                      </p>
-                    )}
+          <div className="lg:col-span-2 glass-card p-6 sm:p-7 rounded-2xl flex flex-col justify-between shadow-xs">
+            <div>
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-slate-150 dark:border-slate-800/80 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-brand-50 dark:bg-brand-950/60 text-brand-600 dark:text-brand-400 flex items-center justify-center border border-brand-200/60 dark:border-brand-800/60 shadow-xs">
+                    <UserCheck className="w-5 h-5 text-brand-600 dark:text-brand-400" />
                   </div>
-
                   <div>
-                    <label className="block font-extrabold text-sm text-slate-800 dark:text-slate-200 mb-1">
-                      Email Address <span className="text-rose-500 font-bold">*</span>
-                    </label>
-                    <input
-                      type="email"
-                      required
-                      disabled={!isEditingProfile}
-                      placeholder="warden@pirnavschools.edu"
-                      value={myProfileForm.email}
-                      onChange={(e) => {
-                        const sanitized = sanitizeEmailInput(e.target.value);
-                        setMyProfileForm((prev) => ({ ...prev, email: sanitized }));
-                        const res = validateEmail(sanitized, true);
-                        setProfileErrors((prev) => ({ ...prev, email: res.error }));
-                      }}
-                      className={`w-full px-4 py-2.5 rounded-xl border font-semibold text-sm text-slate-900 dark:text-white focus:ring-2 transition disabled:bg-slate-100/80 dark:disabled:bg-slate-800/60 disabled:text-slate-500 disabled:cursor-not-allowed ${
-                        !isEditingProfile
-                          ? "bg-slate-100/70 dark:bg-slate-800/70 border-slate-200/80 dark:border-slate-700/80"
-                          : profileErrors.email
-                          ? "border-rose-500 focus:border-rose-500 focus:ring-rose-500/20 bg-rose-50/20"
-                          : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 focus:ring-brand-500/20 focus:border-brand-500"
-                      }`}
-                    />
-                    {profileErrors.email && (
-                      <p className="mt-1 text-xs font-bold text-rose-500 flex items-center gap-1">
-                        <span>⚠️</span> {profileErrors.email}
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="block font-extrabold text-sm text-slate-800 dark:text-slate-200 mb-1 whitespace-nowrap">
-                      Contact Number
-                    </label>
-                    <input
-                      type="tel"
-                      disabled={!isEditingProfile}
-                      maxLength={10}
-                      placeholder="9876543210"
-                      value={myProfileForm.phone}
-                      onChange={(e) => {
-                        const cleaned = sanitizePhoneInput(e.target.value);
-                        setMyProfileForm((prev) => ({ ...prev, phone: cleaned }));
-                        const res = validatePhoneNumber(cleaned, false);
-                        setProfileErrors((prev) => ({ ...prev, phone: cleaned ? res.error : undefined }));
-                      }}
-                      className={`w-full px-4 py-2.5 rounded-xl border font-semibold text-sm text-slate-900 dark:text-white focus:ring-2 transition disabled:bg-slate-100/80 dark:disabled:bg-slate-800/60 disabled:text-slate-500 disabled:cursor-not-allowed ${
-                        !isEditingProfile
-                          ? "bg-slate-100/70 dark:bg-slate-800/70 border-slate-200/80 dark:border-slate-700/80"
-                          : profileErrors.phone
-                          ? "border-rose-500 focus:border-rose-500 focus:ring-rose-500/20 bg-rose-50/20"
-                          : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 focus:ring-brand-500/20 focus:border-brand-500"
-                      }`}
-                    />
-                    {profileErrors.phone && (
-                      <p className="mt-1 text-xs font-bold text-rose-500 flex items-center gap-1">
-                        <span>⚠️</span> {profileErrors.phone}
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="block font-extrabold text-sm text-slate-800 dark:text-slate-200 mb-1 whitespace-nowrap">
-                      Assigned Campus
-                    </label>
-                    <select
-                      disabled={!isEditingProfile}
-                      value={myProfileForm.branch}
-                      onChange={(e) =>
-                        setMyProfileForm({
-                          ...myProfileForm,
-                          branch: e.target.value,
-                        })
-                      }
-                      className={`w-full px-4 py-2.5 rounded-xl border font-semibold text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition disabled:bg-slate-100/80 dark:disabled:bg-slate-800/60 disabled:text-slate-500 disabled:cursor-not-allowed ${
-                        !isEditingProfile
-                          ? "bg-slate-100/70 dark:bg-slate-800/70 border-slate-200/80 dark:border-slate-700/80"
-                          : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 cursor-pointer"
-                      }`}
-                    >
-                      <option value="" disabled>Select Campus</option>
-                      {configuredBranches.map((bName: string) => (
-                        <option key={bName} value={bName}>
-                          {bName}
-                        </option>
-                      ))}
-                    </select>
+                    <h3 className="font-extrabold text-base sm:text-lg text-slate-900 dark:text-white leading-tight">
+                      Basic Details & Profile Setup
+                    </h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                      Manage your personal identity, contact details, and avatar
+                    </p>
                   </div>
                 </div>
 
-                {/* Right: Profile Photo Uploader directly next to fields */}
-                <div className="shrink-0 flex flex-col items-center justify-center space-y-1 self-center pt-2 md:pt-0">
+                <button
+                  type="button"
+                  onClick={handleToggleEditProfile}
+                  className={`px-3.5 py-1.5 rounded-xl border flex items-center gap-1.5 text-xs font-extrabold transition cursor-pointer active:scale-95 shadow-xs ${
+                    isEditingProfile
+                      ? "bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 border-rose-200 dark:border-rose-800 hover:bg-rose-100 dark:hover:bg-rose-900/50"
+                      : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700"
+                  }`}
+                  title={isEditingProfile ? "Cancel Editing" : "Edit Profile"}
+                >
+                  {isEditingProfile ? (
+                    <>
+                      <X className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
+                      <span>Cancel</span>
+                    </>
+                  ) : (
+                    <>
+                      <Edit className="w-3.5 h-3.5 text-brand-600 dark:text-brand-400" />
+                      <span>Edit Profile</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Top Identity Hero: Avatar + User Info & Badges + Photo Controls */}
+              <div className="py-5 flex flex-col sm:flex-row items-center sm:items-start gap-5">
+                {/* Avatar with Badges/Actions */}
+                <div className="relative shrink-0">
                   <input
                     ref={avatarFileInputRef}
                     type="file"
@@ -1695,23 +1612,82 @@ export const SettingsView: React.FC = () => {
                     className="hidden"
                   />
 
-                  <div className="relative shrink-0">
+                  <div
+                    onClick={isEditingProfile ? () => avatarFileInputRef.current?.click() : undefined}
+                    className={`relative rounded-2xl overflow-hidden ring-4 ring-white dark:ring-slate-800 shadow-md ${
+                      isEditingProfile ? "cursor-pointer group" : ""
+                    }`}
+                    title={isEditingProfile ? "Click to change photo" : undefined}
+                  >
                     {Boolean(myProfileForm.avatar && myProfileForm.avatar !== DEFAULT_USER_AVATAR) ? (
-                      <div className="relative">
-                        <img
-                          src={resolveMediaUrl(myProfileForm.avatar) || DEFAULT_USER_AVATAR}
-                          alt="Profile Avatar"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            if (target.src !== DEFAULT_USER_AVATAR) {
-                              target.src = DEFAULT_USER_AVATAR;
-                            }
-                          }}
-                          className="w-20 h-20 rounded-2xl object-cover ring-2 ring-brand-500/20 shadow-xs bg-white dark:bg-slate-800"
-                        />
+                      <img
+                        src={resolveMediaUrl(myProfileForm.avatar) || DEFAULT_USER_AVATAR}
+                        alt="Profile Avatar"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          if (target.src !== DEFAULT_USER_AVATAR) {
+                            target.src = DEFAULT_USER_AVATAR;
+                          }
+                        }}
+                        className="w-22 h-22 sm:w-24 sm:h-24 object-cover bg-white dark:bg-slate-800"
+                      />
+                    ) : (
+                      <div className="w-22 h-22 sm:w-24 sm:h-24 bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900 flex items-center justify-center text-slate-400 dark:text-slate-500">
+                        <UserIcon className="w-11 h-11" />
+                      </div>
+                    )}
+
+                    {/* Subtle Hover Overlay on Avatar when in edit mode */}
+                    {isEditingProfile && (
+                      <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white gap-1 backdrop-blur-[1px]">
+                        <Camera className="w-5 h-5" />
+                        <span className="text-[10px] font-bold">Change</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Identity Info beside Avatar */}
+                <div className="flex-1 text-center sm:text-left space-y-2">
+                  <div>
+                    <h4 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white tracking-tight">
+                      {myProfileForm.name || user?.name || "User Profile"}
+                    </h4>
+                    <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium mt-0.5">
+                      {myProfileForm.email || user?.email || "No email registered"}
+                    </p>
+                  </div>
+
+                  {/* Badges for Role & Campus */}
+                  <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 pt-0.5">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-brand-50 dark:bg-brand-950/60 text-brand-700 dark:text-brand-300 border border-brand-200/80 dark:border-brand-800/80 shadow-2xs">
+                      <ShieldCheck className="w-3.5 h-3.5 text-brand-600 dark:text-brand-400" />
+                      {user?.role || role || "Admin"}
+                    </span>
+
+                    {(myProfileForm.branch || user?.branch) && (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 shadow-2xs">
+                        <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                        {myProfileForm.branch || user?.branch}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Photo Action Row when editing */}
+                  {isEditingProfile ? (
+                    <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2.5 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => avatarFileInputRef.current?.click()}
+                        className="px-3.5 py-1.5 rounded-xl bg-brand-50 dark:bg-brand-950/50 hover:bg-brand-100 dark:hover:bg-brand-900/50 text-brand-700 dark:text-brand-300 border border-brand-200 dark:border-brand-800 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer active:scale-95 shadow-2xs"
+                      >
+                        <Camera className="w-3.5 h-3.5 text-brand-600 dark:text-brand-400" />
+                        {Boolean(myProfileForm.avatar && myProfileForm.avatar !== DEFAULT_USER_AVATAR) ? "Change Photo" : "Upload Photo"}
+                      </button>
+
+                      {Boolean(myProfileForm.avatar && myProfileForm.avatar !== DEFAULT_USER_AVATAR) && (
                         <button
                           type="button"
-                          disabled={!isEditingProfile}
                           onClick={() => {
                             pendingAvatarFileRef.current = null;
                             if (avatarFileInputRef.current) {
@@ -1722,143 +1698,327 @@ export const SettingsView: React.FC = () => {
                               avatar: "",
                             }));
                           }}
-                          className="absolute -top-1.5 -right-1.5 p-1 rounded-full bg-rose-50 dark:bg-rose-950 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900 border border-rose-200 dark:border-rose-800 transition cursor-pointer shadow-xs disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none"
-                          title="Delete Photo"
+                          className="px-3 py-1.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/50 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer active:scale-95 shadow-2xs"
+                          title="Remove Photo"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
+                          Remove
                         </button>
-                      </div>
-                    ) : (
-                      <div className="w-20 h-20 rounded-2xl bg-slate-100 dark:bg-slate-800 ring-2 ring-slate-100/50 dark:ring-slate-800/50 flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 border border-slate-200/60 dark:border-slate-700/60">
-                        <UserIcon className="w-9 h-9" />
-                      </div>
-                    )}
-                  </div>
+                      )}
 
-                  <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-tight text-center">
-                    Max size: 3MB
-                  </span>
-
-                  {!Boolean(myProfileForm.avatar && myProfileForm.avatar !== DEFAULT_USER_AVATAR) ? (
-                    <button
-                      type="button"
-                      disabled={!isEditingProfile}
-                      onClick={() => avatarFileInputRef.current?.click()}
-                      className="w-20 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white text-[11px] font-extrabold cursor-pointer flex items-center justify-center gap-1 shadow-xs transition-all shrink-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none"
-                    >
-                      <Camera className="w-3.5 h-3.5" /> Upload
-                    </button>
+                      <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500">
+                        PNG, JPG or WebP · Max 3MB
+                      </span>
+                    </div>
                   ) : (
-                    <button
-                      type="button"
-                      disabled={!isEditingProfile}
-                      onClick={() => avatarFileInputRef.current?.click()}
-                      className="w-20 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-[10px] font-bold cursor-pointer flex items-center justify-center gap-1 transition-all shrink-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none"
-                    >
-                      <Camera className="w-3.5 h-3.5" /> Change
-                    </button>
+                    <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium pt-0.5">
+                      Personal identity profile and contact configuration
+                    </p>
                   )}
                 </div>
               </div>
 
+              {/* Form Fields: Clean 2-Column Grid */}
+              <form id="profile-details-form" onSubmit={handleSaveMyProfile} className="border-t border-slate-150 dark:border-slate-800/80 pt-5 space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Full Name */}
+                  <div>
+                    <label className="block font-bold text-xs sm:text-sm text-slate-700 dark:text-slate-300 mb-1.5">
+                      Full Name <span className="text-rose-500 font-bold">*</span>
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                        <UserIcon className="w-4 h-4" />
+                      </div>
+                      <input
+                        type="text"
+                        required
+                        disabled={!isEditingProfile}
+                        placeholder="Enter your full name"
+                        value={myProfileForm.name}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setMyProfileForm((prev) => ({ ...prev, name: val }));
+                          const res = validateFullName(val, true);
+                          setProfileErrors((prev) => ({ ...prev, name: res.error }));
+                        }}
+                        className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm font-semibold transition ${
+                          !isEditingProfile
+                            ? "bg-slate-50/80 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/80 text-slate-800 dark:text-slate-200 cursor-not-allowed"
+                            : profileErrors.name
+                            ? "bg-rose-50/30 border-rose-400 text-slate-900 dark:text-white focus:ring-2 focus:ring-rose-500/20"
+                            : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                        }`}
+                      />
+                    </div>
+                    {profileErrors.name && (
+                      <p className="mt-1 text-xs font-bold text-rose-500 flex items-center gap-1">
+                        <span>⚠️</span> {profileErrors.name}
+                      </p>
+                    )}
+                  </div>
 
+                  {/* Email Address */}
+                  <div>
+                    <label className="block font-bold text-xs sm:text-sm text-slate-700 dark:text-slate-300 mb-1.5">
+                      Email Address <span className="text-rose-500 font-bold">*</span>
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                        <Mail className="w-4 h-4" />
+                      </div>
+                      <input
+                        type="email"
+                        required
+                        disabled={!isEditingProfile}
+                        placeholder="e.g. admin@school.edu"
+                        value={myProfileForm.email}
+                        onChange={(e) => {
+                          const sanitized = sanitizeEmailInput(e.target.value);
+                          setMyProfileForm((prev) => ({ ...prev, email: sanitized }));
+                          const res = validateEmail(sanitized, true);
+                          setProfileErrors((prev) => ({ ...prev, email: res.error }));
+                        }}
+                        className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm font-semibold transition ${
+                          !isEditingProfile
+                            ? "bg-slate-50/80 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/80 text-slate-800 dark:text-slate-200 cursor-not-allowed"
+                            : profileErrors.email
+                            ? "bg-rose-50/30 border-rose-400 text-slate-900 dark:text-white focus:ring-2 focus:ring-rose-500/20"
+                            : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                        }`}
+                      />
+                    </div>
+                    {profileErrors.email && (
+                      <p className="mt-1 text-xs font-bold text-rose-500 flex items-center gap-1">
+                        <span>⚠️</span> {profileErrors.email}
+                      </p>
+                    )}
+                  </div>
 
-              {/* Submit Button */}
-              {isEditingProfile && (
-                <div className="pt-1 flex justify-end">
-                  <button
-                    type="submit"
-                    disabled={isSavingProfile || isProfileFormInvalid}
-                    className="px-4.5 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-extrabold text-xs sm:text-sm shadow-sm flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none"
-                  >
-                    <Save className="w-4 h-4" /> {isSavingProfile ? "Saving..." : "Save"}
-                  </button>
+                  {/* Contact Number */}
+                  <div>
+                    <label className="block font-bold text-xs sm:text-sm text-slate-700 dark:text-slate-300 mb-1.5">
+                      Contact Number
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                        <Phone className="w-4 h-4" />
+                      </div>
+                      <input
+                        type="tel"
+                        disabled={!isEditingProfile}
+                        maxLength={10}
+                        placeholder="10-digit mobile number"
+                        value={myProfileForm.phone}
+                        onChange={(e) => {
+                          const cleaned = sanitizePhoneInput(e.target.value);
+                          setMyProfileForm((prev) => ({ ...prev, phone: cleaned }));
+                          const res = validatePhoneNumber(cleaned, false);
+                          setProfileErrors((prev) => ({ ...prev, phone: cleaned ? res.error : undefined }));
+                        }}
+                        className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm font-semibold transition ${
+                          !isEditingProfile
+                            ? "bg-slate-50/80 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/80 text-slate-800 dark:text-slate-200 cursor-not-allowed"
+                            : profileErrors.phone
+                            ? "bg-rose-50/30 border-rose-400 text-slate-900 dark:text-white focus:ring-2 focus:ring-rose-500/20"
+                            : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                        }`}
+                      />
+                    </div>
+                    {profileErrors.phone && (
+                      <p className="mt-1 text-xs font-bold text-rose-500 flex items-center gap-1">
+                        <span>⚠️</span> {profileErrors.phone}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Assigned Campus */}
+                  <div>
+                    <label className="block font-bold text-xs sm:text-sm text-slate-700 dark:text-slate-300 mb-1.5">
+                      Assigned Campus
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                        <Building2 className="w-4 h-4" />
+                      </div>
+                      <select
+                        disabled={!isEditingProfile}
+                        value={myProfileForm.branch}
+                        onChange={(e) =>
+                          setMyProfileForm({
+                            ...myProfileForm,
+                            branch: e.target.value,
+                          })
+                        }
+                        className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm font-semibold transition ${
+                          !isEditingProfile
+                            ? "bg-slate-50/80 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/80 text-slate-800 dark:text-slate-200 cursor-not-allowed"
+                            : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 cursor-pointer"
+                        }`}
+                      >
+                        <option value="" disabled>Select Campus</option>
+                        {configuredBranches.map((bName: string) => (
+                          <option key={bName} value={bName}>
+                            {bName}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
                 </div>
-              )}
-            </form>
+              </form>
+            </div>
+
+            {/* Submit / Cancel Actions Footer (when editing) */}
+            {isEditingProfile && (
+              <div className="pt-4 mt-3 border-t border-slate-150 dark:border-slate-800/80 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={handleToggleEditProfile}
+                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs sm:text-sm hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer active:scale-95"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  form="profile-details-form"
+                  disabled={isSavingProfile || isProfileFormInvalid}
+                  className="px-5 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-extrabold text-xs sm:text-sm shadow-sm flex items-center gap-2 transition cursor-pointer active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none"
+                >
+                  <Save className="w-4 h-4" />
+                  {isSavingProfile ? "Saving Details..." : "Save Changes"}
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Right Column: Password & Account Security Card */}
-          <div className="space-y-6">
-            <div className="glass-card p-4 sm:p-5 rounded-2xl space-y-3 border border-sky-300 dark:border-sky-700 bg-white dark:bg-slate-900 shadow-xs">
-              <div className="flex items-center gap-2.5 border-b border-slate-100 dark:border-slate-800 pb-2.5">
-                <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950 text-amber-600 flex items-center justify-center border border-amber-100 dark:border-amber-900">
-                  <Key className="w-5 h-5" />
+          <div className="glass-card p-6 sm:p-7 rounded-2xl flex flex-col justify-between shadow-xs">
+            <div>
+              {/* Header */}
+              <div className="flex items-center gap-3 border-b border-slate-150 dark:border-slate-800/80 pb-4">
+                <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center border border-amber-200/60 dark:border-amber-800/60 shadow-xs">
+                  <Key className="w-5 h-5 text-amber-600 dark:text-amber-400" />
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-base text-slate-900 dark:text-white">
+                  <h3 className="font-extrabold text-base sm:text-lg text-slate-900 dark:text-white leading-tight">
                     Account Security
                   </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold">
-                    Update your login password
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                    Update your login password & secure account
                   </p>
                 </div>
               </div>
 
-              <form
-                onSubmit={handleUpdatePassword}
-                className="space-y-3 text-sm"
-              >
+              {/* Password Form */}
+              <form onSubmit={handleUpdatePassword} className="space-y-4 pt-5 text-sm">
                 <div>
-                  <label className="block font-extrabold text-sm text-slate-800 dark:text-slate-200 mb-1">
-                    Current Password
+                  <label className="block font-bold text-xs sm:text-sm text-slate-700 dark:text-slate-300 mb-1.5">
+                    Current Password <span className="text-rose-500 font-bold">*</span>
                   </label>
-                  <input
-                    type="password"
-                    required
-                    placeholder="••••••••"
-                    value={passForm.currentPassword}
-                    onChange={(e) =>
-                      setPassForm({
-                        ...passForm,
-                        currentPassword: e.target.value,
-                      })
-                    }
-                    className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-sm text-slate-900 dark:text-white"
-                  />
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                      <Lock className="w-4 h-4" />
+                    </div>
+                    <input
+                      type={showCurrentPassword ? "text" : "password"}
+                      required
+                      placeholder="••••••••"
+                      value={passForm.currentPassword}
+                      onChange={(e) =>
+                        setPassForm({
+                          ...passForm,
+                          currentPassword: e.target.value,
+                        })
+                      }
+                      className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowCurrentPassword((prev) => !prev)}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer transition"
+                      title={showCurrentPassword ? "Hide password" : "Show password"}
+                    >
+                      {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
 
                 <div>
-                  <label className="block font-extrabold text-sm text-slate-800 dark:text-slate-200 mb-1">
-                    New Password
+                  <label className="block font-bold text-xs sm:text-sm text-slate-700 dark:text-slate-300 mb-1.5">
+                    New Password <span className="text-rose-500 font-bold">*</span>
                   </label>
-                  <input
-                    type="password"
-                    required
-                    placeholder="At least 6 characters"
-                    value={passForm.newPassword}
-                    onChange={(e) =>
-                      setPassForm({ ...passForm, newPassword: e.target.value })
-                    }
-                    className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-sm text-slate-900 dark:text-white"
-                  />
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                      <Lock className="w-4 h-4" />
+                    </div>
+                    <input
+                      type={showNewPassword ? "text" : "password"}
+                      required
+                      placeholder="At least 6 characters"
+                      value={passForm.newPassword}
+                      onChange={(e) =>
+                        setPassForm({ ...passForm, newPassword: e.target.value })
+                      }
+                      className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword((prev) => !prev)}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer transition"
+                      title={showNewPassword ? "Hide password" : "Show password"}
+                    >
+                      {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
 
                 <div>
-                  <label className="block font-extrabold text-sm text-slate-800 dark:text-slate-200 mb-1">
-                    Confirm New Password
+                  <label className="block font-bold text-xs sm:text-sm text-slate-700 dark:text-slate-300 mb-1.5">
+                    Confirm New Password <span className="text-rose-500 font-bold">*</span>
                   </label>
-                  <input
-                    type="password"
-                    required
-                    placeholder="Re-enter new password"
-                    value={passForm.confirmPassword}
-                    onChange={(e) =>
-                      setPassForm({
-                        ...passForm,
-                        confirmPassword: e.target.value,
-                      })
-                    }
-                    className="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono text-sm text-slate-900 dark:text-white"
-                  />
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                      <Lock className="w-4 h-4" />
+                    </div>
+                    <input
+                      type={showConfirmPassword ? "text" : "password"}
+                      required
+                      placeholder="Re-enter new password"
+                      value={passForm.confirmPassword}
+                      onChange={(e) =>
+                        setPassForm({
+                          ...passForm,
+                          confirmPassword: e.target.value,
+                        })
+                      }
+                      className="w-full pl-10 pr-10 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword((prev) => !prev)}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer transition"
+                      title={showConfirmPassword ? "Hide password" : "Show password"}
+                    >
+                      {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  {passForm.confirmPassword && passForm.newPassword !== passForm.confirmPassword && (
+                    <p className="mt-1 text-xs font-bold text-rose-500 flex items-center gap-1">
+                      <span>⚠️</span> Passwords do not match
+                    </p>
+                  )}
                 </div>
 
-                <button
-                  type="submit"
-                  className="w-full py-3 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-slate-700 dark:hover:bg-slate-600 text-white font-extrabold text-sm shadow-xs flex items-center justify-center gap-1.5 transition cursor-pointer active:scale-95"
-                >
-                  <Lock className="w-4 h-4" /> Update Password
-                </button>
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    className="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white font-extrabold text-sm shadow-sm flex items-center justify-center gap-2 transition cursor-pointer active:scale-95"
+                  >
+                    <ShieldCheck className="w-4 h-4 text-brand-400" />
+                    Update Password
+                  </button>
+                </div>
               </form>
             </div>
           </div>
@@ -1867,164 +2027,294 @@ export const SettingsView: React.FC = () => {
 
       {/* TAB 1: SCHOOL BRANDING PROFILE */}
       {activeTab === "profile" && (
-        <div className="glass-card p-6 rounded-3xl space-y-4 max-w-2xl border border-slate-100 dark:border-slate-800">
-          <h3 className="font-bold text-sm text-slate-900 dark:text-white">
-            School Profile Setup
-          </h3>
-          <form onSubmit={handleSaveProfile} className="space-y-3 text-xs">
-            <div>
-              <label className="block font-semibold mb-1">
-                School Name{" "}
-                <span className="text-rose-500 font-bold ml-0.5">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                maxLength={80}
-                placeholder="e.g. Pirnav Educational Institutions"
-                value={profileForm.name}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setProfileForm({ ...profileForm, name: val });
-                  const res = validateFullName(val, true);
-                  setSchoolProfileErrors((prev) => ({ ...prev, name: val ? res.error : undefined }));
-                }}
-                className={`w-full px-3 py-2 rounded-xl border transition ${
-                  schoolProfileErrors.name
-                    ? "border-rose-500 focus:border-rose-500 focus:ring-rose-500/20 bg-rose-50/20"
-                    : "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700"
-                }`}
-              />
-              {schoolProfileErrors.name && (
-                <p className="mt-1 text-xs font-bold text-rose-500 flex items-center gap-1">
-                  <span>⚠️</span> {schoolProfileErrors.name}
-                </p>
-              )}
-            </div>
-            <div>
-              <label className="block font-semibold mb-1">
-                Tagline / Motto
-              </label>
-              <input
-                type="text"
-                maxLength={100}
-                placeholder="e.g. Empowering Excellence"
-                value={profileForm.tagline}
-                onChange={(e) =>
-                  setProfileForm({ ...profileForm, tagline: e.target.value })
-                }
-                className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
-              />
-            </div>
-            <div>
-              <label className="block font-semibold mb-1">
-                Full Address{" "}
-                <span className="text-rose-500 font-bold ml-0.5">*</span>
-              </label>
-              <textarea
-                required
-                rows={2}
-                maxLength={250}
-                placeholder="Full street address..."
-                value={profileForm.address}
-                onChange={(e) =>
-                  setProfileForm({ ...profileForm, address: e.target.value })
-                }
-                className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block font-semibold mb-1">
-                  Contact Phone{" "}
-                  <span className="text-rose-500 font-bold ml-0.5">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  maxLength={10}
-                  placeholder="9876543210"
-                  value={profileForm.phone}
-                  onChange={(e) =>
-                    setProfileForm({ ...profileForm, phone: sanitizePhoneInput(e.target.value) })
-                  }
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
-                />
+        <div className="w-full max-w-5xl glass-card p-6 sm:p-7 rounded-2xl shadow-xs space-y-6">
+          {/* Header */}
+          <div className="flex items-center justify-between border-b border-slate-150 dark:border-slate-800/80 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-brand-50 dark:bg-brand-950/60 text-brand-600 dark:text-brand-400 flex items-center justify-center border border-brand-200/60 dark:border-brand-800/60 shadow-xs">
+                <Building2 className="w-5 h-5 text-brand-600 dark:text-brand-400" />
               </div>
               <div>
-                <label className="block font-semibold mb-1">
-                  Contact Email{" "}
-                  <span className="text-rose-500 font-bold ml-0.5">*</span>
+                <h3 className="font-extrabold text-base sm:text-lg text-slate-900 dark:text-white leading-tight">
+                  School Branding Profile
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                  Institutional identity, contact details, operational timings, and official branding
+                </p>
+              </div>
+            </div>
+
+            {/* Top Action Buttons: Edit / Cancel / Save with loading */}
+            <div className="flex items-center gap-2">
+              {isEditingSchoolProfile ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleToggleEditSchoolProfile}
+                    disabled={isSavingSchoolProfile}
+                    className="px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs sm:text-sm hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer active:scale-95 disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    form="school-profile-form"
+                    disabled={isSavingSchoolProfile}
+                    className="px-4.5 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-extrabold text-xs sm:text-sm shadow-sm flex items-center gap-2 transition cursor-pointer active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isSavingSchoolProfile ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        <span>Saving...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4" />
+                        <span>Save</span>
+                      </>
+                    )}
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleToggleEditSchoolProfile}
+                  className="px-4 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-extrabold text-xs sm:text-sm shadow-sm flex items-center gap-1.5 transition cursor-pointer active:scale-95"
+                >
+                  <Edit className="w-3.5 h-3.5" />
+                  <span>Edit</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          <form id="school-profile-form" onSubmit={handleSaveProfile} className="space-y-5 text-sm">
+            {/* General Institution Information Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* School Name */}
+              <div>
+                <label className="block font-bold text-xs sm:text-sm text-slate-700 dark:text-slate-300 mb-1.5">
+                  School Name <span className="text-rose-500 font-bold">*</span>
                 </label>
-                <input
-                  type="email"
-                  required
-                  maxLength={60}
-                  placeholder="contact@school.edu"
-                  value={profileForm.email}
-                  onChange={(e) => {
-                    const sanitized = sanitizeEmailInput(e.target.value);
-                    setProfileForm({ ...profileForm, email: sanitized });
-                    const res = validateEmail(sanitized, true);
-                    setSchoolProfileErrors((prev) => ({ ...prev, email: sanitized ? res.error : undefined }));
-                  }}
-                  onBlur={() => {
-                    const res = validateEmail(profileForm.email, true);
-                    setSchoolProfileErrors((prev) => ({ ...prev, email: res.error }));
-                  }}
-                  className={`w-full px-3 py-2 rounded-xl border transition ${
-                    schoolProfileErrors.email
-                      ? "border-rose-500 focus:border-rose-500 focus:ring-rose-500/20 bg-rose-50/20"
-                      : "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700"
-                  }`}
-                />
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <Building2 className="w-4 h-4" />
+                  </div>
+                  <input
+                    type="text"
+                    required
+                    disabled={!isEditingSchoolProfile}
+                    maxLength={80}
+                    placeholder="e.g. Pirnav Educational Institutions"
+                    value={profileForm.name}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setProfileForm({ ...profileForm, name: val });
+                      const res = validateFullName(val, true);
+                      setSchoolProfileErrors((prev) => ({ ...prev, name: val ? res.error : undefined }));
+                    }}
+                    className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm font-semibold transition ${
+                      !isEditingSchoolProfile
+                        ? "bg-slate-50/80 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/80 text-slate-800 dark:text-slate-200 cursor-not-allowed"
+                        : schoolProfileErrors.name
+                        ? "bg-rose-50/30 border-rose-400 text-slate-900 dark:text-white focus:ring-2 focus:ring-rose-500/20"
+                        : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                    }`}
+                  />
+                </div>
+                {schoolProfileErrors.name && (
+                  <p className="mt-1 text-xs font-bold text-rose-500 flex items-center gap-1">
+                    <span>⚠️</span> {schoolProfileErrors.name}
+                  </p>
+                )}
+              </div>
+
+              {/* Tagline / Motto */}
+              <div>
+                <label className="block font-bold text-xs sm:text-sm text-slate-700 dark:text-slate-300 mb-1.5">
+                  Tagline / Motto
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <Sparkles className="w-4 h-4" />
+                  </div>
+                  <input
+                    type="text"
+                    disabled={!isEditingSchoolProfile}
+                    maxLength={100}
+                    placeholder="e.g. Empowering Minds, Shaping Tomorrow"
+                    value={profileForm.tagline}
+                    onChange={(e) =>
+                      setProfileForm({ ...profileForm, tagline: e.target.value })
+                    }
+                    className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm font-semibold transition ${
+                      !isEditingSchoolProfile
+                        ? "bg-slate-50/80 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/80 text-slate-800 dark:text-slate-200 cursor-not-allowed"
+                        : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                    }`}
+                  />
+                </div>
+              </div>
+
+              {/* Full Address */}
+              <div className="sm:col-span-2">
+                <label className="block font-bold text-xs sm:text-sm text-slate-700 dark:text-slate-300 mb-1.5">
+                  Full Address <span className="text-rose-500 font-bold">*</span>
+                </label>
+                <div className="relative">
+                  <div className="absolute top-3 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <MapPin className="w-4 h-4" />
+                  </div>
+                  <textarea
+                    required
+                    disabled={!isEditingSchoolProfile}
+                    rows={2}
+                    maxLength={250}
+                    placeholder="Full street address..."
+                    value={profileForm.address}
+                    onChange={(e) =>
+                      setProfileForm({ ...profileForm, address: e.target.value })
+                    }
+                    className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm font-semibold transition ${
+                      !isEditingSchoolProfile
+                        ? "bg-slate-50/80 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/80 text-slate-800 dark:text-slate-200 cursor-not-allowed"
+                        : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                    }`}
+                  />
+                </div>
+              </div>
+
+              {/* Contact Phone */}
+              <div>
+                <label className="block font-bold text-xs sm:text-sm text-slate-700 dark:text-slate-300 mb-1.5">
+                  Contact Phone <span className="text-rose-500 font-bold">*</span>
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <Phone className="w-4 h-4" />
+                  </div>
+                  <input
+                    type="tel"
+                    required
+                    disabled={!isEditingSchoolProfile}
+                    maxLength={10}
+                    placeholder="10-digit mobile number"
+                    value={profileForm.phone}
+                    onChange={(e) =>
+                      setProfileForm({ ...profileForm, phone: sanitizePhoneInput(e.target.value) })
+                    }
+                    className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm font-semibold transition ${
+                      !isEditingSchoolProfile
+                        ? "bg-slate-50/80 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/80 text-slate-800 dark:text-slate-200 cursor-not-allowed"
+                        : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                    }`}
+                  />
+                </div>
+              </div>
+
+              {/* Contact Email */}
+              <div>
+                <label className="block font-bold text-xs sm:text-sm text-slate-700 dark:text-slate-300 mb-1.5">
+                  Contact Email <span className="text-rose-500 font-bold">*</span>
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <Mail className="w-4 h-4" />
+                  </div>
+                  <input
+                    type="email"
+                    required
+                    disabled={!isEditingSchoolProfile}
+                    maxLength={60}
+                    placeholder="contact@pirnavschools.com"
+                    value={profileForm.email}
+                    onChange={(e) => {
+                      const sanitized = sanitizeEmailInput(e.target.value);
+                      setProfileForm({ ...profileForm, email: sanitized });
+                      const res = validateEmail(sanitized, true);
+                      setSchoolProfileErrors((prev) => ({ ...prev, email: sanitized ? res.error : undefined }));
+                    }}
+                    onBlur={() => {
+                      const res = validateEmail(profileForm.email, true);
+                      setSchoolProfileErrors((prev) => ({ ...prev, email: res.error }));
+                    }}
+                    className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm font-semibold transition ${
+                      !isEditingSchoolProfile
+                        ? "bg-slate-50/80 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/80 text-slate-800 dark:text-slate-200 cursor-not-allowed"
+                        : schoolProfileErrors.email
+                        ? "bg-rose-50/30 border-rose-400 text-slate-900 dark:text-white focus:ring-2 focus:ring-rose-500/20"
+                        : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                    }`}
+                  />
+                </div>
                 {schoolProfileErrors.email && (
                   <p className="mt-1 text-xs font-bold text-rose-500 flex items-center gap-1">
                     <span>⚠️</span> {schoolProfileErrors.email}
                   </p>
                 )}
               </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
+
+              {/* Website URL */}
               <div>
-                <label className="block font-semibold mb-1">Website URL</label>
-                <input
-                  type="text"
-                  maxLength={100}
-                  placeholder="https://school.edu"
-                  value={profileForm.website}
-                  onChange={(e) =>
-                    setProfileForm({ ...profileForm, website: e.target.value })
-                  }
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border"
-                />
-              </div>
-              <div>
-                <label className="block font-semibold mb-1">
-                  Principal Name{" "}
-                  <span className="text-rose-500 font-bold ml-0.5">*</span>
+                <label className="block font-bold text-xs sm:text-sm text-slate-700 dark:text-slate-300 mb-1.5">
+                  Website URL
                 </label>
-                <input
-                  type="text"
-                  required
-                  maxLength={60}
-                  placeholder="e.g. Dr. Eleanor Vance"
-                  value={profileForm.principalName}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setProfileForm({
-                      ...profileForm,
-                      principalName: val,
-                    });
-                    const res = validateFullName(val, true);
-                    setSchoolProfileErrors((prev) => ({ ...prev, principalName: val ? res.error : undefined }));
-                  }}
-                  className={`w-full px-3 py-2 rounded-xl border transition ${
-                    schoolProfileErrors.principalName
-                      ? "border-rose-500 focus:border-rose-500 focus:ring-rose-500/20 bg-rose-50/20"
-                      : "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700"
-                  }`}
-                />
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <Layout className="w-4 h-4" />
+                  </div>
+                  <input
+                    type="url"
+                    disabled={!isEditingSchoolProfile}
+                    maxLength={100}
+                    placeholder="https://pirnavschools.edu"
+                    value={profileForm.website}
+                    onChange={(e) =>
+                      setProfileForm({ ...profileForm, website: e.target.value })
+                    }
+                    className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm font-semibold transition ${
+                      !isEditingSchoolProfile
+                        ? "bg-slate-50/80 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/80 text-slate-800 dark:text-slate-200 cursor-not-allowed"
+                        : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                    }`}
+                  />
+                </div>
+              </div>
+
+              {/* Principal Name */}
+              <div>
+                <label className="block font-bold text-xs sm:text-sm text-slate-700 dark:text-slate-300 mb-1.5">
+                  Principal Name <span className="text-rose-500 font-bold">*</span>
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                    <UserIcon className="w-4 h-4" />
+                  </div>
+                  <input
+                    type="text"
+                    required
+                    disabled={!isEditingSchoolProfile}
+                    maxLength={60}
+                    placeholder="e.g. Shankar Rathod"
+                    value={profileForm.principalName}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setProfileForm({
+                        ...profileForm,
+                        principalName: val,
+                      });
+                      const res = validateFullName(val, true);
+                      setSchoolProfileErrors((prev) => ({ ...prev, principalName: val ? res.error : undefined }));
+                    }}
+                    className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm font-semibold transition ${
+                      !isEditingSchoolProfile
+                        ? "bg-slate-50/80 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/80 text-slate-800 dark:text-slate-200 cursor-not-allowed"
+                        : schoolProfileErrors.principalName
+                        ? "bg-rose-50/30 border-rose-400 text-slate-900 dark:text-white focus:ring-2 focus:ring-rose-500/20"
+                        : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                    }`}
+                  />
+                </div>
                 {schoolProfileErrors.principalName && (
                   <p className="mt-1 text-xs font-bold text-rose-500 flex items-center gap-1">
                     <span>⚠️</span> {schoolProfileErrors.principalName}
@@ -2032,18 +2322,20 @@ export const SettingsView: React.FC = () => {
                 )}
               </div>
             </div>
+
             {/* Timings & Educational Board Settings */}
-            <div className="p-4 rounded-2xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 space-y-3.5 my-2">
+            <div className="p-5 rounded-2xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/90 dark:border-slate-800 space-y-4">
               <h4 className="font-extrabold text-xs text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-1.5">
-                <Clock className="w-4 h-4 text-sky-600" /> Operational Timings & Educational Board
+                <Clock className="w-4 h-4 text-brand-600 dark:text-brand-400" /> Operational Timings & Educational Board
               </h4>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
                 <div>
-                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">
+                  <label className="block font-bold mb-1.5 text-slate-700 dark:text-slate-300">
                     Educational Board <span className="text-rose-500">*</span>
                   </label>
                   <select
+                    disabled={!isEditingSchoolProfile}
                     value={profileForm.boardType || ""}
                     onChange={(e) => {
                       const val = e.target.value;
@@ -2052,10 +2344,12 @@ export const SettingsView: React.FC = () => {
                         setSchoolProfileErrors((prev) => ({ ...prev, boardType: undefined }));
                       }
                     }}
-                    className={`w-full px-3 py-2 rounded-xl font-bold transition border ${
-                      schoolProfileErrors.boardType
+                    className={`w-full px-3 py-2.5 rounded-xl font-bold transition border ${
+                      !isEditingSchoolProfile
+                        ? "bg-slate-50/80 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/80 text-slate-800 dark:text-slate-200 cursor-not-allowed"
+                        : schoolProfileErrors.boardType
                         ? "border-rose-500 focus:border-rose-500 focus:ring-rose-500/20 bg-rose-50/20 text-slate-900 dark:text-white"
-                        : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white"
+                        : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white cursor-pointer"
                     } ${!profileForm.boardType ? "text-slate-400 dark:text-slate-500" : ""}`}
                   >
                     <option value="" disabled className="text-slate-400 dark:text-slate-500">Select Educational Board</option>
@@ -2074,12 +2368,13 @@ export const SettingsView: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center justify-between">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center justify-between">
                     <span>Staff Check-In Time <span className="text-rose-500">*</span></span>
-                    <span className="text-sky-600 dark:text-sky-400 font-bold font-mono">{time24To12(profileForm.staffCheckInTime || "08:30 AM")}</span>
+                    <span className="text-brand-600 dark:text-brand-400 font-bold font-mono">{time24To12(profileForm.staffCheckInTime || "08:30 AM")}</span>
                   </label>
                   <input
                     type="time"
+                    disabled={!isEditingSchoolProfile}
                     value={time12To24(profileForm.staffCheckInTime || "08:30 AM")}
                     onChange={(e) =>
                       setProfileForm({
@@ -2087,17 +2382,22 @@ export const SettingsView: React.FC = () => {
                         staffCheckInTime: e.target.value ? time24To12(e.target.value) : "08:30 AM",
                       })
                     }
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 cursor-pointer"
+                    className={`w-full px-3 py-2 rounded-xl border font-mono font-bold text-slate-900 dark:text-white outline-none transition ${
+                      !isEditingSchoolProfile
+                        ? "bg-slate-50/80 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/80 text-slate-800 dark:text-slate-200 cursor-not-allowed"
+                        : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:border-brand-500 cursor-pointer"
+                    }`}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center justify-between">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center justify-between">
                     <span>Staff Check-Out Time <span className="text-rose-500">*</span></span>
-                    <span className="text-sky-600 dark:text-sky-400 font-bold font-mono">{time24To12(profileForm.staffCheckOutTime || "05:00 PM")}</span>
+                    <span className="text-brand-600 dark:text-brand-400 font-bold font-mono">{time24To12(profileForm.staffCheckOutTime || "05:00 PM")}</span>
                   </label>
                   <input
                     type="time"
+                    disabled={!isEditingSchoolProfile}
                     value={time12To24(profileForm.staffCheckOutTime || "05:00 PM")}
                     onChange={(e) =>
                       setProfileForm({
@@ -2105,19 +2405,24 @@ export const SettingsView: React.FC = () => {
                         staffCheckOutTime: e.target.value ? time24To12(e.target.value) : "05:00 PM",
                       })
                     }
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 cursor-pointer"
+                    className={`w-full px-3 py-2 rounded-xl border font-mono font-bold text-slate-900 dark:text-white outline-none transition ${
+                      !isEditingSchoolProfile
+                        ? "bg-slate-50/80 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/80 text-slate-800 dark:text-slate-200 cursor-not-allowed"
+                        : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:border-brand-500 cursor-pointer"
+                    }`}
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs pt-1">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs pt-1">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center justify-between">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center justify-between">
                     <span>School Start Time <span className="text-rose-500">*</span></span>
-                    <span className="text-sky-600 dark:text-sky-400 font-bold font-mono">{time24To12(profileForm.schoolStartTime || "08:30 AM")}</span>
+                    <span className="text-brand-600 dark:text-brand-400 font-bold font-mono">{time24To12(profileForm.schoolStartTime || "08:30 AM")}</span>
                   </label>
                   <input
                     type="time"
+                    disabled={!isEditingSchoolProfile}
                     value={time12To24(profileForm.schoolStartTime || "08:30 AM")}
                     onChange={(e) =>
                       setProfileForm({
@@ -2125,17 +2430,22 @@ export const SettingsView: React.FC = () => {
                         schoolStartTime: e.target.value ? time24To12(e.target.value) : "08:30 AM",
                       })
                     }
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 cursor-pointer"
+                    className={`w-full px-3 py-2 rounded-xl border font-mono font-bold text-slate-900 dark:text-white outline-none transition ${
+                      !isEditingSchoolProfile
+                        ? "bg-slate-50/80 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/80 text-slate-800 dark:text-slate-200 cursor-not-allowed"
+                        : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:border-brand-500 cursor-pointer"
+                    }`}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center justify-between">
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center justify-between">
                     <span>School End Time <span className="text-rose-500">*</span></span>
-                    <span className="text-sky-600 dark:text-sky-400 font-bold font-mono">{time24To12(profileForm.schoolEndTime || "03:30 PM")}</span>
+                    <span className="text-brand-600 dark:text-brand-400 font-bold font-mono">{time24To12(profileForm.schoolEndTime || "03:30 PM")}</span>
                   </label>
                   <input
                     type="time"
+                    disabled={!isEditingSchoolProfile}
                     value={time12To24(profileForm.schoolEndTime || "03:30 PM")}
                     onChange={(e) =>
                       setProfileForm({
@@ -2143,15 +2453,20 @@ export const SettingsView: React.FC = () => {
                         schoolEndTime: e.target.value ? time24To12(e.target.value) : "03:30 PM",
                       })
                     }
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 cursor-pointer"
+                    className={`w-full px-3 py-2 rounded-xl border font-mono font-bold text-slate-900 dark:text-white outline-none transition ${
+                      !isEditingSchoolProfile
+                        ? "bg-slate-50/80 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/80 text-slate-800 dark:text-slate-200 cursor-not-allowed"
+                        : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:border-brand-500 cursor-pointer"
+                    }`}
                   />
                 </div>
 
                 <div>
-                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">
+                  <label className="block font-bold mb-1.5 text-slate-700 dark:text-slate-300">
                     Late Grace Buffer <span className="text-rose-500">*</span>
                   </label>
                   <select
+                    disabled={!isEditingSchoolProfile}
                     value={profileForm.staffGracePeriodMinutes ?? ""}
                     onChange={(e) =>
                       setProfileForm({
@@ -2159,7 +2474,11 @@ export const SettingsView: React.FC = () => {
                         staffGracePeriodMinutes: e.target.value ? parseInt(e.target.value, 10) : ("" as any),
                       })
                     }
-                    className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 font-bold text-amber-700 dark:text-amber-300"
+                    className={`w-full px-3 py-2 rounded-xl border font-bold transition ${
+                      !isEditingSchoolProfile
+                        ? "bg-slate-50/80 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/80 text-slate-800 dark:text-slate-200 cursor-not-allowed"
+                        : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-amber-700 dark:text-amber-300 cursor-pointer"
+                    }`}
                   >
                     <option value="" disabled>Select Grace Buffer</option>
                     <option value={5}>5 Mins (Strict)</option>
@@ -2172,7 +2491,8 @@ export const SettingsView: React.FC = () => {
               </div>
             </div>
 
-            <div className="pt-2">
+            {/* School Logo Uploader */}
+            <div className={`pt-2 ${!isEditingSchoolProfile ? "opacity-85 pointer-events-none" : ""}`}>
               <SchoolLogoUploader
                 value={profileForm.logoUrl || ""}
                 onChange={(newLogoUrl) => {
@@ -2188,14 +2508,36 @@ export const SettingsView: React.FC = () => {
               />
             </div>
 
-            <div className="pt-2">
-              <button
-                type="submit"
-                className="px-5 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-bold text-xs shadow-md shadow-brand-500/20 flex items-center gap-1.5 transition-all cursor-pointer"
-              >
-                <Save className="w-4 h-4" /> Save Profile Settings
-              </button>
-            </div>
+            {/* Submit / Cancel Actions Footer (when editing) */}
+            {isEditingSchoolProfile && (
+              <div className="pt-4 border-t border-slate-150 dark:border-slate-800/80 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={handleToggleEditSchoolProfile}
+                  disabled={isSavingSchoolProfile}
+                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs sm:text-sm hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer active:scale-95 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingSchoolProfile}
+                  className="px-6 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-extrabold text-xs sm:text-sm shadow-sm flex items-center gap-2 transition cursor-pointer active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSavingSchoolProfile ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      <span>Saving Profile...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4" />
+                      <span>Save Profile Settings</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
           </form>
         </div>
       )}

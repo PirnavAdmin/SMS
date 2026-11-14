@@ -82,7 +82,7 @@ export const PendingApprovalsCard: React.FC<PendingApprovalsCardProps> = ({
   ];
 
   return (
-    <div className={`glass-card p-4 sm:p-5 rounded-3xl flex flex-col justify-between select-none ${className}`}>
+    <div className={`glass-card border-primary-interactive p-4 sm:p-5 rounded-3xl flex flex-col justify-between select-none ${className}`}>
       {/* 1. Header */}
       <div className="flex items-center justify-between shrink-0 mb-2">
         <div className="flex items-center gap-2.5 min-w-0">

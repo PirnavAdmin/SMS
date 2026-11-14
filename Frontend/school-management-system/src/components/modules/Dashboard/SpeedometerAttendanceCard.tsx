@@ -188,7 +188,7 @@ export const SpeedometerAttendanceCard: React.FC<SpeedometerAttendanceCardProps>
   return (
     <div
       onClick={onViewDetails}
-      className={`glass-card p-5 rounded-3xl cursor-pointer flex flex-col justify-between active:scale-[0.99] transition-all duration-300 relative group/card select-none ${className}`}
+      className={`glass-card border-primary-interactive p-5 rounded-3xl cursor-pointer flex flex-col justify-between active:scale-[0.99] transition-all duration-300 relative group/card select-none ${className}`}
     >
       {/* 1. Header */}
       <div className="shrink-0 space-y-1.5 text-left">

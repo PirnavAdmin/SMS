@@ -1155,7 +1155,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
       </div>
 
       {/* Quick Actions Panel - iPhone Liquid Glass Style */}
-      <div className="glass-card p-6 rounded-3xl flex flex-col gap-4 animate-in fade-in duration-300">
+      <div className="glass-card border-primary-interactive p-6 rounded-3xl flex flex-col gap-4 animate-in fade-in duration-300">
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-base font-extrabold text-slate-900 dark:text-white tracking-tight">Quick Actions</h3>
@@ -1280,7 +1280,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
           />
 
           {/* Events & Holidays */}
-          <div onClick={() => onNavigate('events')} className="lg:col-span-4 glass-card p-5 rounded-3xl cursor-pointer flex flex-col justify-between min-h-[350px] lg:h-[355px] active:scale-[0.99] transition-all">
+          <div onClick={() => onNavigate('events')} className="lg:col-span-4 glass-card border-primary-interactive p-5 rounded-3xl cursor-pointer flex flex-col justify-between min-h-[350px] lg:h-[355px] active:scale-[0.99] transition-all">
             <div className="shrink-0 space-y-0.5 text-left">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 min-w-0 text-left">
@@ -1355,10 +1355,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
           </div>
         </div>
 
-        {/* Bottom Row: Upcoming Examinations (6 cols) and Faculty Birthdays (6 cols) */}
+        {/* Bottom Row: Upcoming Examinations (6 cols) and Upcoming Birthdays (6 cols) */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
           {/* Upcoming Examinations */}
-          <div className="lg:col-span-6 glass-card p-5 sm:p-6 rounded-3xl flex flex-col justify-between h-[280px]">
+          <div className="lg:col-span-6 glass-card border-primary-interactive p-5 sm:p-6 rounded-3xl flex flex-col justify-between h-[280px]">
             <div className="flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2">
                 <div className="w-6 h-6 rounded-lg bg-indigo-500/12 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
@@ -1397,13 +1397,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
             </div>
           </div>
 
-          {/* Upcoming Teacher Birthdays */}
-          <div className="lg:col-span-6 glass-card p-5 sm:p-6 rounded-3xl flex flex-col justify-between h-[280px]">
+          {/* Upcoming Birthdays */}
+          <div className="lg:col-span-6 glass-card border-primary-interactive p-5 sm:p-6 rounded-3xl flex flex-col justify-between h-[280px]">
             <div className="flex items-center gap-2 shrink-0">
               <div className="w-6 h-6 rounded-lg bg-rose-500/12 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
                 <Cake className="w-3.5 h-3.5 stroke-[2.2]" />
               </div>
-              <h3 className="text-base font-extrabold text-slate-900 dark:text-white tracking-tight">Faculty Birthdays</h3>
+              <h3 className="text-base font-extrabold text-slate-900 dark:text-white tracking-tight">Upcoming Birthdays</h3>
             </div>
             <div className="flex-1 overflow-y-auto space-y-2.5 pr-1 scrollbar-thin max-h-[190px] pt-3 no-scrollbar">
               {upcomingBirthdays.length === 0 ? (

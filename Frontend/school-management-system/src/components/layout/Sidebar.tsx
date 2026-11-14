@@ -40,7 +40,6 @@ import {
   Presentation,
   Link2,
   TrendingUp,
-  History,
   ClipboardList,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
@@ -709,7 +708,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
         { id: "admissions", label: "Admissions", icon: GraduationCap },
         { id: "students", label: safeRole.includes('warden') ? "Students" : "Student Directory", icon: UserCheck },
         { id: "attendance", label: "Student Attendance", icon: CalendarCheck },
-        { id: "academic-history", label: "Academic History", icon: History },
         {
           id: "student-promotion",
           label: "Student Promotion",
@@ -1900,7 +1898,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   (item.id === "admissions" && ["admissions", "admissions-add"].includes(activeModule)) ||
                   (item.id === "students" && ["students", "student-directory"].includes(activeModule)) ||
                   (item.id === "certificates" && ["certificates", "transfer-certificates"].includes(activeModule)) ||
-                  (item.id === "academic-history" && activeModule === "academic-history") ||
                   (item.id === "student-promotion" && activeModule === "student-promotion") ||
                   (item.id === "alumni" && activeModule === "alumni") ||
                   (item.id === "attendance" && activeModule === "attendance") ||
