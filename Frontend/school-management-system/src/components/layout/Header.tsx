@@ -819,9 +819,7 @@ export const Header: React.FC<HeaderProps> = ({ collapsed, setCollapsed, onOpenS
                   onClick={() => {
                     setShowUserMenu(false);
                     const cleanRole = (role || '').toLowerCase();
-                    if (cleanRole === 'driver') {
-                      onNavigate?.('driver-profile');
-                    } else if (['teacher', 'librarian', 'warden', 'hostel warden', 'accountant', 'finance', 'hr', 'receptionist', 'transport manager', 'staff'].some(r => cleanRole.includes(r))) {
+                    if (['driver', 'teacher', 'librarian', 'warden', 'hostel warden', 'accountant', 'finance', 'hr', 'receptionist', 'transport manager', 'staff'].some(r => cleanRole.includes(r))) {
                       onNavigate?.('teacher-profile');
                     } else {
                       onNavigate?.('profile-completion');

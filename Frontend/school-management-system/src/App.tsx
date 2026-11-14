@@ -427,8 +427,7 @@ const MainLayout: React.FC = () => {
     if (activeModule.startsWith("staff-payroll")) {
       if (userRole === "parent" || userRole === "student")
         return <ParentTeacherInfoView />;
-      if (userRole === "driver") return <DriverPayslipsView />;
-      if (["teacher", "hostel warden", "warden", "librarian", "staff"].includes(userRole))
+      if (["teacher", "hostel warden", "warden", "librarian", "driver", "staff"].includes(userRole))
         return <TeacherPayslipsView />;
       return (
         <PayrollModuleView
@@ -476,62 +475,51 @@ const MainLayout: React.FC = () => {
           <AlumniView />
         );
       case "driver-profile":
-        return <DriverProfileView />;
-      case "driver-attendance":
-        return <DriverAttendanceView />;
-      case "driver-leave":
-        return <DriverLeaveView />;
-      case "driver-payslips":
-        return <DriverPayslipsView />;
       case "warden-profile":
       case "teacher-profile":
       case "teacher-my-profile":
-        return userRole === "driver" ? <DriverProfileView /> : <TeacherProfileView />;
+        return <TeacherProfileView />;
       case "staff":
       case "staff-teachers":
       case "staff-directory":
         if (userRole === "parent" || userRole === "student")
           return <ParentTeacherInfoView />;
-        if (userRole === "teacher" || userRole === "hostel warden" || userRole === "warden" || userRole === "accountant" || userRole === "finance" || userRole === "librarian" || userRole === "staff") return <TeacherProfileView />;
-        if (userRole === "driver") return <DriverProfileView />;
+        if (userRole === "teacher" || userRole === "hostel warden" || userRole === "warden" || userRole === "accountant" || userRole === "finance" || userRole === "librarian" || userRole === "driver" || userRole === "staff") return <TeacherProfileView />;
         return <StaffList onNavigate={setActiveModule} />;
       case "staff-letters":
         if (userRole === "parent" || userRole === "student")
           return <ParentTeacherInfoView />;
-        if (userRole === "teacher" || userRole === "hostel warden" || userRole === "warden" || userRole === "accountant" || userRole === "finance" || userRole === "librarian" || userRole === "staff") return <TeacherProfileView />;
-        if (userRole === "driver") return <DriverProfileView />;
+        if (userRole === "teacher" || userRole === "hostel warden" || userRole === "warden" || userRole === "accountant" || userRole === "finance" || userRole === "librarian" || userRole === "driver" || userRole === "staff") return <TeacherProfileView />;
         return <StaffLettersManagementView onNavigate={setActiveModule} />;
       case "staff-non-teaching":
-        if (["teacher", "librarian", "hostel warden", "warden", "accountant", "finance", "staff"].includes(userRole)) return <TeacherProfileView />;
-        if (userRole === "driver") return <DriverProfileView />;
+        if (["teacher", "librarian", "hostel warden", "warden", "accountant", "finance", "driver", "staff"].includes(userRole)) return <TeacherProfileView />;
         return userRole === "parent" || userRole === "student" ? (
           <ParentTeacherInfoView />
         ) : (
           <StaffList initialCategory="Staff" onNavigate={setActiveModule} />
         );
       case "staff-add":
-        if (["teacher", "librarian", "hostel warden", "warden", "accountant", "finance", "staff"].includes(userRole)) return <TeacherProfileView />;
-        if (userRole === "driver") return <DriverProfileView />;
+        if (["teacher", "librarian", "hostel warden", "warden", "accountant", "finance", "driver", "staff"].includes(userRole)) return <TeacherProfileView />;
         return userRole === "parent" || userRole === "student" ? (
           <ParentTeacherInfoView />
         ) : (
           <StaffRegistrationPage onNavigate={setActiveModule} />
         );
+      case "driver-attendance":
       case "staff-attendance":
         if (userRole === "parent" || userRole === "student")
           return <ParentTeacherInfoView />;
-        if (userRole === "driver") return <DriverAttendanceView />;
         return <StaffAttendanceView onNavigate={(mod) => setActiveModule(mod)} />;
+      case "driver-leave":
       case "staff-leave":
         if (userRole === "parent" || userRole === "student")
           return <ParentTeacherInfoView />;
-        if (userRole === "driver") return <DriverLeaveView />;
         return <LeaveManagementView />;
+      case "driver-payslips":
       case "staff-my-payslips":
       case "teacher-payslips":
         if (userRole === "parent" || userRole === "student")
           return <ParentTeacherInfoView />;
-        if (userRole === "driver") return <DriverPayslipsView />;
         return <TeacherPayslipsView />;
       case "admissions":
       case "admissions-add":

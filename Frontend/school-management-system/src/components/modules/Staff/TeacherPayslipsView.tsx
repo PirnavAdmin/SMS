@@ -99,7 +99,7 @@ export const TeacherPayslipsView: React.FC = () => {
           designation: isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : isDriver ? 'Driver' : (byEmail.designation || 'Teacher'),
           department: isAccountant ? 'Finance & Accounts' : isWarden ? 'Hostel Management' : isDriver ? 'Transport' : (byEmail.department || 'Academics'),
           role: isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : isDriver ? 'Driver' : (byEmail.role || 'Teacher'),
-          empId: (isGenericAdmin || byEmail.empId === '358' || byEmail.id === '358') ? (user?.id || (user as any)?.empId || (isAccountant ? 'ACT-101' : isWarden ? 'WRD-102' : 'STF-001')) : (byEmail.empId || byEmail.employeeId || byEmail.id || 'STF-001')
+          empId: (user?.id || (user as any)?.empId || byEmail.empId || byEmail.employeeId || byEmail.id || '')
         };
       }
     }
@@ -117,7 +117,7 @@ export const TeacherPayslipsView: React.FC = () => {
           designation: isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : isDriver ? 'Driver' : (byId.designation || 'Teacher'),
           department: isAccountant ? 'Finance & Accounts' : isWarden ? 'Hostel Management' : isDriver ? 'Transport' : (byId.department || 'Academics'),
           role: isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : isDriver ? 'Driver' : (byId.role || 'Teacher'),
-          empId: isAccountant ? (user?.id || (user as any)?.empId || 'ACT-101') : (byId.empId || byId.id)
+          empId: byId.empId || byId.employeeId || byId.id || (user?.id || (user as any)?.empId || '')
         };
       }
     }
@@ -175,7 +175,7 @@ export const TeacherPayslipsView: React.FC = () => {
           designation: 'Accountant',
           department: 'Finance & Accounts',
           role: 'Accountant',
-          empId: user?.id || (user as any)?.empId || accountantStaff.empId || 'ACT-101'
+          empId: user?.id || (user as any)?.empId || accountantStaff.empId || ''
         };
       }
     }
@@ -194,22 +194,22 @@ export const TeacherPayslipsView: React.FC = () => {
     }
 
     // 8. Dynamic staff object fallback for logged in user (DO NOT default to random teacher like Srinivas Rao)
-    const rawName = user?.name || (isWarden ? (user?.name || user?.firstName || 'Hostel Warden') : isAccountant ? 'Sardhar Karthi' : 'Faculty Member');
+    const rawName = user?.name || (isWarden ? (user?.name || user?.firstName || 'Hostel Warden') : isAccountant ? 'Sardhar Karthi' : isDriver ? (user?.name || 'Driver') : 'Faculty Member');
     const nameParts = rawName.split(' ');
     return {
-      id: user?.id || (user as any)?.empId || (isWarden ? 'WRD-102' : isAccountant ? 'ACT-101' : 'STF-001'),
-      empId: (user as any)?.empId || user?.id || (isWarden ? 'WRD-102' : isAccountant ? 'ACT-101' : 'STF-001'),
+      id: String((user as any)?.empId || (user as any)?.employeeId || user?.id || ''),
+      empId: String((user as any)?.empId || (user as any)?.employeeId || user?.id || ''),
       firstName: nameParts[0] || (isAccountant ? 'Sardhar' : 'Faculty'),
       lastName: nameParts.slice(1).join(' ') || (isAccountant ? 'Karthi' : 'Member'),
-      email: user?.email || (isWarden ? 'warden@pirnavschools.edu' : isAccountant ? 'accountant@pirnavschools.edu' : 'faculty@pirnavschools.edu'),
+      email: user?.email || (isWarden ? 'warden@pirnavschools.edu' : isAccountant ? 'accountant@pirnavschools.edu' : isDriver ? 'driver@pirnavschools.edu' : 'faculty@pirnavschools.edu'),
       phone: user?.phone || '+91 9878645565',
-      department: isWarden ? 'Hostel Management' : isAccountant ? 'Finance & Accounts' : ((user as any)?.department || 'Academics'),
-      designation: isWarden ? 'Hostel Warden' : isAccountant ? 'Accountant' : ((user as any)?.designation || 'Teacher'),
-      role: isWarden ? 'Hostel Warden' : isAccountant ? 'Accountant' : 'Teacher',
+      department: isWarden ? 'Hostel Management' : isAccountant ? 'Finance & Accounts' : isDriver ? 'Transport Dept' : ((user as any)?.department || 'Academics'),
+      designation: isWarden ? 'Hostel Warden' : isAccountant ? 'Accountant' : isDriver ? 'Driver' : ((user as any)?.designation || 'Teacher'),
+      role: isWarden ? 'Hostel Warden' : isAccountant ? 'Accountant' : isDriver ? 'Driver' : 'Teacher',
       branch: user?.branch || '',
       bankDetails: { accountNumber: 'XXXX-XXXX-4829' }
     };
-  }, [staff, user, isWarden, isAccountant]);
+  }, [staff, user, isWarden, isAccountant, isDriver]);
 
   // Retrieve only real, dynamically generated payslips for the staff member
   const teacherPayslips: Payslip[] = useMemo(() => {

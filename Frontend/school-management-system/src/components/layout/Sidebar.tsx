@@ -606,18 +606,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const staffSubItems =
     safeRole === "parent" || safeRole === "student"
       ? []
-      : safeRole === "driver"
-      ? [
-          { id: "driver-profile", label: "My Profile", icon: User },
-          {
-            id: "driver-attendance",
-            label: "My Attendance",
-            icon: CalendarCheck,
-          },
-          { id: "driver-leave", label: "Leave Management", icon: FileText },
-          { id: "driver-payslips", label: "My Payslips", icon: IndianRupee },
-        ]
-      : safeRole === "teacher" || safeRole.includes("warden") || safeRole.includes("accountant") || safeRole === "finance" || safeRole.includes("librarian")
+      : safeRole === "teacher" || safeRole.includes("warden") || safeRole.includes("accountant") || safeRole === "finance" || safeRole.includes("librarian") || safeRole === "driver"
       ? [
           { id: "teacher-profile", label: "My Profile", icon: User },
           {
@@ -1572,14 +1561,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                               safeRole === "student"
                             ) {
                               setActiveModule("parent-teacher-info");
-                            } else if (safeRole === "driver") {
-                              setActiveModule("driver-profile");
                             } else if (
                               safeRole === "teacher" ||
                               safeRole.includes("warden") ||
                               safeRole.includes("librarian") ||
                               safeRole.includes("accountant") ||
-                              safeRole === "finance"
+                              safeRole === "finance" ||
+                              safeRole === "driver"
                             ) {
                               setActiveModule("teacher-profile");
                             } else {
@@ -1630,18 +1618,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             const isPayroll = sub.id === "staff-payroll";
                             const isSubActive =
                               activeModule === sub.id ||
-                              (sub.id === "driver-profile" &&
-                                ["driver-profile", "staff", "staff-directory"].includes(activeModule)) ||
-                              (sub.id === "driver-attendance" &&
-                                ["driver-attendance", "staff-attendance"].includes(activeModule)) ||
-                              (sub.id === "driver-leave" &&
-                                ["driver-leave", "staff-leave"].includes(activeModule)) ||
-                              (sub.id === "driver-payslips" &&
-                                ["driver-payslips", "staff-my-payslips", "teacher-payslips"].includes(activeModule)) ||
-                              ((sub.id === "teacher-profile" || sub.id === "warden-profile") &&
+                              ((sub.id === "teacher-profile" || sub.id === "warden-profile" || sub.id === "driver-profile") &&
                                 [
                                   "teacher-profile",
                                   "warden-profile",
+                                  "driver-profile",
                                   "teacher-my-profile",
                                   "staff-teachers",
                                   "staff",
@@ -1654,10 +1635,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                   "staff-directory",
                                   "staff-non-teaching",
                                 ].includes(activeModule)) ||
-                              ((sub.id === "staff-attendance" || sub.id === "librarian-attendance") &&
-                                ["staff-attendance", "attendance-staff", "librarian-attendance", "library-attendance"].includes(activeModule)) ||
-                              (sub.id === "staff-leave" &&
-                                ["staff-leave", "leave-management"].includes(activeModule)) ||
+                              ((sub.id === "staff-attendance" || sub.id === "librarian-attendance" || sub.id === "driver-attendance") &&
+                                ["staff-attendance", "attendance-staff", "librarian-attendance", "library-attendance", "driver-attendance"].includes(activeModule)) ||
+                              ((sub.id === "staff-leave" || sub.id === "driver-leave") &&
+                                ["staff-leave", "leave-management", "driver-leave"].includes(activeModule)) ||
+                              ((sub.id === "staff-my-payslips" || sub.id === "driver-payslips") &&
+                                ["staff-my-payslips", "teacher-payslips", "driver-payslips"].includes(activeModule)) ||
                               (isPayroll &&
                                 (activeModule === "staff-payroll" ||
                                   activeModule.startsWith("staff-payroll-") ||

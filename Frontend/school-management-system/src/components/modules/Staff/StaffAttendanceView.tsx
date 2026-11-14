@@ -187,8 +187,35 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
       if (byId) return byId;
     }
 
+    // 3. Match from driverMasters if driver
+    if (userRole === "driver" && driverMasters && driverMasters.length > 0) {
+      const byDriver = driverMasters.find(
+        (d) =>
+          (uEmail && d.email && d.email.toLowerCase().trim() === uEmail) ||
+          (uEmpId && ((d.employeeId && d.employeeId.toLowerCase().trim() === uEmpId) || (d.empId && d.empId.toLowerCase().trim() === uEmpId) || String(d.id).trim() === uEmpId)) ||
+          (user?.name && ((d.driverName && d.driverName.toLowerCase().trim() === user.name.toLowerCase().trim()) || (d.name && d.name.toLowerCase().trim() === user.name.toLowerCase().trim())))
+      );
+      if (byDriver) {
+        const dName = byDriver.driverName || byDriver.name || user?.name || "Driver";
+        const parts = dName.split(" ");
+        return {
+          id: byDriver.id,
+          empId: byDriver.employeeId || byDriver.empId || uEmpId || "",
+          employeeId: byDriver.employeeId || byDriver.empId || uEmpId || "",
+          firstName: parts[0] || "Driver",
+          lastName: parts.slice(1).join(" ") || "",
+          email: byDriver.email || user?.email || "",
+          phone: byDriver.phone || byDriver.contactNumber || user?.phone || "",
+          department: "Transport Dept",
+          designation: "Driver",
+          status: byDriver.status || "Active",
+          avatar: byDriver.photo || byDriver.avatar || user?.avatar || ""
+        } as Staff;
+      }
+    }
+
     return null;
-  }, [user, staff]);
+  }, [user, staff, userRole, driverMasters]);
 
   // Dynamic Teacher Profile resolution directly from logged in user & staff record
   const teacher = useMemo(() => {
@@ -202,8 +229,8 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     }
 
     const resolvedEmpId = dbTeacher?.empId || (dbTeacher as any)?.employeeId || (user as any)?.empId || (user as any)?.employeeId || String(dbTeacher?.id || user?.id || "");
-    const resolvedDept = dbTeacher?.department || (user as any)?.department || "General Staff";
-    const resolvedDesig = dbTeacher?.designation || (user as any)?.designation || "Staff";
+    const resolvedDept = dbTeacher?.department || (user as any)?.department || (userRole === "driver" ? "Transport Dept" : "General Staff");
+    const resolvedDesig = dbTeacher?.designation || (user as any)?.designation || (userRole === "driver" ? "Driver" : "Staff");
 
     return {
       id: resolvedEmpId || String(user?.id || ""),
