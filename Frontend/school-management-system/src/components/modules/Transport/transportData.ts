@@ -19,6 +19,7 @@ export const initialBusAttendants: BusAttendantMaster[] = [];
 
 export interface AssignedStudentDetail {
   id: string;
+  studentId?: string;
   admissionNo: string;
   studentName: string;
   gender: string;
@@ -240,49 +241,100 @@ export const resolveAssignedStudentsForTrip = (
   });
 
   matchingTransports.forEach((st: any) => {
-    const matchedStudent = (students || []).find((s: any) =>
-      (st.studentId && s.id && String(s.id).trim().toLowerCase() === String(st.studentId).trim().toLowerCase()) ||
-      (st.admissionNo && s.admissionNo && s.admissionNo.trim().toLowerCase() === st.admissionNo.trim().toLowerCase()) ||
-      (st.studentName && (`${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase() === st.studentName.trim().toLowerCase() || s.name?.trim().toLowerCase() === st.studentName.trim().toLowerCase()))
-    );
+    const targetAdmNo = String(st.admissionNo || '').trim().toLowerCase();
+    const targetStuId = String(st.studentId || '').trim().toLowerCase();
+    const targetDigits = (targetAdmNo || targetStuId).replace(/\D/g, '');
+    const last4Digits = targetDigits.length >= 4 ? targetDigits.slice(-4) : targetDigits;
+
+    const matchedStudent = (students || []).find((s: any) => {
+      const sId = String(s.id || '').trim().toLowerCase();
+      const sStuId = String(s.studentId || (s as any).studentId || '').trim().toLowerCase();
+      const sAdmNo = String(s.admissionNo || '').trim().toLowerCase();
+      const sRollNo = String(s.rollNo || (s as any).rollNumber || '').trim().toLowerCase();
+      const sRegNo = String(s.registrationNo || (s as any).registrationNumber || '').trim().toLowerCase();
+      const sName = `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase();
+      const stName = (st.studentName || '').trim().toLowerCase();
+
+      if (targetStuId && (sId === targetStuId || sStuId === targetStuId)) return true;
+      if (targetAdmNo && (sAdmNo === targetAdmNo || sRollNo === targetAdmNo || sRegNo === targetAdmNo || sStuId === targetAdmNo || sId === targetAdmNo)) return true;
+      if (stName && stName !== 'student' && (sName === stName || s.name?.trim().toLowerCase() === stName)) return true;
+      if (last4Digits && last4Digits.length >= 3) {
+        const sDigits = (sAdmNo || sRollNo || sRegNo || sId).replace(/\D/g, '');
+        if (sDigits && (sDigits.endsWith(last4Digits) || sDigits === last4Digits)) return true;
+      }
+      return false;
+    });
 
     const matchedAdm = !matchedStudent ? (admissions || []).find((a: any) => {
       const aSt = String(a?.status || '').toLowerCase().trim();
       if (aSt !== 'enrolled' && aSt !== 'admitted' && aSt !== 'active') return false;
-      return
-      (st.admissionNo && a.registrationNo && a.registrationNo.trim().toLowerCase() === st.admissionNo.trim().toLowerCase()) ||
-      (st.admissionNo && a.applicationNo && a.applicationNo.trim().toLowerCase() === st.admissionNo.trim().toLowerCase()) ||
-      (st.studentId && a.id && String(a.id).trim().toLowerCase() === String(st.studentId).trim().toLowerCase()) ||
-      (st.studentName && a.applicantName && a.applicantName.trim().toLowerCase() === st.studentName.trim().toLowerCase());
+      const aId = String(a.id || '').trim().toLowerCase();
+      const aAppNo = String(a.applicationNo || (a as any).applicationId || '').trim().toLowerCase();
+      const aRegNo = String(a.registrationNo || (a as any).registrationNumber || '').trim().toLowerCase();
+      const aAdmNo = String((a as any).admissionNo || (a as any).admissionNumber || '').trim().toLowerCase();
+      const aStuId = String((a as any).studentId || '').trim().toLowerCase();
+      const aRollNo = String(a.rollNo || (a as any).rollNumber || '').trim().toLowerCase();
+      const aName = (a.applicantName || `${a.firstName || ''} ${a.lastName || ''}`).trim().toLowerCase();
+      const stName = (st.studentName || '').trim().toLowerCase();
+
+      if (targetStuId && (aId === targetStuId || aStuId === targetStuId)) return true;
+      if (targetAdmNo && (aAdmNo === targetAdmNo || aRegNo === targetAdmNo || aAppNo === targetAdmNo || aRollNo === targetAdmNo || aStuId === targetAdmNo || aId === targetAdmNo)) return true;
+      if (stName && stName !== 'student' && aName === stName) return true;
+      if (last4Digits && last4Digits.length >= 3) {
+        const aDigits = (aAdmNo || aRegNo || aAppNo || aId).replace(/\D/g, '');
+        if (aDigits && (aDigits.endsWith(last4Digits) || aDigits === last4Digits)) return true;
+      }
+      return false;
     }) : null;
 
+    const resolvedStudentId =
+      (st.admissionNo && st.admissionNo.toUpperCase().startsWith('STU') ? st.admissionNo : '') ||
+      (matchedStudent as any)?.studentId ||
+      matchedStudent?.rollNo ||
+      (matchedStudent as any)?.rollNumber ||
+      (st.studentId && st.studentId !== '0' && st.studentId !== '' ? (String(st.studentId).startsWith('STU') ? String(st.studentId) : `STU-${st.studentId}`) : '') ||
+      (matchedAdm as any)?.studentId ||
+      (matchedAdm as any)?.rollNo ||
+      (matchedStudent?.admissionNo && matchedStudent.admissionNo.toUpperCase().startsWith('STU') ? matchedStudent.admissionNo : '') ||
+      (matchedStudent?.id ? (String(matchedStudent.id).startsWith('STU') ? String(matchedStudent.id) : `STU-${matchedStudent.id}`) : '') ||
+      st.admissionNo ||
+      '-';
+
     const resolvedName = (
+      matchedStudent?.name ||
       (matchedStudent?.firstName ? `${matchedStudent.firstName} ${matchedStudent.lastName || ''}`.trim() : '') ||
       matchedStudent?.studentName ||
-      matchedStudent?.name ||
-      st.studentName ||
       matchedAdm?.applicantName ||
+      (matchedAdm?.firstName ? `${matchedAdm.firstName} ${matchedAdm.lastName || ''}`.trim() : '') ||
+      (st.studentName && st.studentName.toLowerCase() !== 'student' ? st.studentName : '') ||
       'Student'
     ).trim();
 
     const pName = (
       matchedStudent?.fatherName ||
+      (matchedStudent as any)?.fatherFullName ||
       matchedStudent?.parentName ||
-      matchedStudent?.motherName ||
-      matchedStudent?.fatherFullName ||
       matchedAdm?.parentName ||
-      matchedStudent?.guardianName ||
+      matchedAdm?.fatherName ||
+      (matchedStudent as any)?.guardianName ||
+      matchedStudent?.motherName ||
+      matchedAdm?.motherName ||
       '-'
     ).trim();
 
     const pMobile = (
       matchedStudent?.fatherPhone ||
+      (matchedStudent as any)?.fatherMobile ||
+      (matchedStudent as any)?.fatherMobileNo ||
+      (matchedStudent as any)?.fatherContact ||
       matchedStudent?.parentPhone ||
-      matchedStudent?.fatherMobile ||
+      (matchedStudent as any)?.parentContact ||
       matchedStudent?.phone ||
-      matchedStudent?.mobileNumber ||
+      (matchedStudent as any)?.mobileNumber ||
       matchedStudent?.motherMobile ||
       matchedAdm?.phone ||
+      matchedAdm?.mobileNumber ||
+      matchedAdm?.parentPhone ||
       '-'
     ).trim();
 
@@ -296,24 +348,27 @@ export const resolveAssignedStudentsForTrip = (
     const k1 = finalAdmissionNo.toLowerCase();
     const k2 = String(matchedStudent?.id || st.studentId || st.id).trim().toLowerCase();
     const k3 = resolvedName.toLowerCase();
+    const k4 = resolvedStudentId.toLowerCase();
 
-    if (seenKeys.has(k1) || seenKeys.has(k2) || (k3 && k3 !== 'student' && seenKeys.has(k3))) {
+    if (seenKeys.has(k1) || seenKeys.has(k2) || (k4 && k4 !== '-' && seenKeys.has(k4)) || (k3 && k3 !== 'student' && seenKeys.has(k3))) {
       return;
     }
     if (k1 && k1 !== '-') seenKeys.add(k1);
     if (k2) seenKeys.add(k2);
+    if (k4 && k4 !== '-') seenKeys.add(k4);
     if (k3 && k3 !== 'student') seenKeys.add(k3);
 
     const { morningTime, eveningTime } = getStopTimes(pPoint);
 
     result.push({
-      id: String(st.id || matchedStudent?.id || st.studentId || `stud-${result.length + 1}`),
+      id: resolvedStudentId !== '-' ? resolvedStudentId : String(st.id || matchedStudent?.id || st.studentId || `stud-${result.length + 1}`),
+      studentId: resolvedStudentId,
       admissionNo: finalAdmissionNo,
       studentName: resolvedName,
-      gender: matchedStudent?.gender || matchedAdm?.gender || matchedStudent?.sex || '-',
-      className: matchedStudent?.className || matchedStudent?.grade || matchedAdm?.appliedClass || matchedStudent?.class || '-',
+      gender: matchedStudent?.gender || matchedAdm?.gender || (matchedStudent as any)?.sex || '-',
+      className: matchedStudent?.className || matchedStudent?.grade || matchedAdm?.appliedClass || (matchedStudent as any)?.class || matchedAdm?.targetClass || '-',
       section: matchedStudent?.section || matchedAdm?.section || '-',
-      rollNo: matchedStudent?.rollNo || matchedStudent?.rollNumber || matchedStudent?.roll || '-',
+      rollNo: matchedStudent?.rollNo || (matchedStudent as any)?.rollNumber || matchedAdm?.rollNo || '-',
       pickupPoint: pPoint,
       parentName: pName,
       parentMobile: pMobile,
@@ -374,8 +429,17 @@ export const resolveAssignedStudentsForTrip = (
 
     const { morningTime, eveningTime } = getStopTimes(pPoint);
 
+    const resolvedStudentId =
+      (st.admissionNo && st.admissionNo.toUpperCase().startsWith('STU') ? st.admissionNo : '') ||
+      st.studentId ||
+      st.rollNo ||
+      (st as any)?.rollNumber ||
+      (st.id ? (String(st.id).startsWith('STU') ? String(st.id) : `STU-${st.id}`) : '') ||
+      '-';
+
     result.push({
-      id: String(st.id),
+      id: resolvedStudentId !== '-' ? resolvedStudentId : String(st.id),
+      studentId: resolvedStudentId,
       admissionNo: finalAdmNo,
       studentName: studentFullName || 'Student',
       gender: st.gender || st.sex || '-',
@@ -443,8 +507,16 @@ export const resolveAssignedStudentsForTrip = (
 
     const { morningTime, eveningTime } = getStopTimes(pPoint);
 
+    const resolvedStudentId =
+      (adm.registrationNo && adm.registrationNo.toUpperCase().startsWith('STU') ? adm.registrationNo : '') ||
+      adm.studentId ||
+      adm.rollNo ||
+      (adm.id ? `STU-${adm.id}` : '') ||
+      '-';
+
     result.push({
-      id: String(adm.id || `adm-${result.length + 1}`),
+      id: resolvedStudentId !== '-' ? resolvedStudentId : String(adm.id || `adm-${result.length + 1}`),
+      studentId: resolvedStudentId,
       admissionNo: admNo,
       studentName: applicantName || 'Student',
       gender: adm.gender || '-',

@@ -78,7 +78,7 @@ const DEFAULT_DRIVER_DUTIES = [
 
 export const TeacherProfileView: React.FC = () => {
   const { user } = useAuth();
-  const { staff = [], driverMasters = [], teacherAssignments = [], timetable = [], academicClasses = [], updateStaff } = useData();
+  const { staff = [], driverMasters = [], teacherAssignments = [], timetable = [], academicClasses = [], updateStaff, updateDriverMaster } = useData();
   const { addToast } = useToast();
 
   const userRoleStr = (user?.role || '').toLowerCase().trim();
@@ -772,9 +772,27 @@ export const TeacherProfileView: React.FC = () => {
         } as any);
       }
 
+      // Sync directly to driverMasters store if user is a driver
+      if (isDriver && updateDriverMaster) {
+        const dMatch = driverMasters.find(d =>
+          (user?.email && d.email?.toLowerCase() === user.email.toLowerCase()) ||
+          (user?.name && d.driverName?.toLowerCase() === user.name.toLowerCase()) ||
+          (user?.id && String(d.id) === String(user.id)) ||
+          (dbTeacher?.id && String(d.id) === String(dbTeacher.id))
+        );
+        if (dMatch) {
+          updateDriverMaster(dMatch.id, {
+            mobileNumber: formData.mobile,
+            emergencyContact: formData.emergencyContact,
+            address: formData.address,
+            bloodGroup: formData.bloodGroup
+          });
+        }
+      }
+
       await fetchProfileData();
       setIsEditModalOpen(false);
-      addToast('success', 'Profile Updated', 'Teacher profile details saved and synced with Admin Database!');
+      addToast('success', 'Profile Updated', 'Profile details saved and synced successfully!');
     } catch (err: any) {
       console.error('Update profile error:', err);
       addToast('error', 'Update Failed', 'Unable to save profile changes.');
@@ -880,84 +898,95 @@ export const TeacherProfileView: React.FC = () => {
       
       {/* Header Banner & Hero Card - Compact Clean White Theme */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl p-3.5 sm:p-4 shadow-sm border border-sky-200 dark:border-slate-700/80">
-        <div className="flex flex-col sm:flex-row items-center sm:items-center gap-3.5 sm:gap-4">
-          <div className="relative shrink-0">
-            {profile.profilePhoto || profile.avatar ? (
-              <img
-                key={profile.profilePhoto || profile.avatar}
-                src={resolveMediaUrl(profile.profilePhoto || profile.avatar)}
-                alt={profile.fullName || 'Teacher'}
-                className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-cover shadow-sm ring-2 ring-sky-500/20"
-                onError={(e) => {
-                  const target = e.target as HTMLElement;
-                  target.style.display = 'none';
-                  const fb = target.nextElementSibling as HTMLElement | null;
-                  if (fb) fb.classList.remove('hidden');
-                }}
+        <div className="flex flex-col sm:flex-row items-center sm:items-center justify-between gap-3.5 sm:gap-4">
+          <div className="flex flex-col sm:flex-row items-center sm:items-center gap-3.5 sm:gap-4 flex-1">
+            <div className="relative shrink-0">
+              {profile.profilePhoto || profile.avatar ? (
+                <img
+                  key={profile.profilePhoto || profile.avatar}
+                  src={resolveMediaUrl(profile.profilePhoto || profile.avatar)}
+                  alt={profile.fullName || 'Teacher'}
+                  className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl object-cover shadow-sm ring-2 ring-sky-500/20"
+                  onError={(e) => {
+                    const target = e.target as HTMLElement;
+                    target.style.display = 'none';
+                    const fb = target.nextElementSibling as HTMLElement | null;
+                    if (fb) fb.classList.remove('hidden');
+                  }}
+                />
+              ) : null}
+              <div
+                className={`w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 text-white font-black text-base sm:text-lg items-center justify-center shadow-sm ${
+                  profile.profilePhoto || profile.avatar ? 'hidden' : 'flex'
+                }`}
+              >
+                {(() => {
+                  const nameParts = (profile.fullName || user?.name || 'Teacher').trim().split(/\s+/);
+                  if (nameParts.length >= 2) return (nameParts[0][0] + nameParts[1][0]).toUpperCase();
+                  return (nameParts[0] || 'T').substring(0, 2).toUpperCase();
+                })()}
+              </div>
+              <span
+                className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 border-2 border-white dark:border-slate-900 rounded-full shadow-sm ${
+                  (profile.employmentStatus || 'ACTIVE').toUpperCase() === 'INACTIVE'
+                    ? 'bg-amber-500'
+                    : (profile.employmentStatus || 'ACTIVE').toUpperCase() === 'RESIGNED'
+                      ? 'bg-rose-500'
+                      : 'bg-emerald-500'
+                }`}
               />
-            ) : null}
-            <div
-              className={`w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 text-white font-black text-base sm:text-lg items-center justify-center shadow-sm ${
-                profile.profilePhoto || profile.avatar ? 'hidden' : 'flex'
-              }`}
-            >
-              {(() => {
-                const nameParts = (profile.fullName || user?.name || 'Teacher').trim().split(/\s+/);
-                if (nameParts.length >= 2) return (nameParts[0][0] + nameParts[1][0]).toUpperCase();
-                return (nameParts[0] || 'T').substring(0, 2).toUpperCase();
-              })()}
             </div>
-            <span
-              className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 border-2 border-white dark:border-slate-900 rounded-full shadow-sm ${
-                (profile.employmentStatus || 'ACTIVE').toUpperCase() === 'INACTIVE'
-                  ? 'bg-amber-500'
-                  : (profile.employmentStatus || 'ACTIVE').toUpperCase() === 'RESIGNED'
-                    ? 'bg-rose-500'
-                    : 'bg-emerald-500'
-              }`}
-            />
-          </div>
 
-          <div className="flex-1 text-center sm:text-left space-y-1">
-            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-              <h1 className="text-lg sm:text-xl font-black text-sky-600 dark:text-sky-400 tracking-tight">{profile.fullName}</h1>
-              {(() => {
-                const empStatus = (profile.employmentStatus || 'ACTIVE').toUpperCase();
-                const isInactive = empStatus === 'INACTIVE';
-                const isResigned = empStatus === 'RESIGNED';
-                const colorCls = isInactive
-                  ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800/50'
-                  : isResigned
-                    ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-800/50'
-                    : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/50';
-                return (
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase border ${colorCls}`}>
-                    {empStatus}
+            <div className="flex-1 text-center sm:text-left space-y-1">
+              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                <h1 className="text-lg sm:text-xl font-black text-sky-600 dark:text-sky-400 tracking-tight">{profile.fullName}</h1>
+                {(() => {
+                  const empStatus = (profile.employmentStatus || 'ACTIVE').toUpperCase();
+                  const isInactive = empStatus === 'INACTIVE';
+                  const isResigned = empStatus === 'RESIGNED';
+                  const colorCls = isInactive
+                    ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800/50'
+                    : isResigned
+                      ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 border-rose-200 dark:border-rose-800/50'
+                      : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800/50';
+                  return (
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase border ${colorCls}`}>
+                      {empStatus}
+                    </span>
+                  );
+                })()}
+                {classTeacherInfo.isClassTeacher && (
+                  <span className="px-2.5 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 text-[10px] font-black uppercase border border-amber-200 dark:border-amber-800/50 flex items-center gap-1">
+                    🏷️ Class Teacher ({classTeacherInfo.className})
                   </span>
-                );
-              })()}
-              {classTeacherInfo.isClassTeacher && (
-                <span className="px-2.5 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 text-[10px] font-black uppercase border border-amber-200 dark:border-amber-800/50 flex items-center gap-1">
-                  🏷️ Class Teacher ({classTeacherInfo.className})
+                )}
+              </div>
+
+              <p className="text-sky-600 dark:text-sky-400 font-bold text-xs sm:text-sm">
+                {profile.designation}
+              </p>
+
+              <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 text-xs text-slate-500 dark:text-slate-400 pt-0.5 font-semibold">
+                <span className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800/60 px-2.5 py-0.5 rounded-lg border border-sky-100 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-mono">
+                  <Shield className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
+                  Emp ID: {profile.employeeId || 'Not Assigned'}
                 </span>
-              )}
-            </div>
-
-            <p className="text-sky-600 dark:text-sky-400 font-bold text-xs sm:text-sm">
-              {profile.designation}
-            </p>
-
-            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 text-xs text-slate-500 dark:text-slate-400 pt-0.5 font-semibold">
-              <span className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800/60 px-2.5 py-0.5 rounded-lg border border-sky-100 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-mono">
-                <Shield className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
-                Emp ID: {profile.employeeId || 'Not Assigned'}
-              </span>
-              <span className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800/60 px-2.5 py-0.5 rounded-lg border border-sky-100 dark:border-slate-700 text-slate-600 dark:text-slate-300">
-                <Calendar className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
-                Joined: {formatDisplayDate(profile.joiningDate)}
-              </span>
+                <span className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800/60 px-2.5 py-0.5 rounded-lg border border-sky-100 dark:border-slate-700 text-slate-600 dark:text-slate-300">
+                  <Calendar className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
+                  Joined: {formatDisplayDate(profile.joiningDate)}
+                </span>
+              </div>
             </div>
           </div>
+
+          <button
+            type="button"
+            onClick={handleOpenEditModal}
+            className="px-4 py-2 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-bold text-xs flex items-center gap-2 shadow-xs transition-all active:scale-95 cursor-pointer shrink-0 self-center sm:self-center"
+          >
+            <Edit2 className="w-3.5 h-3.5" />
+            <span>Edit Profile</span>
+          </button>
         </div>
       </div>
 
@@ -967,10 +996,20 @@ export const TeacherProfileView: React.FC = () => {
         {/* Card 1: Contact Information */}
         <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-sm border border-sky-200 dark:border-slate-700/80 flex flex-col justify-between h-full space-y-4">
           <div>
-            <h2 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2 border-b pb-3 border-slate-100 dark:border-slate-800">
-              <Phone className="w-5 h-5 text-sky-600 dark:text-sky-400" />
-              Contact Information
-            </h2>
+            <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
+              <h2 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                <Phone className="w-5 h-5 text-sky-600 dark:text-sky-400" />
+                Contact Information
+              </h2>
+              <button
+                type="button"
+                onClick={handleOpenEditModal}
+                className="px-2.5 py-1 rounded-xl text-xs font-bold text-brand-600 dark:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-950/40 border border-brand-200 dark:border-brand-800/40 flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer"
+              >
+                <Edit2 className="w-3.5 h-3.5" />
+                <span>Edit</span>
+              </button>
+            </div>
 
             <div className="space-y-3.5 text-xs mt-4">
               <div>

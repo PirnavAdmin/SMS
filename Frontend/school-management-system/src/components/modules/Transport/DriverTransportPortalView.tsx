@@ -1,5 +1,5 @@
 // @ts-nocheck
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Bus, MapPin, Users, Phone, ShieldCheck, Clock, Navigation,
   CheckCircle2, AlertCircle, Signal, UserCheck, Calendar,
@@ -12,6 +12,7 @@ import { TransportGPSTrackingView } from './TransportGPSTrackingView';
 import { VehicleTripDetailsModal } from './VehicleTripDetailsModal';
 import { TransportScrollableTabs } from './TransportScrollableTabs';
 import { formatMorningTripTime, formatEveningTripTime } from './transportData';
+import { Pagination } from '../../common/Pagination';
 
 interface DriverTransportPortalViewProps {
   onNavigate?: (module: string) => void;
@@ -52,6 +53,12 @@ export const DriverTransportPortalView: React.FC<DriverTransportPortalViewProps>
   const [selectedStopFilter, setSelectedStopFilter] = useState('All');
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [boardedMap, setBoardedMap] = useState<Record<string, boolean>>({});
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [studentSearch, selectedStopFilter]);
 
   // 1. Identify Driver
   const matchedDriver = useMemo(() => {
@@ -218,20 +225,65 @@ export const DriverTransportPortalView: React.FC<DriverTransportPortalViewProps>
 
       if (!matchRt) return;
 
-      const student = students.find(s =>
-        (st.studentId && s.id && String(st.studentId).trim() === String(s.id).trim()) ||
-        (st.admissionNo && s.admissionNo && String(st.admissionNo).trim().toLowerCase() === String(s.admissionNo).trim().toLowerCase())
-      );
+      const targetAdmNo = String(st.admissionNo || '').trim().toLowerCase();
+      const targetStuId = String(st.studentId || '').trim().toLowerCase();
+      const targetDigits = (targetAdmNo || targetStuId).replace(/\D/g, '');
+      const last4Digits = targetDigits.length >= 4 ? targetDigits.slice(-4) : targetDigits;
 
-      const matchedAdm = admissions.find(a =>
-        (st.admissionNo && a.registrationNo && a.registrationNo.trim().toLowerCase() === String(st.admissionNo).trim().toLowerCase()) ||
-        (st.admissionNo && a.applicationNo && a.applicationNo.trim().toLowerCase() === String(st.admissionNo).trim().toLowerCase()) ||
-        (st.studentId && a.id && String(a.id).trim() === String(st.studentId).trim())
-      );
+      const student = students.find(s => {
+        const sId = String(s.id || '').trim().toLowerCase();
+        const sStuId = String(s.studentId || (s as any).studentId || '').trim().toLowerCase();
+        const sAdmNo = String(s.admissionNo || '').trim().toLowerCase();
+        const sRollNo = String(s.rollNo || (s as any).rollNumber || '').trim().toLowerCase();
+        const sRegNo = String(s.registrationNo || (s as any).registrationNumber || '').trim().toLowerCase();
+
+        if (targetStuId && (sId === targetStuId || sStuId === targetStuId)) return true;
+        if (targetAdmNo && (sAdmNo === targetAdmNo || sRollNo === targetAdmNo || sRegNo === targetAdmNo || sStuId === targetAdmNo || sId === targetAdmNo)) return true;
+        if (last4Digits && last4Digits.length >= 3) {
+          const sDigits = (sAdmNo || sRollNo || sRegNo || sId).replace(/\D/g, '');
+          if (sDigits && (sDigits.endsWith(last4Digits) || sDigits === last4Digits)) return true;
+        }
+        return false;
+      });
+
+      const matchedAdm = admissions.find(a => {
+        const aId = String(a.id || '').trim().toLowerCase();
+        const aAppNo = String(a.applicationNo || (a as any).applicationId || '').trim().toLowerCase();
+        const aRegNo = String(a.registrationNo || (a as any).registrationNumber || '').trim().toLowerCase();
+        const aAdmNo = String((a as any).admissionNo || (a as any).admissionNumber || '').trim().toLowerCase();
+        const aStuId = String((a as any).studentId || '').trim().toLowerCase();
+        const aRollNo = String(a.rollNo || (a as any).rollNumber || '').trim().toLowerCase();
+
+        if (targetStuId && (aId === targetStuId || aStuId === targetStuId)) return true;
+        if (targetAdmNo && (aAdmNo === targetAdmNo || aRegNo === targetAdmNo || aAppNo === targetAdmNo || aRollNo === targetAdmNo || aStuId === targetAdmNo || aId === targetAdmNo)) return true;
+        if (last4Digits && last4Digits.length >= 3) {
+          const aDigits = (aAdmNo || aRegNo || aAppNo || aId).replace(/\D/g, '');
+          if (aDigits && (aDigits.endsWith(last4Digits) || aDigits === last4Digits)) return true;
+        }
+        return false;
+      });
 
       const key = String(student?.id || st.studentId || student?.admissionNo || st.admissionNo || st.id);
-      const fullName = (student?.name || `${student?.firstName || ''} ${student?.lastName || ''}`.trim() || st.studentName || matchedAdm?.applicantName || 'Student Passenger').trim();
-      const pName = (student?.fatherName || (student as any)?.fatherFullName || student?.parentName || matchedAdm?.parentName || (student as any)?.guardianName || student?.motherName || matchedAdm?.motherName || 'Parent / Guardian').trim();
+      const fullName = (
+        student?.name ||
+        `${student?.firstName || ''} ${student?.lastName || ''}`.trim() ||
+        matchedAdm?.applicantName ||
+        `${matchedAdm?.firstName || ''} ${matchedAdm?.lastName || ''}`.trim() ||
+        st.studentName ||
+        'Student Passenger'
+      ).trim();
+
+      const pName = (
+        student?.fatherName ||
+        (student as any)?.fatherFullName ||
+        student?.parentName ||
+        matchedAdm?.parentName ||
+        (student as any)?.guardianName ||
+        student?.motherName ||
+        matchedAdm?.motherName ||
+        'Parent / Guardian'
+      ).trim();
+
       const pMobile = (
         student?.fatherPhone ||
         (student as any)?.fatherMobile ||
@@ -250,14 +302,28 @@ export const DriverTransportPortalView: React.FC<DriverTransportPortalViewProps>
         ? rawPoint.trim()
         : (routeStops.length > 0 ? routeStops[0].pickupName : '-');
 
+      const studentIdVal =
+        (st.admissionNo && st.admissionNo.toUpperCase().startsWith('STU') ? st.admissionNo : '') ||
+        (student as any)?.studentId ||
+        student?.rollNo ||
+        (student as any)?.rollNumber ||
+        (st.studentId && st.studentId !== '0' && st.studentId !== '' ? (String(st.studentId).startsWith('STU') ? String(st.studentId) : `STU-${st.studentId}`) : '') ||
+        (matchedAdm as any)?.studentId ||
+        (matchedAdm as any)?.rollNo ||
+        (student?.admissionNo && student.admissionNo.toUpperCase().startsWith('STU') ? student.admissionNo : '') ||
+        (student?.id ? (String(student.id).startsWith('STU') ? String(student.id) : `STU-${student.id}`) : '') ||
+        st.admissionNo ||
+        '-';
+
       studentMap.set(key, {
         id: student?.id || st.studentId || key,
-        admissionNo: student?.admissionNo || st.admissionNo || matchedAdm?.registrationNo || matchedAdm?.applicationNo || '-',
+        studentId: studentIdVal,
+        admissionNo: student?.admissionNo || st.admissionNo || (matchedAdm as any)?.admissionNo || matchedAdm?.registrationNo || matchedAdm?.applicationNo || '-',
         studentName: fullName,
         gender: student?.gender || matchedAdm?.gender || (student as any)?.sex || '-',
-        className: student?.className || student?.grade || matchedAdm?.appliedClass || (student as any)?.class || '-',
+        className: student?.className || student?.grade || matchedAdm?.appliedClass || (student as any)?.class || matchedAdm?.targetClass || '-',
         section: student?.section || matchedAdm?.section || '-',
-        rollNo: student?.rollNo || (student as any)?.rollNumber || (student as any)?.roll || '-',
+        rollNo: student?.rollNo || (student as any)?.rollNumber || matchedAdm?.rollNo || '-',
         pickupPoint: pPoint,
         parentName: pName,
         parentMobile: pMobile
@@ -278,7 +344,8 @@ export const DriverTransportPortalView: React.FC<DriverTransportPortalViewProps>
         if (!isActive) return false;
         return (
           (st.studentId && student.id && String(st.studentId).trim() === String(student.id).trim()) ||
-          (st.admissionNo && student.admissionNo && String(student.admissionNo).trim().toLowerCase() === String(student.admissionNo).trim().toLowerCase())
+          (st.admissionNo && student.admissionNo && String(st.admissionNo).trim().toLowerCase() === String(student.admissionNo).trim().toLowerCase()) ||
+          (st.admissionNo && student.rollNo && String(st.admissionNo).trim().toLowerCase() === String(student.rollNo).trim().toLowerCase())
         );
       });
       if (otherAssignment) return;
@@ -319,8 +386,19 @@ export const DriverTransportPortalView: React.FC<DriverTransportPortalViewProps>
           ? rawPoint.trim()
           : (routeStops.length > 0 ? routeStops[0].pickupName : '-');
 
+        const studentIdVal =
+          (student as any)?.studentId ||
+          student.rollNo ||
+          (student as any)?.rollNumber ||
+          (matchedAdm as any)?.studentId ||
+          (matchedAdm as any)?.rollNo ||
+          (student.admissionNo && student.admissionNo.toUpperCase().startsWith('STU') ? student.admissionNo : '') ||
+          (student.id ? (String(student.id).startsWith('STU') ? String(student.id) : `STU-${student.id}`) : '') ||
+          '-';
+
         studentMap.set(key, {
           id: student.id,
+          studentId: studentIdVal,
           admissionNo: student.admissionNo || matchedAdm?.registrationNo || '-',
           studentName: fullName,
           gender: student.gender || matchedAdm?.gender || (student as any)?.sex || '-',
@@ -342,6 +420,7 @@ export const DriverTransportPortalView: React.FC<DriverTransportPortalViewProps>
       const matchSearch =
         studentSearch.trim() === '' ||
         s.studentName.toLowerCase().includes(studentSearch.toLowerCase()) ||
+        (s.studentId && s.studentId.toLowerCase().includes(studentSearch.toLowerCase())) ||
         s.admissionNo.toLowerCase().includes(studentSearch.toLowerCase()) ||
         s.parentName.toLowerCase().includes(studentSearch.toLowerCase()) ||
         s.pickupPoint.toLowerCase().includes(studentSearch.toLowerCase());
@@ -350,6 +429,11 @@ export const DriverTransportPortalView: React.FC<DriverTransportPortalViewProps>
       return matchSearch && matchStop;
     });
   }, [assignedStudents, studentSearch, selectedStopFilter]);
+
+  const paginatedStudents = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredStudents.slice(start, start + itemsPerPage);
+  }, [filteredStudents, currentPage, itemsPerPage]);
 
   const toggleBoarding = (studentId: string) => {
     setBoardedMap(prev => ({
@@ -511,43 +595,100 @@ export const DriverTransportPortalView: React.FC<DriverTransportPortalViewProps>
               )}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {filteredStudents.map(student => {
-                const isBoarded = !!boardedMap[student.id];
-                return (
-                  <div
-                    key={student.id}
-                    className={`p-3 rounded-xl border transition-all space-y-2 bg-white dark:bg-slate-900 shadow-sm ${isBoarded ? 'border-emerald-400 dark:border-emerald-600 ring-1 ring-emerald-400/30' : 'border-sky-200/80 dark:border-sky-800'}`}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <h4 className="font-black text-xs text-slate-900 dark:text-white">{student.studentName}</h4>
-                        <div className="text-[10px] font-mono text-slate-400">
-                          Adm: {student.admissionNo} • {student.className} - {student.section}
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => toggleBoarding(student.id)}
-                        className={`px-2 py-0.5 rounded-lg text-[10px] font-extrabold transition-all flex items-center gap-1 cursor-pointer ${isBoarded ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-emerald-100 hover:text-emerald-800'}`}
-                      >
-                        <CheckCircle2 className="w-2.5 h-2.5" /> {isBoarded ? 'On Bus' : 'Board'}
-                      </button>
-                    </div>
-
-                    <div className="space-y-1 text-[11px]">
-                      <div className="flex items-center gap-1.5 text-slate-600 dark:text-slate-300">
-                        <MapPin className="w-3 h-3 text-emerald-500 shrink-0" />
-                        <span className="font-bold truncate">{student.pickupPoint}</span>
-                      </div>
-
-                      <div className="text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-200/60 dark:border-slate-700/60">
-                        <span className="text-[10px] truncate">Guardian: {student.parentName}</span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+            {/* Passenger Table View */}
+            <div className="overflow-x-auto rounded-2xl border border-sky-200/80 dark:border-sky-850 bg-white dark:bg-slate-900 shadow-xs">
+              <table className="w-full text-center border-collapse text-xs whitespace-nowrap">
+                <thead>
+                  <tr className="border-b border-sky-100 dark:border-sky-900/60 bg-sky-50/60 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-extrabold uppercase text-[10px] tracking-wider">
+                    <th className="py-3 px-4 text-center w-12">#</th>
+                    <th className="py-3 px-4 text-center">Student Name</th>
+                    <th className="py-3 px-4 text-center">Student ID</th>
+                    <th className="py-3 px-4 text-center">Class & Section</th>
+                    <th className="py-3 px-4 text-center">Pickup / Drop Stop</th>
+                    <th className="py-3 px-4 text-center">Guardian & Contact</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-sky-100/70 dark:divide-slate-800">
+                  {paginatedStudents.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-12 text-center text-slate-400 font-semibold">
+                        No assigned passengers found matching your criteria.
+                      </td>
+                    </tr>
+                  ) : (
+                    paginatedStudents.map((student, idx) => {
+                      const isBoarded = !!boardedMap[student.id];
+                      const globalIdx = (currentPage - 1) * itemsPerPage + idx + 1;
+                      return (
+                        <tr
+                          key={student.id}
+                          className={`hover:bg-sky-50/40 dark:hover:bg-slate-800/40 transition-colors ${
+                            isBoarded ? 'bg-emerald-50/30 dark:bg-emerald-950/20' : ''
+                          }`}
+                        >
+                          <td className="py-3 px-4 text-center font-bold text-slate-400 text-xs">
+                            {globalIdx}
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            <div className="font-extrabold text-slate-900 dark:text-white text-xs">
+                              {student.studentName}
+                            </div>
+                            {student.gender && student.gender !== '-' && (
+                              <div className="text-[10px] text-slate-400 font-medium">
+                                {student.gender}
+                              </div>
+                            )}
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            <span className="font-mono font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-2.5 py-0.5 rounded-md text-[11px] inline-block">
+                              {student.studentId}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-center font-bold text-slate-700 dark:text-slate-300">
+                            {student.className}{student.section && student.section !== '-' ? ` - ${student.section}` : ''}
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            <div className="inline-flex items-center justify-center gap-1.5 text-slate-700 dark:text-slate-300 font-semibold">
+                              <MapPin className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                              <span className="truncate max-w-[180px]">{student.pickupPoint}</span>
+                            </div>
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            <div>
+                              <div className="font-bold text-slate-800 dark:text-slate-200 text-xs">
+                                {student.parentName}
+                              </div>
+                              {student.parentMobile && student.parentMobile !== '-' ? (
+                                <a
+                                  href={`tel:${student.parentMobile}`}
+                                  className="text-[10px] text-rose-600 dark:text-rose-400 font-mono inline-flex items-center justify-center gap-1 hover:underline mt-0.5"
+                                >
+                                  <Phone className="w-2.5 h-2.5 shrink-0" />
+                                  <span>{student.parentMobile}</span>
+                                </a>
+                              ) : (
+                                <span className="text-[10px] text-slate-400">-</span>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
             </div>
+
+            {/* Pagination Controls */}
+            {filteredStudents.length > 0 && (
+              <Pagination
+                currentPage={currentPage}
+                totalItems={filteredStudents.length}
+                itemsPerPage={itemsPerPage}
+                onPageChange={setCurrentPage}
+                label="passengers"
+              />
+            )}
           </div>
         )}
 

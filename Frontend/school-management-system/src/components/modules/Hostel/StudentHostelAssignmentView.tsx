@@ -28,14 +28,16 @@ const getStudentUniqueKey = (st: any) => {
 const StudentInlineCombobox: React.FC<{
   students: any[];
   value: string;
+  selectedStudentObj?: any;
   onChange: (val: string, student?: any) => void;
   disabled?: boolean;
-}> = ({ students, value, onChange, disabled }) => {
+}> = ({ students, value, selectedStudentObj, onChange, disabled }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchText, setSearchText] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
 
   const selectedStudent = useMemo(() => {
+    if (selectedStudentObj) return selectedStudentObj;
     if (!value) return null;
     return (
       students.find((s) => {
@@ -56,7 +58,7 @@ const StudentInlineCombobox: React.FC<{
       ) ||
       null
     );
-  }, [students, value]);
+  }, [students, value, selectedStudentObj]);
 
   useEffect(() => {
     if (selectedStudent) {
@@ -64,7 +66,13 @@ const StudentInlineCombobox: React.FC<{
       const cls = selectedStudent.className || "";
       const sec = selectedStudent.section ? `-${selectedStudent.section}` : "";
       const adm = selectedStudent.admissionNo || "";
-      setSearchText(`${name} (${cls}${sec} • ${adm})`);
+      const classPart = cls ? `${cls}${sec}` : "";
+      const label = classPart
+        ? `${name} (${classPart}${adm ? ` • ${adm}` : ""})`
+        : adm
+          ? `${name} (${adm})`
+          : name;
+      setSearchText(label);
     } else if (!value) {
       setSearchText("");
     }
@@ -86,7 +94,16 @@ const StudentInlineCombobox: React.FC<{
   const filteredStudents = useMemo(() => {
     if (!searchText.trim()) return students;
     if (selectedStudent) {
-      const selectedLabel = `${selectedStudent.studentName || selectedStudent.name} (${selectedStudent.className}${selectedStudent.section ? `-${selectedStudent.section}` : ""} • ${selectedStudent.admissionNo})`;
+      const name = selectedStudent.studentName || selectedStudent.name || "";
+      const cls = selectedStudent.className || "";
+      const sec = selectedStudent.section ? `-${selectedStudent.section}` : "";
+      const adm = selectedStudent.admissionNo || "";
+      const classPart = cls ? `${cls}${sec}` : "";
+      const selectedLabel = classPart
+        ? `${name} (${classPart}${adm ? ` • ${adm}` : ""})`
+        : adm
+          ? `${name} (${adm})`
+          : name;
       if (searchText === selectedLabel) return students;
     }
     const q = searchText.toLowerCase().trim();
@@ -646,35 +663,226 @@ export const StudentHostelAssignmentView: React.FC = () => {
     };
   }, [fetchData, fetchEligibleStudents]);
 
+  const safeAllocations = useMemo(() => {
+    return (Array.isArray(allocations) ? allocations : []).filter((a) => {
+      return a && a.status !== "Vacated" && a.status !== "Inactive";
+    });
+  }, [allocations]);
+
+  const combinedEligibleStudents = useMemo(() => {
+    const list: any[] = [...eligibleStudents];
+    const seen = new Set<string>();
+
+    list.forEach((s) => {
+      const k1 = (s.admissionNo || "").trim().toLowerCase();
+      const k2 = String(s.studentId || s.id || "").trim().toLowerCase();
+      const k3 = (s.studentName || s.name || "").trim().toLowerCase();
+      if (k1) seen.add(k1);
+      if (k2) seen.add(k2);
+      if (k3) seen.add(k3);
+    });
+
+    (candidateStudents || []).forEach((c) => {
+      if (!c.isResidential || c.studentType === "Day Scholar") return;
+      const cAdm = (c.admissionNo || "").trim().toLowerCase();
+      const cId = String(c.id || "").trim().toLowerCase();
+      const cName = (c.name || "").trim().toLowerCase();
+
+      if (
+        (cAdm && seen.has(cAdm)) ||
+        (cId && seen.has(cId)) ||
+        (cName && seen.has(cName))
+      ) {
+        return;
+      }
+
+      const isAllocated = safeAllocations.some((a) => {
+        const aAdm = (a.admissionNo || "").trim().toLowerCase();
+        const aId = String(a.studentId || "").trim().toLowerCase();
+        const aName = (a.studentName || "").trim().toLowerCase();
+        return (
+          (cAdm && aAdm === cAdm) ||
+          (cId && aId === cId) ||
+          (cName && aName === cName)
+        );
+      });
+
+      if (isAllocated) return;
+
+      if (cAdm) seen.add(cAdm);
+      if (cId) seen.add(cId);
+      if (cName) seen.add(cName);
+
+      list.push({
+        id: c.id,
+        studentId: c.id,
+        admissionNo: c.admissionNo,
+        studentName: c.name,
+        name: c.name,
+        className: c.className,
+        section: c.section,
+        gender: c.gender || "-",
+        parentName: c.parentName || c.fatherName || "-",
+        contactNumber: c.phone || c.fatherPhone || "-",
+        isSecurityDepositPaid: c.hostelSecurityDepositPaid,
+        paymentStatus: c.hostelSecurityDepositPaid ? "Paid" : "Pending",
+        isResidential: true,
+      });
+    });
+
+    if (selectedStudentObj) {
+      const selAdm = (selectedStudentObj.admissionNo || "")
+        .trim()
+        .toLowerCase();
+      const selId = String(
+        selectedStudentObj.id || selectedStudentObj.studentId || "",
+      )
+        .trim()
+        .toLowerCase();
+      const selName = (
+        selectedStudentObj.studentName ||
+        selectedStudentObj.name ||
+        ""
+      )
+        .trim()
+        .toLowerCase();
+      const alreadyPresent = list.some((s) => {
+        const sAdm = (s.admissionNo || "").trim().toLowerCase();
+        const sId = String(s.studentId || s.id || "").trim().toLowerCase();
+        const sName = (s.studentName || s.name || "").trim().toLowerCase();
+        return (
+          (selAdm && sAdm === selAdm) ||
+          (selId && sId === selId) ||
+          (selName && sName === selName)
+        );
+      });
+      if (!alreadyPresent) {
+        list.unshift({
+          id: selectedStudentObj.id,
+          studentId: selectedStudentObj.id,
+          admissionNo: selectedStudentObj.admissionNo,
+          studentName: selectedStudentObj.name || selectedStudentObj.studentName,
+          name: selectedStudentObj.name || selectedStudentObj.studentName,
+          className: selectedStudentObj.className,
+          section: selectedStudentObj.section,
+          gender: selectedStudentObj.gender || "-",
+          parentName:
+            selectedStudentObj.parentName ||
+            selectedStudentObj.fatherName ||
+            "-",
+          contactNumber:
+            selectedStudentObj.phone ||
+            selectedStudentObj.fatherPhone ||
+            "-",
+          isSecurityDepositPaid: selectedStudentObj.hostelSecurityDepositPaid,
+          paymentStatus: selectedStudentObj.hostelSecurityDepositPaid
+            ? "Paid"
+            : "Pending",
+          isResidential: true,
+        });
+      }
+    }
+
+    return list;
+  }, [eligibleStudents, candidateStudents, safeAllocations, selectedStudentObj]);
+
+  const getDisplayStudentId = useCallback((item: any) => {
+    if (!item) return "-";
+    const rawAdm = String(item.admissionNo || item.registrationNo || item.studentId || "").trim();
+    if (rawAdm.toUpperCase().startsWith("STU-")) return rawAdm;
+
+    const admLower = rawAdm.toLowerCase();
+    const nameLower = String(item.studentName || item.name || "").toLowerCase().trim();
+    const digits = rawAdm.replace(/\D/g, "");
+    const last4 = digits.length >= 4 ? digits.slice(-4) : digits;
+
+    const matchedStudent = (students || []).find((s: any) => {
+      const sId = String(s.id || "").toLowerCase().trim();
+      const sStuId = String(s.studentId || (s as any).studentId || "").toLowerCase().trim();
+      const sAdmNo = String(s.admissionNo || "").toLowerCase().trim();
+      const sRollNo = String(s.rollNo || (s as any).rollNumber || "").toLowerCase().trim();
+      const sName = `${s.firstName || ""} ${s.lastName || ""}`.toLowerCase().trim() || String(s.name || "").toLowerCase().trim();
+
+      if (rawAdm && (sStuId === admLower || sAdmNo === admLower || sRollNo === admLower || sId === admLower)) return true;
+      if (nameLower && sName && (sName === nameLower || sName.includes(nameLower) || nameLower.includes(sName))) return true;
+      if (last4 && last4.length >= 3) {
+        const sDigits = (sAdmNo || sRollNo || sId).replace(/\D/g, "");
+        if (sDigits && (sDigits.endsWith(last4) || sDigits === last4)) return true;
+      }
+      return false;
+    });
+
+    if (matchedStudent) {
+      if (matchedStudent.studentId && String(matchedStudent.studentId).toUpperCase().startsWith("STU-")) {
+        return String(matchedStudent.studentId);
+      }
+      if (matchedStudent.rollNo && String(matchedStudent.rollNo).toUpperCase().startsWith("STU-")) {
+        return String(matchedStudent.rollNo);
+      }
+      if (matchedStudent.admissionNo && String(matchedStudent.admissionNo).toUpperCase().startsWith("STU-")) {
+        return String(matchedStudent.admissionNo);
+      }
+      if (matchedStudent.rollNo) {
+        return String(matchedStudent.rollNo).startsWith("STU-") ? String(matchedStudent.rollNo) : `STU-${matchedStudent.rollNo}`;
+      }
+      if (matchedStudent.studentId) {
+        return String(matchedStudent.studentId).startsWith("STU-") ? String(matchedStudent.studentId) : `STU-${matchedStudent.studentId}`;
+      }
+    }
+
+    const admissionsList = Array.isArray(dataContext?.admissions) ? dataContext.admissions : [];
+    const matchedAdm = admissionsList.find((a: any) => {
+      const aId = String(a.id || "").toLowerCase().trim();
+      const aAdmNo = String(a.admissionNo || a.registrationNo || a.applicationNo || "").toLowerCase().trim();
+      const aName = String(a.applicantName || `${a.firstName || ""} ${a.lastName || ""}`).toLowerCase().trim();
+      if (rawAdm && (aAdmNo === admLower || aId === admLower)) return true;
+      if (nameLower && aName && (aName === nameLower || aName.includes(nameLower) || nameLower.includes(aName))) return true;
+      return false;
+    });
+
+    if (matchedAdm) {
+      if (matchedAdm.studentId && String(matchedAdm.studentId).toUpperCase().startsWith("STU-")) {
+        return String(matchedAdm.studentId);
+      }
+      if (matchedAdm.rollNo && String(matchedAdm.rollNo).toUpperCase().startsWith("STU-")) {
+        return String(matchedAdm.rollNo);
+      }
+    }
+
+    if (rawAdm.toUpperCase().startsWith("ADM-")) {
+      return rawAdm.replace(/^ADM-/i, "STU-");
+    }
+
+    if (digits) {
+      return `STU-2026-${digits.slice(-4).padStart(4, "0")}`;
+    }
+
+    return rawAdm || "-";
+  }, [students, dataContext?.admissions]);
+
   const currentSelectedStudent = useMemo(() => {
     if (selectedStudentObj) return selectedStudentObj;
     if (!selectedStudentId) return null;
     return (
-      eligibleStudents.find((s) => {
+      combinedEligibleStudents.find((s) => {
         const key = getStudentUniqueKey(s);
         return (
           key === selectedStudentId ||
           (s.admissionNo && s.admissionNo === selectedStudentId)
         );
       }) ||
-      eligibleStudents.find(
+      combinedEligibleStudents.find(
         (s) =>
           String(s.id) === String(selectedStudentId) ||
           String(s.studentId) === String(selectedStudentId) ||
           String(s.applicationId) === String(selectedStudentId),
-      ) ||
-      candidateStudents.find(
-        (s) =>
-          String(s.admissionNo) === String(selectedStudentId) ||
-          String(s.id) === String(selectedStudentId),
       ) ||
       null
     );
   }, [
     selectedStudentObj,
     selectedStudentId,
-    eligibleStudents,
-    candidateStudents,
+    combinedEligibleStudents,
   ]);
 
   const candidateClass =
@@ -878,22 +1086,42 @@ export const StudentHostelAssignmentView: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleOpenAddForStudent = (stId: string) => {
+  const handleOpenAddForStudent = (target: any) => {
     fetchEligibleStudents();
-    setSelectedStudentId(stId);
+
+    const targetAdm = typeof target === "string" ? target : (target?.admissionNo || "");
+    const targetName = typeof target === "string" ? "" : (target?.studentName || target?.name || "");
+    const targetRawId = typeof target === "string" ? target : String((target as any)?.rawStudentId || target?.studentId || target?.id || "");
+
     const targetObj =
-      eligibleStudents.find((s) => {
-        const k = getStudentUniqueKey(s);
-        return (
-          k === stId ||
-          (s.admissionNo && s.admissionNo === stId) ||
-          String(s.id) === stId ||
-          String(s.studentId) === stId
-        );
+      (target && typeof target === "object" && (target as any).rawStudent) ? (target as any).rawStudent :
+      candidateStudents.find((s) => {
+        if (targetAdm && (s.admissionNo === targetAdm || s.id === targetAdm)) return true;
+        if (targetRawId && (String(s.id) === targetRawId || String(s.studentId) === targetRawId || s.admissionNo === targetRawId)) return true;
+        if (targetName && s.name && s.name.trim().toLowerCase() === targetName.trim().toLowerCase()) return true;
+        return false;
       }) ||
-      candidateStudents.find(
-        (s) => String(s.admissionNo) === stId || String(s.id) === stId,
-      );
+      eligibleStudents.find((s) => {
+        if (targetAdm && s.admissionNo === targetAdm) return true;
+        if (targetRawId && (String(s.id) === targetRawId || String(s.studentId) === targetRawId)) return true;
+        if (targetName && (s.studentName === targetName || (s as any).name === targetName)) return true;
+        return false;
+      }) ||
+      (typeof target === "object" && target !== null ? {
+        id: targetRawId || targetAdm,
+        studentId: targetRawId || targetAdm,
+        name: targetName || target?.studentName || "Student",
+        studentName: targetName || target?.studentName || "Student",
+        admissionNo: targetAdm || target?.admissionNo,
+        className: target?.className || "",
+        section: target?.section || "",
+        isResidential: true,
+        hostelSecurityDepositPaid: true
+      } : null);
+
+    const stKey = targetObj ? getStudentUniqueKey(targetObj) : (targetAdm || targetRawId);
+
+    setSelectedStudentId(stKey);
     setSelectedStudentObj(targetObj || null);
     setDepositPaidOverride(false);
     const defaultBlkId =
@@ -1072,13 +1300,6 @@ export const StudentHostelAssignmentView: React.FC = () => {
   const [viewStudentModal, setViewStudentModal] =
     useState<BedAllocation | null>(null);
 
-  // Filter active bed allocations and unallocated students
-  const safeAllocations = useMemo(() => {
-    return (Array.isArray(allocations) ? allocations : []).filter((a) => {
-      return a && a.status !== "Vacated" && a.status !== "Inactive";
-    });
-  }, [allocations]);
-
   const unallocatedAdmittedHostellers = useMemo(() => {
     const allocatedIds = new Set<string>();
     const allocatedAdmNos = new Set<string>();
@@ -1196,6 +1417,7 @@ export const StudentHostelAssignmentView: React.FC = () => {
         status: "Pending Allocation",
         isPendingAdmitted: true,
         rawStudentId: s.id,
+        rawStudent: s,
       })),
     ];
 
@@ -1479,7 +1701,7 @@ export const StudentHostelAssignmentView: React.FC = () => {
                 <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200/80 dark:border-slate-800 text-slate-500 font-extrabold uppercase tracking-wider text-[10px]">
                   <tr>
                     <th className="py-2.5 px-3 text-center">Student Name</th>
-                    <th className="py-2.5 px-3 text-center">Admission ID</th>
+                    <th className="py-2.5 px-3 text-center">Student ID</th>
                     <th className="py-2.5 px-3 text-center">Hostel Facility</th>
                     <th className="py-2.5 px-3 text-center">Room & Bed</th>
                     <th className="py-2.5 px-3 text-center">Joining Date</th>
@@ -1519,8 +1741,10 @@ export const StudentHostelAssignmentView: React.FC = () => {
                         >
                           <span>{a.studentName}</span>
                         </td>
-                        <td className="py-2.5 px-3 text-center font-mono text-slate-500">
-                          {a.admissionNo}
+                        <td className="py-2.5 px-3 text-center font-mono font-bold text-slate-700 dark:text-slate-300">
+                          <span className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md inline-block">
+                            {getDisplayStudentId(a)}
+                          </span>
                         </td>
                         <td className="py-2.5 px-4 text-center font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap">
                           {a.hostelName && isNaN(Number(a.hostelName))
@@ -1561,11 +1785,7 @@ export const StudentHostelAssignmentView: React.FC = () => {
                           <div className="flex items-center justify-center gap-2 mx-auto">
                             {a.isPendingAdmitted ? (
                               <button
-                                onClick={() =>
-                                  handleOpenAddForStudent(
-                                    (a as any).rawStudentId,
-                                  )
-                                }
+                                onClick={() => handleOpenAddForStudent(a)}
                                 className="px-3 py-1 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-sm flex items-center gap-1"
                               >
                                 <Plus className="w-3 h-3" /> Allocate Room
@@ -1633,12 +1853,13 @@ export const StudentHostelAssignmentView: React.FC = () => {
                 </div>
                 <StudentInlineCombobox
                   value={selectedStudentId}
+                  selectedStudentObj={selectedStudentObj}
                   onChange={(val, st) => {
                     setSelectedStudentId(val);
                     setSelectedStudentObj(st || null);
                     setDepositPaidOverride(false);
                   }}
-                  students={eligibleStudents}
+                  students={combinedEligibleStudents}
                   disabled={isSubmitting}
                 />
               </div>
@@ -2052,7 +2273,7 @@ export const StudentHostelAssignmentView: React.FC = () => {
                         {viewStudentModal.studentName}
                       </h4>
                       <span className="font-mono text-[11px] text-slate-400 font-bold">
-                        Student ID: {viewStudentModal.studentId}
+                        Student ID: {getDisplayStudentId(viewStudentModal)}
                       </span>
                       <span className="block text-[10px] text-emerald-600 font-bold">
                         Resident Boarder • Active

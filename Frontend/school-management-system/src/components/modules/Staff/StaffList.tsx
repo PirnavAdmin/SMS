@@ -23,7 +23,6 @@ import {
   Loader2,
   UploadCloud,
   FileSpreadsheet,
-  FileText,
 } from "lucide-react";
 import { Staff } from "../../../types";
 import { useData } from "../../../context/DataContext";
@@ -1028,6 +1027,7 @@ export const StaffList: React.FC<{
                       <td className="py-3 px-4 text-center">
                         <div className="inline-flex justify-center w-full">
                           <Badge
+                            showDot={false}
                             variant={
                               (st.status || "").toLowerCase() === "active"
                                 ? "success"
@@ -1046,6 +1046,7 @@ export const StaffList: React.FC<{
                       <td className="py-3 px-4 text-center">
                         <div className="inline-flex justify-center w-full">
                           <Badge
+                            showDot={false}
                             variant={
                               profileStatus === "Completed"
                                 ? "success"
@@ -1065,13 +1066,6 @@ export const StaffList: React.FC<{
                             title={`View Profile Details - ${st.firstName} ${st.lastName}`}
                           >
                             <Eye className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => setLetterStaffTarget(st)}
-                            className="w-8 h-8 rounded-xl btn-glass-secondary flex items-center justify-center text-sky-600 dark:text-sky-400 hover:text-sky-500 active:scale-90 transition-transform cursor-pointer"
-                            title={`Generate & View Official Letters (Offer / Relieving) - ${st.firstName} ${st.lastName}`}
-                          >
-                            <FileText className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => {
@@ -1113,10 +1107,10 @@ export const StaffList: React.FC<{
 
                           <button
                             onClick={() => setStaffToDelete(st)}
-                            className="w-8 h-8 rounded-xl btn-glass-secondary flex items-center justify-center text-rose-600 hover:text-rose-700 active:scale-90 transition-transform cursor-pointer"
+                            className="w-8 h-8 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/25 flex items-center justify-center active:scale-90 transition-all cursor-pointer shadow-2xs hover:shadow-rose-500/10"
                             title={`Delete Record - ${st.firstName} ${st.lastName}`}
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="w-4 h-4 text-rose-600 dark:text-rose-400 stroke-[2.2]" />
                           </button>
                         </div>
                       </td>

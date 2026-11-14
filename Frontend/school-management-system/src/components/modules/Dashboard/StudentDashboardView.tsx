@@ -1,8 +1,9 @@
 // @ts-nocheck
 import React from 'react';
-import { BookOpen, Calendar, Clock, Target, Home, MapPin, User, Megaphone, AlertCircle, Users, Sparkles, Sun, Moon } from 'lucide-react';
+import { BookOpen, Calendar, Clock, Target, Home, MapPin, User, Megaphone, AlertCircle, Users, Sparkles, Sun, Moon, Building2, Bus } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { useData } from '../../../context/DataContext';
+import { normalizeStudentType } from '../../../utils/studentTypeUtils';
 
 interface StudentDashboardViewProps {
   onNavigate?: (module: string) => void;
@@ -21,6 +22,7 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ onNa
     studentHostels = [], 
     hostelMasters = [], 
     roomMasters = [], 
+    studentTransports = [],
     timetable = [], 
     subjects = [], 
     staff = [], 
@@ -128,7 +130,8 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ onNa
         studentName,
         className: matchedStudent.className || (matchedStudent as any).class || (matchedStudent as any).grade || (user as any)?.className || '',
         section: matchedStudent.section || (matchedStudent as any).sectionName || (user as any)?.section || '',
-        admissionNo: matchedStudent.admissionNo || (matchedStudent as any).admNo || (matchedStudent as any).admissionNumber || (user as any)?.admissionNo || String(matchedStudent.id || '')
+        admissionNo: matchedStudent.admissionNo || (matchedStudent as any).admNo || (matchedStudent as any).admissionNumber || (user as any)?.admissionNo || String(matchedStudent.id || ''),
+        studentType: matchedStudent.studentType || (matchedStudent as any).residentialStatus || (matchedStudent as any).residenceType || (matchedStudent as any).facilityOpted
       };
     }
 
@@ -162,6 +165,7 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ onNa
         ? user?.name || ''
         : (matchedAdmission.applicantName || `${matchedAdmission.firstName || ''} ${matchedAdmission.lastName || ''}`.trim() || 'Student');
       return {
+        ...matchedAdmission,
         id: String(matchedAdmission.id),
         studentName: appName,
         firstName: appName.split(' ')[0] || '',
@@ -169,6 +173,7 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ onNa
         className: (matchedAdmission as any).appliedClass?.className || (matchedAdmission as any).className || matchedAdmission.appliedClass || (user as any)?.className || '',
         section: (matchedAdmission as any).section || (user as any)?.section || 'A',
         admissionNo: matchedAdmission.admissionNo || matchedAdmission.registrationNo || (matchedAdmission as any).applicationNo || (user as any)?.admissionNo || '',
+        studentType: matchedAdmission.studentType || (matchedAdmission as any).residentialStatus || (matchedAdmission as any).residenceType || (matchedAdmission as any).facilityOpted,
         status: 'Active'
       };
     }
@@ -189,6 +194,7 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ onNa
       className: userClass,
       section: userSec,
       admissionNo: userAdmVal,
+      studentType: (user as any)?.studentType || (user as any)?.residentialStatus || (user as any)?.residenceType || (user as any)?.facilityOpted,
       status: 'Active'
     };
   }, [students, admissions, user, userId, userEmail, userPhone, rawUserName]);
@@ -363,10 +369,85 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ onNa
 
   const getSubjectName = (id?: string) => id ? ((subjects || []).find(s => s.id === id)?.name || id) : 'Subject';
 
-  // Hostel
-  const wardHostel = (studentHostels || []).find(sh => sh.studentId === currentWard.id && (sh.status === 'Active' || sh.status === 'Occupied'));
-  const hostelDetails = wardHostel ? (hostelMasters || []).find(h => h.id === wardHostel.hostelId || (h as any).name === wardHostel.hostelName) : null;
-  const roomDetails = wardHostel ? (roomMasters || []).find(r => r.id === wardHostel.roomId || r.roomNumber === wardHostel.roomNo) : null;
+  const cId = String(currentWard?.id || '').toLowerCase().trim();
+  const cAdm = String(currentWard?.admissionNo || (currentWard as any)?.admNo || (currentWard as any)?.admissionNumber || '').toLowerCase().trim();
+  const cStudentId = String((currentWard as any)?.studentId || '').toLowerCase().trim();
+
+  // Hostel Assignment
+  const wardHostel = (studentHostels || []).find((sh: any) => {
+    const shStatus = String(sh.status || '').toLowerCase().trim();
+    if (shStatus && shStatus !== 'active' && shStatus !== 'occupied') return false;
+    const shStudentId = String(sh.studentId || '').toLowerCase().trim();
+    const shAdm = String(sh.admissionNo || '').toLowerCase().trim();
+    return (
+      (cId && (shStudentId === cId || shAdm === cId)) ||
+      (cAdm && (shStudentId === cAdm || shAdm === cAdm)) ||
+      (cStudentId && (shStudentId === cStudentId || shAdm === cStudentId))
+    );
+  });
+
+  const hostelDetails = wardHostel 
+    ? (hostelMasters || []).find(h => String(h.id) === String(wardHostel.hostelId) || (h as any).name === wardHostel.hostelName || (h as any).hostelName === wardHostel.hostelName) 
+    : null;
+  const roomDetails = wardHostel 
+    ? (roomMasters || []).find(r => String(r.id) === String(wardHostel.roomId) || r.roomNumber === wardHostel.roomNo || (r as any).roomNo === wardHostel.roomNo) 
+    : null;
+
+  // Transport Assignment (for Non-Residential)
+  const wardTransport = (studentTransports || []).find((ta: any) => {
+    const taStatus = String(ta.status || '').toLowerCase().trim();
+    if (taStatus && taStatus !== 'active' && taStatus !== 'assigned') return false;
+    const taStudentId = String(ta.studentId || '').toLowerCase().trim();
+    const taAdm = String(ta.admissionNo || '').toLowerCase().trim();
+    return (
+      (cId && (taStudentId === cId || taAdm === cId)) ||
+      (cAdm && (taStudentId === cAdm || taAdm === cAdm)) ||
+      (cStudentId && (taStudentId === cStudentId || taAdm === cStudentId))
+    );
+  });
+
+  // Comprehensive Residential vs Non-Residential Resolution
+  const isResidential = React.useMemo(() => {
+    if (wardHostel) return true;
+
+    const rawType = currentWard?.studentType || 
+      (currentWard as any)?.residentialStatus || 
+      (currentWard as any)?.residenceType ||
+      (currentWard as any)?.facilityOpted ||
+      (user as any)?.studentType ||
+      (user as any)?.residentialStatus;
+
+    if (rawType) {
+      return normalizeStudentType(rawType) === 'Residential';
+    }
+
+    if (
+      currentWard?.hostelBlock || 
+      currentWard?.hostelRoom || 
+      currentWard?.hostelBed || 
+      (currentWard as any)?.isHosteller
+    ) {
+      return true;
+    }
+
+    const matchedAdm = (admissions || []).find((a: any) => {
+      const aAdm = String(a.admissionNo || a.registrationNo || (a as any).applicationNo || '').toLowerCase().trim();
+      const aId = String(a.id || '').toLowerCase().trim();
+      return (cAdm && aAdm === cAdm) || (cId && aId === cId);
+    });
+
+    if (matchedAdm) {
+      const admRawType = matchedAdm.studentType || (matchedAdm as any).residentialStatus || (matchedAdm as any).residenceType || (matchedAdm as any).facilityOpted;
+      if (admRawType) {
+        return normalizeStudentType(admRawType) === 'Residential';
+      }
+      if (matchedAdm.hostelBed || matchedAdm.hostelBlock || matchedAdm.allocatedBedId) {
+        return true;
+      }
+    }
+
+    return false;
+  }, [wardHostel, currentWard, user, admissions, cAdm, cId]);
 
   // Fee Dues
   const wardLedger = (studentFeeLedgers || []).find(l => l.studentId === currentWard.id);
@@ -417,6 +498,17 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ onNa
               {currentWard.admissionNo && (
                 <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 font-bold text-[11px]">
                   Adm No: {currentWard.admissionNo}
+                </span>
+              )}
+              {isResidential ? (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-purple-100/90 dark:bg-purple-950/70 text-purple-800 dark:text-purple-200 border border-purple-300 dark:border-purple-700 font-bold text-[11px] shadow-2xs">
+                  <Home className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400 shrink-0" />
+                  <span>Residential</span>
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-emerald-100/90 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700 font-bold text-[11px] shadow-2xs">
+                  <Building2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <span>Non-Residential</span>
                 </span>
               )}
             </div>
@@ -504,29 +596,6 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ onNa
           </div>
         </div>
       </div>
-
-      {/* Boarding / Hostel Widget (If applicable) */}
-      {wardHostel && hostelDetails && roomDetails && (
-        <div
-          onClick={() => onNavigate?.('parent-hostel-details')}
-          className="bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 hover:border-sky-400 dark:hover:border-sky-600 rounded-xl p-3.5 shadow-sm flex items-center justify-between cursor-pointer hover:shadow-md transition-all group"
-        >
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-indigo-50 dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 group-hover:scale-105 transition-transform">
-              <Home className="w-4 h-4" />
-            </div>
-            <div>
-              <h4 className="text-xs font-bold text-slate-900 dark:text-white">Boarding Details</h4>
-              <p className="text-[11px] font-semibold text-slate-500 mt-0.5">
-                {hostelDetails.hostelName || (hostelDetails as any).name} • Room {roomDetails.roomNumber || (roomDetails as any).roomNo} • Warden: {hostelDetails.wardenName}
-              </p>
-            </div>
-          </div>
-          <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 text-[10px] font-extrabold">
-            Active Resident
-          </span>
-        </div>
-      )}
 
       {/* Main Content Containers Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">

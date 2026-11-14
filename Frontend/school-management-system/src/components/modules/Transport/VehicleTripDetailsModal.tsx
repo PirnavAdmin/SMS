@@ -1,5 +1,5 @@
 // @ts-nocheck
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   X, Bus, Route as RouteIcon, Users, UserCheck, Phone, Clock,
   ArrowDown, ArrowUp, Search, History
@@ -8,6 +8,7 @@ import { VehicleAssignment, Student, PickupPoint } from '../../../types';
 import { useData } from '../../../context/DataContext';
 import { Badge } from '../../common/Badge';
 import { ExportButton } from '../../common/ExportButton';
+import { Pagination } from '../../common/Pagination';
 import { initialBusAttendants, resolveAssignedStudentsForTrip, formatMorningTripTime, formatEveningTripTime } from './transportData';
 
 interface VehicleTripDetailsModalProps {
@@ -74,6 +75,12 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
   const [studentSearch, setStudentSearch] = useState('');
   const [filterPickup, setFilterPickup] = useState('All');
   const [filterClass, setFilterClass] = useState('All');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [studentSearch, filterPickup, filterClass]);
 
   useEffect(() => {
     if (isOpen) {
@@ -238,11 +245,19 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
     const matchesQuery =
       student.studentName.toLowerCase().includes(studentSearch.toLowerCase()) ||
       student.admissionNo.toLowerCase().includes(studentSearch.toLowerCase()) ||
-      student.parentName.toLowerCase().includes(studentSearch.toLowerCase());
+      (student.studentId && student.studentId.toLowerCase().includes(studentSearch.toLowerCase())) ||
+      (student.id && student.id.toLowerCase().includes(studentSearch.toLowerCase())) ||
+      student.parentName.toLowerCase().includes(studentSearch.toLowerCase()) ||
+      student.pickupPoint.toLowerCase().includes(studentSearch.toLowerCase());
     const matchesPickup = filterPickup === 'All' || student.pickupPoint === filterPickup;
     const matchesClass = filterClass === 'All' || student.className === filterClass;
     return matchesQuery && matchesPickup && matchesClass;
   });
+
+  const paginatedStudents = filteredStudents.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   const tripStatus = assignment.status === 'Active' ? 'Running' : 'Completed';
   const routeDistance = route?.totalDistanceKm ?? 0;
@@ -639,38 +654,64 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
                   <p className="text-slate-400 text-xs font-bold">No students match the current filters.</p>
                 </div>
               ) : (
-                <div className="glass-card rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800">
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse text-xs">
-                      <thead>
-                        <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
-                          <th className="py-3 px-4">Student ID</th>
-                          <th className="py-3 px-4">Student Name</th>
-                          <th className="py-3 px-4">Class-Sec</th>
-                          <th className="py-3 px-4">Pickup Point</th>
-                          <th className="py-3 px-4">Morning Pickup</th>
-                          <th className="py-3 px-4">Evening Drop</th>
-                          <th className="py-3 px-4">Parent Name</th>
-                          <th className="py-3 px-4 text-right">Parent Mobile</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
-                        {filteredStudents.map(student => (
-                          <tr key={student.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                            <td className="py-3 px-4 font-mono font-bold text-slate-500">{student.id}</td>
-                            <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{student.studentName}</td>
-                            <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">{formatClassSection(student.className, student.section)}</td>
-                            <td className="py-3 px-4 font-bold text-sky-600 dark:text-sky-400">{student.pickupPoint}</td>
-                            <td className="py-3 px-4 font-mono text-sky-600 dark:text-sky-400 font-bold">{student.morningTime}</td>
-                            <td className="py-3 px-4 font-mono text-sky-600 dark:text-sky-400 font-bold">{student.eveningTime}</td>
-                            <td className="py-3 px-4 font-semibold text-slate-800 dark:text-slate-200">{student.parentName}</td>
-                            <td className="py-3 px-4 text-right font-mono font-bold text-sky-600">{student.parentMobile}</td>
+                <>
+                  <div className="glass-card rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-center border-collapse text-xs">
+                        <thead>
+                          <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
+                            <th className="py-3 px-4 text-center">Student ID</th>
+                            <th className="py-3 px-4 text-center">Student Name</th>
+                            <th className="py-3 px-4 text-center">Class-Sec</th>
+                            <th className="py-3 px-4 text-center">Pickup Point</th>
+                            <th className="py-3 px-4 text-center">Morning Pickup</th>
+                            <th className="py-3 px-4 text-center">Evening Drop</th>
+                            <th className="py-3 px-4 text-center">Parent Name</th>
+                            <th className="py-3 px-4 text-center">Parent Mobile</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
+                          {paginatedStudents.map(student => (
+                            <tr key={student.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
+                              <td className="py-3 px-4 text-center font-mono font-bold text-slate-700 dark:text-slate-300">
+                                <span className="bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-md inline-block">
+                                  {student.studentId || student.rollNo || student.id}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4 text-center font-bold text-slate-900 dark:text-white">{student.studentName}</td>
+                              <td className="py-3 px-4 text-center font-semibold text-slate-700 dark:text-slate-300">{formatClassSection(student.className, student.section)}</td>
+                              <td className="py-3 px-4 text-center font-bold text-sky-600 dark:text-sky-400">{student.pickupPoint}</td>
+                              <td className="py-3 px-4 text-center font-mono text-sky-600 dark:text-sky-400 font-bold">{student.morningTime}</td>
+                              <td className="py-3 px-4 text-center font-mono text-sky-600 dark:text-sky-400 font-bold">{student.eveningTime}</td>
+                              <td className="py-3 px-4 text-center font-semibold text-slate-800 dark:text-slate-200">{student.parentName}</td>
+                              <td className="py-3 px-4 text-center font-mono font-bold text-rose-600 dark:text-rose-400">
+                                {student.parentMobile && student.parentMobile !== '-' ? (
+                                  <a href={`tel:${student.parentMobile}`} className="hover:underline">
+                                    {student.parentMobile}
+                                  </a>
+                                ) : (
+                                  '-'
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
-                </div>
+
+                  {filteredStudents.length > itemsPerPage && (
+                    <div className="pt-2">
+                      <Pagination
+                        currentPage={currentPage}
+                        totalPages={Math.ceil(filteredStudents.length / itemsPerPage)}
+                        onPageChange={setCurrentPage}
+                        totalItems={filteredStudents.length}
+                        itemsPerPage={itemsPerPage}
+                      />
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}
@@ -689,34 +730,34 @@ export const VehicleTripDetailsModal: React.FC<VehicleTripDetailsModalProps> = (
               ) : (
                 <div className="glass-card rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800">
                   <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse text-xs">
+                    <table className="w-full text-center border-collapse text-xs">
                       <thead>
                         <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
-                          <th className="py-3.5 px-4">Date</th>
-                          <th className="py-3.5 px-4">Vehicle</th>
-                          <th className="py-3.5 px-4">Route</th>
-                          <th className="py-3.5 px-4">Driver</th>
-                          <th className="py-3.5 px-4">Attendant</th>
-                          <th className="py-3.5 px-4">Morning Start</th>
-                          <th className="py-3.5 px-4">Morning End</th>
-                          <th className="py-3.5 px-4">Evening Start</th>
-                          <th className="py-3.5 px-4">Evening End</th>
-                          <th className="py-3.5 px-4 text-right">Status</th>
+                          <th className="py-3.5 px-4 text-center">Date</th>
+                          <th className="py-3.5 px-4 text-center">Vehicle</th>
+                          <th className="py-3.5 px-4 text-center">Route</th>
+                          <th className="py-3.5 px-4 text-center">Driver</th>
+                          <th className="py-3.5 px-4 text-center">Attendant</th>
+                          <th className="py-3.5 px-4 text-center">Morning Start</th>
+                          <th className="py-3.5 px-4 text-center">Morning End</th>
+                          <th className="py-3.5 px-4 text-center">Evening Start</th>
+                          <th className="py-3.5 px-4 text-center">Evening End</th>
+                          <th className="py-3.5 px-4 text-center">Status</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
                         {displayHistoryLogs.map((log, index) => (
                           <tr key={index} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                            <td className="py-3 px-4 font-mono text-slate-500">{log.date}</td>
-                            <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{log.veh}</td>
-                            <td className="py-3 px-4 font-bold text-sky-600">{log.route}</td>
-                            <td className="py-3 px-4 text-slate-700 dark:text-slate-300">{log.driver}</td>
-                            <td className="py-3 px-4 text-slate-700 dark:text-slate-300">{log.att}</td>
-                            <td className="py-3 px-4 font-mono text-sky-600 dark:text-sky-400 font-bold">{log.mStart}</td>
-                            <td className="py-3 px-4 font-mono text-sky-600 dark:text-sky-400">{log.mEnd}</td>
-                            <td className="py-3 px-4 font-mono text-sky-600 dark:text-sky-400 font-bold">{log.eStart}</td>
-                            <td className="py-3 px-4 font-mono text-sky-600 dark:text-sky-400">{log.eEnd}</td>
-                            <td className="py-3 px-4 text-right">
+                            <td className="py-3 px-4 text-center font-mono text-slate-500">{log.date}</td>
+                            <td className="py-3 px-4 text-center font-bold text-slate-900 dark:text-white">{log.veh}</td>
+                            <td className="py-3 px-4 text-center font-bold text-sky-600">{log.route}</td>
+                            <td className="py-3 px-4 text-center text-slate-700 dark:text-slate-300">{log.driver}</td>
+                            <td className="py-3 px-4 text-center text-slate-700 dark:text-slate-300">{log.att}</td>
+                            <td className="py-3 px-4 text-center font-mono text-sky-600 dark:text-sky-400 font-bold">{log.mStart}</td>
+                            <td className="py-3 px-4 text-center font-mono text-sky-600 dark:text-sky-400">{log.mEnd}</td>
+                            <td className="py-3 px-4 text-center font-mono text-sky-600 dark:text-sky-400 font-bold">{log.eStart}</td>
+                            <td className="py-3 px-4 text-center font-mono text-sky-600 dark:text-sky-400">{log.eEnd}</td>
+                            <td className="py-3 px-4 text-center">
                               <Badge variant={log.status === 'Active' ? 'success' : 'danger'} size="sm">{log.status}</Badge>
                             </td>
                           </tr>

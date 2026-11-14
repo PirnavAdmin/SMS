@@ -47,6 +47,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useData } from "../../context/DataContext";
 import { hasModuleAccess } from "../../utils/rbac";
 import { resolveMediaUrl } from "../../utils/mediaUtils";
+import { normalizeStudentType } from "../../utils/studentTypeUtils";
 
 interface SidebarProps {
   activeModule: string;
@@ -166,6 +167,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   let isHosteller = true;
   let usesTransport = true;
+  let resolvedStudent: any = null;
+  let isResidential = false;
 
   if (safeRole === "student" || safeRole === "parent") {
     const userEmail = (user?.email || '').toLowerCase().trim();
@@ -177,6 +180,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
     const userStudentId = String((user as any)?.studentId || '').trim().toLowerCase();
     const rawUserName = (user?.name || (user as any)?.fullName || (user as any)?.studentName || '').trim().toLowerCase();
     const isNameReal = rawUserName && !['student', 'user', 'demo', 'test', 'admin'].includes(rawUserName);
+
+    const identifierFromPhone = /^(stu|adm|reg)-/i.test(rawUserPhone) ? rawUserPhone.toLowerCase() : '';
+    const identifierFromEmail = /^([a-z0-9_-]+)@/i.exec(userEmail)?.[1]?.toLowerCase() || '';
+    const regFromEmail = /^(stu|adm|reg)-/i.test(identifierFromEmail) ? identifierFromEmail : '';
 
     // 1. Match from students array
     const matchedStudents = (students || []).filter((s: any) => {
@@ -194,11 +201,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
       const sName = String(s.name || s.studentName || '').trim().toLowerCase();
 
       if (safeRole === "student") {
+        const nameMatches = isNameReal && (
+          sFullName === rawUserName ||
+          sName === rawUserName ||
+          (s.firstName && s.lastName && rawUserName.includes(s.firstName.toLowerCase()) && rawUserName.includes(s.lastName.toLowerCase())) ||
+          (sName && (rawUserName.includes(sName) || sName.includes(rawUserName)))
+        );
+
         if (userAdm && (sAdm === userAdm || sRoll === userAdm)) return true;
         if (userRoll && (sRoll === userRoll || sAdm === userRoll || sStudentId === userRoll)) return true;
         if (userStudentId && (sId === userStudentId || sStudentId === userStudentId)) return true;
-        if (userId && (sId === userId || sAdm === userId || sRoll === userId || sStudentId === userId)) return true;
-        if (isNameReal && (sFullName === rawUserName || sName === rawUserName || (s.firstName && s.lastName && rawUserName.includes(s.firstName.toLowerCase()) && rawUserName.includes(s.lastName.toLowerCase())))) return true;
+        if (identifierFromPhone && (sRoll === identifierFromPhone || sAdm === identifierFromPhone || sStudentId === identifierFromPhone)) return true;
+        if (regFromEmail && (sRoll === regFromEmail || sAdm === regFromEmail || sStudentId === regFromEmail)) return true;
+        if (nameMatches) return true;
+        if (userId && (sId === userId || sAdm === userId || sRoll === userId || sStudentId === userId)) {
+          if (!isNameReal || nameMatches || !sName) return true;
+        }
         if (userEmail && !userEmail.endsWith('@school.internal') && sEmail === userEmail) return true;
         if (userPhone && userPhone.length >= 7 && sPhone && (sPhone.endsWith(userPhone) || userPhone.endsWith(sPhone))) return true;
         return false;
@@ -244,11 +262,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
       const aPhone = String(a.phone || a.mobileNumber || '').replace(/\D/g, '');
 
       if (safeRole === "student") {
+        const nameMatches = isNameReal && (
+          aName === rawUserName ||
+          (a.firstName && a.lastName && rawUserName.includes(a.firstName.toLowerCase()) && rawUserName.includes(a.lastName.toLowerCase()))
+        );
+
         if (userAdm && (aAdm === userAdm || aReg === userAdm)) return true;
         if (userRoll && (aReg === userRoll || aAdm === userRoll)) return true;
         if (userStudentId && (aId === userStudentId || aAdm === userStudentId)) return true;
-        if (userId && (aId === userId || aAdm === userId || aReg === userId)) return true;
-        if (isNameReal && (aName === rawUserName || (a.firstName && a.lastName && rawUserName.includes(a.firstName.toLowerCase()) && rawUserName.includes(a.lastName.toLowerCase())))) return true;
+        if (identifierFromPhone && (aReg === identifierFromPhone || aAdm === identifierFromPhone)) return true;
+        if (regFromEmail && (aReg === regFromEmail || aAdm === regFromEmail)) return true;
+        if (nameMatches) return true;
+        if (userId && (aId === userId || aAdm === userId || aReg === userId)) {
+          if (!isNameReal || nameMatches || !aName) return true;
+        }
         if (userEmail && !userEmail.endsWith('@school.internal') && aEmail === userEmail) return true;
         if (userPhone && userPhone.length >= 7 && aPhone && (aPhone.endsWith(userPhone) || userPhone.endsWith(aPhone))) return true;
         return false;
@@ -273,18 +300,59 @@ export const Sidebar: React.FC<SidebarProps> = ({
       }
     });
 
+    // 3. Resolve active student record
+    resolvedStudent = (() => {
+      if (matchedStudents.length > 0) {
+        const s: any = matchedStudents[0];
+        return {
+          ...s,
+          studentName: isNameReal ? user?.name || '' : (`${s.firstName || ''} ${s.lastName || ''}`.trim() || s.name || s.studentName || 'Student'),
+          className: s.className || s.class || s.grade || (user as any)?.className || '',
+          section: s.section || s.sectionName || (user as any)?.section || '',
+          admissionNo: s.admissionNo || s.admNo || s.admissionNumber || (user as any)?.admissionNo || String(s.id || ''),
+          studentType: s.studentType || s.residentialStatus || s.residenceType || s.facilityOpted,
+        };
+      }
+      if (matchedAdmissions.length > 0) {
+        const a: any = matchedAdmissions[0];
+        const appName = isNameReal ? user?.name || '' : (a.applicantName || `${a.firstName || ''} ${a.lastName || ''}`.trim() || 'Student');
+        return {
+          ...a,
+          id: String(a.id),
+          studentName: appName,
+          className: a.appliedClass?.className || a.className || a.appliedClass || (user as any)?.className || '',
+          section: a.section || (user as any)?.section || 'A',
+          admissionNo: a.admissionNo || a.admissionNumber || a.registrationNo || (user as any)?.admissionNo || '',
+          studentType: a.studentType || a.residentialStatus || a.residenceType || a.facilityOpted,
+        };
+      }
+      const nameToUse = (user?.name && !['student', 'user'].includes(user.name.toLowerCase()))
+        ? user.name
+        : ((user?.email || '').split('@')[0].split(/[._-]/).map((p: string) => p.charAt(0).toUpperCase() + p.slice(1)).join(' ') || 'Student');
+      return {
+        id: userId || '1',
+        studentName: nameToUse,
+        className: (user as any)?.className || (user as any)?.class || '',
+        section: (user as any)?.section || '',
+        admissionNo: (user as any)?.admissionNo || (user as any)?.admNo || (user as any)?.rollNo || '',
+        studentType: (user as any)?.studentType || (user as any)?.residentialStatus || (user as any)?.residenceType || (user as any)?.facilityOpted,
+      };
+    })();
+
     const studentIds = new Set<string>([
       ...matchedStudents.map((s: any) => String(s.id || s.studentId || '').trim().toLowerCase()),
       ...matchedAdmissions.map((a: any) => String(a.id || '').trim().toLowerCase()),
       ...(userAdm ? [userAdm] : []),
       ...(userStudentId ? [userStudentId] : []),
-      ...(userId ? [userId] : [])
+      ...(userId ? [userId] : []),
+      ...(resolvedStudent?.id ? [String(resolvedStudent.id).toLowerCase()] : [])
     ].filter(Boolean));
 
     const studentAdmissions = new Set<string>([
       ...matchedStudents.map((s: any) => String(s.admissionNo || s.admissionNumber || '').trim().toLowerCase()),
       ...matchedAdmissions.map((a: any) => String(a.admissionNo || a.admissionNumber || a.registrationNo || '').trim().toLowerCase()),
-      ...(userAdm ? [userAdm] : [])
+      ...(userAdm ? [userAdm] : []),
+      ...(resolvedStudent?.admissionNo ? [String(resolvedStudent.admissionNo).toLowerCase()] : [])
     ].filter(Boolean));
 
     // Check Hostel Enrollment
@@ -301,15 +369,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
     });
 
     const isHostelTypeString = (val?: string) => {
-      const clean = String(val || '').toLowerCase().trim();
-      if (!clean) return false;
-      if (clean.includes('non') || clean.includes('day scholar') || clean.includes('dayscholar') || clean.includes('day-scholar')) return false;
-      return clean === 'residential' || clean === 'hosteller' || clean === 'hostel' || clean.includes('hostel');
+      if (!val) return false;
+      return normalizeStudentType(val) === 'Residential';
     };
 
     const hasHostelStudentType = matchedStudents.some((s: any) => {
       return (
         isHostelTypeString(s.studentType) ||
+        isHostelTypeString(s.residentialStatus) ||
+        isHostelTypeString(s.residenceType) ||
+        isHostelTypeString(s.facilityOpted) ||
         Boolean(s.isHosteller || s.hostelBlock || s.hostelRoom || s.hostelBed)
       );
     });
@@ -317,6 +386,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
     const hasHostelAdmission = matchedAdmissions.some((a: any) => {
       return (
         isHostelTypeString(a.studentType) ||
+        isHostelTypeString(a.residentialStatus) ||
+        isHostelTypeString(a.residenceType) ||
+        isHostelTypeString(a.facilityOpted) ||
         Boolean(a.isHosteller || a.hostelBlock || a.hostelRoom || a.hostelBed || a.allocatedBedId)
       );
     });
@@ -324,9 +396,37 @@ export const Sidebar: React.FC<SidebarProps> = ({
     const userType = String((user as any)?.studentType || '').toLowerCase().trim();
     const hasHostelUser =
       isHostelTypeString(userType) ||
+      isHostelTypeString((user as any)?.residentialStatus) ||
+      isHostelTypeString((user as any)?.residenceType) ||
       Boolean((user as any)?.isHosteller || (user as any)?.hostelBlock);
 
-    isHosteller = hasHostelRecord || hasHostelStudentType || hasHostelAdmission || hasHostelUser;
+    // Precise isResidential determination
+    isResidential = (() => {
+      if (hasHostelRecord) return true;
+      const rawType = resolvedStudent?.studentType ||
+        (resolvedStudent as any)?.residentialStatus ||
+        (resolvedStudent as any)?.residenceType ||
+        (resolvedStudent as any)?.facilityOpted ||
+        (user as any)?.studentType ||
+        (user as any)?.residentialStatus;
+      if (rawType) {
+        return normalizeStudentType(rawType) === "Residential";
+      }
+      if (
+        resolvedStudent?.hostelBlock ||
+        resolvedStudent?.hostelRoom ||
+        resolvedStudent?.hostelBed ||
+        (resolvedStudent as any)?.isHosteller
+      ) {
+        return true;
+      }
+      if (hasHostelStudentType || hasHostelAdmission || hasHostelUser) {
+        return true;
+      }
+      return false;
+    })();
+
+    isHosteller = isResidential || hasHostelRecord || hasHostelStudentType || hasHostelAdmission || hasHostelUser;
 
     // Check Transport Enrollment
     const hasTransportRecord = (studentTransports || []).some((ta: any) => {
@@ -373,7 +473,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       Boolean((user as any)?.pickupPoint) ||
       Boolean((user as any)?.transport);
 
-    usesTransport = hasTransportRecord || hasTransportField || hasTransportAdmission || hasTransportUser;
+    usesTransport = !isResidential || hasTransportRecord || hasTransportField || hasTransportAdmission || hasTransportUser;
   }
 
   const isFinanceActive =
