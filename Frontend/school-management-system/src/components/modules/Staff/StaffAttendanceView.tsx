@@ -1770,10 +1770,10 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                         <th className="py-2.5 px-2 text-center text-rose-600 cursor-help" title="Absent days">A</th>
                         <th className="py-2.5 px-2 text-center text-sky-600 cursor-help" title="Leave days">L</th>
                         <th className="py-2.5 px-2 text-center text-amber-600 cursor-help" title="Half Days">HD</th>
-                        <th className="py-2.5 px-2 text-center text-slate-600 cursor-help" title="Total Leaves">TL</th>
-                        <th className="py-2.5 px-2 text-center text-sky-700 cursor-help" title="On Leave">OL</th>
-                        <th className="py-2.5 px-2 text-center text-sky-700 cursor-help" title="Used Leaves">UL</th>
-                        <th className="py-2.5 px-2 text-center text-slate-600">%</th>
+                        <th className="py-2.5 px-2 text-center text-slate-600 dark:text-slate-300 cursor-help" title="Total Leaves">TL</th>
+                        <th className="py-2.5 px-2 text-center text-sky-700 dark:text-sky-400 cursor-help" title="On Leave">OL</th>
+                        <th className="py-2.5 px-2 text-center text-sky-700 dark:text-sky-400 cursor-help" title="Used Leaves">UL</th>
+                        <th className="py-2.5 px-2 text-center text-slate-600 dark:text-slate-300">%</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-semibold">
@@ -4580,10 +4580,10 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                       <th className="py-2.5 px-2 text-center text-rose-600 cursor-help" title="Absent days">A</th>
                       <th className="py-2.5 px-2 text-center text-sky-600 cursor-help" title="Leave days">L</th>
                       <th className="py-2.5 px-2 text-center text-amber-600 cursor-help" title="Half Days">HD</th>
-                      <th className="py-2.5 px-2 text-center text-slate-600 cursor-help" title="Total Leaves">TL</th>
-                      <th className="py-2.5 px-2 text-center text-sky-700 cursor-help" title="On Leave">OL</th>
-                      <th className="py-2.5 px-2 text-center text-sky-700 cursor-help" title="Used Leaves">UL</th>
-                      <th className="py-2.5 px-2 text-center text-slate-600">%</th>
+                      <th className="py-2.5 px-2 text-center text-slate-600 dark:text-slate-300 cursor-help" title="Total Leaves">TL</th>
+                      <th className="py-2.5 px-2 text-center text-sky-700 dark:text-sky-400 cursor-help" title="On Leave">OL</th>
+                      <th className="py-2.5 px-2 text-center text-sky-700 dark:text-sky-400 cursor-help" title="Used Leaves">UL</th>
+                      <th className="py-2.5 px-2 text-center text-slate-600 dark:text-slate-300">%</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-semibold">

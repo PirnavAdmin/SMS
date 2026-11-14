@@ -2441,10 +2441,10 @@ export const TrainingContainerView: React.FC = () => {
                   <div className="flex justify-between items-center">
                     <div>
                       <p className="font-bold text-slate-900 dark:text-white">{r.employeeName}</p>
-                      <p className="text-[10px] text-slate-500">{r.designation} • {r.department}</p>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400">{r.designation} • {r.department}</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-slate-600">Score:</span>
+                      <span className="font-bold text-slate-600 dark:text-slate-300">Score:</span>
                       <input
                         type="number"
                         min={0}

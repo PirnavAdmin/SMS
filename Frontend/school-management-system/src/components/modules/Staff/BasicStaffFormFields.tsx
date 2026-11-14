@@ -2152,7 +2152,7 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                       setIsAddingQual(false);
                       setQualFormErrors({});
                     }}
-                    className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 font-bold text-xs hover:bg-slate-200"
+                    className="px-3 py-1.5 rounded-xl btn-glass-secondary text-slate-600 dark:text-slate-300 font-bold text-xs cursor-pointer"
                   >
                     Cancel
                   </button>
@@ -2335,7 +2335,7 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                   <button
                     type="button"
                     onClick={() => setIsAddingExp(false)}
-                    className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 font-bold"
+                    className="px-3 py-1.5 rounded-xl btn-glass-secondary text-slate-600 dark:text-slate-300 font-bold text-xs cursor-pointer"
                   >
                     Cancel
                   </button>

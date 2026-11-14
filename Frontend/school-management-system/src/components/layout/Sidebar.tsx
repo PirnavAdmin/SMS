@@ -891,7 +891,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           return (
             <div key={idx} className="space-y-1.5">
               {!collapsed && (
-                <h3 className="px-3 text-[11px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                <h3 className="px-3 text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                   {group.title}
                 </h3>
               )}
@@ -925,8 +925,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                               financeSubItems.length > 0 &&
                               !collapsed
                               ? "text-sky-700 dark:text-sky-400 font-bold"
-                              : "bg-sky-600 text-white shadow-md shadow-sky-500/20 font-bold"
-                            : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white font-semibold"
+                              : "btn-glass-primary font-bold"
+                            : "text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white font-semibold"
                         }`}
                       >
                         <div className="flex items-center gap-3 truncate">
@@ -1006,12 +1006,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 title={sub.label}
                                 className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                                   isSubActive
-                                    ? "bg-sky-600 text-white font-bold"
-                                    : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-800 dark:hover:text-slate-200"
+                                    ? "btn-glass-primary font-bold shadow-xs"
+                                    : "text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white"
                                 }`}
                               >
                                 <SubIcon
-                                  className={`w-3.5 h-3.5 shrink-0 ${isSubActive ? "text-white" : "text-slate-400"}`}
+                                  className={`w-3.5 h-3.5 shrink-0 ${isSubActive ? "text-white" : "text-slate-400 dark:text-slate-400"}`}
                                 />
                                 <span className="truncate text-left">{sub.label}</span>
                               </button>
@@ -1049,8 +1049,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                               hostelSubItems.length > 0 &&
                               !collapsed
                               ? "text-sky-700 dark:text-sky-400 font-bold"
-                              : "bg-sky-600 text-white shadow-md shadow-sky-500/20 font-bold"
-                            : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white font-semibold"
+                              : "btn-glass-primary font-bold"
+                            : "text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white font-semibold"
                         }`}
                       >
                         <div className="flex items-center gap-3 truncate">
@@ -1118,12 +1118,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 title={sub.label}
                                 className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                                   isSubActive
-                                    ? "bg-sky-600 text-white font-bold"
-                                    : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-800 dark:hover:text-slate-200"
+                                    ? "btn-glass-primary font-bold shadow-xs"
+                                    : "text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white"
                                 }`}
                               >
                                 <SubIcon
-                                  className={`w-3.5 h-3.5 shrink-0 ${isSubActive ? "text-white" : "text-slate-400"}`}
+                                  className={`w-3.5 h-3.5 shrink-0 ${isSubActive ? "text-white" : "text-slate-400 dark:text-slate-400"}`}
                                 />
                                 <span className="truncate text-left">{sub.label}</span>
                               </button>
@@ -1165,8 +1165,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                               transportSubItems.length > 0 &&
                               !collapsed
                               ? "text-sky-700 dark:text-sky-400 font-bold"
-                              : "bg-sky-600 text-white shadow-md shadow-sky-500/20 font-bold"
-                            : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white font-semibold"
+                              : "btn-glass-primary font-bold"
+                            : "text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white font-semibold"
                         }`}
                       >
                         <div className="flex items-center gap-3 truncate">
@@ -1223,12 +1223,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 title={sub.label}
                                 className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                                   isSubActive
-                                    ? "bg-sky-600 text-white font-bold"
-                                    : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-800 dark:hover:text-slate-200"
+                                    ? "btn-glass-primary font-bold shadow-xs"
+                                    : "text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white"
                                 }`}
                               >
                                 <SubIcon
-                                  className={`w-3.5 h-3.5 shrink-0 ${isSubActive ? "text-white" : "text-slate-400"}`}
+                                  className={`w-3.5 h-3.5 shrink-0 ${isSubActive ? "text-white" : "text-slate-400 dark:text-slate-400"}`}
                                 />
                                 <span className="truncate text-left">{sub.label}</span>
                               </button>
@@ -1261,8 +1261,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                               uniformSubItems.length > 0 &&
                               !collapsed
                               ? "text-sky-700 dark:text-sky-400 font-bold"
-                              : "bg-sky-600 text-white shadow-md shadow-sky-500/20 font-bold"
-                            : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white font-semibold"
+                              : "btn-glass-primary font-bold"
+                            : "text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white font-semibold"
                         }`}
                       >
                         <div className="flex items-center gap-3 truncate">
@@ -1315,12 +1315,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 title={sub.label}
                                 className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                                   isSubActive
-                                    ? "bg-sky-600 text-white font-bold"
-                                    : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-800 dark:hover:text-slate-200"
+                                    ? "btn-glass-primary font-bold shadow-xs"
+                                    : "text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white"
                                 }`}
                               >
                                 <SubIcon
-                                  className={`w-3.5 h-3.5 shrink-0 ${isSubActive ? "text-white" : "text-slate-400"}`}
+                                  className={`w-3.5 h-3.5 shrink-0 ${isSubActive ? "text-white" : "text-slate-400 dark:text-slate-400"}`}
                                 />
                                 <span className="truncate text-left">{sub.label}</span>
                               </button>
@@ -1358,8 +1358,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                               librarySubItems.length > 0 &&
                               !collapsed
                               ? "text-sky-700 dark:text-sky-400 font-bold"
-                              : "bg-sky-600 text-white shadow-md shadow-sky-500/20 font-bold"
-                            : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white font-semibold"
+                              : "btn-glass-primary font-bold"
+                            : "text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white font-semibold"
                         }`}
                       >
                         <div className="flex items-center gap-3 truncate">
@@ -1406,12 +1406,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 title={sub.label}
                                 className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                                   isSubActive
-                                    ? "bg-sky-600 text-white font-bold"
-                                    : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-800 dark:hover:text-slate-200"
+                                    ? "btn-glass-primary font-bold shadow-xs"
+                                    : "text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white"
                                 }`}
                               >
                                 <SubIcon
-                                  className={`w-3.5 h-3.5 shrink-0 ${isSubActive ? "text-white" : "text-slate-400"}`}
+                                  className={`w-3.5 h-3.5 shrink-0 ${isSubActive ? "text-white" : "text-slate-400 dark:text-slate-400"}`}
                                 />
                                 <span className="truncate text-left">{sub.label}</span>
                               </button>
@@ -1472,8 +1472,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                               academicSubItems.length > 0 &&
                               !collapsed
                               ? "text-sky-700 dark:text-sky-400 font-bold"
-                              : "bg-sky-600 text-white shadow-md shadow-sky-500/20 font-bold"
-                            : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white font-semibold"
+                              : "btn-glass-primary font-bold"
+                            : "text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white font-semibold"
                         }`}
                       >
                         <div className="flex items-center gap-3 truncate">
@@ -1525,12 +1525,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 title={sub.label}
                                 className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                                   isSubActive
-                                    ? "bg-sky-600 text-white font-bold"
-                                    : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-800 dark:hover:text-slate-200"
+                                    ? "btn-glass-primary font-bold shadow-xs"
+                                    : "text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white"
                                 }`}
                               >
                                 <SubIcon
-                                  className={`w-3.5 h-3.5 shrink-0 ${isSubActive ? "text-white" : "text-slate-400"}`}
+                                  className={`w-3.5 h-3.5 shrink-0 ${isSubActive ? "text-white" : "text-slate-400 dark:text-slate-400"}`}
                                 />
                                 <span className="truncate text-left">{sub.label}</span>
                               </button>
@@ -1581,8 +1581,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                               staffSubItems.length > 0 &&
                               !collapsed
                               ? "text-sky-700 dark:text-sky-400 font-bold"
-                              : "bg-sky-600 text-white shadow-md shadow-sky-500/20 font-bold"
-                            : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-white font-semibold"
+                              : "btn-glass-primary font-bold"
+                            : "text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white font-semibold"
                         }`}
                       >
                         <div className="flex items-center gap-3 truncate">
@@ -1653,12 +1653,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 title={sub.label}
                                 className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                                   isSubActive
-                                    ? "bg-sky-600 text-white font-bold"
-                                    : "text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-800 dark:hover:text-slate-200"
+                                    ? "btn-glass-primary font-bold shadow-xs"
+                                    : "text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white"
                                 }`}
                               >
                                 <SubIcon
-                                  className={`w-3.5 h-3.5 shrink-0 ${isSubActive ? "text-white" : "text-slate-400"}`}
+                                  className={`w-3.5 h-3.5 shrink-0 ${isSubActive ? "text-white" : "text-slate-400 dark:text-slate-400"}`}
                                 />
                                 <span className="truncate text-left">{sub.label}</span>
                               </button>
@@ -1715,7 +1715,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   >
                     <div className="flex items-center gap-3 truncate">
                       <Icon
-                        className={`w-4 h-4 shrink-0 stroke-[2] ${isActive ? "text-white" : "text-slate-400 group-hover:text-slate-600"}`}
+                        className={`w-4 h-4 shrink-0 stroke-[2] ${isActive ? "text-white" : "text-slate-400 dark:text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200"}`}
                       />
                       {!collapsed && (
                         <span className="truncate">{item.label}</span>

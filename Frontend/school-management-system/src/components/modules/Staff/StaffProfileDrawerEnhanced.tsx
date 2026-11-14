@@ -1301,7 +1301,7 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
                         <a
                           href={doc.fileUrl}
                           download={doc.title}
-                          className="p-2 rounded-xl text-slate-600 hover:bg-slate-200 dark:hover:bg-slate-800"
+                          className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800"
                           title="Download"
                         >
                           <Download className="w-4 h-4" />

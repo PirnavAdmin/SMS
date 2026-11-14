@@ -247,7 +247,7 @@ export const DocumentRequirementMasterModal: React.FC<DocumentRequirementMasterM
                       <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
                         <button
                           onClick={() => handleOpenEdit(rule)}
-                          className="p-2 rounded-xl text-slate-600 hover:bg-slate-200 dark:hover:bg-slate-700"
+                          className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 cursor-pointer"
                           title="Edit Rule"
                         >
                           <Edit className="w-4 h-4" />

@@ -1818,11 +1818,11 @@ export const WardenCommunicationHubView: React.FC = () => {
                 />
               </div>
 
-              <div className="flex items-center justify-between pt-2 border-t">
+              <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => setSelectedRequestForDetail(null)}
-                  className="px-3.5 py-2 rounded-xl border font-bold text-slate-600"
+                  className="px-3.5 py-2 rounded-xl btn-glass-secondary font-bold cursor-pointer"
                 >
                   Close
                 </button>

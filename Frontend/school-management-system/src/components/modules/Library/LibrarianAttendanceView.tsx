@@ -1135,30 +1135,30 @@ export const LibrarianAttendanceView: React.FC = () => {
           subtitle={`Filter View: ${attendanceViewMode.toUpperCase()} (${selectedAttendanceDate}) • Total Logs: ${filteredAttendance.length}`}
         />
 
-        <table className="w-full text-left text-xs border-collapse border border-slate-300">
+        <table className="w-full text-left text-xs border-collapse border border-slate-200 dark:border-slate-800">
           <thead>
-            <tr className="bg-slate-100 uppercase text-[10px] text-slate-700 font-extrabold border-b">
-              <th className="p-2 border">Date</th>
-              <th className="p-2 border">Librarian / Staff</th>
-              <th className="p-2 border">Shift Details</th>
-              <th className="p-2 border text-center">Check In</th>
-              <th className="p-2 border text-center">Check Out</th>
-              <th className="p-2 border text-center">Hours</th>
-              <th className="p-2 border text-center">Status</th>
-              <th className="p-2 border">Duty Remarks</th>
+            <tr className="bg-slate-100 dark:bg-slate-800 uppercase text-[10px] text-slate-700 dark:text-slate-300 font-extrabold border-b border-slate-200 dark:border-slate-800">
+              <th className="p-2 border border-slate-200 dark:border-slate-800">Date</th>
+              <th className="p-2 border border-slate-200 dark:border-slate-800">Librarian / Staff</th>
+              <th className="p-2 border border-slate-200 dark:border-slate-800">Shift Details</th>
+              <th className="p-2 border border-slate-200 dark:border-slate-800 text-center">Check In</th>
+              <th className="p-2 border border-slate-200 dark:border-slate-800 text-center">Check Out</th>
+              <th className="p-2 border border-slate-200 dark:border-slate-800 text-center">Hours</th>
+              <th className="p-2 border border-slate-200 dark:border-slate-800 text-center">Status</th>
+              <th className="p-2 border border-slate-200 dark:border-slate-800">Duty Remarks</th>
             </tr>
           </thead>
           <tbody>
             {filteredAttendance.map(r => (
-              <tr key={r.id} className="border-b">
-                <td className="p-2 border font-mono font-bold">{r.date}</td>
-                <td className="p-2 border font-bold">{r.staffName} ({r.staffId})</td>
-                <td className="p-2 border">{r.shift}</td>
-                <td className="p-2 border text-center font-mono font-bold text-emerald-700">{r.checkInTime || '--'}</td>
-                <td className="p-2 border text-center font-mono font-bold text-amber-700">{r.checkOutTime || 'Active Shift'}</td>
-                <td className="p-2 border text-center font-mono">{r.checkInTime && r.checkOutTime ? calculateWorkedHours(r.checkInTime, r.checkOutTime) : (r.workingHours || '--')}</td>
-                <td className="p-2 border text-center font-bold">{r.status}</td>
-                <td className="p-2 border text-slate-600">{r.remarks || 'Routine Shift'}</td>
+              <tr key={r.id} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
+                <td className="p-2 border border-slate-200 dark:border-slate-800 font-mono font-bold text-slate-900 dark:text-white">{r.date}</td>
+                <td className="p-2 border border-slate-200 dark:border-slate-800 font-bold text-slate-900 dark:text-white">{r.staffName} ({r.staffId})</td>
+                <td className="p-2 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300">{r.shift}</td>
+                <td className="p-2 border border-slate-200 dark:border-slate-800 text-center font-mono font-bold text-emerald-700 dark:text-emerald-400">{r.checkInTime || '--'}</td>
+                <td className="p-2 border border-slate-200 dark:border-slate-800 text-center font-mono font-bold text-amber-700 dark:text-amber-400">{r.checkOutTime || 'Active Shift'}</td>
+                <td className="p-2 border border-slate-200 dark:border-slate-800 text-center font-mono text-slate-700 dark:text-slate-300">{r.checkInTime && r.checkOutTime ? calculateWorkedHours(r.checkInTime, r.checkOutTime) : (r.workingHours || '--')}</td>
+                <td className="p-2 border border-slate-200 dark:border-slate-800 text-center font-bold text-slate-900 dark:text-white">{r.status}</td>
+                <td className="p-2 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300">{r.remarks || 'Routine Shift'}</td>
               </tr>
             ))}
           </tbody>

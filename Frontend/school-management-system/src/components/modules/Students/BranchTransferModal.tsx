@@ -121,12 +121,12 @@ export const BranchTransferModal: React.FC<BranchTransferModalProps> = ({
 
           <div>
             <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">Remarks</label>
-            <textarea rows={2} value={remarks} onChange={e => setRemarks(e.target.value)} className="w-full px-3 py-2 rounded-xl border bg-slate-50 dark:bg-slate-800 font-medium" />
+            <textarea rows={2} value={remarks} onChange={e => setRemarks(e.target.value)} className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-medium outline-none focus:ring-2 focus:ring-sky-500/20" />
           </div>
 
-          <div className="flex items-center justify-end gap-3 pt-3 border-t">
-            <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl border text-slate-600 font-bold hover:bg-slate-100">Cancel</button>
-            <button type="submit" className="px-5 py-2 rounded-xl bg-sky-600 text-white font-bold shadow-md hover:bg-sky-700">Confirm Branch Transfer</button>
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+            <button type="button" onClick={onClose} className="px-4 py-2 rounded-xl btn-glass-secondary font-bold cursor-pointer">Cancel</button>
+            <button type="submit" className="px-5 py-2 rounded-xl btn-glass-primary font-bold shadow-md cursor-pointer">Confirm Branch Transfer</button>
           </div>
         </form>
       </div>

@@ -1806,11 +1806,11 @@ export const MeetingsView: React.FC = () => {
                             placeholder="Search teacher by name or emp ID..."
                             value={teachingSearchQuery}
                             onChange={e => setTeachingSearchQuery(e.target.value)}
-                            className="w-full px-3 py-1.5 rounded-xl border bg-slate-50 text-xs font-medium"
+                            className="w-full px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-medium outline-none"
                           />
-                          <div className="max-h-36 overflow-y-auto border rounded-xl p-1 bg-slate-50/50 space-y-1 text-xs">
+                          <div className="max-h-36 overflow-y-auto border border-slate-200 dark:border-slate-700 rounded-xl p-1 bg-slate-50/50 dark:bg-slate-850/50 space-y-1 text-xs">
                             {teachingStaffOptions.filter(t => !teachingSearchQuery || `${t.firstName} ${t.lastName}`.toLowerCase().includes(teachingSearchQuery.toLowerCase())).map(t => (
-                              <label key={t.id} className="flex items-center gap-2 p-1 hover:bg-white rounded cursor-pointer">
+                              <label key={t.id} className="flex items-center gap-2 p-1 hover:bg-white dark:hover:bg-slate-800 rounded cursor-pointer text-slate-700 dark:text-slate-300">
                                 <input
                                   type="checkbox"
                                   checked={teachingSelectedIds.includes(t.id)}
@@ -2529,7 +2529,7 @@ export const MeetingsView: React.FC = () => {
             </div>
 
             <div className="flex items-center justify-end gap-3 pt-2">
-              <button onClick={() => setCancellingMeeting(null)} className="px-4 py-2 font-bold bg-slate-100 hover:bg-slate-50 rounded-xl text-xs">
+              <button onClick={() => setCancellingMeeting(null)} className="px-4 py-2 font-bold btn-glass-secondary rounded-xl text-xs cursor-pointer">
                 Keep Scheduled
               </button>
               <button onClick={handleConfirmCancel} className="px-4 py-2 font-bold text-white bg-rose-600 hover:bg-rose-500 rounded-xl shadow-md text-xs">

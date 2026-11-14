@@ -3651,7 +3651,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                                 : "hover:bg-slate-50/50 dark:hover:bg-slate-900/50"
                           }`}
                         >
-                          <td className="p-3 font-mono font-semibold text-slate-600">{index + 1}</td>
+                          <td className="p-3 font-mono font-semibold text-slate-600 dark:text-slate-400">{index + 1}</td>
                           <td className="p-3 font-bold text-slate-900 dark:text-white">{inst.feeHeadName}</td>
                           <td className="p-3 text-slate-600 dark:text-slate-400">
                             <span className={`px-2 py-0.5 rounded text-[11px] font-semibold ${

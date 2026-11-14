@@ -561,7 +561,7 @@ export const AlumniView: React.FC<AlumniViewProps> = ({ onNavigate }) => {
                     <div key={item.label} className="space-y-1">
                       <div className="flex items-center justify-between text-xs font-bold">
                         <span className="text-slate-800 dark:text-slate-200">{item.label}</span>
-                        <span className="text-slate-600 font-mono">{item.count} ({pct}%)</span>
+                        <span className="text-slate-600 dark:text-slate-400 font-mono">{item.count} ({pct}%)</span>
                       </div>
                       <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
                         <div className={`h-full ${item.color} rounded-full`} style={{ width: `${pct}%` }} />

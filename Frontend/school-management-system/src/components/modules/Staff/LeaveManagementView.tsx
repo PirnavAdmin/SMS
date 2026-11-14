@@ -1397,7 +1397,7 @@ export const LeaveManagementView: React.FC = () => {
                   <select
                     value={filterCategory}
                     onChange={e => setFilterCategory(e.target.value)}
-                    className="appearance-none pl-3.5 pr-9 py-2 text-xs font-semibold rounded-xl bg-slate-50 border border-slate-200 text-slate-700 cursor-pointer outline-none transition-all shadow-sm"
+                    className="appearance-none pl-3.5 pr-9 py-2 text-xs font-semibold rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 cursor-pointer outline-none transition-all shadow-sm"
                   >
                     <option value="All">All Categories</option>
                     <option value="Teacher">Teachers</option>
@@ -1411,7 +1411,7 @@ export const LeaveManagementView: React.FC = () => {
                 <select
                   value={filterStatus}
                   onChange={e => setFilterStatus(e.target.value)}
-                  className="appearance-none pl-3.5 pr-9 py-2 text-xs font-semibold rounded-xl bg-slate-50 border border-slate-200 text-slate-700 cursor-pointer outline-none transition-all shadow-sm"
+                  className="appearance-none pl-3.5 pr-9 py-2 text-xs font-semibold rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 cursor-pointer outline-none transition-all shadow-sm"
                 >
                   <option value="All">All Statuses</option>
                   <option value="Pending">Pending</option>
@@ -1425,7 +1425,7 @@ export const LeaveManagementView: React.FC = () => {
                 <select
                   value={filterType}
                   onChange={e => setFilterType(e.target.value)}
-                  className="appearance-none pl-3.5 pr-9 py-2 text-xs font-semibold rounded-xl bg-slate-50 border border-slate-200 text-slate-700 cursor-pointer outline-none transition-all shadow-sm"
+                  className="appearance-none pl-3.5 pr-9 py-2 text-xs font-semibold rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 cursor-pointer outline-none transition-all shadow-sm"
                 >
                   <option value="All">All Leave Types</option>
                   {activeLeaveTypes.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
@@ -2158,16 +2158,16 @@ export const LeaveManagementView: React.FC = () => {
       {/* LOP BALANCE WARNING DIALOG */}
       {lopWarning.show && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-sm w-full p-6 shadow-2xl text-center space-y-4">
-            <div className="mx-auto w-12 h-12 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center">
+          <div className="glass-surface bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-sm w-full p-6 shadow-2xl text-center space-y-4">
+            <div className="mx-auto w-12 h-12 rounded-full bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center">
               <AlertTriangle className="w-6 h-6" />
             </div>
             <div>
               <h3 className="text-base font-bold text-slate-900 dark:text-white">Leave Balance Exceeded</h3>
-              <div className="text-xs text-slate-500 mt-2 space-y-1">
-                <p>Available Balance: <strong className="text-slate-800">{lopWarning.available} {lopWarning.available === 1 ? 'Day' : 'Days'}</strong></p>
-                <p>Requested Leave: <strong className="text-slate-800">{lopWarning.requested} {lopWarning.requested === 1 ? 'Day' : 'Days'}</strong></p>
-                <p className="pt-2 text-rose-600">Would you like to file the excess request as **Loss of Pay (LOP)** unpaid leave?</p>
+              <div className="text-xs text-slate-500 dark:text-slate-400 mt-2 space-y-1">
+                <p>Available Balance: <strong className="text-slate-800 dark:text-white">{lopWarning.available} {lopWarning.available === 1 ? 'Day' : 'Days'}</strong></p>
+                <p>Requested Leave: <strong className="text-slate-800 dark:text-white">{lopWarning.requested} {lopWarning.requested === 1 ? 'Day' : 'Days'}</strong></p>
+                <p className="pt-2 text-rose-600 dark:text-rose-400 font-semibold">Would you like to file the excess request as Loss of Pay (LOP) unpaid leave?</p>
               </div>
             </div>
 
@@ -2175,14 +2175,14 @@ export const LeaveManagementView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setLopWarning({ show: false, available: 0, requested: 0, appData: null })}
-                className="px-4 py-2 text-xs font-semibold bg-slate-100 rounded-xl"
+                className="px-4 py-2 text-xs font-semibold btn-glass-secondary rounded-xl cursor-pointer"
               >
                 Cancel Application
               </button>
               <button
                 type="button"
                 onClick={handleContinueAsLop}
-                className="px-4 py-2 text-xs font-bold text-white bg-brand-600 hover:bg-brand-500 rounded-xl shadow-md"
+                className="px-4 py-2 text-xs font-bold btn-glass-primary rounded-xl cursor-pointer"
               >
                 Continue as LOP
               </button>
@@ -2194,17 +2194,17 @@ export const LeaveManagementView: React.FC = () => {
       {/* DIALOG: APPROVAL REMARKS/QUEUE ACTIONS */}
       {selectedQueueApp && queueActionType && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-sm w-full p-6 shadow-2xl space-y-4">
+          <div className="glass-surface bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-sm w-full p-6 shadow-2xl space-y-4">
             <h3 className="text-base font-bold text-slate-900 dark:text-white">
               {queueActionType} Leave Request
             </h3>
-            <p className="text-xs text-slate-500">
-              Are you sure you want to {queueActionType.toLowerCase()} leave request for **{selectedQueueApp.employeeName}**?
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Are you sure you want to {queueActionType.toLowerCase()} leave request for <strong className="text-slate-900 dark:text-white">{selectedQueueApp.employeeName}</strong>?
             </p>
             
             <form onSubmit={handleApprovalSubmit} className="space-y-3.5">
               <div>
-                <label className="block text-xs font-semibold mb-1 text-slate-700">
+                <label className="block text-xs font-semibold mb-1 text-slate-700 dark:text-slate-300">
                   Approver Remarks / Reason {queueActionType === 'Rejected' && <span className="text-rose-500 font-bold ml-0.5">*</span>}
                 </label>
                 <textarea
@@ -2212,22 +2212,22 @@ export const LeaveManagementView: React.FC = () => {
                   placeholder="Provide comments or reason for rejection/approval..."
                   value={approvalRemarks}
                   onChange={e => setApprovalRemarks(e.target.value)}
-                  className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 border h-16 resize-none outline-none"
+                  className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white h-16 resize-none outline-none focus:ring-2 focus:ring-sky-500/20"
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t">
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => { setSelectedQueueApp(null); setQueueActionType(null); }}
-                  className="px-4 py-2 text-xs font-semibold bg-slate-100 rounded-xl"
+                  className="px-4 py-2 text-xs font-semibold btn-glass-secondary rounded-xl cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className={`px-4 py-2 text-xs font-bold text-white rounded-xl ${
-                    queueActionType === 'Approved' ? 'bg-brand-600 hover:bg-brand-500' : 'bg-rose-600 hover:bg-rose-500'
+                  className={`px-4 py-2 text-xs font-bold text-white rounded-xl cursor-pointer ${
+                    queueActionType === 'Approved' ? 'btn-glass-primary' : 'bg-rose-600 hover:bg-rose-500'
                   }`}
                 >
                   Confirm {queueActionType}
@@ -2593,28 +2593,28 @@ export const LeaveManagementView: React.FC = () => {
       {/* MASTER FORM MODAL: HOLIDAY CALENDAR */}
       {isHolidayModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-sm w-full p-6 shadow-2xl space-y-4">
-            <h3 className="text-base font-bold">{editingHoliday ? 'Edit Holiday' : 'Add Calendar Holiday'}</h3>
+          <div className="glass-surface bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-sm w-full p-6 shadow-2xl space-y-4">
+            <h3 className="text-base font-bold text-slate-900 dark:text-white">{editingHoliday ? 'Edit Holiday' : 'Add Calendar Holiday'}</h3>
             <form onSubmit={handleHolidaySubmit} className="space-y-3.5 text-xs">
               <div>
-                <label className="block font-semibold mb-1">Holiday Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
-                <input type="text" name="name" required defaultValue={editingHoliday?.name || ''} className="w-full px-3 py-2 rounded-xl bg-slate-50 border outline-none" />
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Holiday Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                <input type="text" name="name" required defaultValue={editingHoliday?.name || ''} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-sky-500/20" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1">Start Date <span className="text-rose-500 font-bold ml-0.5">*</span></label>
-                  <input type="date" name="startDate" required defaultValue={editingHoliday?.startDate || ''} className="w-full px-3 py-2 rounded-xl bg-slate-50 border outline-none" />
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Start Date <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                  <input type="date" name="startDate" required defaultValue={editingHoliday?.startDate || ''} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-sky-500/20" />
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1">End Date <span className="text-rose-500 font-bold ml-0.5">*</span></label>
-                  <input type="date" name="endDate" required defaultValue={editingHoliday?.endDate || ''} className="w-full px-3 py-2 rounded-xl bg-slate-50 border outline-none" />
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">End Date <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                  <input type="date" name="endDate" required defaultValue={editingHoliday?.endDate || ''} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-sky-500/20" />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold mb-1">Holiday Type <span className="text-rose-500 font-bold ml-0.5">*</span></label>
-                  <select name="type" required defaultValue={editingHoliday?.type || ''} className="w-full px-3 py-2 rounded-xl bg-slate-50 border outline-none cursor-pointer">
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Holiday Type <span className="text-rose-500 font-bold ml-0.5">*</span></label>
+                  <select name="type" required defaultValue={editingHoliday?.type || ''} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none cursor-pointer focus:ring-2 focus:ring-sky-500/20">
                     <option value="" disabled>Select Option</option>
                     <option value="National">National Holiday</option>
                     <option value="School">School Holiday</option>
@@ -2623,19 +2623,19 @@ export const LeaveManagementView: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block font-semibold mb-1">Applicable Branch</label>
-                  <input type="text" name="branch" placeholder="e.g. Branch Name" defaultValue={editingHoliday?.branch || ''} className="w-full px-3 py-2 rounded-xl bg-slate-50 border outline-none" />
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Applicable Branch</label>
+                  <input type="text" name="branch" placeholder="e.g. Branch Name" defaultValue={editingHoliday?.branch || ''} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-sky-500/20" />
                 </div>
               </div>
 
               <div>
-                <label className="block font-semibold mb-1">Description / Notes</label>
-                <textarea name="description" defaultValue={editingHoliday?.description || ''} className="w-full px-3 py-2 rounded-xl bg-slate-50 border h-16 resize-none outline-none" />
+                <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Description / Notes</label>
+                <textarea name="description" defaultValue={editingHoliday?.description || ''} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white h-16 resize-none outline-none focus:ring-2 focus:ring-sky-500/20" />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t">
-                <button type="button" onClick={() => setIsHolidayModalOpen(false)} className="px-4 py-2 font-semibold bg-slate-100 rounded-xl">Cancel</button>
-                <button type="submit" className="px-5 py-2 font-bold text-white bg-brand-600 rounded-xl">Save Holiday</button>
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+                <button type="button" onClick={() => setIsHolidayModalOpen(false)} className="px-4 py-2 font-semibold btn-glass-secondary rounded-xl cursor-pointer">Cancel</button>
+                <button type="submit" className="px-5 py-2 font-bold btn-glass-primary rounded-xl cursor-pointer">Save Holiday</button>
               </div>
             </form>
           </div>

@@ -185,13 +185,13 @@
 
 .dark .glass-surface,
 .dark .glass-panel {
-  background: rgba(15, 23, 42, 0.75) !important;
+  background: rgba(15, 23, 42, 0.82) !important;
   backdrop-filter: blur(20px) saturate(180%) !important;
   -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
   box-shadow: 
-    0 12px 35px -5px rgba(0, 0, 0, 0.35),
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.08) !important;
+    0 12px 35px -5px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.12) !important;
 }
 
 /* 2. iOS Frosted Glass Cards */
@@ -208,13 +208,13 @@
 }
 
 .dark .glass-card {
-  background: rgba(15, 23, 42, 0.78) !important;
+  background: rgba(15, 23, 42, 0.82) !important;
   backdrop-filter: blur(16px) saturate(180%) !important;
   -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
-  border: 1px solid rgba(255, 255, 255, 0.09) !important;
+  border: 1px solid rgba(255, 255, 255, 0.11) !important;
   box-shadow: 
-    0 8px 25px -4px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.08) !important;
+    0 8px 25px -4px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.1) !important;
 }
 
 .glass-card:hover {
@@ -226,9 +226,10 @@
 }
 
 .dark .glass-card:hover {
+  border-color: rgba(255, 255, 255, 0.18) !important;
   box-shadow: 
-    0 16px 38px -6px rgba(0, 0, 0, 0.45),
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.12) !important;
+    0 16px 38px -6px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.16) !important;
 }
 
 /* 3. iPhone Liquid Glass Primary Action Button */
@@ -467,7 +468,7 @@ button[class*="bg-slate-50"]:not(.no-glass) {
     inset 0 1px 0 0 rgba(255, 255, 255, 0.08) !important;
 }
 
-/* Glass effect for table headers */
+/* Glass effect for table headers & high contrast typography */
 table thead tr {
   background: rgba(248, 250, 252, 0.85) !important;
   backdrop-filter: blur(10px) !important;
@@ -475,7 +476,47 @@ table thead tr {
 }
 
 .dark table thead tr {
-  background: rgba(15, 23, 42, 0.85) !important;
+  background: rgba(15, 23, 42, 0.9) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.dark table thead th {
+  color: #94a3b8;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.dark table tbody tr {
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+.dark table tbody tr:hover {
+  background-color: rgba(255, 255, 255, 0.035);
+}
+
+/* Dark mode inputs, textareas, and placeholders */
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #94a3b8 !important;
+  opacity: 0.8 !important;
+}
+
+.dark input:disabled,
+.dark select:disabled,
+.dark textarea:disabled {
+  opacity: 0.6;
+  background-color: rgba(15, 23, 42, 0.6) !important;
+  color: #64748b !important;
+}
+
+/* Bespoke branded selection */
+::selection {
+  background-color: color-mix(in srgb, var(--primary-color, #0284c7) 30%, transparent);
+  color: inherit;
+}
+
+.dark ::selection {
+  background-color: color-mix(in srgb, var(--primary-color, #0284c7) 45%, transparent);
+  color: #ffffff;
 }
 
 /* Soft frosted glass borders on cards and containers */

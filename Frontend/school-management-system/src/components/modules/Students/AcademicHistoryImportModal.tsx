@@ -673,7 +673,7 @@ export const AcademicHistoryImportModal: React.FC<AcademicHistoryImportModalProp
                 <div className="flex items-center justify-end gap-3 pt-2">
                   <button
                     onClick={() => setSelectedFile(null)}
-                    className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-100"
+                    className="px-4 py-2 rounded-xl btn-glass-secondary font-bold cursor-pointer"
                   >
                     Clear File
                   </button>

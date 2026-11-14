@@ -510,8 +510,8 @@ export const ReportsView: React.FC = () => {
                           <td className="px-3.5 py-3 font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap">
                             {s.className} - {s.section || 'A'}
                           </td>
-                          <td className="px-3.5 py-3 text-slate-500">{s.fatherName || s.motherName || 'N/A'}</td>
-                          <td className="px-3.5 py-3 font-mono text-slate-600 whitespace-nowrap">{formatPhoneNumber(s.fatherPhone || s.phone || (s as any).motherPhone || (s as any).guardianPhone)}</td>
+                          <td className="px-3.5 py-3 text-slate-500 dark:text-slate-400">{s.fatherName || s.motherName || 'N/A'}</td>
+                          <td className="px-3.5 py-3 font-mono text-slate-600 dark:text-slate-300 whitespace-nowrap">{formatPhoneNumber(s.fatherPhone || s.phone || (s as any).motherPhone || (s as any).guardianPhone)}</td>
                           <td className="px-3.5 py-3 whitespace-nowrap">
                             <span className="px-2.5 py-0.5 rounded-md text-[10px] font-extrabold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 whitespace-nowrap inline-block print:border-none print:bg-transparent print:p-0 print:text-slate-900 print:text-xs print:font-semibold">
                               {s.status || 'Active'}
@@ -554,13 +554,13 @@ export const ReportsView: React.FC = () => {
                             {st.firstName} {st.lastName}
                           </td>
                           <td className="px-3.5 py-3 font-bold text-slate-700 dark:text-slate-300">{st.department || 'Academics'}</td>
-                          <td className="px-3.5 py-3 text-slate-600">{st.designation || st.role}</td>
+                          <td className="px-3.5 py-3 text-slate-600 dark:text-slate-300">{st.designation || st.role}</td>
                           <td className="px-3.5 py-3 whitespace-nowrap">
                             <span className="px-2.5 py-0.5 rounded-md text-[10px] font-extrabold bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 border border-sky-200 whitespace-nowrap inline-block print:border-none print:bg-transparent print:p-0 print:text-slate-900 print:text-xs print:font-semibold">
                               {st.employeeCategory || (st.role === 'Teacher' ? 'Teaching' : 'Staff')}
                             </span>
                           </td>
-                          <td className="px-3.5 py-3 font-mono text-slate-600 whitespace-nowrap">{formatPhoneNumber(st.phone || (st as any).mobileNumber || (st as any).mobile)}</td>
+                          <td className="px-3.5 py-3 font-mono text-slate-600 dark:text-slate-300 whitespace-nowrap">{formatPhoneNumber(st.phone || (st as any).mobileNumber || (st as any).mobile)}</td>
                         </tr>
                       ))
                     )}
@@ -609,8 +609,8 @@ export const ReportsView: React.FC = () => {
                             </td>
                             <td className="px-3.5 py-3 font-bold text-slate-700 dark:text-slate-300">{p.feeHeadName || p.category || 'Tuition Fee'}</td>
                             <td className="px-3.5 py-3 font-mono font-black text-emerald-600 whitespace-nowrap">₹{Number(p.amount || 0).toLocaleString('en-IN')}</td>
-                            <td className="px-3.5 py-3 font-bold text-slate-600 whitespace-nowrap">{p.paymentMode || 'Online'}</td>
-                            <td className="px-3.5 py-3 font-mono text-slate-600 whitespace-nowrap">
+                            <td className="px-3.5 py-3 font-bold text-slate-600 dark:text-slate-300 whitespace-nowrap">{p.paymentMode || 'Online'}</td>
+                            <td className="px-3.5 py-3 font-mono text-slate-600 dark:text-slate-300 whitespace-nowrap">
                               {formatDateDDMMYYYY(p.paymentDate || (p as any).date)}
                             </td>
                           </tr>

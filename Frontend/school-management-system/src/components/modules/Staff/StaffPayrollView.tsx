@@ -574,7 +574,7 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab, 
   };
 
   if (!canView) {
-    return <div className="rounded-xl border bg-white p-8 text-sm font-semibold text-slate-600">You are not authorized to view Payroll.</div>;
+    return <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-8 text-sm font-semibold text-slate-600 dark:text-slate-300">You are not authorized to view Payroll.</div>;
   }
 
   const renderDashboard = () => {
@@ -992,7 +992,7 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab, 
       ) : (
         <div className="overflow-x-auto rounded-xl border bg-white dark:bg-slate-900">
           <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50 text-[10px] font-black uppercase text-slate-500">
+            <thead className="bg-slate-50 dark:bg-slate-800/80 text-[10px] font-black uppercase text-slate-500 dark:text-slate-400">
               <tr>
                 <th className="p-3">Payroll</th>
                 <th className="p-3">Branch</th>
@@ -1153,7 +1153,7 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab, 
         </div>
         <div className="overflow-x-auto rounded-xl border bg-white dark:bg-slate-900">
           <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50 text-[10px] font-black uppercase text-slate-500"><tr><th className="p-3">Name</th><th className="p-3">Category</th><th className="p-3">Type</th><th className="p-3">Value</th><th className="p-3">Flags</th><th className="p-3">Status</th><th className="p-3 text-center">Actions</th></tr></thead>
+            <thead className="bg-slate-50 dark:bg-slate-800/80 text-[10px] font-black uppercase text-slate-500 dark:text-slate-400"><tr><th className="p-3">Name</th><th className="p-3">Category</th><th className="p-3">Type</th><th className="p-3">Value</th><th className="p-3">Flags</th><th className="p-3">Status</th><th className="p-3 text-center">Actions</th></tr></thead>
             <tbody className="divide-y">{data.payrollComponents.map(c => <tr key={c.id}><td className="p-3 font-bold">{c.name}</td><td className="p-3">{c.category}</td><td className="p-3">{c.type}</td><td className="p-3">{c.type === 'Percentage' ? `${c.value}%` : formatCurrency(c.value)}</td><td className="p-3">{c.category === 'Earning' ? `Taxable: ${c.taxable ? 'Yes' : 'No'}` : `Mandatory: ${c.mandatory ? 'Yes' : 'No'}`}</td><td className="p-3">{c.status}</td><td className="p-3 text-center space-x-1"><Button onClick={() => setEditingComponent(c)} disabled={!canManage}><Pencil className="w-3.5 h-3.5" /></Button><Button variant="danger" onClick={() => data.deletePayrollComponent(c.id)} disabled={!canManage}><Trash2 className="w-3.5 h-3.5" /></Button></td></tr>)}</tbody>
           </table>
         </div>
@@ -2284,7 +2284,7 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab, 
                           {activeConfig?.overtime.enabled ? (
                             <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-brand-50 text-brand-600">Active</span>
                           ) : (
-                            <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500">Disabled</span>
+                            <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">Disabled</span>
                           )}
                         </td>
                         <td className="p-3 font-mono">{activeConfig?.overtime.enabled ? formatCurrency(activeConfig.overtime.hourlyRate) + '/hr' : '—'}</td>
@@ -2736,7 +2736,7 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab, 
 };
 
 const RulesTable = ({ headers, rows }: { headers: string[]; rows: React.ReactNode[][] }) => (
-  <div className="overflow-x-auto rounded-xl border bg-white dark:bg-slate-900"><table className="w-full text-left text-xs"><thead className="bg-slate-50 text-[10px] font-black uppercase text-slate-500"><tr>{headers.map(h => <th key={h} className="p-3">{h}</th>)}</tr></thead><tbody className="divide-y">{rows.map((row, idx) => <tr key={idx}>{row.map((cell, cidx) => <td key={cidx} className="p-3">{cell}</td>)}</tr>)}</tbody></table></div>
+  <div className="overflow-x-auto rounded-xl border bg-white dark:bg-slate-900"><table className="w-full text-left text-xs"><thead className="bg-slate-50 dark:bg-slate-800/80 text-[10px] font-black uppercase text-slate-500 dark:text-slate-400"><tr>{headers.map(h => <th key={h} className="p-3">{h}</th>)}</tr></thead><tbody className="divide-y">{rows.map((row, idx) => <tr key={idx}>{row.map((cell, cidx) => <td key={cidx} className="p-3">{cell}</td>)}</tr>)}</tbody></table></div>
 );
 
 const KeyValueGrid = ({ items }: { items: [string, string][] }) => (
