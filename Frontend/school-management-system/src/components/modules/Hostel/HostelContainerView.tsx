@@ -42,15 +42,17 @@ export const HostelContainerView: React.FC<HostelContainerViewProps> = ({ initia
 
   const navTabs = [
     { id: 'dashboard', label: 'Hostel Dashboard', icon: LayoutDashboard },
-    { id: 'masters', label: 'Hostel Masters Setup', icon: Building2 },
+    { id: 'masters', label: isWarden ? 'Hostel Blocks & Rooms' : 'Hostel Masters Setup', icon: Building2 },
     { id: 'student-hostel', label: 'Student Management', icon: Users },
     { id: 'reports', label: 'Hostel Reports', icon: BarChart3 }
   ];
 
   const isTabActive = (tabId: string) => {
     if (activeTab === tabId) return true;
-    if (tabId === 'masters' && ['master', 'blocks', 'room-type', 'room-master', 'rooms', 'wardens'].includes(activeTab)) return true;
-    if (tabId === 'student-hostel' && ['student-assignment', 'beds', 'attendance', 'outpass', 'leave', 'allocations', 'transfers'].includes(activeTab)) return true;
+    if (tabId === 'dashboard' && ['dashboard', 'hostel'].includes(activeTab)) return true;
+    if (tabId === 'masters' && ['master', 'masters', 'blocks', 'room-type', 'room-types', 'room-master', 'rooms', 'wardens'].includes(activeTab)) return true;
+    if (tabId === 'student-hostel' && ['student-assignment', 'beds', 'attendance', 'outpass', 'leave', 'allocations', 'transfers', 'student-hostel'].includes(activeTab)) return true;
+    if (tabId === 'reports' && ['reports', 'hostel-reports'].includes(activeTab)) return true;
     return false;
   };
 
@@ -90,6 +92,7 @@ export const HostelContainerView: React.FC<HostelContainerViewProps> = ({ initia
       case 'allocation':
       case 'allocations':
       case 'student-room-allocation':
+      case 'transfers':
         return (
           <StudentHostelContainerView
             initialSubTab={
@@ -97,14 +100,16 @@ export const HostelContainerView: React.FC<HostelContainerViewProps> = ({ initia
                 ? 'attendance'
                 : activeTab === 'outpass' || activeTab === 'leave'
                 ? 'outpass'
-                : undefined
+                : activeTab === 'transfers'
+                ? 'transfers'
+                : 'allocations'
             }
           />
         );
       case 'reports':
         return <HostelReportsView />;
       default:
-        return isWarden ? <HostelMastersView /> : <HostelDashboardView onNavigate={handleNavigate} />;
+        return <HostelDashboardView onNavigate={handleNavigate} />;
     }
   };
 

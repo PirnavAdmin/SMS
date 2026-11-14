@@ -100,7 +100,6 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({ isOpen, on
     { name: 'Librarian Attendance', module: 'librarian-attendance' },
     { name: 'Library Timetable', module: 'library-timetable' },
     { name: 'Inventory & Supplies', module: 'inventory' },
-    { name: 'Warden Attendance', module: 'warden-attendance' },
     // Examination Sub-options
     { name: 'Examination \u2192 Exam Setup', module: 'examination' },
     { name: 'Examination \u2192 Exam Schedule & Timetable', module: 'examination' },

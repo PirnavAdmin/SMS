@@ -184,7 +184,7 @@ export const hasModuleAccess = (
   const lookupRole = normalizeRoleForRbac(role);
 
   // Strictly role-specific screens
-  if (moduleId === "warden-attendance" || moduleId === "hostel-warden-attendance" || moduleId === "warden-profile") {
+  if (moduleId === "warden-profile") {
     return lookupRole === "Hostel Warden";
   }
   if (moduleId === "librarian-attendance" || moduleId === "library-attendance") {

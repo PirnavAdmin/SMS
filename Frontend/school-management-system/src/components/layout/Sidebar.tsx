@@ -530,11 +530,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
             icon: UserPlus,
           },
           {
-            id: "warden-attendance",
-            label: "Warden Attendance",
-            icon: Clock,
-          },
-          {
             id: "hostel-reports",
             label: "Hostel Reports",
             icon: FileSpreadsheet,
@@ -1056,11 +1051,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           ) {
                             setActiveModule("parent-hostel-details");
                           } else if (!isHostelActive) {
-                            setActiveModule(
-                              role.toLowerCase().includes("warden")
-                                ? "hostel-masters"
-                                : "hostel-dashboard",
-                            );
+                            setActiveModule("hostel-dashboard");
                           }
                         }}
                         className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all ${
@@ -1101,21 +1092,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
                               activeModule === sub.id ||
                               (sub.id === "hostel-dashboard" &&
                                 ["hostel-dashboard", "hostel"].includes(activeModule)) ||
-                              (sub.id === "warden-attendance" &&
-                                ["warden-attendance", "hostel-warden-attendance"].includes(activeModule)) ||
                               (sub.id === "hostel-masters" &&
-                                (
-                                  [
-                                    "hostel-masters",
-                                    "hostel-master",
-                                    "hostel-blocks",
-                                    "hostel-room-type",
-                                    "hostel-room-master",
-                                    "hostel-rooms",
-                                    "hostel-wardens",
-                                  ].includes(activeModule) ||
-                                  (safeRole.includes("warden") && ["hostel", "hostel-dashboard"].includes(activeModule))
-                                )) ||
+                                [
+                                  "hostel-masters",
+                                  "hostel-master",
+                                  "hostel-blocks",
+                                  "hostel-room-type",
+                                  "hostel-room-master",
+                                  "hostel-rooms",
+                                  "hostel-wardens",
+                                ].includes(activeModule)) ||
                               (sub.id === "hostel-student-hostel" &&
                                 [
                                   "hostel-student-hostel",
@@ -1722,8 +1708,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   (item.id === "reports" && activeModule === "reports") ||
                   (item.id === "users" && ["users", "roles"].includes(activeModule)) ||
                   (item.id === "roles" && ["users", "roles"].includes(activeModule)) ||
-                  (item.id === "settings" && activeModule === "settings") ||
-                  (item.id === "warden-attendance" && ["warden-attendance", "hostel-warden-attendance"].includes(activeModule));
+                  (item.id === "settings" && activeModule === "settings");
 
                 return (
                   <button

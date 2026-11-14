@@ -64,7 +64,6 @@ import { TransportContainerView } from "./components/modules/Transport/Transport
 import { DriverTransportPortalView } from "./components/modules/Transport/DriverTransportPortalView";
 import { HostelView } from "./components/modules/Hostel/HostelView";
 import { HostelContainerView } from "./components/modules/Hostel/HostelContainerView";
-import { WardenAttendanceView } from "./components/modules/Hostel/WardenAttendanceView";
 import { InventoryView } from "./components/modules/Inventory/InventoryView";
 import { CommunicationView } from "./components/modules/School Administration/Communication Hub/CommunicationView";
 import { EventsView } from "./components/modules/School Administration/Events & Holidays/EventsView";
@@ -604,11 +603,6 @@ const MainLayout: React.FC = () => {
         ) : (
           <SubjectsView />
         );
-      case "warden-attendance":
-      case "hostel-warden-attendance":
-        return (userRole === "hostel warden" || userRole === "warden")
-          ? <WardenAttendanceView />
-          : <DashboardView onNavigate={(mod) => setActiveModule(mod)} />;
       case "attendance":
         return userRole === "parent" || userRole === "student" ? (
           <ParentAttendanceView />
