@@ -958,7 +958,7 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
               <div className="max-w-3xl mx-auto space-y-4 pb-8 text-xs no-print">
               {/* Target Employee Switcher */}
               {!readOnly && !existingRecord && effectiveStaffList.length > 0 && (
-                <div className="bg-white dark:bg-slate-850 p-4 rounded-2xl border border-sky-200/80 dark:border-slate-800 shadow-xs space-y-3">
+                <div className={`bg-white dark:bg-slate-850 p-4 rounded-2xl border border-sky-200/80 dark:border-slate-800 shadow-xs space-y-3 relative ${isEmployeeDropdownOpen ? 'z-50' : 'z-10'}`}>
                   <div className="flex items-center justify-between flex-wrap gap-2">
                     <h3 className="text-xs font-black text-slate-900 dark:text-white flex items-center gap-2">
                       <User className="w-4 h-4 text-sky-600" /> Target Employee Selection
@@ -967,7 +967,7 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
                   </div>
 
                   {/* Single Searchable Dropdown */}
-                  <div className="relative w-full" ref={employeeDropdownRef}>
+                  <div className="relative w-full z-50" ref={employeeDropdownRef}>
                     <button
                       type="button"
                       onClick={() => setIsEmployeeDropdownOpen(!isEmployeeDropdownOpen)}
@@ -1018,7 +1018,7 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
 
                     {/* Searchable Dropdown Popover */}
                     {isEmployeeDropdownOpen && (
-                      <div className="absolute left-0 top-full mt-2 w-full bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl z-50 p-3 space-y-2.5 animate-in fade-in zoom-in-95 duration-150">
+                      <div className="absolute left-0 top-full mt-2 w-full bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl dark:shadow-[0_20px_50px_rgba(0,0,0,0.8)] dark:ring-1 dark:ring-white/10 z-50 p-3 space-y-2.5 animate-in fade-in zoom-in-95 duration-150">
                         {/* Category Filter Pills */}
                         <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-bold">
                           <button
@@ -1185,7 +1185,7 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
               )}
 
               {/* General Reference & Metadata */}
-              <div className="bg-white dark:bg-slate-850 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
+              <div className="bg-white dark:bg-slate-850 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-4 relative z-0">
                 <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2 border-b pb-2 border-slate-100 dark:border-slate-800">
                   <FileText className="w-4 h-4 text-sky-600" /> Reference & Header Details
                 </h3>
@@ -1231,7 +1231,7 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
               </div>
 
               {/* Employee Information */}
-              <div className="bg-white dark:bg-slate-850 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
+              <div className="bg-white dark:bg-slate-850 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-4 relative z-0">
                 <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2 border-b pb-2 border-slate-100 dark:border-slate-800">
                   <User className="w-4 h-4 text-sky-600" /> Employee & Role Details
                 </h3>
@@ -1302,7 +1302,7 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
 
               {/* Offer-Specific Terms & Salary */}
               {activeType === 'offer' && (
-                <div className="bg-white dark:bg-slate-850 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
+                <div className="bg-white dark:bg-slate-850 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-4 relative z-0">
                   <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2 border-b pb-2 border-slate-100 dark:border-slate-800">
                     <IndianRupee className="w-4 h-4 text-emerald-600" /> Compensation & Appointment Terms
                   </h3>
@@ -1365,7 +1365,7 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
 
               {/* Relieving-Specific Terms */}
               {(activeType === 'relieving' || activeType === 'experience') && (
-                <div className="bg-white dark:bg-slate-850 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
+                <div className="bg-white dark:bg-slate-850 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-4 relative z-0">
                   <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2 border-b pb-2 border-slate-100 dark:border-slate-800">
                     <ShieldCheck className="w-4 h-4 text-rose-600" /> Relieving & Service Assessment
                   </h3>
@@ -1427,7 +1427,7 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
               )}
 
               {/* Signatory Settings */}
-              <div className="bg-white dark:bg-slate-850 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-4">
+              <div className="bg-white dark:bg-slate-850 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs space-y-4 relative z-0">
                 <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2 border-b pb-2 border-slate-100 dark:border-slate-800">
                   <Building2 className="w-4 h-4 text-sky-600" /> Authorized Signatory
                 </h3>

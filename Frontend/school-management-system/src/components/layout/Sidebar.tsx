@@ -947,7 +947,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       >
         {/* Brand Header */}
         <div
-          className={`h-16 flex items-center justify-between border-b border-brand-200/60 dark:border-brand-800/40 px-3`}
+          className="h-16 flex items-center justify-center border-b border-brand-200/60 dark:border-brand-800/40 px-3 relative"
         >
           {effectiveCollapsed ? (
             <div
@@ -961,16 +961,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   alt=""
                   onError={handleSidebarLogoError}
                   onLoad={handleSidebarLogoLoad}
-                  className="max-h-8 max-w-8 object-contain"
+                  className="max-h-8 max-w-8 object-contain mx-auto"
                 />
               ) : (
                 <School className="w-5 h-5 text-sky-600 dark:text-sky-400 stroke-[2.2]" />
               )}
             </div>
           ) : (
-            <div className="flex items-center justify-between w-full min-w-0">
+            <div className="flex items-center justify-center w-full min-w-0 relative">
               <div
-                className={`flex items-center justify-center select-none cursor-pointer btn-glass-secondary transition-all overflow-hidden active:scale-98 ${
+                className={`flex items-center justify-center select-none cursor-pointer btn-glass-secondary transition-all overflow-hidden active:scale-98 mx-auto ${
                   logoMeta && Math.abs(logoMeta.ratio - 1) < 0.3
                     ? "w-12 h-12 rounded-2xl p-1.5 shrink-0"
                     : "h-12 w-auto max-w-[190px] px-3 py-1 rounded-2xl shrink-0"
@@ -984,14 +984,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     alt=""
                     onError={handleSidebarLogoError}
                     onLoad={handleSidebarLogoLoad}
-                    className={`object-contain ${
+                    className={`object-contain mx-auto ${
                       logoMeta && Math.abs(logoMeta.ratio - 1) < 0.3
                         ? "max-h-9 max-w-9"
                         : "max-h-10 max-w-full w-auto"
                     }`}
                   />
                 ) : (
-                  <div className="flex items-center gap-2 px-2">
+                  <div className="flex items-center justify-center gap-2 px-2 mx-auto">
                     <School className="w-6 h-6 text-sky-600 dark:text-sky-400 shrink-0" />
                     <span className="font-extrabold text-xs text-slate-800 dark:text-white truncate max-w-[145px]">
                       {schoolProfile?.name || "School Portal"}
@@ -1004,7 +1004,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <button
                 type="button"
                 onClick={() => setMobileOpen?.(false)}
-                className="lg:hidden p-2 rounded-2xl btn-glass-secondary text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors ml-2 shrink-0 active:scale-95 cursor-pointer"
+                className="lg:hidden absolute right-0 p-2 rounded-2xl btn-glass-secondary text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors shrink-0 active:scale-95 cursor-pointer"
                 title="Close menu"
               >
                 <X className="w-5 h-5 stroke-[2.2]" />
