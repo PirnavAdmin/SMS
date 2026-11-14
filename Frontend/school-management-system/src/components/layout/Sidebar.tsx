@@ -796,7 +796,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       >
         {collapsed ? (
           <div
-            className="flex items-center justify-center w-12 h-10 rounded-2xl btn-glass-secondary cursor-pointer overflow-hidden p-1 active:scale-95 transition-all"
+            className="flex items-center justify-center w-11 h-11 rounded-2xl btn-glass-secondary cursor-pointer overflow-hidden p-1 active:scale-95 transition-all"
             onClick={() => setCollapsed(false)}
             title={schoolProfile?.name || "School Dashboard"}
           >
@@ -847,7 +847,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       {/* Nav Menu */}
-      <div ref={navRef} className="flex-1 overflow-y-auto py-4 px-3 space-y-6 no-scrollbar">
+      <div
+        ref={navRef}
+        className={`flex-1 overflow-y-auto py-4 space-y-6 no-scrollbar ${
+          collapsed ? "px-0 w-full flex flex-col items-center" : "px-3"
+        }`}
+      >
         {menuGroups.map((group, idx) => {
           const visibleItems = group.items.filter(
             (item: any) => {
@@ -889,7 +894,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
           if (visibleItems.length === 0 && !hasCustomModules) return null;
 
           return (
-            <div key={idx} className="space-y-1.5">
+            <div
+              key={idx}
+              className={`space-y-1.5 ${
+                collapsed ? "w-full flex flex-col items-center" : ""
+              }`}
+            >
               {!collapsed && (
                 <h3 className="px-3 text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                   {group.title}
@@ -899,7 +909,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
               {group.isFinanceSection && (
                 <>
                   {hasModuleAccess(role, "fees") && (
-                    <div className="space-y-1">
+                    <div
+                      className={`space-y-1 ${
+                        collapsed ? "w-full flex flex-col items-center" : ""
+                      }`}
+                    >
                       <button
                         onClick={() => {
                           const newExpanded = !financeExpanded;
@@ -919,7 +933,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             );
                           }
                         }}
-                        className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all ${
+                        title={
+                          collapsed
+                            ? role.toLowerCase() === "parent" ||
+                              role.toLowerCase() === "student"
+                              ? "Fee Details"
+                              : "Finance & Fees"
+                            : undefined
+                        }
+                        className={`flex items-center transition-all ${
+                          collapsed
+                            ? "w-11 h-11 p-0 rounded-2xl justify-center mx-auto"
+                            : "w-full justify-between px-3 py-2 rounded-xl text-xs"
+                        } ${
                           isFinanceActive
                             ? financeExpanded &&
                               financeSubItems.length > 0 &&
@@ -929,9 +955,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             : "text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white font-semibold"
                         }`}
                       >
-                        <div className="flex items-center gap-3 truncate">
+                        <div
+                          className={`flex items-center ${
+                            collapsed
+                              ? "justify-center w-full h-full"
+                              : "gap-3 truncate"
+                          }`}
+                        >
                           <IndianRupee
-                            className={`w-4 h-4 shrink-0 ${isFinanceActive ? (financeExpanded && financeSubItems.length > 0 && !collapsed ? "text-sky-600 dark:text-sky-400" : "text-white") : "text-sky-500"}`}
+                            className={`${
+                              collapsed ? "w-5 h-5" : "w-4 h-4"
+                            } shrink-0 ${
+                              isFinanceActive
+                                ? financeExpanded &&
+                                  financeSubItems.length > 0 &&
+                                  !collapsed
+                                  ? "text-sky-600 dark:text-sky-400"
+                                  : "text-white"
+                                : "text-sky-500"
+                            }`}
                           />
                           {!collapsed && (
                             <span className="font-bold">
@@ -1023,7 +1065,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   )}
 
                   {hasModuleAccess(role, "hostel") && isHosteller && (
-                    <div className="space-y-1 pt-1">
+                    <div
+                      className={`space-y-1 pt-1 ${
+                        collapsed ? "w-full flex flex-col items-center" : ""
+                      }`}
+                    >
                       <button
                         onClick={() => {
                           const newExpanded = !hostelExpanded;
@@ -1043,7 +1089,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             setActiveModule("hostel-dashboard");
                           }
                         }}
-                        className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all ${
+                        title={
+                          collapsed
+                            ? role.toLowerCase() === "parent" ||
+                              role.toLowerCase() === "student"
+                              ? "Hostel"
+                              : "Hostel Management"
+                            : undefined
+                        }
+                        className={`flex items-center transition-all ${
+                          collapsed
+                            ? "w-11 h-11 p-0 rounded-2xl justify-center mx-auto"
+                            : "w-full justify-between px-3 py-2 rounded-xl text-xs"
+                        } ${
                           isHostelActive
                             ? hostelExpanded &&
                               hostelSubItems.length > 0 &&
@@ -1053,9 +1111,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             : "text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white font-semibold"
                         }`}
                       >
-                        <div className="flex items-center gap-3 truncate">
+                        <div
+                          className={`flex items-center ${
+                            collapsed
+                              ? "justify-center w-full h-full"
+                              : "gap-3 truncate"
+                          }`}
+                        >
                           <Home
-                            className={`w-4 h-4 shrink-0 ${isHostelActive ? (hostelExpanded && hostelSubItems.length > 0 && !collapsed ? "text-sky-600 dark:text-sky-400" : "text-white") : "text-indigo-500"}`}
+                            className={`${
+                              collapsed ? "w-5 h-5" : "w-4 h-4"
+                            } shrink-0 ${
+                              isHostelActive
+                                ? hostelExpanded &&
+                                  hostelSubItems.length > 0 &&
+                                  !collapsed
+                                  ? "text-sky-600 dark:text-sky-400"
+                                  : "text-white"
+                                : "text-indigo-500"
+                            }`}
                           />
                           {!collapsed && (
                             <span className="font-bold">
@@ -1135,7 +1209,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   )}
 
                   {hasModuleAccess(role, "transport") && usesTransport && (
-                    <div className="space-y-1 pt-1">
+                    <div
+                      className={`space-y-1 pt-1 ${
+                        collapsed ? "w-full flex flex-col items-center" : ""
+                      }`}
+                    >
                       <button
                         onClick={() => {
                           const newExpanded = !transportExpanded;
@@ -1159,7 +1237,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             }
                           }
                         }}
-                        className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all ${
+                        title={
+                          collapsed
+                            ? role.toLowerCase() === "parent" ||
+                              role.toLowerCase() === "student"
+                              ? "Transport"
+                              : role.toLowerCase() === "driver"
+                              ? "My Bus & Route"
+                              : "Transport Management"
+                            : undefined
+                        }
+                        className={`flex items-center transition-all ${
+                          collapsed
+                            ? "w-11 h-11 p-0 rounded-2xl justify-center mx-auto"
+                            : "w-full justify-between px-3 py-2 rounded-xl text-xs"
+                        } ${
                           isTransportActive
                             ? transportExpanded &&
                               transportSubItems.length > 0 &&
@@ -1169,9 +1261,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             : "text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white font-semibold"
                         }`}
                       >
-                        <div className="flex items-center gap-3 truncate">
+                        <div
+                          className={`flex items-center ${
+                            collapsed
+                              ? "justify-center w-full h-full"
+                              : "gap-3 truncate"
+                          }`}
+                        >
                           <Bus
-                            className={`w-4 h-4 shrink-0 ${isTransportActive ? (transportExpanded && transportSubItems.length > 0 && !collapsed ? "text-sky-600 dark:text-sky-400" : "text-white") : "text-slate-400"}`}
+                            className={`${
+                              collapsed ? "w-5 h-5" : "w-4 h-4"
+                            } shrink-0 ${
+                              isTransportActive
+                                ? transportExpanded &&
+                                  transportSubItems.length > 0 &&
+                                  !collapsed
+                                  ? "text-sky-600 dark:text-sky-400"
+                                  : "text-white"
+                                : "text-slate-400"
+                            }`}
                           />
                           {!collapsed && (
                             <span className="font-bold">
@@ -1240,7 +1348,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   )}
 
                   {hasModuleAccess(role, "uniforms") && (
-                    <div className="space-y-1 pt-1">
+                    <div
+                      className={`space-y-1 pt-1 ${
+                        collapsed ? "w-full flex flex-col items-center" : ""
+                      }`}
+                    >
                       <button
                         onClick={() => {
                           const newExpanded = !uniformExpanded;
@@ -1255,7 +1367,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             setActiveModule("uniform-dashboard");
                           }
                         }}
-                        className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all ${
+                        title={collapsed ? "Uniform Management" : undefined}
+                        className={`flex items-center transition-all ${
+                          collapsed
+                            ? "w-11 h-11 p-0 rounded-2xl justify-center mx-auto"
+                            : "w-full justify-between px-3 py-2 rounded-xl text-xs"
+                        } ${
                           isUniformActive
                             ? uniformExpanded &&
                               uniformSubItems.length > 0 &&
@@ -1265,9 +1382,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             : "text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white font-semibold"
                         }`}
                       >
-                        <div className="flex items-center gap-3 truncate">
+                        <div
+                          className={`flex items-center ${
+                            collapsed
+                              ? "justify-center w-full h-full"
+                              : "gap-3 truncate"
+                          }`}
+                        >
                           <Shirt
-                            className={`w-4 h-4 shrink-0 ${isUniformActive ? (uniformExpanded && uniformSubItems.length > 0 && !collapsed ? "text-sky-600 dark:text-sky-400" : "text-white") : "text-slate-400"}`}
+                            className={`${
+                              collapsed ? "w-5 h-5" : "w-4 h-4"
+                            } shrink-0 ${
+                              isUniformActive
+                                ? uniformExpanded &&
+                                  uniformSubItems.length > 0 &&
+                                  !collapsed
+                                  ? "text-sky-600 dark:text-sky-400"
+                                  : "text-white"
+                                : "text-slate-400"
+                            }`}
                           />
                           {!collapsed && (
                             <span className="font-bold">
@@ -1335,7 +1468,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     role.toLowerCase() === "super admin" ||
                     role.toLowerCase() === "principal") &&
                     hasModuleAccess(role, "library") && (
-                    <div className="space-y-1 pt-1">
+                    <div
+                      className={`space-y-1 pt-1 ${
+                        collapsed ? "w-full flex flex-col items-center" : ""
+                      }`}
+                    >
                       <button
                         onClick={() => {
                           const newExpanded = !libraryExpanded;
@@ -1352,7 +1489,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             setActiveModule("library");
                           }
                         }}
-                        className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all ${
+                        title={collapsed ? "Library Management" : undefined}
+                        className={`flex items-center transition-all ${
+                          collapsed
+                            ? "w-11 h-11 p-0 rounded-2xl justify-center mx-auto"
+                            : "w-full justify-between px-3 py-2 rounded-xl text-xs"
+                        } ${
                           isLibraryActive
                             ? libraryExpanded &&
                               librarySubItems.length > 0 &&
@@ -1362,9 +1504,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             : "text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white font-semibold"
                         }`}
                       >
-                        <div className="flex items-center gap-3 truncate">
+                        <div
+                          className={`flex items-center ${
+                            collapsed
+                              ? "justify-center w-full h-full"
+                              : "gap-3 truncate"
+                          }`}
+                        >
                           <Library
-                            className={`w-4 h-4 shrink-0 ${isLibraryActive ? (libraryExpanded && librarySubItems.length > 0 && !collapsed ? "text-sky-600 dark:text-sky-400" : "text-white") : "text-slate-400"}`}
+                            className={`${
+                              collapsed ? "w-5 h-5" : "w-4 h-4"
+                            } shrink-0 ${
+                              isLibraryActive
+                                ? libraryExpanded &&
+                                  librarySubItems.length > 0 &&
+                                  !collapsed
+                                  ? "text-sky-600 dark:text-sky-400"
+                                  : "text-white"
+                                : "text-slate-400"
+                            }`}
                           />
                           {!collapsed && (
                             <span className="font-bold">
@@ -1450,7 +1608,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     safeRole === "principal")
                 ) {
                   return (
-                    <div key={item.id} className="space-y-1">
+                    <div
+                      key={item.id}
+                      className={`space-y-1 ${
+                        collapsed ? "w-full flex flex-col items-center" : ""
+                      }`}
+                    >
                       <button
                         onClick={() => {
                           const newExpanded = !academicsExpanded;
@@ -1466,7 +1629,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             setActiveModule("academic-dashboard");
                           }
                         }}
-                        className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all ${
+                        title={collapsed ? "Academic Management" : undefined}
+                        className={`flex items-center transition-all ${
+                          collapsed
+                            ? "w-11 h-11 p-0 rounded-2xl justify-center mx-auto"
+                            : "w-full justify-between px-3 py-2 rounded-xl text-xs"
+                        } ${
                           isAcademicsActive
                             ? academicsExpanded &&
                               academicSubItems.length > 0 &&
@@ -1476,9 +1644,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             : "text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white font-semibold"
                         }`}
                       >
-                        <div className="flex items-center gap-3 truncate">
+                        <div
+                          className={`flex items-center ${
+                            collapsed
+                              ? "justify-center w-full h-full"
+                              : "gap-3 truncate"
+                          }`}
+                        >
                           <Presentation
-                            className={`w-4 h-4 shrink-0 ${isAcademicsActive ? (academicsExpanded && academicSubItems.length > 0 && !collapsed ? "text-sky-600 dark:text-sky-400" : "text-white") : "text-sky-500"}`}
+                            className={`${
+                              collapsed ? "w-5 h-5" : "w-4 h-4"
+                            } shrink-0 ${
+                              isAcademicsActive
+                                ? academicsExpanded &&
+                                  academicSubItems.length > 0 &&
+                                  !collapsed
+                                  ? "text-sky-600 dark:text-sky-400"
+                                  : "text-white"
+                                : "text-sky-500"
+                            }`}
                           />
                           {!collapsed && (
                             <span className="font-bold">
@@ -1544,7 +1728,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
                 if (item.id === "staff" && hasModuleAccess(role || '', "staff")) {
                   return (
-                    <div key={item.id} className="space-y-1">
+                    <div
+                      key={item.id}
+                      className={`space-y-1 ${
+                        collapsed ? "w-full flex flex-col items-center" : ""
+                      }`}
+                    >
                       <button
                         onClick={() => {
                           const newExpanded = !staffExpanded;
@@ -1575,7 +1764,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             }
                           }
                         }}
-                        className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs transition-all ${
+                        title={
+                          collapsed
+                            ? safeRole === "parent" ||
+                              safeRole === "student"
+                              ? "Teachers"
+                              : ["teacher", "driver", "warden", "librarian", "accountant", "staff"].some((r) =>
+                                  safeRole.includes(r)
+                                ) &&
+                                !safeRole.includes("admin") &&
+                                !safeRole.includes("principal")
+                              ? "My Details"
+                              : "Faculty & Staff"
+                            : undefined
+                        }
+                        className={`flex items-center transition-all ${
+                          collapsed
+                            ? "w-11 h-11 p-0 rounded-2xl justify-center mx-auto"
+                            : "w-full justify-between px-3 py-2 rounded-xl text-xs"
+                        } ${
                           isStaffActive
                             ? staffExpanded &&
                               staffSubItems.length > 0 &&
@@ -1585,9 +1792,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             : "text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white font-semibold"
                         }`}
                       >
-                        <div className="flex items-center gap-3 truncate">
+                        <div
+                          className={`flex items-center ${
+                            collapsed
+                              ? "justify-center w-full h-full"
+                              : "gap-3 truncate"
+                          }`}
+                        >
                           <Users
-                            className={`w-4 h-4 shrink-0 ${isStaffActive ? (staffExpanded && staffSubItems.length > 0 && !collapsed ? "text-sky-600 dark:text-sky-400" : "text-white") : "text-sky-500"}`}
+                            className={`${
+                              collapsed ? "w-5 h-5" : "w-4 h-4"
+                            } shrink-0 ${
+                              isStaffActive
+                                ? staffExpanded &&
+                                  staffSubItems.length > 0 &&
+                                  !collapsed
+                                  ? "text-sky-600 dark:text-sky-400"
+                                  : "text-white"
+                                : "text-sky-500"
+                            }`}
                           />
                           {!collapsed && (
                             <span className="font-bold">
@@ -1707,15 +1930,31 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       setAcademicsExpanded(false);
                     }}
                     title={collapsed ? item.label : undefined}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-2xl text-xs transition-all active:scale-98 ${
+                    className={`flex items-center transition-all active:scale-98 ${
+                      collapsed
+                        ? "w-11 h-11 p-0 rounded-2xl justify-center mx-auto"
+                        : "w-full justify-between px-3 py-2 rounded-2xl text-xs"
+                    } ${
                       isActive
                         ? "btn-glass-primary font-bold"
                         : "text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white font-semibold"
                     }`}
                   >
-                    <div className="flex items-center gap-3 truncate">
+                    <div
+                      className={`flex items-center ${
+                        collapsed
+                          ? "justify-center w-full h-full"
+                          : "gap-3 truncate"
+                      }`}
+                    >
                       <Icon
-                        className={`w-4 h-4 shrink-0 stroke-[2] ${isActive ? "text-white" : "text-slate-400 dark:text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200"}`}
+                        className={`${
+                          collapsed ? "w-5 h-5" : "w-4 h-4"
+                        } shrink-0 stroke-[2] ${
+                          isActive
+                            ? "text-white"
+                            : "text-slate-400 dark:text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200"
+                        }`}
                       />
                       {!collapsed && (
                         <span className="truncate">{item.label}</span>

@@ -45,7 +45,7 @@ export const StudentHostelContainerView: React.FC<StudentHostelContainerViewProp
   return (
     <div className="space-y-3.5 animate-in fade-in">
       {/* Sub-tab Selector */}
-      <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm p-1 rounded-xl flex items-center gap-1 overflow-x-auto no-scrollbar border border-slate-200/80 dark:border-slate-800 shadow-xs">
+      <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm p-1.5 rounded-2xl flex items-center gap-1.5 overflow-x-auto no-scrollbar border border-slate-200/80 dark:border-slate-800 shadow-xs">
         {subTabs.map(tab => {
           const Icon = tab.icon;
           const isActive = activeSubTab === tab.id;
@@ -53,7 +53,7 @@ export const StudentHostelContainerView: React.FC<StudentHostelContainerViewProp
             <button
               key={tab.id}
               onClick={() => setActiveSubTab(tab.id as any)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap flex items-center gap-1.5 transition-all ${
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap flex items-center gap-1.5 transition-all ${
                 isActive
                   ? 'bg-sky-600 text-white shadow-sm'
                   : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white font-medium'

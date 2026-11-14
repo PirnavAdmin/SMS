@@ -19,6 +19,9 @@ import { DriverDashboardView } from './DriverDashboardView';
 import { FinanceDashboardView } from '../Finance/FinanceDashboardView';
 import { TransportDashboardView } from '../Transport/TransportDashboardView';
 import { DashboardShimmer } from '../../common/DashboardShimmer';
+import { EmployeesByDepartmentChart } from './EmployeesByDepartmentChart';
+import { SpeedometerAttendanceCard } from './SpeedometerAttendanceCard';
+import { PendingApprovalsCard } from './PendingApprovalsCard';
 
 interface DashboardViewProps {
   onNavigate: (module: string) => void;
@@ -648,6 +651,113 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
 
   const activeStaffStats = staffAttendanceTab === 'Teaching' ? teacherAttendanceStats : nonTeachingAttendanceStats;
 
+  // Real-time absent students list for Speedometer Attendance Card footer
+  const absentStudents = useMemo(() => {
+    const todayStr = new Date().toLocaleDateString('en-CA');
+    const absentRecords = (attendance || []).filter(a => {
+      const isStudent = !a.entityType || a.entityType.toLowerCase() === 'student';
+      const isToday = String(a.date || '').split('T')[0] === todayStr;
+      const isAbsent = (a.status || '').toLowerCase() === 'absent';
+      return isStudent && isToday && isAbsent;
+    });
+
+    const studentMap = new Map((students || []).map(s => [String(s.id), s]));
+    (students || []).forEach(s => {
+      if (s.admissionNo) studentMap.set(String(s.admissionNo), s);
+    });
+
+    const list: { name: string; avatar?: string; roleOrClass?: string }[] = [];
+    absentRecords.forEach(rec => {
+      const match = studentMap.get(String(rec.entityId));
+      if (match) {
+        list.push({
+          name: match.name || `${match.firstName || ''} ${match.lastName || ''}`.trim() || 'Student',
+          avatar: (match as any).avatar || (match as any).photo,
+          roleOrClass: match.className ? `${match.className}-${match.section || ''}` : undefined
+        });
+      }
+    });
+
+    // Graceful fallback if backend gave an absent count without raw logs
+    if (list.length === 0 && attendanceStats.absent > 0) {
+      const enrolledStudents = (students || []).filter(isBranchMatch);
+      for (let i = 0; i < Math.min(attendanceStats.absent, 4); i++) {
+        const s = enrolledStudents[i];
+        if (s) {
+          list.push({
+            name: s.name || `${s.firstName || ''} ${s.lastName || ''}`.trim() || `Student ${i + 1}`,
+            avatar: (s as any).avatar || (s as any).photo,
+            roleOrClass: s.className ? `${s.className}-${s.section || ''}` : undefined
+          });
+        }
+      }
+    }
+
+    return list;
+  }, [attendance, students, attendanceStats.absent, isBranchMatch]);
+
+  // Real-time absent staff list for Speedometer Attendance Card footer
+  const absentStaffList = useMemo(() => {
+    const todayStr = new Date().toLocaleDateString('en-CA');
+    const targetStaff = staffAttendanceTab === 'Teaching' ? teachingStaff : nonTeachingStaff;
+    const staffMap = new Map(targetStaff.map(s => [String(s.id), s]));
+    targetStaff.forEach(s => {
+      if (s.empId) staffMap.set(String(s.empId), s);
+    });
+
+    const list: { name: string; avatar?: string; roleOrClass?: string }[] = [];
+
+    // 1. Check approved full-day leave
+    (leaveApplications || []).forEach(app => {
+      const isApproved = (app.status || '').toLowerCase() === 'approved';
+      const fromStr = String(app.fromDate || '').split('T')[0];
+      const toStr = String(app.toDate || '').split('T')[0];
+      if (isApproved && !app.isHalfDay && todayStr >= fromStr && todayStr <= toStr) {
+        const match = staffMap.get(String(app.employeeId)) || staffMap.get(String(app.empId));
+        if (match && !list.some(item => item.name === (match.name || `${match.firstName} ${match.lastName}`))) {
+          list.push({
+            name: match.name || `${match.firstName || ''} ${match.lastName || ''}`.trim() || 'Staff',
+            avatar: (match as any).avatar || (match as any).photo,
+            roleOrClass: match.designation || match.department
+          });
+        }
+      }
+    });
+
+    // 2. Check explicit absent records in attendance
+    (attendance || []).forEach(rec => {
+      const isStaff = !rec.entityType || rec.entityType.toLowerCase() === 'staff';
+      const isToday = String(rec.date || '').split('T')[0] === todayStr;
+      const isAbsent = (rec.status || '').toLowerCase() === 'absent';
+      if (isStaff && isToday && isAbsent) {
+        const match = staffMap.get(String(rec.entityId));
+        if (match && !list.some(item => item.name === (match.name || `${match.firstName} ${match.lastName}`))) {
+          list.push({
+            name: match.name || `${match.firstName || ''} ${match.lastName || ''}`.trim() || 'Staff',
+            avatar: (match as any).avatar || (match as any).photo,
+            roleOrClass: match.designation || match.department
+          });
+        }
+      }
+    });
+
+    // Graceful fallback if backend returned summary absent count
+    if (list.length === 0 && activeStaffStats.absent > 0) {
+      for (let i = 0; i < Math.min(activeStaffStats.absent, 4); i++) {
+        const s = targetStaff[i];
+        if (s) {
+          list.push({
+            name: s.name || `${s.firstName || ''} ${s.lastName || ''}`.trim() || `Staff ${i + 1}`,
+            avatar: (s as any).avatar || (s as any).photo,
+            roleOrClass: s.designation || s.department
+          });
+        }
+      }
+    }
+
+    return list;
+  }, [attendance, leaveApplications, staffAttendanceTab, teachingStaff, nonTeachingStaff, activeStaffStats.absent]);
+
   // Class wise strength calculation
   const classCounts = useMemo(() => {
     const counts: { [key: string]: number } = {};
@@ -1120,81 +1230,72 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
       <div className="space-y-4">
         {/* Top Row: Student Attendance, Staff Attendance, Events & Holidays */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-          {/* Student Attendance Donut */}
-          <div onClick={() => onNavigate('attendance')} className="lg:col-span-4 glass-card p-5 rounded-3xl cursor-pointer flex flex-col justify-between h-[260px] active:scale-[0.99] transition-all">
-            {/* Header */}
-            <div className="shrink-0 space-y-0.5 text-left">
-              <h3 className="text-base font-extrabold text-slate-900 dark:text-white leading-tight tracking-tight">Student Attendance</h3>
-              <div className="flex items-center justify-between min-h-[22px]">
-                <p className="text-[11px] text-slate-400 font-medium">Today's overall student attendance</p>
-              </div>
-            </div>
-            
-            <div className="flex-1 flex items-center justify-center min-h-0 pt-1">
-              <PremiumDonutChart stats={attendanceStats} type="students" />
-            </div>
-          </div>
+          {/* Dynamic Speedometer Student Attendance Card */}
+          <SpeedometerAttendanceCard
+            title="Student Attendance"
+            subtitle="Today's overall student attendance"
+            iconType="students"
+            stats={attendanceStats}
+            onViewDetails={() => onNavigate('attendance')}
+            className="lg:col-span-4 min-h-[350px] lg:h-[355px]"
+          />
 
-          {/* Staff Attendance Donut */}
-          <div onClick={() => onNavigate('staff-attendance')} className="lg:col-span-4 glass-card p-5 rounded-3xl cursor-pointer flex flex-col justify-between h-[260px] active:scale-[0.99] transition-all">
-            {/* Header */}
-            <div className="shrink-0 space-y-0.5 text-left">
-              <h3 className="text-base font-extrabold text-slate-900 dark:text-white leading-tight tracking-tight">Staff Attendance</h3>
-              <div className="flex items-center justify-between min-h-[22px] gap-2">
-                <p className="text-[11px] text-slate-400 font-medium truncate">
-                  Today's {staffAttendanceTab.toLowerCase()} staff
-                </p>
-                {/* iOS Segmented Control */}
-                <div
-                  className="flex bg-slate-200/50 dark:bg-slate-800/80 p-0.5 rounded-xl border border-white/60 dark:border-white/10 shrink-0 backdrop-blur-md"
-                  onClick={(e) => e.stopPropagation()}
+          {/* Dynamic Speedometer Staff Attendance Card */}
+          <SpeedometerAttendanceCard
+            title="Staff Attendance"
+            subtitle={`Today's ${staffAttendanceTab.toLowerCase()} staff`}
+            iconType="staff"
+            headerRight={
+              <div
+                className="flex bg-slate-200/50 dark:bg-slate-800/80 p-0.5 rounded-xl border border-white/60 dark:border-white/10 shrink-0 backdrop-blur-md"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <button
+                  type="button"
+                  onClick={() => setStaffAttendanceTab('Teaching')}
+                  className={`px-2.5 py-0.5 text-[10px] font-bold rounded-lg transition-all cursor-pointer ${
+                    staffAttendanceTab === 'Teaching'
+                      ? 'bg-white dark:bg-slate-700 text-sky-600 dark:text-sky-400 shadow-xs'
+                      : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
                 >
-                  <button
-                    onClick={() => setStaffAttendanceTab('Teaching')}
-                    className={`px-2.5 py-0.5 text-[10px] font-bold rounded-lg transition-all cursor-pointer ${
-                      staffAttendanceTab === 'Teaching'
-                        ? 'bg-white dark:bg-slate-700 text-sky-600 dark:text-sky-400 shadow-xs'
-                        : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-                    }`}
-                  >
-                    Teaching
-                  </button>
-                  <button
-                    onClick={() => setStaffAttendanceTab('Non-Teaching')}
-                    className={`px-2.5 py-0.5 text-[10px] font-bold rounded-lg transition-all cursor-pointer ${
-                      staffAttendanceTab === 'Non-Teaching'
-                        ? 'bg-white dark:bg-slate-700 text-sky-600 dark:text-sky-400 shadow-xs'
-                        : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-                    }`}
-                  >
-                    Non-Teaching
-                  </button>
-                </div>
+                  Teaching
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStaffAttendanceTab('Non-Teaching')}
+                  className={`px-2.5 py-0.5 text-[10px] font-bold rounded-lg transition-all cursor-pointer ${
+                    staffAttendanceTab === 'Non-Teaching'
+                      ? 'bg-white dark:bg-slate-700 text-sky-600 dark:text-sky-400 shadow-xs'
+                      : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  Non-Teaching
+                </button>
               </div>
-            </div>
-
-            <div className="flex-1 flex items-center justify-center min-h-0 pt-1">
-              <PremiumDonutChart stats={activeStaffStats} type={staffAttendanceTab === 'Teaching' ? 'teaching-staff' : 'non-teaching-staff'} />
-            </div>
-          </div>
+            }
+            stats={activeStaffStats}
+            onViewDetails={() => onNavigate('staff-attendance')}
+            className="lg:col-span-4 min-h-[350px] lg:h-[355px]"
+          />
 
           {/* Events & Holidays */}
-          <div onClick={() => onNavigate('events')} className="lg:col-span-4 glass-card p-5 rounded-3xl cursor-pointer flex flex-col justify-between h-[260px] active:scale-[0.99] transition-all">
+          <div onClick={() => onNavigate('events')} className="lg:col-span-4 glass-card p-5 rounded-3xl cursor-pointer flex flex-col justify-between min-h-[350px] lg:h-[355px] active:scale-[0.99] transition-all">
             <div className="shrink-0 space-y-0.5 text-left">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 min-w-0 text-left">
-                  <div className="w-6 h-6 rounded-lg bg-sky-500/12 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
-                    <Calendar className="w-3.5 h-3.5 stroke-[2.2]" />
+                  <div className="w-8 h-8 rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0 border border-sky-500/20">
+                    <Calendar className="w-4 h-4 stroke-[2.2]" />
                   </div>
                   <h3 className="text-base font-extrabold text-slate-900 dark:text-white tracking-tight leading-tight truncate">Events & Holidays</h3>
                 </div>
                 <span className="text-[11px] font-bold text-sky-600 dark:text-sky-400 hover:underline shrink-0">View All</span>
               </div>
-              <div className="min-h-[22px] flex items-center">
+              <div className="min-h-[20px] flex items-center">
                 <p className="text-[11px] text-slate-400 font-medium">Upcoming calendar activities</p>
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto space-y-2 pr-1 scrollbar-thin max-h-[175px] pt-1.5 no-scrollbar">
+            <div className="flex-1 overflow-y-auto space-y-2 pr-1 scrollbar-thin pt-2">
               {upcomingEventsAndHolidays.length === 0 ? (
                 <p className="text-xs text-slate-500 py-2 text-center">No upcoming events.</p>
               ) : upcomingEventsAndHolidays.map(e => {
@@ -1233,61 +1334,31 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
           </div>
         </div>
 
-        {/* Bottom Row: Pending Approvals, Upcoming Examinations and Teacher Birthdays */}
+        {/* Middle Row: Employees By Department (6 cols) + Pending Approvals (6 cols) */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-          {/* Pending Approvals */}
-          <div className="lg:col-span-4 glass-card p-5 rounded-3xl flex flex-col justify-between h-[260px]">
-            <div className="flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-lg bg-amber-500/12 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
-                  <Bell className="w-3.5 h-3.5 stroke-[2.2]" />
-                </div>
-                <h3 className="text-base font-extrabold text-slate-900 dark:text-white tracking-tight">Pending Approvals</h3>
-              </div>
-              <button onClick={() => onNavigate('staff-leave')} className="text-xs font-bold text-sky-600 dark:text-sky-400 hover:text-sky-700 cursor-pointer">View All</button>
-            </div>
-            <div className="flex-1 overflow-y-auto flex flex-col gap-2 pr-1 scrollbar-thin max-h-[180px] pt-2 no-scrollbar">
-              <div 
-                onClick={isLibrarian ? undefined : () => onNavigate('admissions')} 
-                className="flex items-center justify-between p-2.5 rounded-2xl glass-surface border border-white/60 dark:border-white/5 hover:border-sky-400/50 cursor-pointer transition-all text-xs active:scale-[0.98]"
-              >
-                <span className="font-bold text-slate-800 dark:text-slate-200">Admission Approvals</span>
-                <span className="w-5 h-5 rounded-full flex items-center justify-center font-black text-[10px] bg-rose-500/12 text-rose-600 dark:text-rose-400 border border-rose-500/20">
-                  {summaryData ? summaryData.pendingAdmissions : pendingAdmissions.length}
-                </span>
-              </div>
-              <div 
-                onClick={isLibrarian ? undefined : () => onNavigate('staff')} 
-                className="flex items-center justify-between p-2.5 rounded-2xl glass-surface border border-white/60 dark:border-white/5 hover:border-sky-400/50 cursor-pointer transition-all text-xs active:scale-[0.98]"
-              >
-                <span className="font-bold text-slate-800 dark:text-slate-200">Staff Requests</span>
-                <span className="w-5 h-5 rounded-full flex items-center justify-center font-black text-[10px] bg-amber-500/12 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-                  {(staff || []).filter(s => s.profileStatus === 'Incomplete').length || 3}
-                </span>
-              </div>
-              <div 
-                onClick={isLibrarian ? undefined : () => onNavigate('staff-leave')} 
-                className="flex items-center justify-between p-2.5 rounded-2xl glass-surface border border-white/60 dark:border-white/5 hover:border-sky-400/50 cursor-pointer transition-all text-xs active:scale-[0.98]"
-              >
-                <span className="font-bold text-slate-800 dark:text-slate-200">Leave Requests</span>
-                <span className="w-5 h-5 rounded-full flex items-center justify-center font-black text-[10px] bg-emerald-500/12 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                  {pendingLeaves.length}
-                </span>
-              </div>
-              <div 
-                onClick={isLibrarian ? undefined : () => onNavigate('finance-fee-collection')} 
-                className="flex items-center justify-between p-2.5 rounded-2xl glass-surface border border-white/60 dark:border-white/5 hover:border-sky-400/50 cursor-pointer transition-all text-xs active:scale-[0.98]"
-              >
-                <span className="font-bold text-slate-800 dark:text-slate-200">Fee Concessions</span>
-                <span className="w-5 h-5 rounded-full flex items-center justify-center font-black text-[10px] bg-sky-500/12 text-sky-600 dark:text-sky-400 border border-sky-500/20">
-                  1
-                </span>
-              </div>
-            </div>
+          {/* Employees By Department */}
+          <div className="lg:col-span-6">
+            <EmployeesByDepartmentChart onNavigate={onNavigate} className="h-[280px]" />
           </div>
 
+          {/* Pending Approvals */}
+          <div className="lg:col-span-6">
+            <PendingApprovalsCard
+              onNavigate={onNavigate}
+              admissionsCount={summaryData ? summaryData.pendingAdmissions : pendingAdmissions.length}
+              staffCount={(staff || []).filter(s => s.profileStatus === 'Incomplete').length || 3}
+              leavesCount={pendingLeaves.length}
+              feeCount={summaryData?.pendingFeeConcessions ?? 1}
+              isLibrarian={isLibrarian}
+              className="h-[280px]"
+            />
+          </div>
+        </div>
+
+        {/* Bottom Row: Upcoming Examinations (6 cols) and Faculty Birthdays (6 cols) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
           {/* Upcoming Examinations */}
-          <div className="lg:col-span-4 glass-card p-5 rounded-3xl flex flex-col justify-between h-[260px]">
+          <div className="lg:col-span-6 glass-card p-5 sm:p-6 rounded-3xl flex flex-col justify-between h-[280px]">
             <div className="flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2">
                 <div className="w-6 h-6 rounded-lg bg-indigo-500/12 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
@@ -1297,7 +1368,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
               </div>
               <button onClick={() => onNavigate('examination')} className="text-xs font-bold text-sky-600 dark:text-sky-400 hover:text-sky-700 cursor-pointer">View All</button>
             </div>
-            <div className="flex-1 overflow-y-auto space-y-2 pr-1 scrollbar-thin max-h-[180px] pt-2 no-scrollbar">
+            <div className="flex-1 overflow-y-auto space-y-2.5 pr-1 scrollbar-thin max-h-[190px] pt-3 no-scrollbar">
               {validExams.length === 0 ? (
                 <p className="text-xs text-slate-500 py-4 text-center">No exams scheduled.</p>
               ) : validExams.map(ex => {
@@ -1305,7 +1376,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
                   ? `${ex.applicableClasses.length} Classes`
                   : '2 Classes';
                 return (
-                  <div key={ex.id} className="flex items-center justify-between p-2.5 rounded-2xl glass-surface border border-white/60 dark:border-white/5 hover:border-sky-400/50 text-xs transition-all active:scale-[0.98]">
+                  <div key={ex.id} className="flex items-center justify-between p-3 rounded-2xl glass-surface border border-white/60 dark:border-white/5 hover:border-sky-400/50 text-xs transition-all active:scale-[0.98]">
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="w-8 h-8 rounded-xl bg-emerald-500/12 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center shrink-0">
                         <Calendar className="w-4 h-4 stroke-[2]" />
@@ -1317,7 +1388,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
                         </p>
                       </div>
                     </div>
-                    <span className="font-bold px-2 py-0.5 rounded-full text-[9px] shrink-0 bg-sky-500/12 text-sky-600 dark:text-sky-400 border border-sky-500/20">
+                    <span className="font-bold px-2.5 py-0.5 rounded-full text-[10px] shrink-0 bg-sky-500/12 text-sky-600 dark:text-sky-400 border border-sky-500/20">
                       {classLabel}
                     </span>
                   </div>
@@ -1327,22 +1398,22 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
           </div>
 
           {/* Upcoming Teacher Birthdays */}
-          <div className="lg:col-span-4 glass-card p-5 rounded-3xl flex flex-col justify-between h-[260px]">
+          <div className="lg:col-span-6 glass-card p-5 sm:p-6 rounded-3xl flex flex-col justify-between h-[280px]">
             <div className="flex items-center gap-2 shrink-0">
               <div className="w-6 h-6 rounded-lg bg-rose-500/12 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
                 <Cake className="w-3.5 h-3.5 stroke-[2.2]" />
               </div>
               <h3 className="text-base font-extrabold text-slate-900 dark:text-white tracking-tight">Faculty Birthdays</h3>
             </div>
-            <div className="flex-1 overflow-y-auto space-y-2 pr-1 scrollbar-thin max-h-[180px] pt-2 no-scrollbar">
+            <div className="flex-1 overflow-y-auto space-y-2.5 pr-1 scrollbar-thin max-h-[190px] pt-3 no-scrollbar">
               {upcomingBirthdays.length === 0 ? (
                  <p className="text-xs text-slate-500 py-4 text-center">No upcoming birthdays.</p>
               ) : upcomingBirthdays.map(b => (
-                <div key={b.id} className="flex items-center gap-2.5 p-2.5 rounded-2xl glass-surface border border-white/60 dark:border-white/5 text-xs transition-colors border-l-4 border-l-rose-500">
-                  <img src={b.avatar || 'https://ui-avatars.com/api/?name='+b.name} alt="" className="w-7 h-7 rounded-full object-cover shrink-0 ring-2 ring-rose-500/20" />
+                <div key={b.id} className="flex items-center gap-3 p-2.5 rounded-2xl glass-surface border border-white/60 dark:border-white/5 text-xs transition-colors border-l-4 border-l-rose-500">
+                  <img src={b.avatar || 'https://ui-avatars.com/api/?name='+b.name} alt="" className="w-8 h-8 rounded-full object-cover shrink-0 ring-2 ring-rose-500/20" />
                   <div className="flex-1 min-w-0 text-left">
                     <p className="text-xs font-bold text-slate-900 dark:text-white truncate">{b.name}</p>
-                    <p className="text-[9px] text-slate-400 truncate mt-0.5">{b.dob} • {b.role}</p>
+                    <p className="text-[10px] text-slate-400 truncate mt-0.5">{b.dob} • {b.role}</p>
                   </div>
                 </div>
               ))}

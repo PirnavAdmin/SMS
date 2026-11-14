@@ -715,7 +715,7 @@ export const WardenCommunicationHubView: React.FC = () => {
       </div>
 
       {/* 13. WARDEN TAB LAYOUT */}
-      <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm p-1 rounded-xl flex items-center gap-1 overflow-x-auto no-scrollbar border border-slate-200/80 dark:border-slate-800 shadow-xs">
+      <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm p-1.5 rounded-2xl flex items-center gap-1.5 overflow-x-auto no-scrollbar border border-slate-200/80 dark:border-slate-800 shadow-xs">
         {[
           { id: "announcements", label: "Announcements", icon: Megaphone },
           { id: "parent-comm", label: "Parent Communication", icon: MessageSquare },
@@ -728,7 +728,7 @@ export const WardenCommunicationHubView: React.FC = () => {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap flex items-center gap-1.5 transition-all cursor-pointer ${
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap flex items-center gap-1.5 transition-all cursor-pointer ${
                 isActive
                   ? "bg-sky-600 text-white shadow-sm"
                   : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white font-medium"

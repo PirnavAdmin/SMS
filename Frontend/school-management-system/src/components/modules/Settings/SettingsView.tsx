@@ -1394,7 +1394,7 @@ export const SettingsView: React.FC = () => {
       <div className="relative group w-full">
         {/* Left Scroll Navigation Button & Fade Mask */}
         <div
-          className={`absolute left-0 top-0 bottom-0 z-10 flex items-center pr-2 bg-gradient-to-r from-white via-white/95 to-transparent dark:from-slate-900 dark:via-slate-900/95 rounded-l-xl transition-opacity duration-200 pointer-events-none ${
+          className={`absolute left-0 top-0 bottom-0 z-10 flex items-center pr-2 bg-gradient-to-r from-white via-white/95 to-transparent dark:from-slate-900 dark:via-slate-900/95 rounded-l-2xl transition-opacity duration-200 pointer-events-none ${
             canScrollLeft ? "opacity-100" : "opacity-0"
           }`}
         >
@@ -1402,9 +1402,9 @@ export const SettingsView: React.FC = () => {
             type="button"
             onClick={() => handleScrollTabs("left")}
             aria-label="Scroll tabs left"
-            className="pointer-events-auto p-1 ml-0.5 rounded-lg bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 shadow-sm border border-slate-200 dark:border-slate-700 hover:bg-sky-50 dark:hover:bg-slate-700 hover:text-sky-600 dark:hover:text-sky-400 transition-all cursor-pointer active:scale-95"
+            className="pointer-events-auto p-1.5 ml-1 rounded-xl bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 shadow-sm border border-slate-200 dark:border-slate-700 hover:bg-sky-50 dark:hover:bg-slate-700 hover:text-sky-600 dark:hover:text-sky-400 transition-all cursor-pointer active:scale-95"
           >
-            <ChevronLeft className="w-3.5 h-3.5" />
+            <ChevronLeft className="w-4 h-4" />
           </button>
         </div>
 
@@ -1416,7 +1416,7 @@ export const SettingsView: React.FC = () => {
           onMouseMove={handleTabsMouseMove}
           onMouseUp={handleTabsMouseUpOrLeave}
           onMouseLeave={handleTabsMouseUpOrLeave}
-          className={`p-1 bg-white dark:bg-slate-900 rounded-xl flex items-center gap-1 overflow-x-auto border border-sky-300 dark:border-sky-700 shadow-xs select-none no-scrollbar ${
+          className={`p-1.5 bg-white dark:bg-slate-900 rounded-2xl flex items-center gap-1.5 overflow-x-auto border border-sky-300 dark:border-sky-700 shadow-xs select-none no-scrollbar ${
             isDraggingTabs ? "cursor-grabbing" : "cursor-grab"
           }`}
           style={{
@@ -1493,7 +1493,7 @@ export const SettingsView: React.FC = () => {
                     if (hasDraggedRef.current) return;
                     setActiveTab(tab.id as any);
                   }}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold transition-all duration-150 cursor-pointer whitespace-nowrap shrink-0 text-center select-none ${
+                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all duration-150 cursor-pointer whitespace-nowrap shrink-0 text-center select-none ${
                     isActive
                       ? "bg-sky-600 dark:bg-sky-500 text-white shadow-xs font-extrabold border border-sky-600 dark:border-sky-500"
                       : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100/70 dark:hover:bg-slate-800/60 font-semibold border border-transparent"
@@ -1508,7 +1508,7 @@ export const SettingsView: React.FC = () => {
 
         {/* Right Scroll Navigation Button & Fade Mask */}
         <div
-          className={`absolute right-0 top-0 bottom-0 z-10 flex items-center pl-2 bg-gradient-to-l from-white via-white/95 to-transparent dark:from-slate-900 dark:via-slate-900/95 rounded-r-xl transition-opacity duration-200 pointer-events-none ${
+          className={`absolute right-0 top-0 bottom-0 z-10 flex items-center pl-2 bg-gradient-to-l from-white via-white/95 to-transparent dark:from-slate-900 dark:via-slate-900/95 rounded-r-2xl transition-opacity duration-200 pointer-events-none ${
             canScrollRight ? "opacity-100" : "opacity-0"
           }`}
         >
@@ -1516,9 +1516,9 @@ export const SettingsView: React.FC = () => {
             type="button"
             onClick={() => handleScrollTabs("right")}
             aria-label="Scroll tabs right"
-            className="pointer-events-auto p-1 mr-0.5 rounded-lg bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 shadow-sm border border-slate-200 dark:border-slate-700 hover:bg-sky-50 dark:hover:bg-slate-700 hover:text-sky-600 dark:hover:text-sky-400 transition-all cursor-pointer active:scale-95"
+            className="pointer-events-auto p-1.5 mr-1 rounded-xl bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 shadow-sm border border-slate-200 dark:border-slate-700 hover:bg-sky-50 dark:hover:bg-slate-700 hover:text-sky-600 dark:hover:text-sky-400 transition-all cursor-pointer active:scale-95"
           >
-            <ChevronRight className="w-3.5 h-3.5" />
+            <ChevronRight className="w-4 h-4" />
           </button>
         </div>
       </div>
