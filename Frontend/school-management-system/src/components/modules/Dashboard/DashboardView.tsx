@@ -1409,12 +1409,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
               {upcomingBirthdays.length === 0 ? (
                  <p className="text-xs text-slate-500 py-4 text-center">No upcoming birthdays.</p>
               ) : upcomingBirthdays.map(b => (
-                <div key={b.id} className="flex items-center gap-3 p-2.5 rounded-2xl glass-surface border border-white/60 dark:border-white/5 text-xs transition-colors border-l-4 border-l-rose-500">
-                  <img src={b.avatar || 'https://ui-avatars.com/api/?name='+b.name} alt="" className="w-8 h-8 rounded-full object-cover shrink-0 ring-2 ring-rose-500/20" />
-                  <div className="flex-1 min-w-0 text-left">
-                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate">{b.name}</p>
-                    <p className="text-[10px] text-slate-400 truncate mt-0.5">{b.dob} • {b.role}</p>
+                <div key={b.id} className="flex items-center justify-between gap-3 p-2.5 rounded-2xl glass-surface border border-white/60 dark:border-white/5 text-xs transition-colors border-l-4 border-l-rose-500">
+                  <div className="flex items-center gap-3 min-w-0 text-left">
+                    <img src={b.avatar || 'https://ui-avatars.com/api/?name='+b.name} alt="" className="w-8 h-8 rounded-full object-cover shrink-0 ring-2 ring-rose-500/20" />
+                    <div className="min-w-0 text-left">
+                      <p className="text-xs font-bold text-slate-900 dark:text-white truncate">{b.name}</p>
+                      <p className="text-[10px] text-slate-400 truncate mt-0.5">{b.role}</p>
+                    </div>
                   </div>
+                  <span className="font-bold px-2.5 py-0.5 rounded-full text-[10px] shrink-0 bg-rose-500/12 text-rose-600 dark:text-rose-400 border border-rose-500/20">
+                    {b.dob}
+                  </span>
                 </div>
               ))}
             </div>

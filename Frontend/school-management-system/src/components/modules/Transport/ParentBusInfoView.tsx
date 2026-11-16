@@ -226,22 +226,6 @@ export const ParentBusInfoView: React.FC = () => {
             </div>
           </div>
         </div>
-
-        <div className="flex items-center gap-2 shrink-0">
-          {isAssigned ? (
-            <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 font-extrabold text-xs border border-emerald-200/80 dark:border-emerald-800 shadow-xs">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-              </span>
-              Transport Active
-            </span>
-          ) : (
-            <span className="px-3.5 py-1.5 rounded-full bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 font-bold text-xs border border-slate-200 dark:border-slate-700">
-              Day Scholar (No Bus)
-            </span>
-          )}
-        </div>
       </div>
 
       {loadingTransport ? (

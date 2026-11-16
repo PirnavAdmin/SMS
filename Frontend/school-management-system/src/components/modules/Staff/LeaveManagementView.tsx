@@ -1306,17 +1306,21 @@ export const LeaveManagementView: React.FC = () => {
       </div>
 
       {/* Internal Tabs Layout */}
-      <div className="flex items-center gap-1 overflow-x-auto no-scrollbar border-b border-sky-100 dark:border-sky-900/50 py-1">
+      <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar border-b border-sky-100 dark:border-sky-900/50 py-1.5">
         {hasApprovalPermission && (
           <button
             onClick={() => setActiveTab('queue')}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all relative cursor-pointer ${
-              activeTab === 'queue' ? 'bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 border border-sky-200 dark:border-sky-800' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 border border-transparent'
+              activeTab === 'queue'
+                ? 'btn-glass-primary text-white shadow-xs !overflow-visible'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/70 dark:hover:bg-slate-800/60 border border-transparent'
             }`}
           >
             Approval Queue
             {pendingCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-500 text-white font-mono text-[9px] flex items-center justify-center">
+              <span className={`absolute -top-1 -right-1 w-4 h-4 rounded-full font-mono text-[9px] flex items-center justify-center shadow-xs ${
+                activeTab === 'queue' ? 'bg-white text-rose-600 font-black' : 'bg-rose-500 text-white'
+              }`}>
                 {pendingCount}
               </span>
             )}
@@ -1325,7 +1329,9 @@ export const LeaveManagementView: React.FC = () => {
         <button
           onClick={() => setActiveTab('applications')}
           className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-            activeTab === 'applications' ? 'bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 border border-sky-200 dark:border-sky-800' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 border border-transparent'
+            activeTab === 'applications'
+              ? 'btn-glass-primary text-white shadow-xs !overflow-visible'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/70 dark:hover:bg-slate-800/60 border border-transparent'
           }`}
         >
           Leave Applications
@@ -1334,7 +1340,9 @@ export const LeaveManagementView: React.FC = () => {
           <button
             onClick={() => setActiveTab('types')}
             className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              activeTab === 'types' ? 'bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 border border-sky-200 dark:border-sky-800' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 border border-transparent'
+              activeTab === 'types'
+                ? 'btn-glass-primary text-white shadow-xs !overflow-visible'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/70 dark:hover:bg-slate-800/60 border border-transparent'
             }`}
           >
             Leave Types
@@ -1343,7 +1351,9 @@ export const LeaveManagementView: React.FC = () => {
         <button
           onClick={() => setActiveTab('balance')}
           className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-            activeTab === 'balance' ? 'bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 border border-sky-200 dark:border-sky-800' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 border border-transparent'
+            activeTab === 'balance'
+              ? 'btn-glass-primary text-white shadow-xs !overflow-visible'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/70 dark:hover:bg-slate-800/60 border border-transparent'
           }`}
         >
           Leave Balance

@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   User, Activity, AlertCircle, Calendar, GraduationCap, Clock, 
-  Home, MapPin, Users, Heart, Phone, IndianRupee, ClipboardList
+  Home, MapPin, Users, Heart, Phone, IndianRupee, ClipboardList, Building2
 } from 'lucide-react';
 import { StatCard } from '../../common/StatCard';
 import { Badge } from '../../common/Badge';
@@ -642,7 +642,21 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
     ...(holidays || []).map(h => ({ date: h.startDate, title: h.name, desc: h.type + ' Holiday', type: 'holiday' }))
   ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
 
-  const wardHostel = currentWard ? (studentHostels || []).find(sh => sh.studentId === currentWard.id && (sh.status === 'Active' || sh.status === 'Occupied')) : null;
+  const cId = currentWard ? String(currentWard.id || '').toLowerCase().trim() : '';
+  const cAdm = currentWard ? String(currentWard.admissionNo || (currentWard as any).admNo || '').toLowerCase().trim() : '';
+  const cStudentId = currentWard ? String((currentWard as any).studentId || '').toLowerCase().trim() : '';
+
+  const wardHostel = currentWard ? (studentHostels || []).find((sh: any) => {
+    const shStatus = String(sh.status || '').toLowerCase().trim();
+    if (shStatus && shStatus !== 'active' && shStatus !== 'occupied') return false;
+    const shId = String(sh.studentId || '').toLowerCase().trim();
+    const shAdm = String(sh.admissionNo || '').toLowerCase().trim();
+    return (
+      (cId && (shId === cId || shAdm === cId)) ||
+      (cAdm && (shId === cAdm || shAdm === cAdm)) ||
+      (cStudentId && (shId === cStudentId || shAdm === cStudentId))
+    );
+  }) : null;
   const hostelDetails = wardHostel ? (hostelMasters || []).find(h => h.id === wardHostel.hostelId || (h as any).name === wardHostel.hostelName) : null;
   const roomDetails = wardHostel ? (roomMasters || []).find(r => r.id === wardHostel.roomId || r.roomNumber === wardHostel.roomNo) : null;
 
@@ -652,7 +666,11 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
     ? feeSummary.totalDue 
     : (wardLedger ? wardLedger.dueBalance : 0);
   const isFeeCleared = dueBalance <= 0;
-  const isResidential = currentWard?.studentType && ['hosteller', 'residential'].includes(currentWard.studentType.toLowerCase());
+  const isResidential = Boolean(
+    wardHostel ||
+    (currentWard?.studentType && ['hosteller', 'residential'].includes(currentWard.studentType.toLowerCase())) ||
+    (currentWard && (currentWard.hostelBlock || currentWard.hostelRoom || currentWard.hostelBed || (currentWard as any).isHosteller))
+  );
 
   const parentDisplayName = (user?.name || '').trim();
 
@@ -668,12 +686,23 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
               <span className="text-base inline-block hover:rotate-12 transition-transform select-none" role="img" aria-label="wave">👋</span>
             </h1>
             {currentWard && (
-              <p className="text-xs text-slate-600 dark:text-slate-400">
+              <div className="flex items-center gap-2 flex-wrap text-xs text-slate-600 dark:text-slate-400">
                 <strong className="text-slate-800 dark:text-slate-200">{(currentWard.className || '').startsWith('Class') ? currentWard.className : `Class ${currentWard.className || ''}`}{currentWard.section ? `-${currentWard.section}` : ''}</strong>
                 {currentWard.admissionNo && (
-                  <> • Adm No: <strong className="text-slate-800 dark:text-slate-200">{currentWard.admissionNo}</strong></>
+                  <span>• Adm No: <strong className="text-slate-800 dark:text-slate-200">{currentWard.admissionNo}</strong></span>
                 )}
-              </p>
+                {isResidential ? (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-100/90 dark:bg-purple-950/70 text-purple-800 dark:text-purple-200 border border-purple-300 dark:border-purple-700 font-bold text-[10px] shadow-2xs">
+                    <Home className="w-3 h-3 text-purple-600 dark:text-purple-400" />
+                    Residential
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-100/90 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700 font-bold text-[10px] shadow-2xs">
+                    <Building2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                    Non-Residential
+                  </span>
+                )}
+              </div>
             )}
           </div>
           

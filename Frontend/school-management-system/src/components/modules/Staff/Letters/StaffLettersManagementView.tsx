@@ -602,6 +602,7 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
                           </td>
                           <td className="py-3.5 px-4 text-center">
                             <Badge
+                              showDot={false}
                               variant={
                                 letter.letterType === 'offer'
                                   ? 'info'

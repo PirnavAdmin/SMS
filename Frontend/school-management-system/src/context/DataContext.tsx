@@ -3559,12 +3559,25 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               const matchedStudent = students.find(
                 (s: any) =>
                   s.id?.toString() === t.studentId?.toString() ||
-                  (admNo && s.admissionNo === admNo),
+                  (admNo && (s.admissionNo === admNo || s.rollNo === admNo || (s as any).studentId === admNo)),
               );
               if (matchedStudent) {
                 sName =
                   `${matchedStudent.firstName || ""} ${matchedStudent.lastName || ""}`.trim() ||
                   matchedStudent.name ||
+                  "";
+              }
+            }
+            if (!sName && admissions) {
+              const matchedAdm = admissions.find(
+                (a: any) =>
+                  a.id?.toString() === t.studentId?.toString() ||
+                  (admNo && (a.registrationNo === admNo || a.applicationNo === admNo || (a as any).admissionNo === admNo || (a as any).studentId === admNo || (a as any).rollNo === admNo)),
+              );
+              if (matchedAdm) {
+                sName =
+                  matchedAdm.applicantName ||
+                  `${matchedAdm.firstName || ""} ${matchedAdm.lastName || ""}`.trim() ||
                   "";
               }
             }
@@ -5033,6 +5046,41 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                   st.category ||
                   "General",
               };
+            });
+
+            setStudentTransports((prev) => {
+              if (!prev || prev.length === 0) return prev;
+              return prev.map((st) => {
+                if (st.studentName && st.studentName.trim() !== "" && st.studentName !== "Student Passenger") {
+                  return st;
+                }
+                const stAdm = String(st.admissionNo || "").trim().toLowerCase();
+                const stId = String(st.studentId || "").trim().toLowerCase();
+                const digits = (stAdm || stId).replace(/\D/g, "");
+                const last4 = digits.length >= 4 ? digits.slice(-4) : digits;
+
+                const matched = (mappedResult || []).find((s: any) => {
+                  const sId = String(s.id || "").trim().toLowerCase();
+                  const sAdm = String(s.admissionNo || "").trim().toLowerCase();
+                  const sRoll = String(s.rollNo || "").trim().toLowerCase();
+                  const sStuId = String((s as any).studentId || "").trim().toLowerCase();
+                  if (stId && (sId === stId || sStuId === stId)) return true;
+                  if (stAdm && (sAdm === stAdm || sRoll === stAdm || sStuId === stAdm || sId === stAdm)) return true;
+                  if (last4 && last4.length >= 3) {
+                    const sDigits = (sAdm || sRoll || sId).replace(/\D/g, "");
+                    if (sDigits && (sDigits.endsWith(last4) || sDigits === last4)) return true;
+                  }
+                  return false;
+                });
+
+                if (matched) {
+                  const name = `${matched.firstName || ""} ${matched.lastName || ""}`.trim() || matched.name || "";
+                  if (name) {
+                    return { ...st, studentName: name };
+                  }
+                }
+                return st;
+              });
             });
 
             return mappedResult;

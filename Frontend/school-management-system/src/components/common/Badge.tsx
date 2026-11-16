@@ -5,9 +5,18 @@ interface BadgeProps {
   variant?: 'success' | 'warning' | 'danger' | 'info' | 'neutral' | 'purple' | 'yellow' | 'inactive';
   size?: 'sm' | 'md';
   className?: string;
+  showDot?: boolean;
+  dot?: boolean;
 }
 
-export const Badge: React.FC<BadgeProps> = ({ children, variant = 'neutral', size = 'md', className = '' }) => {
+export const Badge: React.FC<BadgeProps> = ({
+  children,
+  variant = 'neutral',
+  size = 'md',
+  className = '',
+  showDot,
+  dot,
+}) => {
   let resolvedVariant = variant;
   if (typeof children === 'string') {
     const text = children.trim().toLowerCase();
@@ -38,13 +47,16 @@ export const Badge: React.FC<BadgeProps> = ({ children, variant = 'neutral', siz
     md: 'px-2.5 py-1 text-xs font-bold',
   };
 
+  const isDotExplicit = dot !== undefined ? dot : showDot;
+  const shouldShowDot = isDotExplicit !== undefined ? isDotExplicit : true;
+
   return (
     <span
       className={`inline-flex items-center gap-1.5 rounded-full border backdrop-blur-md shadow-2xs transition-all ${
         variantStyles[resolvedVariant as keyof typeof variantStyles] || variantStyles.neutral
       } ${sizeStyles[size]} ${className}`}
     >
-      <span className="w-1.5 h-1.5 rounded-full bg-current opacity-80" />
+      {shouldShowDot && <span className="w-1.5 h-1.5 rounded-full bg-current opacity-80" />}
       {children}
     </span>
   );
