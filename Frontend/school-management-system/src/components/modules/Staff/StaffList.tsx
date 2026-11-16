@@ -333,6 +333,61 @@ export const StaffList: React.FC<{
         const XLSX = await import("xlsx");
         const workbook = XLSX.utils.book_new();
 
+        // Helper to sanitize cell values to prevent breaking Excel's 32,767 character limit
+        const cleanExcelCell = (val: any, fieldKey?: string): string | number => {
+          if (val === null || val === undefined) return "";
+          if (typeof val === "number") {
+            if (fieldKey && /phone|mobile|aadhaar|account|pin|ifsc|pan/i.test(fieldKey)) {
+              return String(val);
+            }
+            return val;
+          }
+          let str = typeof val === "object" ? JSON.stringify(val) : String(val).trim();
+          // Remove raw base64 data URLs to prevent Excel cell overflow
+          if (str.startsWith("data:")) {
+            return "[Uploaded Attachment in System]";
+          }
+          // Excel hard cell limit is 32,767 characters
+          if (str.length > 32000) {
+            return str.slice(0, 32000) + "...";
+          }
+          return str;
+        };
+
+        const sanitizeSheetData = (data: Record<string, any>[]): Record<string, any>[] => {
+          return data.map((row) => {
+            const cleanedRow: Record<string, any> = {};
+            for (const key of Object.keys(row)) {
+              cleanedRow[key] = cleanExcelCell(row[key], key);
+            }
+            return cleanedRow;
+          });
+        };
+
+        // Helper to auto-fit column widths so text does not overlap or truncate
+        const applyAutoColumnWidths = (ws: any, rows: Record<string, any>[]) => {
+          if (!rows || rows.length === 0) return;
+          const headers = Object.keys(rows[0] || {});
+          const colWidths = headers.map((header) => {
+            let maxLen = header.length;
+            for (let i = 0; i < rows.length; i++) {
+              const val = rows[i]?.[header];
+              if (val !== null && val !== undefined) {
+                const str = String(val);
+                const lines = str.split(/\r?\n/);
+                for (const line of lines) {
+                  if (line.length > maxLen) {
+                    maxLen = line.length;
+                  }
+                }
+              }
+            }
+            // Auto width: comfortable padding, minimum 14 chars, max 50 chars
+            return { wch: Math.min(Math.max(maxLen + 4, 14), 50) };
+          });
+          ws["!cols"] = colWidths;
+        };
+
         // 1. Personal Details Sheet
         const personalData = filtered.map((st: any) => ({
           "Employee ID": st.empId || "",
@@ -376,10 +431,12 @@ export const StaffList: React.FC<{
           "Designation": st.designation || "",
           "Joining Date": st.joiningDate || "",
           "Employment Type": st.employmentType || "",
-          "Salary": st.salary || 0,
+          "Salary": typeof st.salary === "number" ? st.salary : (Number(st.salary) || 0),
           "Status": st.status || "Active"
         }));
-        const personalSheet = XLSX.utils.json_to_sheet(personalData);
+        const cleanedPersonalData = sanitizeSheetData(personalData);
+        const personalSheet = XLSX.utils.json_to_sheet(cleanedPersonalData);
+        applyAutoColumnWidths(personalSheet, cleanedPersonalData);
         XLSX.utils.book_append_sheet(workbook, personalSheet, "Personal Details");
 
         // 2. Qualifications Sheet
@@ -401,9 +458,20 @@ export const StaffList: React.FC<{
         });
         // Fallback if empty
         if (qualificationsData.length === 0) {
-          qualificationsData.push({ "Employee ID": "N/A", "Employee Name": "N/A", "Degree/Qualification": "No qualifications recorded" });
+          qualificationsData.push({
+            "Employee ID": "N/A",
+            "Employee Name": "N/A",
+            "Degree/Qualification": "No qualifications recorded",
+            "Specialization": "N/A",
+            "Institution": "N/A",
+            "Board/University": "N/A",
+            "Passing Year": "N/A",
+            "Percentage/CGPA": "N/A"
+          });
         }
-        const qualificationsSheet = XLSX.utils.json_to_sheet(qualificationsData);
+        const cleanedQualificationsData = sanitizeSheetData(qualificationsData);
+        const qualificationsSheet = XLSX.utils.json_to_sheet(cleanedQualificationsData);
+        applyAutoColumnWidths(qualificationsSheet, cleanedQualificationsData);
         XLSX.utils.book_append_sheet(workbook, qualificationsSheet, "Qualifications");
 
         // 3. Documents Sheet
@@ -411,20 +479,43 @@ export const StaffList: React.FC<{
         filtered.forEach((st) => {
           const docList = st.documents || [];
           docList.forEach((d: any) => {
+            const rawUrl = d.fileUrl || d.url || "";
+            const isBase64 = typeof rawUrl === "string" && rawUrl.startsWith("data:");
+            const isHttp = typeof rawUrl === "string" && (rawUrl.startsWith("http://") || rawUrl.startsWith("https://"));
+
             documentsData.push({
               "Employee ID": st.empId || "",
               "Employee Name": `${st.firstName || ""} ${st.lastName || ""}`.trim(),
-              "Document Title": d.title || d.documentTitle || "",
-              "Document Type": d.type || d.documentType || "",
-              "Uploaded Date": d.uploadDate || d.uploadedDate || "",
-              "File URL": d.fileUrl || ""
+              "Document Title": d.title || d.documentTitle || d.docType || "",
+              "Document Type": d.type || d.documentType || d.docType || "",
+              "File Name": d.fileName || d.name || "",
+              "File Size": d.fileSize || "",
+              "Uploaded Date": d.uploadDate || d.uploadedDate || d.uploadedAt || "",
+              "Attachment Status": isBase64
+                ? "Uploaded (Attached in System)"
+                : isHttp
+                ? (rawUrl.length > 500 ? rawUrl.slice(0, 500) + "..." : rawUrl)
+                : rawUrl
+                ? "Uploaded"
+                : "Not Uploaded"
             });
           });
         });
         if (documentsData.length === 0) {
-          documentsData.push({ "Employee ID": "N/A", "Employee Name": "N/A", "Document Title": "No documents uploaded" });
+          documentsData.push({
+            "Employee ID": "N/A",
+            "Employee Name": "N/A",
+            "Document Title": "No documents uploaded",
+            "Document Type": "N/A",
+            "File Name": "N/A",
+            "File Size": "N/A",
+            "Uploaded Date": "N/A",
+            "Attachment Status": "None"
+          });
         }
-        const documentsSheet = XLSX.utils.json_to_sheet(documentsData);
+        const cleanedDocumentsData = sanitizeSheetData(documentsData);
+        const documentsSheet = XLSX.utils.json_to_sheet(cleanedDocumentsData);
+        applyAutoColumnWidths(documentsSheet, cleanedDocumentsData);
         XLSX.utils.book_append_sheet(workbook, documentsSheet, "Documents");
 
         // 4. Bank Details Sheet
@@ -441,7 +532,21 @@ export const StaffList: React.FC<{
             "UPI ID": bank.upiId || ""
           };
         });
-        const bankSheet = XLSX.utils.json_to_sheet(bankData);
+        if (bankData.length === 0) {
+          bankData.push({
+            "Employee ID": "N/A",
+            "Employee Name": "N/A",
+            "Account Holder Name": "N/A",
+            "Account Number": "N/A",
+            "Bank Name": "N/A",
+            "Branch": "N/A",
+            "IFSC Code": "N/A",
+            "UPI ID": "N/A"
+          });
+        }
+        const cleanedBankData = sanitizeSheetData(bankData);
+        const bankSheet = XLSX.utils.json_to_sheet(cleanedBankData);
+        applyAutoColumnWidths(bankSheet, cleanedBankData);
         XLSX.utils.book_append_sheet(workbook, bankSheet, "Bank Details");
 
         // Write File
@@ -554,6 +659,9 @@ export const StaffList: React.FC<{
         "joiningDate": "2024-06-01"
       };
       const worksheet = XLSX.utils.json_to_sheet([sampleRow]);
+      worksheet["!cols"] = Object.keys(sampleRow).map((k) => ({
+        wch: Math.min(Math.max(k.length + 4, 16), 36),
+      }));
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, "Template");
       XLSX.writeFile(workbook, "bulk_employee_template.xlsx");

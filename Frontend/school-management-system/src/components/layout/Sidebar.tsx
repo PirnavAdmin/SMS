@@ -946,7 +946,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       ...group,
       items: group.items.filter((item) => hasModuleAccess(role || '', item.id)),
     }))
-    .filter((group) => group.items.length > 0 || group.isFinanceSection);
+    .filter((group: any) => group.items.length > 0 || group.isFinanceSection);
 
   // Handled above
 
@@ -1096,7 +1096,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           );
 
           const hasCustomModules =
-            group.isFinanceSection &&
+            Boolean((group as any).isFinanceSection) &&
             (hasModuleAccess(role || '', "fees") ||
               (hasModuleAccess(role || '', "hostel") && isHosteller) ||
               (hasModuleAccess(role || '', "transport") && usesTransport) ||
@@ -1117,7 +1117,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </h3>
               )}
 
-              {group.isFinanceSection && (
+              {Boolean((group as any).isFinanceSection) && (
                 <>
                   {hasModuleAccess(role, "fees") && (
                     <div
