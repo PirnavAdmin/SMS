@@ -1602,9 +1602,6 @@ export const CertificateSettingsTab: React.FC = () => {
               <h4 className="font-extrabold text-sm text-slate-900 dark:text-white flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-sky-500" /> Placeholder Library & Per-Certificate Required Fields Matrix
               </h4>
-              <p className="text-xs text-slate-500">
-                Manage available placeholder tokens and configure required fields per certificate type.
-              </p>
             </div>
 
             <button
