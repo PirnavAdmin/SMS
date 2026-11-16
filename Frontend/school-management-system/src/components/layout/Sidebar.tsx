@@ -42,6 +42,11 @@ import {
   TrendingUp,
   ClipboardList,
   X,
+  Globe,
+  CreditCard,
+  Activity,
+  LifeBuoy,
+  ShieldAlert,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useData } from "../../context/DataContext";
@@ -827,10 +832,30 @@ export const Sidebar: React.FC<SidebarProps> = ({
   ];
 
   const menuGroups = [
+    ...(safeRole.includes("super admin") || safeRole.includes("superadmin")
+      ? [
+          {
+            title: "Super Admin",
+            items: [
+              { id: "superadmin-dashboard", label: "Dashboard", icon: LayoutDashboard },
+              { id: "superadmin-schools", label: "Companies", icon: Building2 },
+              { id: "superadmin-subscriptions", label: "Subscriptions", icon: CreditCard },
+              { id: "superadmin-packages", label: "Packages", icon: Layers },
+              { id: "superadmin-domains", label: "Domain", icon: Globe },
+              { id: "superadmin-transactions", label: "Purchase Transaction", icon: Receipt },
+              { id: "superadmin-metrics", label: "Tenant Usage Metrics", icon: Activity, badge: "New" },
+              { id: "superadmin-tickets", label: "Tenant Support Tickets", icon: LifeBuoy, badge: "New" },
+              { id: "superadmin-audit", label: "Audit Logs", icon: ShieldAlert },
+            ],
+          },
+        ]
+      : []),
     {
       title: "Core Operations",
       items: [
-        { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+        ...(safeRole.includes("super admin") || safeRole.includes("superadmin")
+          ? []
+          : [{ id: "dashboard", label: "Dashboard", icon: LayoutDashboard }]),
         {
           id: "staff",
           label:
@@ -2101,7 +2126,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   (item.id === "reports" && activeModule === "reports") ||
                   (item.id === "users" && ["users", "roles"].includes(activeModule)) ||
                   (item.id === "roles" && ["users", "roles"].includes(activeModule)) ||
-                  (item.id === "settings" && activeModule === "settings");
+                  (item.id === "settings" && activeModule === "settings") ||
+                  (item.id === "superadmin-dashboard" && (activeModule === "superadmin-dashboard" || activeModule === "dashboard")) ||
+                  (item.id === "superadmin-schools" && (activeModule === "superadmin-schools" || activeModule === "companies")) ||
+                  (item.id === "superadmin-subscriptions" && (activeModule === "superadmin-subscriptions" || activeModule === "subscriptions")) ||
+                  (item.id === "superadmin-packages" && (activeModule === "superadmin-packages" || activeModule === "packages")) ||
+                  (item.id === "superadmin-domains" && (activeModule === "superadmin-domains" || activeModule === "domain")) ||
+                  (item.id === "superadmin-transactions" && (activeModule === "superadmin-transactions" || activeModule === "purchase-transaction")) ||
+                  (item.id === "superadmin-metrics" && (activeModule === "superadmin-metrics" || activeModule === "tenant-metrics")) ||
+                  (item.id === "superadmin-tickets" && (activeModule === "superadmin-tickets" || activeModule === "tenant-tickets")) ||
+                  (item.id === "superadmin-audit" && activeModule === "superadmin-audit");
 
                 return (
                   <button
@@ -2150,8 +2184,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
                     {!effectiveCollapsed && (item as any).badge && (
                       <span
-                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                          isActive
+                        className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                          (item as any).badge === "New"
+                            ? "bg-red-600 text-white font-black shadow-xs"
+                            : isActive
                             ? "bg-white/20 text-white"
                             : "bg-brand-100 text-brand-700 dark:bg-brand-950 dark:text-brand-300"
                         }`}

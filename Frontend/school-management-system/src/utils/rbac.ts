@@ -30,6 +30,15 @@ export const MODULES = [
   "users",
   "settings",
   "training",
+  "superadmin-dashboard",
+  "superadmin-schools",
+  "superadmin-subscriptions",
+  "superadmin-packages",
+  "superadmin-domains",
+  "superadmin-transactions",
+  "superadmin-metrics",
+  "superadmin-tickets",
+  "superadmin-audit",
 ] as const;
 
 export type ModuleId = (typeof MODULES)[number];

@@ -74,6 +74,14 @@ import { UserManagementView } from "./components/modules/UserManagement/UserMana
 import { SettingsView } from "./components/modules/Settings/SettingsView";
 import { TrainingContainerView } from "./components/modules/School Administration/Faculty Development & Training/TrainingContainerView";
 import { StaffLettersManagementView } from "./components/modules/Staff/Letters/StaffLettersManagementView";
+import { SuperAdminDashboardView } from "./components/modules/SuperAdmin/SuperAdminDashboardView";
+import { SuperAdminSchoolsView } from "./components/modules/SuperAdmin/SuperAdminSchoolsView";
+import { SuperAdminPackagesView } from "./components/modules/SuperAdmin/SuperAdminPackagesView";
+import { SuperAdminDomainsView } from "./components/modules/SuperAdmin/SuperAdminDomainsView";
+import { SuperAdminTransactionsView } from "./components/modules/SuperAdmin/SuperAdminTransactionsView";
+import { SuperAdminMetricsView } from "./components/modules/SuperAdmin/SuperAdminMetricsView";
+import { SuperAdminTicketsView } from "./components/modules/SuperAdmin/SuperAdminTicketsView";
+import { SuperAdminAuditView } from "./components/modules/SuperAdmin/SuperAdminAuditView";
 
 const formatEmailToName = (email?: string): string => {
   if (!email || !email.includes('@')) return '';
@@ -447,7 +455,34 @@ const MainLayout: React.FC = () => {
 
     switch (activeModule) {
       case "dashboard":
+        if (userRole === "super admin" || userRole === "superadmin" || (role || "").toLowerCase() === "super admin") {
+          return <SuperAdminDashboardView onNavigate={(mod) => setActiveModule(mod)} />;
+        }
         return <DashboardView onNavigate={(mod) => setActiveModule(mod)} />;
+      case "superadmin-dashboard":
+        return <SuperAdminDashboardView onNavigate={(mod) => setActiveModule(mod)} />;
+      case "superadmin-schools":
+      case "companies":
+        return <SuperAdminSchoolsView onNavigate={(mod) => setActiveModule(mod)} />;
+      case "superadmin-packages":
+      case "superadmin-subscriptions":
+      case "subscriptions":
+      case "packages":
+        return <SuperAdminPackagesView />;
+      case "superadmin-domains":
+      case "domain":
+        return <SuperAdminDomainsView />;
+      case "superadmin-transactions":
+      case "purchase-transaction":
+        return <SuperAdminTransactionsView />;
+      case "superadmin-metrics":
+      case "tenant-metrics":
+        return <SuperAdminMetricsView />;
+      case "superadmin-tickets":
+      case "tenant-tickets":
+        return <SuperAdminTicketsView />;
+      case "superadmin-audit":
+        return <SuperAdminAuditView />;
       case "students":
       case "student-directory":
         return !hasModuleAccess(role || userRole, "students") ? (
