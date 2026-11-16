@@ -48,6 +48,8 @@ import { useData, formatAcademicYear, matchesAcademicYear } from "../../../conte
 import { useAuth } from "../../../context/AuthContext";
 import { useToast } from "../../../context/ToastContext";
 import { ConfirmModal } from "../../common/ConfirmModal";
+import { Pagination } from "../../common/Pagination";
+import { ValidatedSearchInput } from "../../common/ValidatedSearchInput";
 import {
   AcademicYearMaster,
   CertificateTemplateConfig,
@@ -57,7 +59,7 @@ import {
 import { PrintableCertificateContainer } from "../Certificates/PrintableCertificateContainer";
 import { formatDateDDMMYYYY } from "../../../utils/dateValidation";
 import { resolveMediaUrl, DEFAULT_USER_AVATAR, createOptimizedAvatarDataUrl } from "../../../utils/mediaUtils";
-import { validateFullName, validateEmail, validate10DigitPhone, validatePhoneNumber, sanitizePhoneInput, sanitizeEmailInput, validateCampusName, validateCampusCode, validateCampusAddress, validateAcademicSessionName, formatTitleCase } from "../../../utils/validation";
+import { validateFullName, validateEmail, validate10DigitPhone, validatePhoneNumber, sanitizePhoneInput, sanitizeEmailInput, validateCampusName, validateCampusCode, validateCampusAddress, validateAcademicSessionName, formatTitleCase, validateSearchQuery } from "../../../utils/validation";
 import { SchoolLogoUploader } from "./SchoolLogoUploader";
 import { CertificateSettingsTab } from "./CertificateSettingsTab";
 import {
@@ -154,6 +156,55 @@ const time24To12 = (time24: string): string => {
   const ampm = hours >= 12 ? 'PM' : 'AM';
   const displayHours = hours % 12 || 12;
   return `${String(displayHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')} ${ampm}`;
+};
+
+const formatToIndianDateTime = (dateInput?: string | Date | number | null): string => {
+  if (!dateInput) return "-";
+  try {
+    let d: Date;
+    if (dateInput instanceof Date) {
+      d = dateInput;
+    } else if (typeof dateInput === "number") {
+      d = new Date(dateInput);
+    } else {
+      const cleanStr = String(dateInput).trim();
+      if (!cleanStr) return "-";
+      const normalized = cleanStr.includes("T") ? cleanStr : cleanStr.replace(" ", "T");
+      d = new Date(normalized);
+      if (isNaN(d.getTime())) {
+        const parts = cleanStr.split(/[\sT]+/);
+        const datePart = parts[0];
+        const timePart = parts[1] || "";
+        const [y, m, day] = datePart.split("-");
+        if (y && m && day) {
+          const [hh = "00", mm = "00", ss = "00"] = timePart.split(":");
+          let hourNum = parseInt(hh, 10) || 0;
+          const ampm = hourNum >= 12 ? "PM" : "AM";
+          hourNum = hourNum % 12 || 12;
+          const hourStr = String(hourNum).padStart(2, "0");
+          return `${day.padStart(2, "0")}/${m.padStart(2, "0")}/${y}, ${hourStr}:${mm.padStart(2, "0")}:${ss.slice(0, 2).padStart(2, "0")} ${ampm}`;
+        }
+        return cleanStr;
+      }
+    }
+
+    if (isNaN(d.getTime())) return String(dateInput);
+
+    const day = String(d.getDate()).padStart(2, "0");
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const year = d.getFullYear();
+
+    let hours = d.getHours();
+    const minutes = String(d.getMinutes()).padStart(2, "0");
+    const seconds = String(d.getSeconds()).padStart(2, "0");
+    const ampm = hours >= 12 ? "PM" : "AM";
+    hours = hours % 12 || 12;
+    const hourStr = String(hours).padStart(2, "0");
+
+    return `${day}/${month}/${year}, ${hourStr}:${minutes}:${seconds} ${ampm}`;
+  } catch {
+    return String(dateInput);
+  }
 };
 
 export const SettingsView: React.FC = () => {
@@ -264,6 +315,9 @@ export const SettingsView: React.FC = () => {
   const [auditLogsList, setAuditLogsList] = useState<any[]>([]);
   const [auditLoading, setAuditLoading] = useState(false);
   const [auditSearchTerm, setAuditSearchTerm] = useState("");
+  const [auditSearchError, setAuditSearchError] = useState<string | undefined>(undefined);
+  const [auditPage, setAuditPage] = useState(1);
+  const [auditPageSize, setAuditPageSize] = useState(50);
 
   const loadAuditLogs = async () => {
     setAuditLoading(true);
@@ -271,7 +325,7 @@ export const SettingsView: React.FC = () => {
       if (fetchAuditLogs) {
         await fetchAuditLogs();
       }
-      const res: any = await fetchAuditLogsApi(150);
+      const res: any = await fetchAuditLogsApi(500);
       const list = res?.data || (Array.isArray(res) ? res : []);
       if (Array.isArray(list) && list.length > 0) {
         setAuditLogsList(list);
@@ -300,9 +354,15 @@ export const SettingsView: React.FC = () => {
     }
   }, [auditLogs]);
 
+  useEffect(() => {
+    setAuditPage(1);
+  }, [auditSearchTerm]);
+
   const displayedAuditLogs = useMemo(() => {
     const source = auditLogsList.length > 0 ? auditLogsList : (auditLogs || []);
     if (!auditSearchTerm.trim()) return source;
+    const validation = validateSearchQuery(auditSearchTerm, 50);
+    if (!validation.isValid) return [];
     const term = auditSearchTerm.toLowerCase();
     return source.filter((l: any) =>
       (l.action || "").toLowerCase().includes(term) ||
@@ -312,6 +372,11 @@ export const SettingsView: React.FC = () => {
       (l.ipAddress || "").toLowerCase().includes(term)
     );
   }, [auditLogsList, auditLogs, auditSearchTerm]);
+
+  const paginatedAuditLogs = useMemo(() => {
+    const start = (auditPage - 1) * auditPageSize;
+    return displayedAuditLogs.slice(start, start + auditPageSize);
+  }, [displayedAuditLogs, auditPage, auditPageSize]);
 
   // Backup & Restore State & Actions
   const [backupStatus, setBackupStatus] = useState<BackupStatus | null>(null);
@@ -3835,7 +3900,7 @@ export const SettingsView: React.FC = () => {
               <div className="bg-slate-50/80 dark:bg-slate-800/50 p-3 rounded-2xl border border-slate-200/50 dark:border-slate-700/50">
                 <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Last Backup Taken</span>
                 <span className="text-xs font-bold text-slate-700 dark:text-slate-300 mt-1 block truncate">
-                  {backupStatus?.lastBackupDate ? backupStatus.lastBackupDate.slice(0, 19) : "Never"}
+                  {backupStatus?.lastBackupDate ? formatToIndianDateTime(backupStatus.lastBackupDate) : "Never"}
                 </span>
               </div>
             </div>
@@ -4085,14 +4150,14 @@ export const SettingsView: React.FC = () => {
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs">
+              <table className="w-full text-center border-collapse text-xs">
                 <thead>
                   <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider text-[11px] border-b border-slate-200/60 dark:border-slate-800/60">
-                    <th className="py-3 px-4">Snapshot File</th>
-                    <th className="py-3 px-4">Created At</th>
-                    <th className="py-3 px-4">Size</th>
-                    <th className="py-3 px-4">Created By</th>
-                    <th className="py-3 px-4">Total Entities</th>
+                    <th className="py-3 px-4 text-left">Snapshot File</th>
+                    <th className="py-3 px-4 text-center align-middle whitespace-nowrap">Created At</th>
+                    <th className="py-3 px-4 text-center align-middle whitespace-nowrap">Size</th>
+                    <th className="py-3 px-4 text-center align-middle whitespace-nowrap">Created By</th>
+                    <th className="py-3 px-4 text-center align-middle whitespace-nowrap">Total Entities</th>
                     <th className="py-3 px-4 text-right">Actions</th>
                   </tr>
                 </thead>
@@ -4123,17 +4188,17 @@ export const SettingsView: React.FC = () => {
                           <Database className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                           <span className="truncate max-w-xs">{s.fileName}</span>
                         </td>
-                        <td className="py-3 px-4 font-mono text-slate-500 dark:text-slate-400 whitespace-nowrap">
-                          {s.createdAtFormatted}
+                        <td className="py-3 px-4 font-mono text-slate-500 dark:text-slate-400 whitespace-nowrap text-center align-middle">
+                          {formatToIndianDateTime(s.createdAt || s.createdAtFormatted)}
                         </td>
-                        <td className="py-3 px-4 font-mono text-slate-600 dark:text-slate-400">
+                        <td className="py-3 px-4 font-mono text-slate-600 dark:text-slate-400 text-center align-middle">
                           {s.fileSizeFormatted}
                         </td>
-                        <td className="py-3 px-4 font-bold text-slate-800 dark:text-slate-200">
+                        <td className="py-3 px-4 font-bold text-slate-800 dark:text-slate-200 text-center align-middle">
                           {s.createdBy}
                         </td>
-                        <td className="py-3 px-4">
-                          <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                        <td className="py-3 px-4 text-center align-middle">
+                          <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-[11px] font-bold text-slate-700 dark:text-slate-300 inline-block">
                             {s.totalRecords}
                           </span>
                         </td>
@@ -4199,26 +4264,18 @@ export const SettingsView: React.FC = () => {
         <div className="space-y-4 animate-in fade-in duration-200">
           {/* Top Toolbar */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white/70 dark:bg-slate-900/70 p-4 rounded-3xl border border-slate-200/80 dark:border-slate-800 backdrop-blur-md shadow-sm">
-            <div className="flex items-center gap-3 flex-1">
-              <div className="relative flex-1 sm:max-w-md">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Search audit actions, users, or details..."
+            <div className="flex items-start sm:items-center gap-3 flex-1">
+              <div className="flex-1 sm:max-w-md">
+                <ValidatedSearchInput
                   value={auditSearchTerm}
-                  onChange={(e) => setAuditSearchTerm(e.target.value)}
-                  className="w-full pl-9 pr-8 py-2 text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 dark:text-white transition-all"
+                  onChange={setAuditSearchTerm}
+                  onErrorChange={setAuditSearchError}
+                  placeholder="Search audit actions, users, or details..."
+                  maxLength={50}
+                  className="w-full"
                 />
-                {auditSearchTerm && (
-                  <button
-                    onClick={() => setAuditSearchTerm("")}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                )}
               </div>
-              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/60 whitespace-nowrap">
+              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/60 whitespace-nowrap mt-1 sm:mt-0">
                 {displayedAuditLogs.length} Events
               </span>
             </div>
@@ -4238,14 +4295,14 @@ export const SettingsView: React.FC = () => {
           {/* Table Container */}
           <div className="glass-card rounded-3xl overflow-hidden border border-slate-200/80 dark:border-slate-800 shadow-sm">
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs">
+              <table className="w-full text-center border-collapse text-xs">
                 <thead>
                   <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider text-[11px] border-b border-slate-200/60 dark:border-slate-800/60">
-                    <th className="py-3.5 px-4">Timestamp</th>
-                    <th className="py-3.5 px-4">User</th>
-                    <th className="py-3.5 px-4">Action</th>
-                    <th className="py-3.5 px-4">Details</th>
-                    <th className="py-3.5 px-4">IP Address</th>
+                    <th className="py-3.5 px-4 text-center align-middle whitespace-nowrap">Timestamp</th>
+                    <th className="py-3.5 px-4 text-center align-middle whitespace-nowrap">User</th>
+                    <th className="py-3.5 px-4 text-center align-middle whitespace-nowrap">Action</th>
+                    <th className="py-3.5 px-4 text-center align-middle whitespace-nowrap">Details</th>
+                    <th className="py-3.5 px-4 text-center align-middle whitespace-nowrap">IP Address</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium text-slate-700 dark:text-slate-300">
@@ -4283,16 +4340,16 @@ export const SettingsView: React.FC = () => {
                       </td>
                     </tr>
                   ) : (
-                    displayedAuditLogs.map((log: any, idx: number) => (
+                    paginatedAuditLogs.map((log: any, idx: number) => (
                       <tr
                         key={log.id || log.auditLogId || `audit-${idx}`}
                         className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors"
                       >
-                        <td className="py-3 px-4 font-mono text-slate-500 dark:text-slate-400 whitespace-nowrap">
-                          {log.timestamp ? (log.timestamp.includes("T") ? log.timestamp.replace("T", " ").slice(0, 19) : log.timestamp) : "-"}
+                        <td className="py-3 px-4 font-mono text-slate-500 dark:text-slate-400 whitespace-nowrap text-center align-middle">
+                          {formatToIndianDateTime(log.timestamp)}
                         </td>
-                        <td className="py-3 px-4">
-                          <div className="flex items-center gap-2 flex-wrap">
+                        <td className="py-3 px-4 text-center align-middle">
+                          <div className="flex items-center justify-center gap-2 flex-wrap">
                             <span className="font-bold text-slate-900 dark:text-white">
                               {log.userName || "Administrator"}
                             </span>
@@ -4311,14 +4368,18 @@ export const SettingsView: React.FC = () => {
                             </span>
                           </div>
                         </td>
-                        <td className="py-3 px-4 text-brand-600 dark:text-brand-400 font-semibold">
-                          {log.action}
+                        <td className="py-3 px-4 text-brand-600 dark:text-brand-400 font-semibold text-center align-middle whitespace-nowrap">
+                          <span className="inline-block px-2.5 py-1 rounded-lg bg-brand-50/70 dark:bg-brand-950/30 border border-brand-500/20 text-brand-700 dark:text-brand-300">
+                            {log.action}
+                          </span>
                         </td>
-                        <td className="py-3 px-4 text-slate-600 dark:text-slate-400 max-w-md">
-                          {log.details}
+                        <td className="py-3 px-4 text-slate-600 dark:text-slate-400 max-w-md text-center align-middle">
+                          <div className="max-w-md mx-auto text-center">
+                            {log.details}
+                          </div>
                         </td>
-                        <td className="py-3 px-4">
-                          <span className="font-mono text-[11px] text-slate-500 dark:text-slate-400 px-2 py-0.5 rounded bg-slate-100/70 dark:bg-slate-800/70 border border-slate-200/50 dark:border-slate-700/50">
+                        <td className="py-3 px-4 text-center align-middle whitespace-nowrap">
+                          <span className="font-mono text-[11px] text-slate-500 dark:text-slate-400 px-2 py-0.5 rounded bg-slate-100/70 dark:bg-slate-800/70 border border-slate-200/50 dark:border-slate-700/50 inline-block">
                             {log.ipAddress || "127.0.0.1"}
                           </span>
                         </td>
@@ -4328,6 +4389,24 @@ export const SettingsView: React.FC = () => {
                 </tbody>
               </table>
             </div>
+
+            {displayedAuditLogs.length > 0 && (
+              <div className="p-4 bg-white/50 dark:bg-slate-900/50 border-t border-slate-200/80 dark:border-slate-800">
+                <Pagination
+                  currentPage={auditPage}
+                  totalItems={displayedAuditLogs.length}
+                  pageSize={auditPageSize}
+                  onPageChange={setAuditPage}
+                  onItemsPerPageChange={(newSize) => {
+                    setAuditPageSize(newSize);
+                    setAuditPage(1);
+                  }}
+                  itemsPerPageOptions={[25, 50, 100]}
+                  label="events"
+                  className="border-t-0 pt-0"
+                />
+              </div>
+            )}
           </div>
         </div>
       )}
