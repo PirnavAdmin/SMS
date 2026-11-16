@@ -1108,128 +1108,128 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-3.5">
         {/* Total Students */}
-        <div onClick={() => onNavigate('students')} className="glass-card border-primary-interactive hover-tilt p-5 rounded-3xl flex items-center justify-between cursor-pointer group">
-          <div className="space-y-1 text-left">
-            <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-400 tracking-wider">Total Students</span>
-            <p className="text-2xl font-black text-slate-900 dark:text-white mt-1">{displayTotalStudents.toLocaleString()}</p>
+        <div onClick={() => onNavigate('students')} className="glass-card border-primary-interactive hover-tilt py-3 px-3.5 sm:px-4 rounded-2xl flex items-center justify-between cursor-pointer group">
+          <div className="space-y-0.5 text-left">
+            <span className="text-[10px] font-bold uppercase text-slate-400 dark:text-slate-400 tracking-wider">Total Students</span>
+            <p className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mt-0.5">{displayTotalStudents.toLocaleString()}</p>
           </div>
-          <div className="p-3.5 rounded-2xl bg-sky-500/10 text-sky-600 dark:text-sky-400 group-hover:bg-sky-600 group-hover:text-white transition-all duration-300 border border-sky-500/20 shadow-xs">
-            <TrendingUp className="w-5 h-5" />
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-400 group-hover:bg-sky-600 group-hover:text-white transition-all duration-300 border border-sky-500/20 shadow-xs flex items-center justify-center shrink-0">
+            <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.2]" />
           </div>
         </div>
         
         {/* Total Teaching Staff */}
-        <div onClick={() => onNavigate('staff')} className="glass-card border-primary-interactive hover-tilt p-5 rounded-3xl flex items-center justify-between cursor-pointer group">
-          <div className="space-y-1 text-left">
-            <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-400 tracking-wider">Teaching Staff</span>
-            <p className="text-2xl font-black text-slate-900 dark:text-white mt-1">{displayTeachingStaff.toLocaleString()}</p>
+        <div onClick={() => onNavigate('staff')} className="glass-card border-primary-interactive hover-tilt py-3 px-3.5 sm:px-4 rounded-2xl flex items-center justify-between cursor-pointer group">
+          <div className="space-y-0.5 text-left">
+            <span className="text-[10px] font-bold uppercase text-slate-400 dark:text-slate-400 tracking-wider">Teaching Staff</span>
+            <p className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mt-0.5">{displayTeachingStaff.toLocaleString()}</p>
           </div>
-          <div className="p-3.5 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 group-hover:bg-emerald-600 group-hover:text-white transition-all duration-300 border border-emerald-500/20 shadow-xs">
-            <UserCheck className="w-5 h-5" />
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 group-hover:bg-emerald-600 group-hover:text-white transition-all duration-300 border border-emerald-500/20 shadow-xs flex items-center justify-center shrink-0">
+            <UserCheck className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.2]" />
           </div>
         </div>
 
         {/* Total Non-Teaching Staff */}
-        <div onClick={() => onNavigate('staff-non-teaching')} className="glass-card border-primary-interactive hover-tilt p-5 rounded-3xl flex items-center justify-between cursor-pointer group">
-          <div className="space-y-1 text-left">
-            <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-400 tracking-wider">Non-Teaching Staff</span>
-            <p className="text-2xl font-black text-slate-900 dark:text-white mt-1">{displayNonTeachingStaff.toLocaleString()}</p>
+        <div onClick={() => onNavigate('staff-non-teaching')} className="glass-card border-primary-interactive hover-tilt py-3 px-3.5 sm:px-4 rounded-2xl flex items-center justify-between cursor-pointer group">
+          <div className="space-y-0.5 text-left">
+            <span className="text-[10px] font-bold uppercase text-slate-400 dark:text-slate-400 tracking-wider">Non-Teaching Staff</span>
+            <p className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mt-0.5">{displayNonTeachingStaff.toLocaleString()}</p>
           </div>
-          <div className="p-3.5 rounded-2xl bg-rose-500/10 text-rose-600 dark:text-rose-400 group-hover:bg-rose-600 group-hover:text-white transition-all duration-300 border border-rose-500/20 shadow-xs">
-            <Users className="w-5 h-5" />
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 group-hover:bg-rose-600 group-hover:text-white transition-all duration-300 border border-rose-500/20 shadow-xs flex items-center justify-center shrink-0">
+            <Users className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.2]" />
           </div>
         </div>
 
         {/* Total Classes */}
-        <div onClick={() => onNavigate('academics')} className="glass-card border-primary-interactive hover-tilt p-5 rounded-3xl flex items-center justify-between cursor-pointer group">
-          <div className="space-y-1 text-left">
-            <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-400 tracking-wider">Total Classes</span>
-            <p className="text-2xl font-black text-slate-900 dark:text-white mt-1">{(summaryData ? summaryData.totalClasses : academicClasses.length).toLocaleString()}</p>
+        <div onClick={() => onNavigate('academics')} className="glass-card border-primary-interactive hover-tilt py-3 px-3.5 sm:px-4 rounded-2xl flex items-center justify-between cursor-pointer group">
+          <div className="space-y-0.5 text-left">
+            <span className="text-[10px] font-bold uppercase text-slate-400 dark:text-slate-400 tracking-wider">Total Classes</span>
+            <p className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mt-0.5">{(summaryData ? summaryData.totalClasses : academicClasses.length).toLocaleString()}</p>
           </div>
-          <div className="p-3.5 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 group-hover:bg-amber-600 group-hover:text-white transition-all duration-300 border border-amber-500/20 shadow-xs">
-            <BookOpen className="w-5 h-5" />
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 group-hover:bg-amber-600 group-hover:text-white transition-all duration-300 border border-amber-500/20 shadow-xs flex items-center justify-center shrink-0">
+            <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.2]" />
           </div>
         </div>
       </div>
 
       {/* Quick Actions Panel - iPhone Liquid Glass Style */}
-      <div className="glass-card border-primary-interactive p-6 rounded-3xl flex flex-col gap-4 animate-in fade-in duration-300">
+      <div className="glass-card border-primary-interactive p-3.5 sm:p-4 rounded-2xl flex flex-col gap-2.5 sm:gap-3 animate-in fade-in duration-300">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-base font-extrabold text-slate-900 dark:text-white tracking-tight">Quick Actions</h3>
+            <h3 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white tracking-tight">Quick Actions</h3>
           </div>
           <button 
             onClick={() => onNavigate('events')} 
-            className="btn-glass-pill flex items-center gap-2 px-3.5 py-1.5 rounded-2xl text-xs font-bold text-sky-600 dark:text-sky-400 shrink-0 cursor-pointer active:scale-95"
+            className="btn-glass-pill flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold text-sky-600 dark:text-sky-400 shrink-0 cursor-pointer active:scale-95"
           >
             <Calendar className="w-3.5 h-3.5 text-sky-500 stroke-[2.2]" />
             <span>View Calendar</span>
             <ArrowRight className="w-3 h-3 stroke-[2.5]" />
           </button>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 sm:gap-3.5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 sm:gap-2.5">
           <button 
             onClick={() => onNavigate('students')} 
-            className="btn-glass-pill flex flex-col sm:flex-row items-center justify-center gap-2.5 px-3 py-3 rounded-2xl text-xs font-bold text-slate-700 dark:text-slate-200 group active:scale-95 transition-all cursor-pointer"
+            className="btn-glass-pill flex flex-col sm:flex-row items-center justify-center gap-2 px-2.5 py-2 sm:py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 group active:scale-95 transition-all cursor-pointer min-w-0"
           >
-            <div className="w-8 h-8 rounded-xl bg-blue-500/12 text-blue-600 dark:text-blue-400 border border-blue-500/20 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-              <UserPlus className="w-4 h-4 stroke-[2.2]" />
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-blue-500/12 text-blue-600 dark:text-blue-400 border border-blue-500/20 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+              <UserPlus className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.2]" />
             </div>
-            <span className="truncate">Add Student</span>
+            <span className="truncate text-[11px] sm:text-xs">Add Student</span>
           </button>
           <button 
             onClick={() => onNavigate('staff')} 
-            className="btn-glass-pill flex flex-col sm:flex-row items-center justify-center gap-2.5 px-3 py-3 rounded-2xl text-xs font-bold text-slate-700 dark:text-slate-200 group active:scale-95 transition-all cursor-pointer"
+            className="btn-glass-pill flex flex-col sm:flex-row items-center justify-center gap-2 px-2.5 py-2 sm:py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 group active:scale-95 transition-all cursor-pointer min-w-0"
           >
-            <div className="w-8 h-8 rounded-xl bg-emerald-500/12 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-              <UserPlus className="w-4 h-4 stroke-[2.2]" />
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-emerald-500/12 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+              <UserPlus className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.2]" />
             </div>
-            <span className="truncate">Add Staff</span>
+            <span className="truncate text-[11px] sm:text-xs">Add Staff</span>
           </button>
           <button 
             onClick={() => onNavigate('academics')} 
-            className="btn-glass-pill flex flex-col sm:flex-row items-center justify-center gap-2.5 px-3 py-3 rounded-2xl text-xs font-bold text-slate-700 dark:text-slate-200 group active:scale-95 transition-all cursor-pointer"
+            className="btn-glass-pill flex flex-col sm:flex-row items-center justify-center gap-2 px-2.5 py-2 sm:py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 group active:scale-95 transition-all cursor-pointer min-w-0"
           >
-            <div className="w-8 h-8 rounded-xl bg-amber-500/12 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-              <BookOpen className="w-4 h-4 stroke-[2.2]" />
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-amber-500/12 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+              <BookOpen className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.2]" />
             </div>
-            <span className="truncate">Create Class</span>
+            <span className="truncate text-[11px] sm:text-xs">Create Class</span>
           </button>
           <button 
             onClick={() => onNavigate('examination')} 
-            className="btn-glass-pill flex flex-col sm:flex-row items-center justify-center gap-2.5 px-3 py-3 rounded-2xl text-xs font-bold text-slate-700 dark:text-slate-200 group active:scale-95 transition-all cursor-pointer"
+            className="btn-glass-pill flex flex-col sm:flex-row items-center justify-center gap-2 px-2.5 py-2 sm:py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 group active:scale-95 transition-all cursor-pointer min-w-0"
           >
-            <div className="w-8 h-8 rounded-xl bg-rose-500/12 text-rose-600 dark:text-rose-400 border border-rose-500/20 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-              <ClipboardList className="w-4 h-4 stroke-[2.2]" />
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-rose-500/12 text-rose-600 dark:text-rose-400 border border-rose-500/20 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+              <ClipboardList className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.2]" />
             </div>
-            <span className="truncate">Create Exam</span>
+            <span className="truncate text-[11px] sm:text-xs">Create Exam</span>
           </button>
           <button 
             onClick={() => onNavigate('attendance')} 
-            className="btn-glass-pill flex flex-col sm:flex-row items-center justify-center gap-2.5 px-3 py-3 rounded-2xl text-xs font-bold text-slate-700 dark:text-slate-200 group active:scale-95 transition-all cursor-pointer"
+            className="btn-glass-pill flex flex-col sm:flex-row items-center justify-center gap-2 px-2.5 py-2 sm:py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 group active:scale-95 transition-all cursor-pointer min-w-0"
           >
-            <div className="w-8 h-8 rounded-xl bg-indigo-500/12 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-              <UserCheck className="w-4 h-4 stroke-[2.2]" />
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-indigo-500/12 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+              <UserCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.2]" />
             </div>
-            <span className="truncate">Attendance</span>
+            <span className="truncate text-[11px] sm:text-xs">Attendance</span>
           </button>
           <button 
             onClick={() => onNavigate('communication')} 
-            className="btn-glass-pill flex flex-col sm:flex-row items-center justify-center gap-2.5 px-3 py-3 rounded-2xl text-xs font-bold text-slate-700 dark:text-slate-200 group active:scale-95 transition-all cursor-pointer"
+            className="btn-glass-pill flex flex-col sm:flex-row items-center justify-center gap-2 px-2.5 py-2 sm:py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 group active:scale-95 transition-all cursor-pointer min-w-0"
           >
-            <div className="w-8 h-8 rounded-xl bg-purple-500/12 text-purple-600 dark:text-purple-400 border border-purple-500/20 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-              <Megaphone className="w-4 h-4 stroke-[2.2]" />
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-purple-500/12 text-purple-600 dark:text-purple-400 border border-purple-500/20 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+              <Megaphone className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.2]" />
             </div>
-            <span className="truncate">Announcement</span>
+            <span className="truncate text-[11px] sm:text-xs">Announcement</span>
           </button>
         </div>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-3 sm:space-y-3.5">
         {/* Top Row: Student Attendance, Staff Attendance, Events & Holidays */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-3.5">
           {/* Dynamic Speedometer Student Attendance Card */}
           <SpeedometerAttendanceCard
             title="Student Attendance"
@@ -1280,7 +1280,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
           />
 
           {/* Events & Holidays */}
-          <div onClick={() => onNavigate('events')} className="lg:col-span-4 glass-card border-primary-interactive p-5 rounded-3xl cursor-pointer flex flex-col justify-between min-h-[350px] lg:h-[355px] active:scale-[0.99] transition-all">
+          <div onClick={() => onNavigate('events')} className="lg:col-span-4 glass-card border-primary-interactive p-4 sm:p-4.5 rounded-2xl cursor-pointer flex flex-col justify-between min-h-[350px] lg:h-[355px] active:scale-[0.99] transition-all">
             <div className="shrink-0 space-y-0.5 text-left">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 min-w-0 text-left">
@@ -1335,7 +1335,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
         </div>
 
         {/* Middle Row: Employees By Department (6 cols) + Pending Approvals (6 cols) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-3.5">
           {/* Employees By Department */}
           <div className="lg:col-span-6">
             <EmployeesByDepartmentChart onNavigate={onNavigate} className="h-[280px]" />
@@ -1356,9 +1356,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
         </div>
 
         {/* Bottom Row: Upcoming Examinations (6 cols) and Upcoming Birthdays (6 cols) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-3.5">
           {/* Upcoming Examinations */}
-          <div className="lg:col-span-6 glass-card border-primary-interactive p-5 sm:p-6 rounded-3xl flex flex-col justify-between h-[280px]">
+          <div className="lg:col-span-6 glass-card border-primary-interactive p-4 sm:p-4.5 rounded-2xl flex flex-col justify-between h-[280px]">
             <div className="flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2">
                 <div className="w-6 h-6 rounded-lg bg-indigo-500/12 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
@@ -1398,7 +1398,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
           </div>
 
           {/* Upcoming Birthdays */}
-          <div className="lg:col-span-6 glass-card border-primary-interactive p-5 sm:p-6 rounded-3xl flex flex-col justify-between h-[280px]">
+          <div className="lg:col-span-6 glass-card border-primary-interactive p-4 sm:p-4.5 rounded-2xl flex flex-col justify-between h-[280px]">
             <div className="flex items-center gap-2 shrink-0">
               <div className="w-6 h-6 rounded-lg bg-rose-500/12 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0">
                 <Cake className="w-3.5 h-3.5 stroke-[2.2]" />

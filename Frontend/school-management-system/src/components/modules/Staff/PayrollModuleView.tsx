@@ -611,13 +611,13 @@ function TableShell<T extends { id: string }>({
           {subtitle && <p className="mt-0.5 text-[10px] text-slate-500">{subtitle}</p>}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <label className="relative min-w-[200px]">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+          <label className="relative flex items-center min-w-[200px]">
+            <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 z-10" />
             <input
               value={query}
               onChange={e => setQuery(e.target.value)}
               placeholder="Search by Employee ID, Name, Department..."
-              className="h-9 w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 text-xs text-slate-900 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white font-medium"
+              className="h-9 w-full rounded-xl border border-slate-200 bg-slate-50 pl-8 pr-3 text-xs text-slate-900 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white font-medium"
             />
           </label>
           {filters}

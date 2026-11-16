@@ -215,6 +215,9 @@ export const getAvailableMonthsForYear = (yearStr: string | number): string[] =>
 const inputClass =
   'h-11 w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-brand-400 focus:bg-white dark:border-slate-700 dark:bg-slate-950 dark:text-white';
 
+const searchInputClass =
+  'h-11 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-8 pr-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-brand-400 focus:bg-white dark:border-slate-700 dark:bg-slate-950 dark:text-white';
+
 const selectClass =
   'h-11 w-full rounded-2xl border border-slate-200 bg-slate-50 pl-4 pr-10 text-sm font-semibold text-slate-900 outline-none transition focus:border-brand-400 focus:bg-white dark:border-slate-700 dark:bg-slate-950 dark:text-white appearance-none cursor-pointer';
 
@@ -482,15 +485,15 @@ const SearchableSelect: React.FC<{
       {isOpen && !disabled && (
         <div className="absolute top-full z-10 mt-2 w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl dark:border-slate-700 dark:bg-slate-800">
           <div className="border-b border-slate-100 p-2 dark:border-slate-700">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <div className="relative flex items-center">
+              <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 z-10" />
               <input 
                 autoFocus
                 type="text"
                 placeholder="Search options..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="w-full rounded-xl border-none bg-slate-50 pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-brand-500 dark:bg-slate-900 dark:text-white"
+                className="w-full rounded-xl border-none bg-slate-50 pl-8 pr-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-brand-500 dark:bg-slate-900 dark:text-white"
               />
             </div>
           </div>
@@ -577,15 +580,15 @@ const SearchableStaffSelect: React.FC<{
       {isOpen && !disabled && (
         <div className="absolute top-full left-0 z-50 mt-2 w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900 animate-in fade-in zoom-in-95 duration-150">
           <div className="border-b border-slate-100 p-2.5 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <div className="relative flex items-center">
+              <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 z-10" />
               <input 
                 autoFocus
                 type="text"
                 placeholder="Search by name, emp ID, designation..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 py-2 text-xs font-medium focus:outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                className="w-full rounded-xl border border-slate-200 bg-white pl-8 pr-3 py-2 text-xs font-medium focus:outline-none focus:border-sky-500 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
               />
             </div>
           </div>
@@ -2172,13 +2175,13 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
         >
           <div className="flex flex-wrap items-start gap-3">
             <div className="flex-1 min-w-[200px]">
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <div className="relative flex items-center">
+                <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 z-10" />
                 <input
                   value={employeeSearch}
                   onChange={e => setEmployeeSearch(e.target.value)}
                   placeholder="Search by Employee ID, Name, Department..."
-                  className={`${inputClass} pl-9`}
+                  className={searchInputClass}
                 />
               </div>
             </div>
@@ -2460,9 +2463,9 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
       >
         <div className="flex flex-wrap items-start gap-3">
           <div className="flex-1 min-w-[200px]">
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <input value={structureSearch} onChange={e => setStructureSearch(e.target.value)} placeholder="Search by Structure Name, Employee, Code..." className={`${inputClass} pl-9`} />
+            <div className="relative flex items-center">
+              <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 z-10" />
+              <input value={structureSearch} onChange={e => setStructureSearch(e.target.value)} placeholder="Search by Structure Name, Employee, Code..." className={searchInputClass} />
             </div>
           </div>
           <div className="w-48">
@@ -2788,13 +2791,13 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
               </SelectField>
             </div>
 
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <div className="relative flex items-center">
+              <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 z-10" />
               <input
                 value={leftEmployeeSearch}
                 onChange={e => setLeftEmployeeSearch(e.target.value)}
                 placeholder="Search by Employee ID, Name, Department..."
-                className={`${inputClass} pl-9`}
+                className={searchInputClass}
               />
             </div>
 
