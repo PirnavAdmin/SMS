@@ -201,6 +201,7 @@ builder.Services.AddScoped<SMS.Api.Services.Interfaces.Dashboard.IDashboardServi
 // Settings and School Branding Module
 builder.Services.AddScoped<SMS.Api.Repositories.Interfaces.Settings.ISettingsRepository, SMS.Api.Repositories.Implementations.Settings.SettingsRepository>();
 builder.Services.AddScoped<SMS.Api.Services.Interfaces.Settings.ISettingsService, SMS.Api.Services.Implementations.Settings.SettingsService>();
+builder.Services.AddScoped<SMS.Api.Services.Interfaces.IBackupService, SMS.Api.Services.Implementations.BackupService>();
 
 // =========================================================
 // 3. JWT AUTHENTICATION
