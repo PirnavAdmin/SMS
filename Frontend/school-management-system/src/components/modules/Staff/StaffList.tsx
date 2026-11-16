@@ -23,6 +23,7 @@ import {
   Loader2,
   UploadCloud,
   FileSpreadsheet,
+  AlertCircle,
 } from "lucide-react";
 import { Staff } from "../../../types";
 import { useData } from "../../../context/DataContext";
@@ -33,6 +34,7 @@ import { ConfirmModal } from "../../common/ConfirmModal";
 import { StaffFormModal } from "./StaffFormModal";
 import { StaffProfileDrawer } from "./StaffProfileDrawerEnhanced";
 import { StaffLetterModal } from "./Letters/StaffLetterModal";
+import { validateSearchQuery } from "../../../utils/validation";
 import { Pagination } from "../../common/Pagination";
 import { SchoolPrintHeader } from "../../common/SchoolPrintHeader";
 import { DocumentRequirementMasterModal } from "./DocumentRequirementMasterModal";
@@ -136,6 +138,7 @@ export const StaffList: React.FC<{
 
   // Filters state
   const [query, setQuery] = useState("");
+  const [searchError, setSearchError] = useState<string | undefined>(undefined);
   const [filterDept, setFilterDept] = useState("All");
   const [deptSearch, setDeptSearch] = useState("");
   const [deptDropdownOpen, setDeptDropdownOpen] = useState(false);
@@ -148,6 +151,24 @@ export const StaffList: React.FC<{
   const [sortBy, setSortBy] = useState<"latest" | "oldest" | "nameAsc" | "nameDesc">("latest");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+
+  const handleSearchChange = (val: string) => {
+    const clamped = val.slice(0, 30);
+    setQuery(clamped);
+    setCurrentPage(1);
+    if (!clamped.trim()) {
+      setSearchError(undefined);
+    } else {
+      const res = validateSearchQuery(clamped, 30);
+      setSearchError(res.isValid ? undefined : (res.error || "Enter a valid search term."));
+    }
+  };
+
+  const handleClearSearch = () => {
+    setQuery("");
+    setSearchError(undefined);
+    setCurrentPage(1);
+  };
 
   // Modals state
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -215,11 +236,14 @@ export const StaffList: React.FC<{
 
   // Apply filters
   const filtered = categoryStaffList.filter((s) => {
+    if (searchError) return false;
+    const q = query.toLowerCase().trim();
     const nameMatch =
-      `${s.firstName} ${s.lastName}`
-        .toLowerCase()
-        .includes(query.toLowerCase()) ||
-      s.empId.toLowerCase().includes(query.toLowerCase());
+      !q ||
+      `${s.firstName} ${s.lastName}`.toLowerCase().includes(q) ||
+      (s.empId || '').toLowerCase().includes(q) ||
+      (s.department || '').toLowerCase().includes(q) ||
+      (s.designation || '').toLowerCase().includes(q);
     const deptMatch = filterDept === "All" || s.department === filterDept;
 
     const desigMatch =
@@ -747,20 +771,40 @@ export const StaffList: React.FC<{
 
       {/* Advanced Filters Block (Hidden in Print) */}
       <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3 shadow-sm no-print">
-        <div className="flex flex-col md:flex-row flex-wrap items-center gap-3">
+        <div className="flex flex-col md:flex-row flex-wrap items-start gap-3">
           {/* Query search */}
-          <div className="relative flex-[2] min-w-[200px] w-full">
-            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-3 " />
-            <input
-              type="text"
-              placeholder="Search by Staff ID, Name, Department, Designation..."
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="w-full pl-9 pr-4 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
-            />
+          <div className="flex-[2] min-w-[240px] w-full">
+            <div className="relative flex items-center">
+              <Search className={`w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none transition-colors z-10 ${searchError ? 'text-rose-500' : 'text-slate-400'}`} />
+              <input
+                type="text"
+                maxLength={30}
+                placeholder="Search by Staff ID, Name, Department, Designation..."
+                value={query}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                className={`w-full pl-8 ${query ? 'pr-8' : 'pr-3'} h-10 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border transition-all ${
+                  searchError
+                    ? 'border-rose-500 ring-1 ring-rose-500/20 text-rose-900 dark:text-rose-100 bg-rose-50/20 dark:bg-rose-950/20'
+                    : 'border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:border-brand-500'
+                } outline-none font-medium`}
+              />
+              {query && (
+                <button
+                  type="button"
+                  onClick={handleClearSearch}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 z-10 cursor-pointer"
+                  title="Clear search"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+            {searchError && (
+              <p className="text-[11px] font-bold text-rose-500 flex items-center gap-1 mt-1.5 pl-1 animate-in fade-in duration-150">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>{searchError}</span>
+              </p>
+            )}
           </div>
 
           {/* Department */}
@@ -769,7 +813,7 @@ export const StaffList: React.FC<{
             className="relative flex-1 min-w-[140px] w-full"
           >
             <div
-              className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 cursor-pointer h-full"
+              className="flex items-center justify-between gap-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 h-10 cursor-pointer"
               onClick={() => setDeptDropdownOpen(!deptDropdownOpen)}
             >
               <span className="text-xs text-slate-900 dark:text-white font-semibold flex-1 truncate">
@@ -834,7 +878,7 @@ export const StaffList: React.FC<{
             className="relative flex-1 min-w-[140px] w-full"
           >
             <div
-              className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 cursor-pointer h-full"
+              className="flex items-center justify-between gap-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 h-10 cursor-pointer"
               onClick={() =>
                 setDesignationDropdownOpen(!designationDropdownOpen)
               }
@@ -898,14 +942,14 @@ export const StaffList: React.FC<{
 
           {/* Status */}
           <div className="flex-1 min-w-[140px] w-full">
-            <div className="relative h-full">
+            <div className="relative">
               <select
                 value={filterStatus}
                 onChange={(e) => {
                   setFilterStatus(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="w-full pl-3 pr-10 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold outline-none appearance-none cursor-pointer h-full"
+                className="w-full pl-3 pr-10 h-10 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold outline-none appearance-none cursor-pointer"
               >
                 <option value="All">All Statuses</option>
                 <option value="Active">Active</option>
@@ -918,14 +962,14 @@ export const StaffList: React.FC<{
 
           {/* Sort By */}
           <div className="flex-1 min-w-[140px] w-full">
-            <div className="relative h-full">
+            <div className="relative">
               <select
                 value={sortBy}
                 onChange={(e) => {
                   setSortBy(e.target.value as any);
                   setCurrentPage(1);
                 }}
-                className="w-full pl-3 pr-10 py-2.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold outline-none appearance-none cursor-pointer h-full"
+                className="w-full pl-3 pr-10 h-10 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-semibold outline-none appearance-none cursor-pointer"
               >
                 <option value="latest">Sort: Latest</option>
                 <option value="oldest">Sort: Oldest</option>
@@ -974,7 +1018,17 @@ export const StaffList: React.FC<{
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
-              {paginated.length === 0 ? (
+              {searchError ? (
+                <tr>
+                  <td colSpan={9} className="text-center py-10">
+                    <div className="flex flex-col items-center justify-center gap-1.5 text-rose-500 dark:text-rose-400">
+                      <AlertCircle className="w-5 h-5 text-rose-500" />
+                      <p className="font-bold text-xs">{searchError}</p>
+                      <p className="text-[11px] text-slate-400 font-normal">Please enter a valid search criteria.</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : paginated.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="text-center py-8 text-slate-400">
                     No {activeCategory.toLowerCase()} records match search

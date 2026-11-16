@@ -46,6 +46,7 @@ import {
 import { PayrollDrawer } from './PayrollDrawer';
 import { downloadPayslipPdf } from '../../../utils/payslipTemplate';
 import { PayslipModal } from './PayslipModal';
+import { validateSearchQuery } from '../../../utils/validation';
 
 type PayrollTabId =
   | 'staff-payroll-employees'
@@ -974,13 +975,51 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
   const [isGenerateModalOpen, setIsGenerateModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<PayrollTabId>('staff-payroll-employees');
   const [employeeSearch, setEmployeeSearch] = useState('');
+  const [employeeSearchError, setEmployeeSearchError] = useState<string | undefined>(undefined);
   const [employeeCategoryFilter, setEmployeeCategoryFilter] = useState<'All' | CategoryValue>('All');
   const [employeeStructureFilter, setEmployeeStructureFilter] = useState('All Structures');
   const [employeeStatusFilter, setEmployeeStatusFilter] = useState<'All' | 'Active' | 'Inactive'>('All');
   const [structureSearch, setStructureSearch] = useState('');
+  const [structureSearchError, setStructureSearchError] = useState<string | undefined>(undefined);
   const [structureCategoryFilter, setStructureCategoryFilter] = useState<'All' | CategoryValue>('All');
   const [structureDesignationFilter, setStructureDesignationFilter] = useState('All');
   const [structureStatusFilter, setStructureStatusFilter] = useState<'All' | 'Active' | 'Inactive'>('All');
+
+  const handleEmployeeSearchChange = (val: string) => {
+    const clamped = val.slice(0, 30);
+    setEmployeeSearch(clamped);
+    setEmployeePage(1);
+    if (!clamped.trim()) {
+      setEmployeeSearchError(undefined);
+    } else {
+      const res = validateSearchQuery(clamped, 30);
+      setEmployeeSearchError(res.isValid ? undefined : (res.error || 'Enter a valid search term.'));
+    }
+  };
+
+  const handleClearEmployeeSearch = () => {
+    setEmployeeSearch('');
+    setEmployeeSearchError(undefined);
+    setEmployeePage(1);
+  };
+
+  const handleStructureSearchChange = (val: string) => {
+    const clamped = val.slice(0, 30);
+    setStructureSearch(clamped);
+    setStructurePage(1);
+    if (!clamped.trim()) {
+      setStructureSearchError(undefined);
+    } else {
+      const res = validateSearchQuery(clamped, 30);
+      setStructureSearchError(res.isValid ? undefined : (res.error || 'Enter a valid search term.'));
+    }
+  };
+
+  const handleClearStructureSearch = () => {
+    setStructureSearch('');
+    setStructureSearchError(undefined);
+    setStructurePage(1);
+  };
   const [generationMonth, setGenerationMonth] = useState(monthOptions[new Date().getMonth()]);
   const [generationYear, setGenerationYear] = useState(String(currentYear));
   const [generationBranch, setGenerationBranch] = useState('All Branches');
@@ -1319,6 +1358,23 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
   };
   const [standardPeriod, setStandardPeriod] = useState<'1m' | '3m' | '6m' | '12m'>('1m');
   const [leftEmployeeSearch, setLeftEmployeeSearch] = useState<string>('');
+  const [leftEmployeeSearchError, setLeftEmployeeSearchError] = useState<string | undefined>(undefined);
+
+  const handleLeftEmployeeSearchChange = (val: string) => {
+    const clamped = val.slice(0, 30);
+    setLeftEmployeeSearch(clamped);
+    if (!clamped.trim()) {
+      setLeftEmployeeSearchError(undefined);
+    } else {
+      const res = validateSearchQuery(clamped, 30);
+      setLeftEmployeeSearchError(res.isValid ? undefined : (res.error || 'Enter a valid search term.'));
+    }
+  };
+
+  const handleClearLeftEmployeeSearch = () => {
+    setLeftEmployeeSearch('');
+    setLeftEmployeeSearchError(undefined);
+  };
   const [structureModalOpen, setStructureModalOpen] = useState(false);
   const [structureMode, setStructureMode] = useState<'add' | 'edit' | 'duplicate'>('add');
   const [structureEditingId, setStructureEditingId] = useState<string | null>(null);
@@ -1388,6 +1444,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
   }, [employeeSalaryAssignments, salaryStructures, staff]);
 
   const filteredEmployeeRows = useMemo(() => {
+    if (employeeSearchError) return [];
     const query = normalize(employeeSearch);
     return employeeRows.filter(row => {
       const matchesSearch =
@@ -1398,7 +1455,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
       const matchesStatus = employeeStatusFilter === 'All' || row.payrollStatus === employeeStatusFilter;
       return matchesSearch && matchesCategory && matchesStructure && matchesStatus;
     });
-  }, [employeeCategoryFilter, employeeRows, employeeSearch, employeeStatusFilter, employeeStructureFilter]);
+  }, [employeeCategoryFilter, employeeRows, employeeSearch, employeeSearchError, employeeStatusFilter, employeeStructureFilter]);
 
   const structureRows = useMemo(() => {
     return salaryStructures.map(structure => {
@@ -1435,6 +1492,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
   }, [employeeSalaryAssignments, salaryStructures, staff]);
 
   const filteredStructureRows = useMemo(() => {
+    if (structureSearchError) return [];
     const query = normalize(structureSearch);
     return structureRows.filter(row => {
       const empText = row.linkedEmployee ? `${row.linkedEmployee.firstName} ${row.linkedEmployee.lastName} ${row.linkedEmployee.empId}` : '';
@@ -1446,7 +1504,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
       const matchesStatus = structureStatusFilter === 'All' || row.structure.status === structureStatusFilter;
       return matchesSearch && matchesCategory && matchesDesignation && matchesStatus;
     });
-  }, [structureCategoryFilter, structureDesignationFilter, structureRows, structureSearch, structureStatusFilter]);
+  }, [structureCategoryFilter, structureDesignationFilter, structureRows, structureSearch, structureSearchError, structureStatusFilter]);
 
   const activeStructureCount = structureRows.filter(row => row.structure.status === 'Active').length;
   const assignedEmployeeCount = employeeRows.filter(row => row.assignment && row.assignment.status === 'Active').length;
@@ -2176,14 +2234,35 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
           <div className="flex flex-wrap items-start gap-3">
             <div className="flex-1 min-w-[200px]">
               <div className="relative flex items-center">
-                <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 z-10" />
+                <Search className={`pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 transition-colors z-10 ${employeeSearchError ? 'text-rose-500' : 'text-slate-400'}`} />
                 <input
                   value={employeeSearch}
-                  onChange={e => setEmployeeSearch(e.target.value)}
+                  maxLength={30}
+                  onChange={e => handleEmployeeSearchChange(e.target.value)}
                   placeholder="Search by Employee ID, Name, Department..."
-                  className={searchInputClass}
+                  className={`h-11 w-full rounded-2xl border bg-slate-50 pl-8 ${employeeSearch ? 'pr-9' : 'pr-3'} text-sm font-semibold outline-none transition ${
+                    employeeSearchError
+                      ? 'border-rose-500 ring-1 ring-rose-500/20 text-rose-900 dark:text-rose-100 dark:bg-slate-950'
+                      : 'border-slate-200 text-slate-900 focus:border-brand-400 focus:bg-white dark:border-slate-700 dark:bg-slate-950 dark:text-white'
+                  }`}
                 />
+                {employeeSearch && (
+                  <button
+                    type="button"
+                    onClick={handleClearEmployeeSearch}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 z-10 cursor-pointer"
+                    title="Clear search"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
               </div>
+              {employeeSearchError && (
+                <p className="text-[11px] font-bold text-rose-500 flex items-center gap-1 mt-1.5 pl-1 animate-in fade-in duration-150">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  <span>{employeeSearchError}</span>
+                </p>
+              )}
             </div>
             <div className="w-48">
               <SelectField value={employeeCategoryFilter} onChange={e => setEmployeeCategoryFilter(e.target.value as 'All' | CategoryValue)}>
@@ -2238,7 +2317,17 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
                 </tr>
               </thead>
               <tbody>
-                {filteredEmployeeRows.length === 0 ? (
+                {employeeSearchError ? (
+                  <tr key="no-employees-search-error">
+                    <td colSpan={9} className="rounded-[18px] border border-dashed border-rose-300 dark:border-rose-800/60 bg-rose-50/20 dark:bg-rose-950/10 px-6 py-10 text-center text-sm">
+                      <div className="flex flex-col items-center justify-center gap-1.5 text-rose-500 dark:text-rose-400">
+                        <AlertCircle className="w-5 h-5 text-rose-500" />
+                        <p className="font-bold text-xs">{employeeSearchError}</p>
+                        <p className="text-[11px] text-slate-400 font-normal">Please enter a valid search criteria.</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : filteredEmployeeRows.length === 0 ? (
                   <tr key="no-employees">
                     <td colSpan={9} className="rounded-[18px] border border-dashed border-slate-300 px-6 py-10 text-center text-sm text-slate-500 dark:border-slate-700">
                       No employees matched the current filters.
@@ -2464,9 +2553,35 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
         <div className="flex flex-wrap items-start gap-3">
           <div className="flex-1 min-w-[200px]">
             <div className="relative flex items-center">
-              <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 z-10" />
-              <input value={structureSearch} onChange={e => setStructureSearch(e.target.value)} placeholder="Search by Structure Name, Employee, Code..." className={searchInputClass} />
+              <Search className={`pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 transition-colors z-10 ${structureSearchError ? 'text-rose-500' : 'text-slate-400'}`} />
+              <input
+                value={structureSearch}
+                maxLength={30}
+                onChange={e => handleStructureSearchChange(e.target.value)}
+                placeholder="Search by Structure Name, Employee, Code..."
+                className={`h-11 w-full rounded-2xl border bg-slate-50 pl-8 ${structureSearch ? 'pr-9' : 'pr-3'} text-sm font-semibold outline-none transition ${
+                  structureSearchError
+                    ? 'border-rose-500 ring-1 ring-rose-500/20 text-rose-900 dark:text-rose-100 dark:bg-slate-950'
+                    : 'border-slate-200 text-slate-900 focus:border-brand-400 focus:bg-white dark:border-slate-700 dark:bg-slate-950 dark:text-white'
+                }`}
+              />
+              {structureSearch && (
+                <button
+                  type="button"
+                  onClick={handleClearStructureSearch}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 z-10 cursor-pointer"
+                  title="Clear search"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
             </div>
+            {structureSearchError && (
+              <p className="text-[11px] font-bold text-rose-500 flex items-center gap-1 mt-1.5 pl-1 animate-in fade-in duration-150">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>{structureSearchError}</span>
+              </p>
+            )}
           </div>
           <div className="w-48">
             <SelectField value={structureCategoryFilter} onChange={e => setStructureCategoryFilter(e.target.value as 'All' | CategoryValue)}>
@@ -2522,7 +2637,17 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
               </tr>
             </thead>
             <tbody>
-              {filteredStructureRows.length === 0 ? (
+              {structureSearchError ? (
+                <tr key="no-structures-search-error">
+                  <td colSpan={10} className="rounded-[18px] border border-dashed border-rose-300 dark:border-rose-800/60 bg-rose-50/20 dark:bg-rose-950/10 px-6 py-10 text-center text-sm">
+                    <div className="flex flex-col items-center justify-center gap-1.5 text-rose-500 dark:text-rose-400">
+                      <AlertCircle className="w-5 h-5 text-rose-500" />
+                      <p className="font-bold text-xs">{structureSearchError}</p>
+                      <p className="text-[11px] text-slate-400 font-normal">Please enter a valid search criteria.</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : filteredStructureRows.length === 0 ? (
                 <tr key="no-structures">
                   <td colSpan={10} className="rounded-[18px] border border-dashed border-slate-300 px-6 py-10 text-center text-sm text-slate-500 dark:border-slate-700">
                     No salary structures matched the current filters.
@@ -2646,6 +2771,7 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
     const currentPeriodLabel = periodLabel(generationMonth, generationYear);
 
     const filteredLeftStaff = staff.filter(member => {
+      if (leftEmployeeSearchError) return false;
       const category = resolveCategory(member);
       const matchesCategory = generationCategory === 'All' || category === generationCategory;
 
@@ -2791,14 +2917,37 @@ export const PayrollModuleView: React.FC<PayrollModuleViewProps> = ({ initialTab
               </SelectField>
             </div>
 
-            <div className="relative flex items-center">
-              <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 z-10" />
-              <input
-                value={leftEmployeeSearch}
-                onChange={e => setLeftEmployeeSearch(e.target.value)}
-                placeholder="Search by Employee ID, Name, Department..."
-                className={searchInputClass}
-              />
+            <div>
+              <div className="relative flex items-center">
+                <Search className={`pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 transition-colors z-10 ${leftEmployeeSearchError ? 'text-rose-500' : 'text-slate-400'}`} />
+                <input
+                  value={leftEmployeeSearch}
+                  maxLength={30}
+                  onChange={e => handleLeftEmployeeSearchChange(e.target.value)}
+                  placeholder="Search by Employee ID, Name, Department..."
+                  className={`h-11 w-full rounded-2xl border bg-slate-50 pl-8 ${leftEmployeeSearch ? 'pr-9' : 'pr-3'} text-sm font-semibold outline-none transition ${
+                    leftEmployeeSearchError
+                      ? 'border-rose-500 ring-1 ring-rose-500/20 text-rose-900 dark:text-rose-100 dark:bg-slate-950'
+                      : 'border-slate-200 text-slate-900 focus:border-brand-400 focus:bg-white dark:border-slate-700 dark:bg-slate-950 dark:text-white'
+                  }`}
+                />
+                {leftEmployeeSearch && (
+                  <button
+                    type="button"
+                    onClick={handleClearLeftEmployeeSearch}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 z-10 cursor-pointer"
+                    title="Clear search"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+              {leftEmployeeSearchError && (
+                <p className="text-[11px] font-bold text-rose-500 flex items-center gap-1 mt-1.5 pl-1 animate-in fade-in duration-150">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  <span>{leftEmployeeSearchError}</span>
+                </p>
+              )}
             </div>
 
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2 px-1">

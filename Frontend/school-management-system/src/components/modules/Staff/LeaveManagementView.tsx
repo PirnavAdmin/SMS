@@ -1364,18 +1364,19 @@ export const LeaveManagementView: React.FC = () => {
       {activeTab === 'applications' && (
         <div className="space-y-4">
           {/* Advanced Filter Header */}
-          <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-sky-200 dark:border-sky-800 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-sky-200 dark:border-sky-800 shadow-xs flex flex-col sm:flex-row items-start justify-between gap-3">
             <div className="w-full sm:w-64">
               <div className="relative w-full">
-                <Search className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 transition-colors ${searchError ? 'text-rose-500' : 'text-slate-400'}`} />
+                <Search className={`w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 transition-colors z-10 ${searchError ? 'text-rose-500' : 'text-slate-400'}`} />
                 <input
                   type="text"
+                  maxLength={30}
                   placeholder="Search employee name..."
                   value={query}
                   onChange={e => handleSearchChange(e.target.value)}
-                  className={`w-full pl-9 pr-8 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border outline-none transition-colors ${
+                  className={`w-full pl-8 pr-8 h-10 text-xs font-semibold rounded-xl bg-slate-50 dark:bg-slate-800 border outline-none transition-all ${
                     searchError
-                      ? 'border-rose-500 text-rose-700 dark:text-rose-300 focus:border-rose-500 focus:ring-1 focus:ring-rose-500'
+                      ? 'border-rose-500 ring-1 ring-rose-500/20 text-rose-900 dark:text-rose-100 bg-rose-50/20'
                       : 'border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:border-brand-500'
                   }`}
                 />
@@ -1386,7 +1387,7 @@ export const LeaveManagementView: React.FC = () => {
                       setQuery('');
                       setSearchError(undefined);
                     }}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 z-10 cursor-pointer"
                     title="Clear search"
                   >
                     <X className="w-3.5 h-3.5" />
@@ -1407,7 +1408,7 @@ export const LeaveManagementView: React.FC = () => {
                   <select
                     value={filterCategory}
                     onChange={e => setFilterCategory(e.target.value)}
-                    className="appearance-none pl-3.5 pr-9 py-2 text-xs font-semibold rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 cursor-pointer outline-none transition-all shadow-sm"
+                    className="appearance-none pl-3.5 pr-9 h-10 text-xs font-semibold rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 cursor-pointer outline-none transition-all shadow-sm"
                   >
                     <option value="All">All Categories</option>
                     <option value="Teacher">Teachers</option>
@@ -1421,7 +1422,7 @@ export const LeaveManagementView: React.FC = () => {
                 <select
                   value={filterStatus}
                   onChange={e => setFilterStatus(e.target.value)}
-                  className="appearance-none pl-3.5 pr-9 py-2 text-xs font-semibold rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 cursor-pointer outline-none transition-all shadow-sm"
+                  className="appearance-none pl-3.5 pr-9 h-10 text-xs font-semibold rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 cursor-pointer outline-none transition-all shadow-sm"
                 >
                   <option value="All">All Statuses</option>
                   <option value="Pending">Pending</option>
@@ -1435,7 +1436,7 @@ export const LeaveManagementView: React.FC = () => {
                 <select
                   value={filterType}
                   onChange={e => setFilterType(e.target.value)}
-                  className="appearance-none pl-3.5 pr-9 py-2 text-xs font-semibold rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 cursor-pointer outline-none transition-all shadow-sm"
+                  className="appearance-none pl-3.5 pr-9 h-10 text-xs font-semibold rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 cursor-pointer outline-none transition-all shadow-sm"
                 >
                   <option value="All">All Leave Types</option>
                   {activeLeaveTypes.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
@@ -1645,18 +1646,19 @@ export const LeaveManagementView: React.FC = () => {
       {activeTab === 'balance' && (
         <div className="space-y-4">
           {!isSelfServiceStaff && (
-            <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-sky-200 dark:border-sky-800 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-sky-200 dark:border-sky-800 shadow-xs flex flex-col sm:flex-row items-start justify-between gap-3">
               <div className="w-full sm:w-64">
                 <div className="relative w-full">
-                  <Search className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 transition-colors ${searchError ? 'text-rose-500' : 'text-slate-400'}`} />
+                  <Search className={`w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 transition-colors z-10 ${searchError ? 'text-rose-500' : 'text-slate-400'}`} />
                   <input
                     type="text"
+                    maxLength={30}
                     placeholder="Search by staff..."
                     value={query}
                     onChange={e => handleSearchChange(e.target.value)}
-                    className={`w-full pl-9 pr-8 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border outline-none transition-colors ${
+                    className={`w-full pl-8 pr-8 h-10 text-xs font-semibold rounded-xl bg-slate-50 dark:bg-slate-800 border outline-none transition-all ${
                       searchError
-                        ? 'border-rose-500 text-rose-700 dark:text-rose-300 focus:border-rose-500 focus:ring-1 focus:ring-rose-500'
+                        ? 'border-rose-500 ring-1 ring-rose-500/20 text-rose-900 dark:text-rose-100 bg-rose-50/20'
                         : 'border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:border-brand-500'
                     }`}
                   />
@@ -1667,7 +1669,7 @@ export const LeaveManagementView: React.FC = () => {
                         setQuery('');
                         setSearchError(undefined);
                       }}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 z-10 cursor-pointer"
                       title="Clear search"
                     >
                       <X className="w-3.5 h-3.5" />
@@ -1683,18 +1685,17 @@ export const LeaveManagementView: React.FC = () => {
               </div>
 
               <div className="flex items-center gap-2 w-full sm:w-auto">
-                {/* <span className="text-xs text-slate-500 font-bold whitespace-nowrap">Filter By Category:</span> */}
                 <div className="relative w-full sm:w-48">
                   <select
                     value={balanceCategoryFilter}
                     onChange={e => setBalanceCategoryFilter(e.target.value as any)}
-                    className="w-full px-3.5 py-2 text-xs rounded-xl bg-slate-50 border outline-none font-bold text-slate-700 dark:text-slate-355 cursor-pointer appearance-none pr-8"
+                    className="w-full pl-3.5 pr-9 h-10 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none font-semibold text-slate-700 dark:text-slate-200 cursor-pointer appearance-none"
                   >
                     <option value="All">All Categories</option>
                     <option value="Teaching Staff">Teaching Staff</option>
                     <option value="Non-Teaching Staff">Non-Teaching Staff</option>
                   </select>
-                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-2.5 pointer-events-none" />
+                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 </div>
               </div>
             </div>

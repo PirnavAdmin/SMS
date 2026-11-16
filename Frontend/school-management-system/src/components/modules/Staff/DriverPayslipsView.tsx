@@ -3,8 +3,9 @@ import React, { useState, useMemo, useEffect } from 'react';
 import {
   FileText, Download, Eye, Calendar, IndianRupee,
   Search, CheckCircle2, XCircle, ShieldCheck, ChevronLeft,
-  ChevronRight, ArrowUpDown, ChevronDown, Printer, X, Bus
+  ChevronRight, ArrowUpDown, ChevronDown, Printer, X, Bus, AlertCircle
 } from 'lucide-react';
+import { validateSearchQuery } from '../../../utils/validation';
 import { useAuth } from '../../../context/AuthContext';
 import { useData } from '../../../context/DataContext';
 import { Badge } from '../../common/Badge';
@@ -131,8 +132,16 @@ export const DriverPayslipsView: React.FC = () => {
     }));
   }, [payslips, matchedDriver]);
 
+  // Search validation
+  const searchValidation = useMemo(() => {
+    if (!searchQuery.trim()) return { isValid: true, error: undefined };
+    return validateSearchQuery(searchQuery, 30);
+  }, [searchQuery]);
+  const searchError = searchValidation.isValid ? undefined : (searchValidation.error || 'Enter a valid search term.');
+
   // 3. Filtered & Sorted payslips
   const sortedPayslips = useMemo(() => {
+    if (searchError) return [];
     const filtered = driverPayslips.filter(p => {
       const monthMatch = p.month.toLowerCase().includes(searchQuery.toLowerCase());
       const yearMatch = selectedYear === 'All' || p.month.includes(selectedYear);
@@ -144,7 +153,7 @@ export const DriverPayslipsView: React.FC = () => {
       const dateB = new Date(b.disbursedDate || b.month).getTime();
       return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
     });
-  }, [driverPayslips, searchQuery, selectedYear, sortOrder]);
+  }, [driverPayslips, searchQuery, selectedYear, sortOrder, searchError]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -215,24 +224,56 @@ export const DriverPayslipsView: React.FC = () => {
             Payslip History ({sortedPayslips.length})
           </h3>
 
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-start gap-2 flex-wrap">
             {/* Search */}
-            <div className="relative">
-              <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                placeholder="Search month..."
-                className="pl-8 pr-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs focus:ring-2 focus:ring-sky-500/20 outline-none w-36 sm:w-44"
-              />
+            <div>
+              <div className="relative flex items-center">
+                <Search className={`w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none transition-colors z-10 ${searchError ? 'text-rose-500' : 'text-slate-400'}`} />
+                <input
+                  type="text"
+                  maxLength={30}
+                  value={searchQuery}
+                  onChange={e => {
+                    setSearchQuery(e.target.value.slice(0, 30));
+                    setCurrentPage(1);
+                  }}
+                  placeholder="Search month..."
+                  className={`pl-8 ${searchQuery ? 'pr-8' : 'pr-3'} h-9 rounded-xl border text-xs outline-none transition-all w-40 sm:w-48 font-medium ${
+                    searchError
+                      ? 'border-rose-500 ring-1 ring-rose-500/20 text-rose-900 dark:text-rose-100 bg-rose-50/20'
+                      : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-sky-500/20'
+                  }`}
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery('');
+                      setCurrentPage(1);
+                    }}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 z-10 cursor-pointer"
+                    title="Clear search"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+              {searchError && (
+                <p className="text-[11px] font-bold text-rose-500 flex items-center gap-1 mt-1 pl-1 animate-in fade-in duration-150">
+                  <AlertCircle className="w-3 h-3 shrink-0" />
+                  <span>{searchError}</span>
+                </p>
+              )}
             </div>
 
             {/* Year Filter */}
             <select
               value={selectedYear}
-              onChange={e => setSelectedYear(e.target.value)}
-              className="px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold focus:ring-2 focus:ring-sky-500/20 outline-none cursor-pointer"
+              onChange={e => {
+                setSelectedYear(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="h-9 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold focus:ring-2 focus:ring-sky-500/20 outline-none cursor-pointer"
             >
               <option value="All">All Years</option>
               <option value="2026">2026</option>
@@ -256,7 +297,24 @@ export const DriverPayslipsView: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {paginatedPayslips.map(p => {
+              {searchError ? (
+                <tr>
+                  <td colSpan={7} className="py-10 text-center">
+                    <div className="flex flex-col items-center justify-center gap-1.5 text-rose-500 dark:text-rose-400">
+                      <AlertCircle className="w-5 h-5 text-rose-500" />
+                      <p className="font-bold text-xs">{searchError}</p>
+                      <p className="text-[11px] text-slate-400 font-normal">Please enter a valid search criteria.</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : paginatedPayslips.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-10 text-center text-slate-400 font-medium">
+                    No payslips found matching the search criteria.
+                  </td>
+                </tr>
+              ) : (
+                paginatedPayslips.map(p => {
                 const totalDeductions = (p.pfDeduction || 0) + (p.otherDeductions || 0);
                 return (
                   <tr key={p.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors">
@@ -298,7 +356,7 @@ export const DriverPayslipsView: React.FC = () => {
                     </td>
                   </tr>
                 );
-              })}
+              }))}
             </tbody>
           </table>
         </div>
