@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { formatCurrency } from '../../../utils/currency';
 import { formatDateForDisplay } from '../../../utils/dateValidation';
 import {
@@ -27,6 +27,8 @@ import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { matchesClassName } from '../../../utils/classSorter';
 import { exportToExcel } from '../../../utils/excelExport';
+import { ValidatedSearchInput } from '../../common/ValidatedSearchInput';
+import { Pagination } from '../../common/Pagination';
 
 import { resolveMediaUrl } from '../../../utils/mediaUtils';
 
@@ -75,6 +77,13 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({
   const [selectedDueDate, setSelectedDueDate] = useState('All');
   const [timelineFilter, setTimelineFilter] = useState<'All' | 'Overdue' | 'Current' | 'Upcoming'>('All');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(10);
+  const [searchError, setSearchError] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [query, selectedAY, selectedClass, selectedSection, selectedFeeHead, timelineFilter]);
 
   // Automatically refresh finance data on mount and whenever finance updates are broadcast
   useEffect(() => {
@@ -451,6 +460,11 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({
   // 2. Sort by Highest Outstanding Dues First at Top
   studentDueList.sort((a, b) => b.totalOutstanding - a.totalOutstanding);
 
+  const paginatedStudentDueList = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return studentDueList.slice(start, start + pageSize);
+  }, [studentDueList, currentPage, pageSize]);
+
   const totalOutstandingSum = studentDueList.reduce((acc, item) => acc + item.totalOutstanding, 0);
   const totalOverdueSum = studentDueList.reduce((acc, item) => acc + item.overdueAmount, 0);
 
@@ -678,9 +692,9 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({
       </div>
 
       {/* Top Action Toolbar (Download & Print Buttons) */}
-      <div className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+      <div className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-2xl bg-white dark:bg-slate-900 border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 shadow-xs">
         <div className="flex items-center gap-2">
-          <div className="p-2 rounded-xl bg-sky-50 text-sky-600 dark:bg-sky-950 dark:text-sky-400">
+          <div className="p-2 rounded-xl bg-[var(--primary-color)]/10 text-[var(--primary-color)]">
             <FileSpreadsheet className="w-5 h-5" />
           </div>
           <div>
@@ -698,7 +712,7 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({
           </button>
           <button
             onClick={handleDownloadStudentDues}
-            className="px-3.5 py-2 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-700 dark:bg-sky-950/60 dark:hover:bg-sky-900 dark:text-sky-300 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer border border-sky-200 dark:border-sky-800"
+            className="px-3.5 py-2 rounded-xl bg-[var(--primary-color)]/10 hover:bg-[var(--primary-color)]/20 text-[var(--primary-color)] text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer border border-[var(--primary-color)]/30"
           >
             <Download className="w-4 h-4" /> Download Student Dues ({selectedFeeHead})
           </button>
@@ -711,7 +725,7 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({
           <button
             onClick={handleManualRefresh}
             disabled={isRefreshing}
-            className="px-3.5 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 dark:bg-indigo-950/60 dark:hover:bg-indigo-900 dark:text-indigo-300 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer border border-indigo-200 dark:border-indigo-800 disabled:opacity-50"
+            className="px-3.5 py-2 rounded-xl bg-[var(--primary-color)]/10 hover:bg-[var(--primary-color)]/20 text-[var(--primary-color)] text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer border border-[var(--primary-color)]/30 disabled:opacity-50"
           >
             <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`} /> Refresh Data
           </button>
@@ -748,10 +762,10 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({
               <div
                 key={cat.categoryName}
                 onClick={() => setSelectedFeeHead(isSelected ? "All" : cat.categoryName)}
-                className={`glass-card p-4 rounded-2xl flex flex-col justify-between cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-lg group ${
+                className={`glass-card p-3.5 sm:p-4 rounded-2xl flex flex-col justify-between cursor-pointer transition-all duration-200 hover:scale-[1.02] hover:shadow-md group ${
                   isSelected
-                    ? "ring-2 ring-sky-500 bg-sky-50/60 dark:bg-sky-950/40 border-sky-400"
-                    : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900"
+                    ? "ring-2 ring-[var(--primary-color)] bg-[var(--primary-color)]/10 dark:bg-[var(--primary-color)]/20 border-[var(--primary-color)]"
+                    : "border border-[var(--primary-color)]/35 dark:border-[var(--primary-color)]/45 hover:border-[var(--primary-color)] bg-white dark:bg-slate-900"
                 }`}
               >
                 <div className="flex items-center justify-between">
@@ -759,17 +773,17 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({
                     {cat.categoryName}
                   </span>
                   <div
-                    className={`p-2 rounded-xl transition-colors ${
+                    className={`p-2 rounded-xl transition-all ${
                       isSelected
-                        ? "bg-sky-500 text-white"
-                        : "bg-sky-50 text-sky-600 dark:bg-sky-950 dark:text-sky-400 group-hover:bg-sky-500 group-hover:text-white"
+                        ? "bg-[var(--primary-color)] text-white"
+                        : "text-[var(--primary-color)] bg-[var(--primary-color)]/10 dark:bg-[var(--primary-color)]/20 group-hover:bg-[var(--primary-color)] group-hover:text-white"
                     }`}
                   >
                     <Icon className="w-4 h-4" />
                   </div>
                 </div>
 
-                <div className="mt-3 space-y-1">
+                <div className="mt-2.5 space-y-1">
                   <h3 className="text-xl font-black text-slate-900 dark:text-white">
                     {formatCurrency(cat.totalOutstanding)}
                   </h3>
@@ -783,7 +797,7 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({
                   </div>
                 </div>
 
-                <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 mt-2 flex items-center justify-between text-[11px] font-bold text-sky-600 dark:text-sky-400 group-hover:underline">
+                <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 mt-2 flex items-center justify-between text-[11px] font-bold text-[var(--primary-color)] group-hover:underline">
                   <span>{isSelected ? "Active Filter" : "View Pending Students"}</span>
                   <ChevronRight className="w-3.5 h-3.5" />
                 </div>
@@ -795,13 +809,13 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({
 
       {/* Active Category Filter Banner */}
       {selectedFeeHead !== "All" && (
-        <div className="p-3.5 rounded-2xl bg-sky-50 dark:bg-sky-950/60 border border-sky-200 dark:border-sky-800 flex items-center justify-between text-xs">
+        <div className="p-3.5 rounded-2xl bg-[var(--primary-color)]/10 dark:bg-[var(--primary-color)]/20 border border-[var(--primary-color)]/30 flex items-center justify-between text-xs">
           <div className="flex items-center gap-2">
-            <span className="px-2.5 py-1 rounded-lg bg-sky-500 text-white font-black text-[10px] uppercase tracking-wider">
+            <span className="px-2.5 py-1 rounded-lg bg-[var(--primary-color)] text-white font-black text-[10px] uppercase tracking-wider">
               Category Filter Active
             </span>
             <span className="font-extrabold text-slate-900 dark:text-white">
-              Showing students with pending dues for <span className="text-sky-600 dark:text-sky-400 font-black">{selectedFeeHead}</span>
+              Showing students with pending dues for <span className="text-[var(--primary-color)] font-black">{selectedFeeHead}</span>
             </span>
           </div>
           <button
@@ -814,25 +828,23 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({
       )}
 
       {/* Filter Box */}
-      <div className="glass-card p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4 shadow-xs">
+      <div className="relative z-20 glass-card p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 space-y-3.5 shadow-xs">
         <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-900 dark:text-white flex items-center gap-1.5">
-          <Filter className="w-4 h-4 text-sky-500" /> Filter Dues Directory
+          <Filter className="w-4 h-4 text-[var(--primary-color)]" /> Filter Dues Directory
         </h4>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5">
           {/* Search Query */}
           <div className="space-y-1">
             <label className="text-[10px] font-bold text-slate-500">Search Student</label>
-            <div className="relative">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
-              <input
-                type="text"
-                placeholder="Name or Admission No..."
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                className="w-full pl-8 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-medium text-slate-900 dark:text-white outline-none"
-              />
-            </div>
+            <ValidatedSearchInput
+              value={query}
+              onChange={setQuery}
+              onErrorChange={setSearchError}
+              placeholder="Name or Admission No..."
+              maxLength={30}
+              ariaLabel="Search student name or admission number"
+            />
           </div>
 
           {/* Academic Year */}
@@ -919,33 +931,42 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({
       </div>
 
       {/* Student-Wise Dues Table */}
-      <div className="glass-card rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs">
+      <div className="glass-card rounded-2xl overflow-hidden border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 bg-white dark:bg-slate-900 shadow-xs">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
+          <table className="w-full text-center border-collapse text-xs">
             <thead>
               <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800 text-[10px]">
-                <th className="py-3.5 px-4">Student ID</th>
-                <th className="py-3.5 px-4">Student Name</th>
-                <th className="py-3.5 px-4">Class & Section</th>
-                <th className="py-3.5 px-4">Student Type</th>
-                <th className="py-3.5 px-4">Earliest Due Date</th>
-                <th className="py-3.5 px-4 font-mono text-right">Total Fee</th>
-                <th className="py-3.5 px-4 font-mono text-right">Amount Paid</th>
-                <th className="py-3.5 px-4 font-mono text-right">Overdue to Date</th>
-                <th className="py-3.5 px-4 font-mono text-right">Total Outstanding</th>
-                <th className="py-3.5 px-4 text-center">Status</th>
-                <th className="py-3.5 px-4 text-right">Action</th>
+                <th className="py-3 px-3 text-center align-middle">Student ID</th>
+                <th className="py-3 px-3 text-center align-middle">Student Name</th>
+                <th className="py-3 px-3 text-center align-middle">Class & Section</th>
+                <th className="py-3 px-3 text-center align-middle">Student Type</th>
+                <th className="py-3 px-3 text-center align-middle">Earliest Due Date</th>
+                <th className="py-3 px-3 font-mono text-center align-middle">Total Fee</th>
+                <th className="py-3 px-3 font-mono text-center align-middle">Amount Paid</th>
+                <th className="py-3 px-3 font-mono text-center align-middle">Overdue to Date</th>
+                <th className="py-3 px-3 font-mono text-center align-middle">Total Outstanding</th>
+                <th className="py-3 px-3 text-center align-middle">Status</th>
+                <th className="py-3 px-3 text-center align-middle">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
-              {studentDueList.length === 0 ? (
+              {searchError ? (
+                <tr>
+                  <td colSpan={11} className="py-8 text-center text-rose-500 text-xs font-bold">
+                    <div className="flex items-center justify-center gap-2">
+                      <AlertCircle className="w-4 h-4 shrink-0" />
+                      <span>{searchError}</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : paginatedStudentDueList.length === 0 ? (
                 <tr>
                   <td colSpan={11} className="py-8 text-center text-slate-400 text-xs font-bold italic">
                     No student due records found matching the configured filters.
                   </td>
                 </tr>
               ) : (
-                studentDueList.map((item) => {
+                paginatedStudentDueList.map((item) => {
                   const st = item.student;
                   const isPrePrimary = /^(nursery|lkg|ukg|playgroup|pre-kg)/i.test(st.className || "");
                   const displayClassStr = st.className
@@ -964,76 +985,71 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({
 
                   return (
                     <tr key={st.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
-                      <td className="py-3 px-4 font-mono font-bold text-slate-700 dark:text-slate-300">
+                      <td className="py-3 px-3 font-mono font-bold text-slate-700 dark:text-slate-300 text-center align-middle">
                         {st.id}
                       </td>
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-sky-500 to-brand-600 text-white font-black text-xs flex items-center justify-center shrink-0 shadow-xs">
-                            {st.firstName?.[0] || "S"}
-                          </div>
-                          <div>
-                            <span className="font-extrabold text-slate-900 dark:text-white block">
-                              {st.firstName} {st.lastName}
-                            </span>
-                            <span className="text-[10px] text-slate-400 font-medium">
-                              {item.unpaidCount} Pending Term(s)
-                            </span>
-                          </div>
+                      <td className="py-3 px-3 text-center align-middle">
+                        <div className="flex flex-col items-center justify-center">
+                          <span className="font-extrabold text-slate-900 dark:text-white block leading-tight whitespace-nowrap">
+                            {st.firstName} {st.lastName}
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-medium">
+                            {item.unpaidCount} Pending Term(s)
+                          </span>
                         </div>
                       </td>
-                      <td className="py-3 px-4 text-slate-800 dark:text-slate-200 font-bold">
+                      <td className="py-3 px-3 text-slate-800 dark:text-slate-200 font-bold text-center align-middle">
                         {displayClassStr}
                       </td>
-                      <td className="py-3 px-4">
+                      <td className="py-3 px-3 text-center align-middle">
                         <span
                           className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
                             isHosteller
                               ? "bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300"
-                              : "bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300"
+                              : "bg-[var(--primary-color)]/10 text-[var(--primary-color)] dark:bg-[var(--primary-color)]/20"
                           }`}
                         >
                           {isHosteller ? "Residential" : "Day Scholar"}
                         </span>
                       </td>
-                      <td className="py-3 px-4 font-mono text-slate-500">
-                        <div className="flex items-center gap-1 font-semibold text-slate-700 dark:text-slate-300">
-                          <Calendar className="w-3.5 h-3.5 text-brand-500 shrink-0" />
+                      <td className="py-3 px-3 font-mono text-slate-500 text-center align-middle">
+                        <div className="flex items-center justify-center gap-1 font-semibold text-slate-700 dark:text-slate-300">
+                          <Calendar className="w-3.5 h-3.5 text-[var(--primary-color)] shrink-0" />
                           <span>{item.earliestDueDate && item.earliestDueDate !== "-" ? formatDateForDisplay(item.earliestDueDate) : "-"}</span>
                         </div>
                         {item.earliestDueTermName && (
-                          <div className="text-[10px] text-slate-400 dark:text-slate-500 font-medium pl-4.5 truncate max-w-[160px]" title={item.earliestDueTermName}>
+                          <div className="text-[10px] text-slate-400 dark:text-slate-500 font-medium truncate max-w-[160px] mx-auto" title={item.earliestDueTermName}>
                             {item.earliestDueTermName}
                           </div>
                         )}
                       </td>
-                      <td className="py-3 px-4 font-mono text-right text-slate-600 dark:text-slate-400">
+                      <td className="py-3 px-3 font-mono text-center align-middle text-slate-600 dark:text-slate-400">
                         {formatCurrency(item.totalAmount)}
                       </td>
-                      <td className="py-3 px-4 font-mono text-right text-emerald-600 dark:text-emerald-400 font-bold">
+                      <td className="py-3 px-3 font-mono text-center align-middle text-emerald-600 dark:text-emerald-400 font-bold">
                         {formatCurrency(item.totalPaid)}
                       </td>
-                      <td className="py-3 px-4 font-mono text-right text-amber-600 dark:text-amber-400 font-bold">
+                      <td className="py-3 px-3 font-mono text-center align-middle text-amber-600 dark:text-amber-400 font-bold">
                         {formatCurrency(item.overdueAmount)}
                       </td>
-                      <td className="py-3 px-4 font-mono text-right text-rose-600 dark:text-rose-400 font-black text-xs">
+                      <td className="py-3 px-3 font-mono text-center align-middle text-rose-600 dark:text-rose-400 font-black text-xs">
                         {formatCurrency(item.totalOutstanding)}
                       </td>
-                      <td className="py-3 px-4 text-center">
+                      <td className="py-3 px-3 text-center align-middle">
                         <span
                           className={`px-2.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${
                             item.isOverdue
                               ? "bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300"
-                              : "bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300"
+                              : "bg-[var(--primary-color)]/10 text-[var(--primary-color)] dark:bg-[var(--primary-color)]/20"
                           }`}
                         >
                           {item.isOverdue ? "OVERDUE" : "PENDING"}
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-right">
+                      <td className="py-3 px-3 text-center align-middle">
                         <button
                           onClick={() => onCollectStudentFee?.(st)}
-                          className="px-3 py-1 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow flex items-center gap-1 ml-auto cursor-pointer transition-all"
+                          className="px-3 py-1 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow flex items-center justify-center gap-1 mx-auto cursor-pointer transition-all"
                         >
                           <IndianRupee className="w-3.5 h-3.5" /> Collect
                         </button>
@@ -1045,6 +1061,22 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({
             </tbody>
           </table>
         </div>
+
+        {studentDueList.length > 0 && !searchError && (
+          <div className="border-t border-slate-200 dark:border-slate-800 px-4 py-3">
+            <Pagination
+              currentPage={currentPage}
+              totalItems={studentDueList.length}
+              itemsPerPage={pageSize}
+              onPageChange={setCurrentPage}
+              onItemsPerPageChange={(newSize) => {
+                setPageSize(newSize);
+                setCurrentPage(1);
+              }}
+              label="students with dues"
+            />
+          </div>
+        )}
       </div>
     </div>
   );

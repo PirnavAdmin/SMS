@@ -1,17 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { formatCurrency } from '../../../utils/currency';
-import { Bus, Plus, Search, Trash2, CheckCircle2 } from 'lucide-react';
+import { Bus, Plus, Trash2, CheckCircle2 } from 'lucide-react';
 import { StudentTransport } from '../../../types';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { ExportButton } from '../../common/ExportButton';
 import { ConfirmModal } from '../../common/ConfirmModal';
+import { ValidatedSearchInput } from '../../common/ValidatedSearchInput';
+import { Pagination } from '../../common/Pagination';
 
 export const StudentTransportView: React.FC = () => {
   const { studentTransports, erpTransportRoutes, students, assignStudentTransport, removeStudentTransport } = useData();
   const { addToast } = useToast();
 
   const [query, setQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deletingAssign, setDeletingAssign] = useState<StudentTransport | null>(null);
 
@@ -19,9 +23,17 @@ export const StudentTransportView: React.FC = () => {
   const [routeId, setRouteId] = useState(erpTransportRoutes[0]?.id || '');
   const [feePlan, setFeePlan] = useState<'Monthly' | 'Quarterly' | 'Half Yearly' | 'Annual'>('Quarterly');
 
-  const filtered = studentTransports.filter(st =>
-    st.studentName.toLowerCase().includes(query.toLowerCase()) || st.admissionNo.toLowerCase().includes(query.toLowerCase())
-  );
+  const filtered = useMemo(() => {
+    return studentTransports.filter(st =>
+      st.studentName.toLowerCase().includes(query.toLowerCase()) || st.admissionNo.toLowerCase().includes(query.toLowerCase())
+    );
+  }, [studentTransports, query]);
+
+  const totalPages = Math.ceil(filtered.length / pageSize) || 1;
+  const paginatedTransports = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, currentPage, pageSize]);
 
   const handleSubmit = (e: React.SyntheticEvent) => {
     e.preventDefault();
@@ -56,19 +68,19 @@ export const StudentTransportView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in">
+    <div className="space-y-4 animate-in fade-in">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <Bus className="w-6 h-6 text-sky-500" /> Transport Assignment
+            <Bus className="w-6 h-6 text-[var(--primary-color)]" /> Transport Assignment
           </h2>
           </div>
 
         <div className="flex items-center gap-3">
           <button
             onClick={() => setIsModalOpen(true)}
-            className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-lg shadow-sky-500/20 flex items-center gap-2"
+            className="px-4 py-2 rounded-xl bg-[var(--primary-color)] hover:opacity-90 text-white text-xs font-bold shadow-md shadow-[var(--primary-color)]/20 flex items-center gap-2 cursor-pointer transition-all"
           >
             <Plus className="w-4 h-4" /> Assign Transport
           </button>
@@ -77,51 +89,70 @@ export const StudentTransportView: React.FC = () => {
       </div>
 
       {/* Filter */}
-      <div className="glass-card p-4 rounded-2xl flex items-center justify-between">
-        <div className="relative w-full sm:w-72">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-          <input
-            type="text"
+      <div className="relative z-20 glass-card p-3.5 sm:p-4 rounded-2xl border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 flex items-center justify-between">
+        <div className="w-full sm:w-72">
+          <ValidatedSearchInput
             placeholder="Search student or adm no..."
             value={query}
-            onChange={e => setQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none"
+            onChange={val => {
+              setQuery(val);
+              setCurrentPage(1);
+            }}
           />
         </div>
       </div>
 
       {/* Table */}
-      <div className="glass-card rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800">
-        <table className="w-full text-left border-collapse text-xs">
-          <thead>
-            <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase border-b border-slate-200 dark:border-slate-800">
-              <th className="py-3.5 px-4">Student Name</th>
-              <th className="py-3.5 px-4">Adm No</th>
-              <th className="py-3.5 px-4">Route Name</th>
-              <th className="py-3.5 px-4">Stops</th>
-              <th className="py-3.5 px-4">Fee Plan</th>
-              <th className="py-3.5 px-4">Transport Fee</th>
-              <th className="py-3.5 px-4 text-right">Action</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
-            {filtered.map(st => (
-              <tr key={st.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">{st.studentName}</td>
-                <td className="py-3 px-4 font-mono text-slate-500">{st.admissionNo}</td>
-                <td className="py-3 px-4 font-semibold text-sky-600 dark:text-sky-400">{st.routeName}</td>
-                <td className="py-3 px-4 text-slate-600 dark:text-slate-300">{st.pickupPoint} ➔ {st.dropPoint}</td>
-                <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">{st.feePlan}</td>
-                <td className="py-3 px-4 font-extrabold text-emerald-600 dark:text-emerald-400">{formatCurrency(st.feeAmount)}</td>
-                <td className="py-3 px-4 text-right">
-                  <button onClick={() => setDeletingAssign(st)} className="p-1 text-rose-500 hover:bg-rose-50 rounded">
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </td>
+      <div className="glass-card rounded-2xl overflow-hidden border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 shadow-sm bg-white dark:bg-slate-900">
+        <div className="overflow-x-auto">
+          <table className="w-full text-center border-collapse text-xs">
+            <thead>
+              <tr className="bg-slate-50 dark:bg-slate-800/60 text-slate-500 font-bold uppercase border-b border-[var(--primary-color)]/20">
+                <th className="py-3 px-3 text-center align-middle whitespace-nowrap">Student Name</th>
+                <th className="py-3 px-3 text-center align-middle whitespace-nowrap">Adm No</th>
+                <th className="py-3 px-3 text-center align-middle whitespace-nowrap">Route Name</th>
+                <th className="py-3 px-3 text-center align-middle whitespace-nowrap">Stops</th>
+                <th className="py-3 px-3 text-center align-middle whitespace-nowrap">Fee Plan</th>
+                <th className="py-3 px-3 text-center align-middle whitespace-nowrap">Transport Fee</th>
+                <th className="py-3 px-3 text-center align-middle whitespace-nowrap">Action</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
+              {paginatedTransports.length > 0 ? (
+                paginatedTransports.map(st => (
+                  <tr key={st.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
+                    <td className="py-3 px-3 text-center align-middle font-bold text-slate-900 dark:text-white whitespace-nowrap">{st.studentName}</td>
+                    <td className="py-3 px-3 text-center align-middle font-mono text-slate-500 whitespace-nowrap">{st.admissionNo}</td>
+                    <td className="py-3 px-3 text-center align-middle font-semibold text-[var(--primary-color)] whitespace-nowrap">{st.routeName}</td>
+                    <td className="py-3 px-3 text-center align-middle text-slate-600 dark:text-slate-300 whitespace-nowrap">{st.pickupPoint} ➔ {st.dropPoint}</td>
+                    <td className="py-3 px-3 text-center align-middle font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap">{st.feePlan}</td>
+                    <td className="py-3 px-3 text-center align-middle font-extrabold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">{formatCurrency(st.feeAmount)}</td>
+                    <td className="py-3 px-3 text-center align-middle whitespace-nowrap">
+                      <div className="flex items-center justify-center">
+                        <button onClick={() => setDeletingAssign(st)} className="p-1 text-rose-500 hover:bg-rose-50 rounded cursor-pointer">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={7} className="py-8 text-center text-slate-400">
+                    No student transports found matching search criteria.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          totalItems={filtered.length}
+          pageSize={pageSize}
+        />
       </div>
 
       {/* Modal */}

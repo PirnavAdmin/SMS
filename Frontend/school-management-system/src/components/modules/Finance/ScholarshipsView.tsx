@@ -24,6 +24,8 @@ import { useToast } from "../../../context/ToastContext";
 import { Badge } from "../../common/Badge";
 import { ExportButton } from "../../common/ExportButton";
 import { ConfirmModal } from "../../common/ConfirmModal";
+import { ValidatedSearchInput } from "../../common/ValidatedSearchInput";
+import { Pagination } from "../../common/Pagination";
 import { compareClassesAscending } from "../../../utils/classSorter";
 
 const SCHOLARSHIP_TYPES: ScholarshipType[] = [
@@ -72,6 +74,8 @@ export const ScholarshipsView: React.FC = () => {
   const [selectedType, setSelectedType] = useState<string>("All");
   const [allocatedClassFilter, setAllocatedClassFilter] =
     useState<string>("All");
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSch, setEditingSch] = useState<Scholarship | null>(null);
@@ -151,6 +155,12 @@ export const ScholarshipsView: React.FC = () => {
     return matchesQuery && matchesClass;
   });
 
+  const totalPages = Math.ceil(filteredAwardedList.length / pageSize) || 1;
+  const paginatedAwardedList = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredAwardedList.slice(start, start + pageSize);
+  }, [filteredAwardedList, currentPage, pageSize]);
+
   const handleOpenAdd = () => {
     setEditingSch(null);
     setFormData({
@@ -228,19 +238,19 @@ export const ScholarshipsView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in">
+    <div className="space-y-4 animate-in fade-in">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <Gift className="w-6 h-6 text-sky-500" /> Scholarships
+            <Gift className="w-6 h-6 text-[var(--primary-color)]" /> Scholarships
           </h2>
         </div>
 
         <div className="flex items-center gap-3">
           <button
             onClick={handleOpenAdd}
-            className="px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-lg shadow-sky-500/20 flex items-center gap-2 transition-all"
+            className="px-4 py-2 rounded-xl bg-[var(--primary-color)] hover:opacity-90 text-white text-xs font-bold shadow-md shadow-[var(--primary-color)]/20 flex items-center gap-2 transition-all cursor-pointer"
           >
             <Plus className="w-4 h-4" /> Create Scholarship
           </button>
@@ -249,36 +259,45 @@ export const ScholarshipsView: React.FC = () => {
       </div>
 
       {/* Tabs & Search Filter Bar */}
-      <div className="glass-card p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div className="relative z-20 glass-card p-3.5 sm:p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 shadow-sm">
         <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl w-full sm:w-auto">
           <button
-            onClick={() => setActiveTab("master")}
-            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+            onClick={() => {
+              setActiveTab("master");
+              setCurrentPage(1);
+            }}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
               activeTab === "master"
-                ? "bg-white dark:bg-slate-900 text-brand-600 shadow-sm"
-                : "text-slate-500"
+                ? "bg-[var(--primary-color)] text-white shadow-sm"
+                : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
             }`}
           >
             Scholarship Master Schemes ({scholarships.length})
           </button>
           <button
-            onClick={() => setActiveTab("allocated")}
-            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+            onClick={() => {
+              setActiveTab("allocated");
+              setCurrentPage(1);
+            }}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
               activeTab === "allocated"
-                ? "bg-white dark:bg-slate-900 text-brand-600 shadow-sm"
-                : "text-slate-500"
+                ? "bg-[var(--primary-color)] text-white shadow-sm"
+                : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
             }`}
           >
             Student Awarded Scholarships ({studentScholarships.length})
           </button>
         </div>
 
-        <div className="flex items-center gap-3 w-full sm:w-auto">
+        <div className="flex items-center gap-2.5 w-full sm:w-auto">
           {activeTab === "allocated" && (
             <select
               value={allocatedClassFilter}
-              onChange={(e) => setAllocatedClassFilter(e.target.value)}
-              className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none font-medium"
+              onChange={(e) => {
+                setAllocatedClassFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white outline-none font-medium"
             >
               <option value="All">All Class Grades</option>
               {sortedClasses.map((c) => (
@@ -289,18 +308,18 @@ export const ScholarshipsView: React.FC = () => {
             </select>
           )}
 
-          <div className="relative w-full sm:w-64">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-            <input
-              type="text"
+          <div className="w-full sm:w-72">
+            <ValidatedSearchInput
               placeholder={
                 activeTab === "master"
                   ? "Search scholarship name..."
                   : "Search student or scholarship..."
               }
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none font-medium"
+              onChange={(val) => {
+                setQuery(val);
+                setCurrentPage(1);
+              }}
             />
           </div>
         </div>
@@ -308,15 +327,15 @@ export const ScholarshipsView: React.FC = () => {
 
       {/* Tab 1: Master Schemes */}
       {activeTab === "master" && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
           {filteredScholarships.map((s) => (
             <div
               key={s.id}
-              className="glass-card p-5 rounded-2xl space-y-3 hover:shadow-md transition-shadow"
+              className="glass-card p-3.5 sm:p-4 rounded-2xl space-y-3 border border-[var(--primary-color)]/35 dark:border-[var(--primary-color)]/45 hover:border-[var(--primary-color)] shadow-sm hover:shadow-md transition-all"
             >
               <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
                 <div>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-[var(--primary-color)]/10 text-[var(--primary-color)]">
                     {s.type} Type • Code: {s.code}
                   </span>
                   <h3 className="font-bold text-sm text-slate-900 dark:text-white mt-1">
@@ -327,7 +346,7 @@ export const ScholarshipsView: React.FC = () => {
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => handleOpenEdit(s)}
-                    className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-sky-600"
+                    className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-[var(--primary-color)]"
                   >
                     <Edit className="w-4 h-4" />
                   </button>
@@ -366,20 +385,20 @@ export const ScholarshipsView: React.FC = () => {
 
       {/* Tab 2: Awarded List */}
       {activeTab === "allocated" && (
-        <div className="glass-card rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800">
+        <div className="glass-card rounded-2xl overflow-hidden border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 shadow-sm bg-white dark:bg-slate-900">
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
+            <table className="w-full text-center border-collapse text-xs">
               <thead>
-                <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase border-b border-slate-200 dark:border-slate-800">
-                  <th className="py-3.5 px-4">STUDENT NAME</th>
-                  <th className="py-3.5 px-4">SCHOLARSHIP AWARDED</th>
-                  <th className="py-3.5 px-4">DISCOUNT APPLIED</th>
-                  <th className="py-3.5 px-4">DATE AWARDED</th>
-                  <th className="py-3.5 px-4 text-right">REVOKE</th>
+                <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 font-bold uppercase border-b border-slate-200 dark:border-slate-800">
+                  <th className="py-3 px-3 text-center align-middle">STUDENT NAME</th>
+                  <th className="py-3 px-3 text-center align-middle">SCHOLARSHIP AWARDED</th>
+                  <th className="py-3 px-3 text-center align-middle">DISCOUNT APPLIED</th>
+                  <th className="py-3 px-3 text-center align-middle">DATE AWARDED</th>
+                  <th className="py-3 px-3 text-center align-middle">REVOKE</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
-                {filteredAwardedList.length === 0 ? (
+                {paginatedAwardedList.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="py-8 text-center text-slate-400">
                       No student scholarships found. Click "+ Award Student
@@ -387,27 +406,29 @@ export const ScholarshipsView: React.FC = () => {
                     </td>
                   </tr>
                 ) : (
-                  filteredAwardedList.map((ss) => (
+                  paginatedAwardedList.map((ss) => (
                     <tr
                       key={ss.id}
                       className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40"
                     >
-                      <td className="py-3 px-4 font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                        <GraduationCap className="w-4 h-4 text-sky-500" />
-                        {ss.studentName}
+                      <td className="py-3 px-3 text-center align-middle font-bold text-slate-900 dark:text-white">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <GraduationCap className="w-4 h-4 text-[var(--primary-color)]" />
+                          <span>{ss.studentName}</span>
+                        </div>
                       </td>
-                      <td className="py-3 px-4 font-semibold text-sky-600 dark:text-sky-400">
+                      <td className="py-3 px-3 text-center align-middle font-semibold text-[var(--primary-color)]">
                         {ss.scholarshipName}
                       </td>
-                      <td className="py-3 px-4 font-bold text-emerald-600 dark:text-emerald-400">
+                      <td className="py-3 px-3 text-center align-middle font-bold text-emerald-600 dark:text-emerald-400">
                         {ss.discountType === "Percentage"
                           ? `${ss.discountValue}% Waiver`
                           : `${formatCurrency(ss.discountValue)} Off`}
                       </td>
-                      <td className="py-3 px-4 text-slate-500">
+                      <td className="py-3 px-3 text-center align-middle text-slate-500">
                         {ss.appliedDate}
                       </td>
-                      <td className="py-3 px-4 text-right">
+                      <td className="py-3 px-3 text-center align-middle">
                         <button
                           onClick={async () => {
                             await revokeStudentScholarship(ss.id);
@@ -417,7 +438,7 @@ export const ScholarshipsView: React.FC = () => {
                               `Revoked scholarship for ${ss.studentName}`,
                             );
                           }}
-                          className="p-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-colors"
+                          className="p-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-colors inline-flex items-center justify-center"
                           title="Revoke Scholarship"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -429,6 +450,17 @@ export const ScholarshipsView: React.FC = () => {
               </tbody>
             </table>
           </div>
+          {filteredAwardedList.length > 0 && (
+            <div className="p-3 border-t border-slate-100 dark:border-slate-800">
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+                totalItems={filteredAwardedList.length}
+                pageSize={pageSize}
+              />
+            </div>
+          )}
         </div>
       )}
 
@@ -569,7 +601,7 @@ export const ScholarshipsView: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 font-bold bg-sky-600 text-white rounded-xl"
+                  className="px-4 py-2 font-bold bg-[var(--primary-color)] hover:opacity-90 text-white rounded-xl shadow-md shadow-[var(--primary-color)]/20 transition-all cursor-pointer"
                 >
                   Save Scheme
                 </button>
@@ -608,10 +640,10 @@ export const ScholarshipsView: React.FC = () => {
 
             <form onSubmit={handleAllocSubmit} className="space-y-4 text-xs">
               {/* Filter Controls: Class Dropdown + Search Student */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200/60 dark:border-slate-800">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40">
                 <div>
                   <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center gap-1">
-                    <Filter className="w-3 h-3 text-sky-500" /> Filter Class
+                    <Filter className="w-3 h-3 text-[var(--primary-color)]" /> Filter Class
                   </label>
                   <select
                     value={allocClassFilter}
@@ -637,7 +669,7 @@ export const ScholarshipsView: React.FC = () => {
 
                 <div>
                   <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1 flex items-center gap-1">
-                    <Search className="w-3 h-3 text-sky-500" /> Search Student
+                    <Search className="w-3 h-3 text-[var(--primary-color)]" /> Search Student
                   </label>
                   <input
                     type="text"
@@ -659,7 +691,7 @@ export const ScholarshipsView: React.FC = () => {
                     Select Student{" "}
                     <span className="text-rose-500 font-bold ml-0.5">*</span>
                   </label>
-                  <span className="text-[11px] font-bold text-sky-600 dark:text-sky-400">
+                  <span className="text-[11px] font-bold text-[var(--primary-color)]">
                     {filteredStudentsForAward.length} student
                     {filteredStudentsForAward.length !== 1 ? "s" : ""} available
                   </span>
@@ -686,7 +718,7 @@ export const ScholarshipsView: React.FC = () => {
 
               {/* Selected Student Details Card */}
               {selectedStudentDetails && (
-                <div className="p-3 rounded-xl bg-sky-50 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-800/50 flex items-center justify-between">
+                <div className="p-3 rounded-xl bg-[var(--primary-color)]/10 border border-[var(--primary-color)]/30 flex items-center justify-between">
                   <div>
                     <div className="font-bold text-slate-900 dark:text-white">
                       {selectedStudentDetails.firstName}{" "}
@@ -704,7 +736,7 @@ export const ScholarshipsView: React.FC = () => {
                       </span>
                     </div>
                   </div>
-                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-sky-100 dark:bg-sky-900/60 text-sky-700 dark:text-sky-300">
+                  <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-[var(--primary-color)]/10 text-[var(--primary-color)]">
                     Eligible
                   </span>
                 </div>

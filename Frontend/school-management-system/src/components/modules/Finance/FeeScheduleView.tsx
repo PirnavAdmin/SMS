@@ -416,13 +416,13 @@ export const FeeScheduleView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in">
-      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs space-y-6">
+    <div className="space-y-4 animate-in fade-in">
+      <div className="relative z-20 bg-white dark:bg-slate-900 rounded-2xl border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 p-3.5 sm:p-4 shadow-xs space-y-4">
         {/* Header Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-3">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-2xl bg-sky-100 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400">
-              <Calendar className="w-6 h-6" />
+            <div className="p-2 rounded-xl bg-[var(--primary-color)]/10 text-[var(--primary-color)]">
+              <Calendar className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -443,7 +443,7 @@ export const FeeScheduleView: React.FC = () => {
             <select
               value={activeAY}
               onChange={e => setActiveAY(e.target.value)}
-              className="px-3.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 font-black text-xs text-slate-900 dark:text-white outline-none focus:border-brand-500 cursor-pointer"
+              className="px-3.5 py-1.5 rounded-xl border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 bg-slate-50 dark:bg-slate-950 font-black text-xs text-slate-900 dark:text-white outline-none cursor-pointer"
             >
               <option value="">Select Academic Year</option>
               {academicYears.map(ay => (
@@ -455,7 +455,7 @@ export const FeeScheduleView: React.FC = () => {
 
         {/* Missing Academic Year Dates Warning Banner */}
         {!hasConfiguredDates ? (
-          <div className="bg-amber-50 dark:bg-amber-950/40 p-4 rounded-2xl border border-amber-200 dark:border-amber-900/50 flex items-start gap-3 text-xs text-amber-900 dark:text-amber-200">
+          <div className="bg-amber-50 dark:bg-amber-950/40 p-3.5 rounded-2xl border border-amber-200 dark:border-amber-900/50 flex items-start gap-3 text-xs text-amber-900 dark:text-amber-200">
             <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
             <div>
               <span className="font-extrabold block">Missing Academic Year Configuration</span>
@@ -466,16 +466,16 @@ export const FeeScheduleView: React.FC = () => {
           </div>
         ) : (
           /* Academic Year Single Source of Truth Banner */
-          <div className="bg-sky-50 dark:bg-sky-950/40 p-4 rounded-2xl border border-sky-200 dark:border-sky-900/50 flex items-start gap-3 text-xs text-sky-900 dark:text-sky-200">
-            <Lock className="w-5 h-5 text-sky-600 dark:text-sky-400 shrink-0 mt-0.5" />
+          <div className="bg-[var(--primary-color)]/5 dark:bg-[var(--primary-color)]/10 p-3.5 rounded-2xl border border-[var(--primary-color)]/25 dark:border-[var(--primary-color)]/35 flex items-start gap-3 text-xs text-slate-800 dark:text-slate-200">
+            <Lock className="w-5 h-5 text-[var(--primary-color)] shrink-0 mt-0.5" />
             <div className="space-y-1">
               <div className="font-black flex items-center gap-2 flex-wrap">
                 <span>Academic Year Period & Term Dates Synchronized</span>
-                <span className="px-2 py-0.5 rounded-md bg-sky-200/80 dark:bg-sky-900/80 text-sky-900 dark:text-sky-200 font-mono text-[11px]">
+                <span className="px-2 py-0.5 rounded-md bg-[var(--primary-color)]/20 text-slate-900 dark:text-white font-mono text-[11px]">
                   📅 {formatDateForDisplay(ayDates.startDate)} to {formatDateForDisplay(ayDates.endDate)}
                 </span>
               </div>
-              <p className="text-[11px] text-sky-700 dark:text-sky-300">
+              <p className="text-[11px] text-slate-600 dark:text-slate-300">
                 The Academic Year Configuration under <strong>School Settings</strong> is the single source of truth. Term start & end dates are calculated automatically with zero gaps or overlaps and are read-only 🔒. Payment <strong>Due Dates</strong> are automatically calculated using the configured offset days from each term's start date.
               </p>
             </div>
@@ -483,8 +483,8 @@ export const FeeScheduleView: React.FC = () => {
         )}
 
         {/* Section 1: Term / Installment Setup */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="md:col-span-1 space-y-4 bg-slate-50 dark:bg-slate-950/40 p-5 rounded-2xl border border-slate-200/60 dark:border-slate-800/80">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="md:col-span-1 space-y-3.5 bg-slate-50 dark:bg-slate-950/40 p-4 rounded-2xl border border-[var(--primary-color)]/25 dark:border-[var(--primary-color)]/30">
             <h4 className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider">Installment Structure</h4>
             
             <div className="space-y-1">
@@ -495,7 +495,7 @@ export const FeeScheduleView: React.FC = () => {
                   const val = e.target.value;
                   handleNumTermsChange(val ? Number(val) : ('' as any));
                 }}
-                className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 font-extrabold text-xs text-slate-900 dark:text-white cursor-pointer"
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 font-extrabold text-xs text-slate-900 dark:text-white cursor-pointer"
               >
                 <option value="">Select Number of Terms</option>
                 <option value="1">1 Term (Annual)</option>
@@ -527,7 +527,7 @@ export const FeeScheduleView: React.FC = () => {
                       handleOffsetChange(isNaN(num) ? 0 : num, num);
                     }
                   }}
-                  className="w-24 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 font-black text-xs text-slate-900 dark:text-white text-center outline-none focus:border-brand-500 shadow-xs"
+                  className="w-24 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 font-black text-xs text-slate-900 dark:text-white text-center outline-none shadow-xs"
                 />
                 <span className="text-xs font-bold text-slate-600 dark:text-slate-400">days after term start</span>
               </div>
@@ -536,8 +536,8 @@ export const FeeScheduleView: React.FC = () => {
               </p>
             </div>
 
-            <div className="bg-sky-50 dark:bg-sky-950/30 rounded-xl p-3.5 border border-sky-100 dark:border-sky-900/40 flex items-start gap-2.5 text-xs text-sky-800 dark:text-sky-300">
-              <ShieldAlert className="w-4 h-4 shrink-0 text-sky-600 mt-0.5" />
+            <div className="bg-[var(--primary-color)]/5 dark:bg-[var(--primary-color)]/10 rounded-xl p-3 border border-[var(--primary-color)]/20 flex items-start gap-2.5 text-xs text-slate-800 dark:text-slate-200">
+              <ShieldAlert className="w-4 h-4 shrink-0 text-[var(--primary-color)] mt-0.5" />
               <p className="font-medium leading-relaxed">
                 {schedule.numberOfTerms === 1
                   ? 'Annual Fee Schedule: The entire academic year is scheduled as 1 annual term with 1 automatically calculated Due Date (Start + offset days).'
@@ -573,10 +573,10 @@ export const FeeScheduleView: React.FC = () => {
             ) : (
               <div className="space-y-3.5 max-h-[50vh] overflow-y-auto pr-1.5">
                 {(schedule.terms || []).map((term, index) => (
-                  <div key={term.id} className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800/80 shadow-xs space-y-3 hover:border-slate-300 transition-colors">
+                  <div key={term.id} className="bg-white dark:bg-slate-900 p-3.5 rounded-2xl border border-[var(--primary-color)]/25 dark:border-[var(--primary-color)]/30 shadow-xs space-y-3 hover:border-[var(--primary-color)] transition-colors">
                     <div className="flex items-center justify-between flex-wrap gap-2">
                       <div className="flex items-center gap-2">
-                        <span className="px-2.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-black text-[10px]">
+                        <span className="px-2.5 py-0.5 rounded-md bg-[var(--primary-color)]/10 text-[var(--primary-color)] font-black text-[10px]">
                           {schedule.numberOfTerms === 1 ? 'Annual Term (Full Year)' : `Installment #${index + 1}`}
                         </span>
                         {term.dueDateMode === 'MANUAL' ? (
@@ -595,7 +595,7 @@ export const FeeScheduleView: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => handleResetTermToAuto(index)}
-                            className="text-[11px] font-black text-sky-600 hover:text-sky-700 dark:text-sky-400 flex items-center gap-1 cursor-pointer transition-colors"
+                            className="text-[11px] font-black text-[var(--primary-color)] hover:opacity-80 flex items-center gap-1 cursor-pointer transition-colors"
                             title="Reset to automatic calculation (Start + offset days)"
                           >
                             <RotateCcw className="w-3 h-3" /> Reset to Automatic
@@ -606,7 +606,7 @@ export const FeeScheduleView: React.FC = () => {
                           value={term.termName}
                           onChange={e => handleTermFieldChange(index, 'termName', e.target.value)}
                           placeholder="e.g. Term 1"
-                          className="border-b border-dashed border-slate-300 dark:border-slate-700 bg-transparent text-xs font-black text-slate-900 dark:text-white text-right outline-none focus:border-brand-500 pb-0.5 min-w-[170px] max-w-[280px] w-auto whitespace-nowrap"
+                          className="border-b border-dashed border-slate-300 dark:border-slate-700 bg-transparent text-xs font-black text-slate-900 dark:text-white text-right outline-none focus:border-[var(--primary-color)] pb-0.5 min-w-[170px] max-w-[280px] w-auto whitespace-nowrap"
                         />
                       </div>
                     </div>
@@ -643,7 +643,7 @@ export const FeeScheduleView: React.FC = () => {
                         />
                       </div>
                       <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-brand-600 flex items-center justify-between">
+                        <label className="text-[10px] font-bold text-[var(--primary-color)] flex items-center justify-between">
                           <span className="whitespace-nowrap">{schedule.numberOfTerms === 1 ? 'Annual Term Due Date' : 'Due Date'}</span>
                           {term.dueDateMode === 'MANUAL' && <span className="text-[9px] text-amber-600 font-black whitespace-nowrap">✏️ Manual</span>}
                         </label>
@@ -653,7 +653,7 @@ export const FeeScheduleView: React.FC = () => {
                           className={`w-full px-2.5 py-1.5 rounded-lg font-black text-[11px] text-slate-900 dark:text-white text-center whitespace-nowrap ${
                             term.dueDateMode === 'MANUAL'
                               ? 'bg-amber-50/50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800'
-                              : 'bg-white dark:bg-slate-950 border border-brand-200 dark:border-brand-900/60'
+                              : 'bg-white dark:bg-slate-950 border border-[var(--primary-color)]/30'
                           }`}
                         />
                       </div>
@@ -666,11 +666,11 @@ export const FeeScheduleView: React.FC = () => {
         </div>
 
         {/* Section 3: One-Time / Admission Fee Due Date */}
-        <div className="bg-slate-50 dark:bg-slate-950/40 p-5 rounded-2xl border border-slate-200/60 dark:border-slate-800/80">
-          <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800/80 space-y-3">
+        <div className="bg-slate-50 dark:bg-slate-950/40 p-4 rounded-2xl border border-[var(--primary-color)]/25 dark:border-[var(--primary-color)]/30">
+          <div className="bg-white dark:bg-slate-900 p-3.5 rounded-xl border border-[var(--primary-color)]/20 dark:border-[var(--primary-color)]/30 space-y-3">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <h4 className="text-xs font-extrabold text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-                <Clock className="w-4 h-4 text-purple-500" /> One-Time / Admission Fee Due Date
+                <Clock className="w-4 h-4 text-[var(--primary-color)]" /> One-Time / Admission Fee Due Date
               </h4>
               <span className="text-[11px] text-slate-400 font-medium">Applied to one-time non-recurring fee heads</span>
             </div>
@@ -679,7 +679,7 @@ export const FeeScheduleView: React.FC = () => {
               <DateInput
                 value={oneTimeDueDate}
                 onChange={e => setOneTimeDueDate(e.target.value)}
-                className="w-48 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 font-black text-xs text-slate-900 dark:text-white outline-none focus:border-brand-500 shadow-xs"
+                className="w-48 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 font-black text-xs text-slate-900 dark:text-white outline-none focus:border-[var(--primary-color)] shadow-xs"
               />
             </div>
           </div>
@@ -691,7 +691,7 @@ export const FeeScheduleView: React.FC = () => {
             type="button"
             onClick={handleSaveSchedule}
             disabled={isSaving}
-            className="px-6 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-500 disabled:opacity-50 text-white font-black text-xs shadow-md shadow-brand-500/20 flex items-center gap-2 cursor-pointer transition-colors"
+            className="px-6 py-2.5 rounded-xl bg-[var(--primary-color)] hover:opacity-90 disabled:opacity-50 text-white font-black text-xs shadow-md shadow-[var(--primary-color)]/20 flex items-center gap-2 cursor-pointer transition-colors"
           >
             {isSaving ? (
               <>

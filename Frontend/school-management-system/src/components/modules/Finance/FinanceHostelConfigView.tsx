@@ -8,6 +8,8 @@ import { FinanceHostelConfig } from "../../../types";
 import { formatCurrency } from "../../../utils/currency";
 import { ConfirmModal } from "../../common/ConfirmModal";
 import { ExportButton } from "../../common/ExportButton";
+import { ValidatedSearchInput } from "../../common/ValidatedSearchInput";
+import { Pagination } from "../../common/Pagination";
 import { compareClassesAscending, getSortOrderForClass, doClassRangesOverlap } from "../../../utils/classSorter";
 import {
   Building2,
@@ -96,7 +98,7 @@ const SearchableCombobox: React.FC<{
   });
 
   return (
-    <div ref={containerRef} className={`relative w-full ${className}`}>
+    <div ref={containerRef} className={`relative w-full ${isOpen ? 'z-50' : 'z-auto'} ${className}`}>
       <div
         className="relative cursor-pointer"
         onClick={() => !disabled && setIsOpen((prev) => !prev)}
@@ -124,13 +126,13 @@ const SearchableCombobox: React.FC<{
             }
           }}
           placeholder={placeholder}
-          className="w-full pl-3 pr-8 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-xs text-slate-900 dark:text-white outline-none focus:border-sky-500 cursor-pointer"
+          className="w-full pl-3 pr-8 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-bold text-xs text-slate-900 dark:text-white outline-none focus:border-[var(--primary-color)] cursor-pointer"
         />
         <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 cursor-pointer pointer-events-none" />
       </div>
 
       {isOpen && !disabled && (
-        <div className="absolute z-50 left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl p-1 space-y-0.5 custom-scrollbar">
+        <div className="absolute z-50 left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-white dark:bg-slate-900 border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 rounded-xl shadow-xl p-1 space-y-0.5 custom-scrollbar">
           {filteredOptions.length === 0 ? (
             allowCustom && searchText.trim() ? (
               <button
@@ -249,6 +251,8 @@ export const FinanceHostelConfigView: React.FC = () => {
   const [selectedAcType, setSelectedAcType] = useState("All");
   const [selectedStatus, setSelectedStatus] = useState("All");
   const [selectedYear, setSelectedYear] = useState("All");
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
 
   // Dynamic masters from Hostel Management Module
   const [activeBlocks, setActiveBlocks] = useState<
@@ -882,6 +886,12 @@ export const FinanceHostelConfigView: React.FC = () => {
     });
   }, [financeHostelConfigs, query, selectedBlock, selectedRoom, selectedAcType, selectedStatus, selectedYear]);
 
+  const totalPages = Math.ceil(filteredConfigs.length / pageSize) || 1;
+  const paginatedConfigs = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredConfigs.slice(start, start + pageSize);
+  }, [filteredConfigs, currentPage, pageSize]);
+
   // Available room numbers for toolbar filter based on selected block
   const filterRoomsList = useMemo(() => {
     const set = new Set<string>();
@@ -924,11 +934,8 @@ export const FinanceHostelConfigView: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <Building2 className="w-5 h-5 text-sky-500" /> Hostel Fee Configuration
+            <Building2 className="w-5 h-5 text-[var(--primary-color)]" /> Hostel Fee Configuration
           </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Configure dynamic hostel fees by block, room number, AC specification, and student class ranges.
-          </p>
         </div>
 
         <div className="flex items-center gap-2 self-start sm:self-auto">
@@ -940,7 +947,7 @@ export const FinanceHostelConfigView: React.FC = () => {
           />
           <button
             onClick={() => handleOpenAdd()}
-            className="h-[38px] px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-md shadow-sky-500/20 flex items-center gap-1.5 transition-all cursor-pointer"
+            className="h-[38px] px-3.5 py-2 rounded-xl bg-[var(--primary-color)] hover:opacity-90 text-white font-bold text-xs shadow-md shadow-[var(--primary-color)]/20 flex items-center gap-1.5 transition-all cursor-pointer"
           >
             <Plus className="w-4 h-4" /> Add Hostel Fee
           </button>
@@ -948,15 +955,15 @@ export const FinanceHostelConfigView: React.FC = () => {
       </div>
 
       {/* Filter Toolbar (Matching Standard Application Layout) */}
-      <div className="flex flex-wrap items-center gap-2 pt-1">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
-          <input
-            type="text"
+      <div className="relative z-20 glass-card p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 flex flex-wrap items-center gap-2 shadow-sm">
+        <div className="flex-1 min-w-[200px]">
+          <ValidatedSearchInput
             placeholder="Search name, block, room, class range..."
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none"
+            onChange={(val) => {
+              setQuery(val);
+              setCurrentPage(1);
+            }}
           />
         </div>
 
@@ -966,6 +973,7 @@ export const FinanceHostelConfigView: React.FC = () => {
           onChange={(e) => {
             setSelectedBlock(e.target.value);
             setSelectedRoom("All");
+            setCurrentPage(1);
           }}
           className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none font-semibold"
         >
@@ -981,7 +989,10 @@ export const FinanceHostelConfigView: React.FC = () => {
         {filterRoomsList.length > 0 && (
           <select
             value={selectedRoom}
-            onChange={(e) => setSelectedRoom(e.target.value)}
+            onChange={(e) => {
+              setSelectedRoom(e.target.value);
+              setCurrentPage(1);
+            }}
             className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none font-semibold"
           >
             <option value="All">All Rooms</option>
@@ -996,7 +1007,10 @@ export const FinanceHostelConfigView: React.FC = () => {
         {/* AC Filter */}
         <select
           value={selectedAcType}
-          onChange={(e) => setSelectedAcType(e.target.value)}
+          onChange={(e) => {
+            setSelectedAcType(e.target.value);
+            setCurrentPage(1);
+          }}
           className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none font-semibold"
         >
           <option value="All">All AC Types</option>
@@ -1007,7 +1021,10 @@ export const FinanceHostelConfigView: React.FC = () => {
         {/* Academic Year Filter */}
         <select
           value={selectedYear}
-          onChange={(e) => setSelectedYear(e.target.value)}
+          onChange={(e) => {
+            setSelectedYear(e.target.value);
+            setCurrentPage(1);
+          }}
           className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none font-semibold"
         >
           <option value="All">All Academic Years</option>
@@ -1021,7 +1038,10 @@ export const FinanceHostelConfigView: React.FC = () => {
         {/* Status Filter */}
         <select
           value={selectedStatus}
-          onChange={(e) => setSelectedStatus(e.target.value)}
+          onChange={(e) => {
+            setSelectedStatus(e.target.value);
+            setCurrentPage(1);
+          }}
           className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none font-semibold"
         >
           <option value="All">All Statuses</option>
@@ -1043,6 +1063,7 @@ export const FinanceHostelConfigView: React.FC = () => {
               setSelectedAcType("All");
               setSelectedStatus("All");
               setSelectedYear("All");
+              setCurrentPage(1);
             }}
             title="Reset Filters"
             className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
@@ -1053,26 +1074,26 @@ export const FinanceHostelConfigView: React.FC = () => {
       </div>
 
       {/* Main Standard Table */}
-      <div className="glass-card rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800">
+      <div className="glass-card rounded-2xl overflow-hidden border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 shadow-sm bg-white dark:bg-slate-900">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs table-fixed">
+          <table className="w-full text-center border-collapse text-xs table-fixed">
             <thead>
-              <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800 text-[10px]">
-                <th className="py-3 px-3">Order</th>
-                <th className="py-3 px-4">Hostel Block</th>
-                <th className="py-3 px-3">Room No</th>
-                <th className="py-3 px-3">Sharing</th>
-                <th className="py-3 px-4">Class Range</th>
-                <th className="py-3 px-3">Frequency</th>
-                <th className="py-3 px-3 text-right">Hostel Fee</th>
-                <th className="py-3 px-3 text-right">Deposit</th>
-                <th className="py-3 px-3 text-right">Total</th>
-                <th className="py-3 px-3">Status</th>
-                <th className="py-3 px-4 text-right">Actions</th>
+              <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800 text-[10px]">
+                <th className="py-3 px-2 text-center align-middle">Order</th>
+                <th className="py-3 px-2 text-center align-middle">Hostel Block</th>
+                <th className="py-3 px-2 text-center align-middle">Room No</th>
+                <th className="py-3 px-2 text-center align-middle">Sharing</th>
+                <th className="py-3 px-2 text-center align-middle">Class Range</th>
+                <th className="py-3 px-2 text-center align-middle">Frequency</th>
+                <th className="py-3 px-2 text-center align-middle">Hostel Fee</th>
+                <th className="py-3 px-2 text-center align-middle">Deposit</th>
+                <th className="py-3 px-2 text-center align-middle">Total</th>
+                <th className="py-3 px-2 text-center align-middle">Status</th>
+                <th className="py-3 px-2 text-center align-middle">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-              {filteredConfigs.length === 0 ? (
+              {paginatedConfigs.length === 0 ? (
                 <tr>
                   <td colSpan={11} className="py-12 text-center text-slate-400">
                     <Building2 className="w-8 h-8 mx-auto text-slate-300 dark:text-slate-600 mb-2 opacity-50" />
@@ -1083,7 +1104,7 @@ export const FinanceHostelConfigView: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                filteredConfigs.map((c, idx) => {
+                paginatedConfigs.map((c, idx) => {
                   const total = (Number(c.hostelFee) || 0) + (Number(c.securityDeposit) || 0);
                   const rangeLabel =
                     c.classRange || (c.startClass && c.endClass ? `${c.startClass} - ${c.endClass}` : "All Classes");
@@ -1093,20 +1114,20 @@ export const FinanceHostelConfigView: React.FC = () => {
                       key={c.id}
                       className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors"
                     >
-                      <td className="py-2.5 px-3 text-slate-400 font-mono text-[11px]">{idx + 1}</td>
+                      <td className="py-2.5 px-2 text-center align-middle text-slate-400 font-mono text-[11px]">{(currentPage - 1) * pageSize + idx + 1}</td>
 
                       {/* Hostel Block */}
-                      <td className="py-2.5 px-4 font-bold text-slate-900 dark:text-white">
-                        <div className="flex items-center gap-1.5">
-                          <Building2 className="w-3.5 h-3.5 text-sky-500 shrink-0" />
+                      <td className="py-2.5 px-2 text-center align-middle font-bold text-slate-900 dark:text-white">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <Building2 className="w-3.5 h-3.5 text-[var(--primary-color)] shrink-0" />
                           <span>{c.hostelName}</span>
                         </div>
                       </td>
 
                       {/* Room Number */}
-                      <td className="py-2.5 px-3 font-semibold text-slate-800 dark:text-slate-200">
+                      <td className="py-2.5 px-2 text-center align-middle font-semibold text-slate-800 dark:text-slate-200">
                         {c.roomNo && c.roomNo !== "All Rooms" ? (
-                          <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-sky-700 dark:text-sky-300 font-bold text-[11px]">
+                          <span className="px-2 py-0.5 rounded bg-[var(--primary-color)]/10 text-[var(--primary-color)] font-bold text-[11px]">
                             Room {c.roomNo}
                           </span>
                         ) : (
@@ -1115,12 +1136,12 @@ export const FinanceHostelConfigView: React.FC = () => {
                       </td>
 
                       {/* Sharing */}
-                      <td className="py-2.5 px-3 text-slate-600 dark:text-slate-300 text-[11px]">
+                      <td className="py-2.5 px-2 text-center align-middle text-slate-600 dark:text-slate-300 text-[11px]">
                         {c.sharingType || "Standard"}
                       </td>
 
                       {/* Class Range */}
-                      <td className="py-2.5 px-4">
+                      <td className="py-2.5 px-2 text-center align-middle">
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/70 border border-indigo-200/60 dark:border-indigo-800/60 text-indigo-700 dark:text-indigo-300 font-bold text-[11px]">
                           <GraduationCap className="w-3 h-3 text-indigo-500" />
                           {rangeLabel}
@@ -1128,7 +1149,7 @@ export const FinanceHostelConfigView: React.FC = () => {
                       </td>
 
                       {/* Frequency */}
-                      <td className="py-2.5 px-3 text-[11px]">
+                      <td className="py-2.5 px-2 text-center align-middle text-[11px]">
                         {(() => {
                           const matchedHead = getHostelFeeHeadForBlock(c.hostelName);
                           let resolvedPlan = c.feePlan || "Annual";
@@ -1169,18 +1190,18 @@ export const FinanceHostelConfigView: React.FC = () => {
                       </td>
 
                       {/* Fees */}
-                      <td className="py-2.5 px-3 text-right font-bold text-sky-600 dark:text-sky-400">
+                      <td className="py-2.5 px-2 text-center align-middle font-bold text-sky-600 dark:text-sky-400">
                         {formatCurrency(c.hostelFee || 0)}
                       </td>
-                      <td className="py-2.5 px-3 text-right text-slate-500">
+                      <td className="py-2.5 px-2 text-center align-middle text-slate-500">
                         {formatCurrency(c.securityDeposit || 0)}
                       </td>
-                      <td className="py-2.5 px-3 text-right font-black text-emerald-600 dark:text-emerald-400">
+                      <td className="py-2.5 px-2 text-center align-middle font-black text-emerald-600 dark:text-emerald-400">
                         {formatCurrency(total)}
                       </td>
 
                       {/* Status */}
-                      <td className="py-2.5 px-3">
+                      <td className="py-2.5 px-2 text-center align-middle">
                         {c.status === "Active" ? (
                           <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-bold text-[10px]">
                             Active
@@ -1193,12 +1214,12 @@ export const FinanceHostelConfigView: React.FC = () => {
                       </td>
 
                       {/* Actions */}
-                      <td className="py-2.5 px-4 text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-1">
+                      <td className="py-2.5 px-2 text-center align-middle whitespace-nowrap">
+                        <div className="flex items-center justify-center gap-1">
                           <button
                             onClick={() => handleOpenEdit(c)}
                             title="Edit Configuration"
-                            className="p-1.5 rounded-lg text-slate-500 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-slate-800 transition-colors"
+                            className="p-1.5 rounded-lg text-slate-500 hover:text-[var(--primary-color)] hover:bg-[var(--primary-color)]/10 transition-colors"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
@@ -1218,6 +1239,17 @@ export const FinanceHostelConfigView: React.FC = () => {
             </tbody>
           </table>
         </div>
+        {filteredConfigs.length > 0 && (
+          <div className="p-3 border-t border-slate-100 dark:border-slate-800">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              totalItems={filteredConfigs.length}
+              pageSize={pageSize}
+            />
+          </div>
+        )}
       </div>
 
       {/* Add / Edit Modal (Standard Application Sizing) */}
@@ -1292,7 +1324,7 @@ export const FinanceHostelConfigView: React.FC = () => {
                 </div>
 
                 {/* 2. Room & Sharing Type Selection */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40">
                   <div>
                     <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300 flex items-center justify-between">
                       <span>Room Number</span>

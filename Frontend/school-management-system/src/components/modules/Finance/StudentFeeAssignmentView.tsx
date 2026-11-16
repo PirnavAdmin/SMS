@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { formatCurrency } from '../../../utils/currency';
-import { UserPlus, Search, CheckSquare, Square, CheckCircle, CheckCircle2, ArrowRight, Settings2, RefreshCw, X, AlertTriangle, Info, Check } from 'lucide-react';
+import { UserPlus, Search, CheckSquare, Square, CheckCircle, CheckCircle2, ArrowRight, Settings2, RefreshCw, X, AlertTriangle, AlertCircle, Info, Check } from 'lucide-react';
 import { useData, matchesAcademicYear } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
@@ -8,6 +8,8 @@ import { FeePolicyType, FeeHeadAssignmentBreakdown, Student, FeeScheduleTerm } f
 import { matchesClassName, compareClassesAscending } from '../../../utils/classSorter';
 import { formatDateForDisplay } from '../../../utils/dateValidation';
 import { getApplicableTermsForLateAdmission, getApplicableMonthIndicesForLateAdmission } from '../../../utils/lateAdmission';
+import { ValidatedSearchInput } from '../../common/ValidatedSearchInput';
+import { Pagination } from '../../common/Pagination';
 
 export const StudentFeeAssignmentView: React.FC = () => {
   const {
@@ -50,6 +52,13 @@ export const StudentFeeAssignmentView: React.FC = () => {
   const [query, setQuery] = useState('');
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   const [targetStructureId, setTargetStructureId] = useState<string>('');
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(10);
+  const [searchError, setSearchError] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedClass, selectedSection, query]);
 
   // Configure Policy Modal State for Individual Student
   const [configStudent, setConfigStudent] = useState<Student | null>(null);
@@ -149,6 +158,11 @@ export const StudentFeeAssignmentView: React.FC = () => {
       const nameB = `${b.firstName || ''} ${b.lastName || ''}`.trim() || (b as any).studentName || b.name || '';
       return nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: 'base' });
     });
+
+  const paginatedStudents = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredStudents.slice(start, start + pageSize);
+  }, [filteredStudents, currentPage, pageSize]);
 
   const handleSelectAll = () => {
     if (selectedStudentIds.length === filteredStudents.length) {
@@ -610,7 +624,7 @@ export const StudentFeeAssignmentView: React.FC = () => {
       </div>
 
       {/* Filter & Bulk Control Bar */}
-      <div className="glass-card p-4 rounded-2xl flex flex-col lg:flex-row lg:items-end justify-between gap-4">
+      <div className="relative z-20 glass-card p-3.5 sm:p-4 rounded-2xl flex flex-col lg:flex-row lg:items-end justify-between gap-3.5 border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40">
         <div className="flex flex-wrap items-end gap-3 w-full lg:w-auto text-xs">
           <div>
             <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1 text-[11px]">Class Grade</label>
@@ -645,18 +659,16 @@ export const StudentFeeAssignmentView: React.FC = () => {
             </select>
           </div>
 
-          <div>
+          <div className="w-56 min-w-[200px]">
             <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1 text-[11px]">Search Student</label>
-            <div className="relative">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-              <input
-                type="text"
-                placeholder="Search student or adm no..."
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                className="pl-9 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white outline-none w-56 font-medium"
-              />
-            </div>
+            <ValidatedSearchInput
+              value={query}
+              onChange={setQuery}
+              onErrorChange={setSearchError}
+              placeholder="Search student or adm no..."
+              maxLength={30}
+              ariaLabel="Search student or admission number"
+            />
           </div>
         </div>
 
@@ -677,38 +689,49 @@ export const StudentFeeAssignmentView: React.FC = () => {
       </div>
 
       {/* Student List Table */}
-      <div className="glass-card rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800">
+      <div className="glass-card rounded-2xl overflow-hidden border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 bg-white dark:bg-slate-900">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
+          <table className="w-full text-center border-collapse text-xs">
             <thead>
               <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
-                <th className="py-3.5 px-4">
-                  <button onClick={handleSelectAll} className="flex items-center gap-1 text-slate-600 dark:text-slate-300 font-bold">
-                    {selectedStudentIds.length === filteredStudents.length && filteredStudents.length > 0 ? (
-                      <CheckSquare className="w-4 h-4 text-sky-600" />
-                    ) : (
-                      <Square className="w-4 h-4" />
-                    )}
-                  </button>
+                <th className="py-3 px-3 text-center align-middle">
+                  <div className="flex items-center justify-center">
+                    <button onClick={handleSelectAll} className="flex items-center gap-1 text-slate-600 dark:text-slate-300 font-bold cursor-pointer">
+                      {selectedStudentIds.length === filteredStudents.length && filteredStudents.length > 0 ? (
+                        <CheckSquare className="w-4 h-4 text-[var(--primary-color)]" />
+                      ) : (
+                        <Square className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
                 </th>
-                <th className="py-3.5 px-4">Student Name</th>
-                <th className="py-3.5 px-4">Adm No</th>
-                <th className="py-3.5 px-4">Class & Sec</th>
-                <th className="py-3.5 px-4">Category</th>
-                <th className="py-3.5 px-4">Fee Policy</th>
-                <th className="py-3.5 px-4">Assigned Fee Payable</th>
-                <th className="py-3.5 px-4 text-right">Configure / Assign</th>
+                <th className="py-3 px-3 text-center align-middle">Student Name</th>
+                <th className="py-3 px-3 text-center align-middle">Adm No</th>
+                <th className="py-3 px-3 text-center align-middle">Class & Sec</th>
+                <th className="py-3 px-3 text-center align-middle">Category</th>
+                <th className="py-3 px-3 text-center align-middle">Fee Policy</th>
+                <th className="py-3 px-3 text-center align-middle">Assigned Fee Payable</th>
+                <th className="py-3 px-3 text-center align-middle">Configure / Assign</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
-              {filteredStudents.length === 0 ? (
+              {searchError ? (
+                <tr>
+                  <td colSpan={8} className="py-8 text-center text-rose-500 font-bold text-xs">
+                    <div className="flex items-center justify-center gap-2">
+                      <AlertCircle className="w-4 h-4 shrink-0" />
+                      <span>{searchError}</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : paginatedStudents.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="py-8 text-center text-slate-400 dark:text-slate-500 font-bold italic">
                     No students found matching the selected class, section, or search criteria.
                   </td>
                 </tr>
               ) : (
-                filteredStudents.map((st) => {
+                paginatedStudents.map((st) => {
                   const isSelected = selectedStudentIds.includes(st.id);
                   const assignment = studentFeeAssignments.find(
                     (a) =>
@@ -722,32 +745,31 @@ export const StudentFeeAssignmentView: React.FC = () => {
                     <tr
                       key={st.id}
                       className={`hover:bg-slate-50/80 dark:hover:bg-slate-800/40 ${
-                        isSelected ? 'bg-sky-50/50 dark:bg-sky-950/20' : ''
+                        isSelected ? 'bg-[var(--primary-color)]/10' : ''
                       }`}
                     >
-                      <td className="py-3 px-4">
-                        <button onClick={() => handleToggleSelect(st.id)}>
-                          {isSelected ? (
-                            <CheckSquare className="w-4 h-4 text-sky-600" />
-                          ) : (
-                            <Square className="w-4 h-4 text-slate-400" />
-                          )}
-                        </button>
-                      </td>
-                      <td className="py-3 px-4 font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-lg bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300 flex items-center justify-center font-bold text-xs shrink-0">
-                          {st.firstName?.[0] || 'S'}
+                      <td className="py-3 px-3 text-center align-middle">
+                        <div className="flex items-center justify-center">
+                          <button onClick={() => handleToggleSelect(st.id)} className="cursor-pointer">
+                            {isSelected ? (
+                              <CheckSquare className="w-4 h-4 text-[var(--primary-color)]" />
+                            ) : (
+                              <Square className="w-4 h-4 text-slate-400" />
+                            )}
+                          </button>
                         </div>
+                      </td>
+                      <td className="py-3 px-3 font-bold text-slate-900 dark:text-white text-center align-middle whitespace-nowrap">
                         {st.firstName} {st.lastName}
                       </td>
-                      <td className="py-3 px-4 font-mono text-slate-500">{st.admissionNo}</td>
-                      <td className="py-3 px-4 text-slate-700 dark:text-slate-300">
+                      <td className="py-3 px-3 font-mono text-slate-500 text-center align-middle">{st.admissionNo}</td>
+                      <td className="py-3 px-3 text-slate-700 dark:text-slate-300 text-center align-middle">
                         {st.className}-{st.section}
                       </td>
-                      <td className="py-3 px-4 font-semibold text-slate-600 dark:text-slate-400">
+                      <td className="py-3 px-3 font-semibold text-slate-600 dark:text-slate-400 text-center align-middle">
                         {st.category || 'General'}
                       </td>
-                      <td className="py-3 px-4">
+                      <td className="py-3 px-3 text-center align-middle">
                         {(() => {
                           const validAssignment = assignment && (
                             (!assignment.feeStructureId && !(assignment as any).dynamicFeeStructureId) ||
@@ -777,7 +799,7 @@ export const StudentFeeAssignmentView: React.FC = () => {
                           );
                         })()}
                       </td>
-                      <td className="py-3 px-4 font-extrabold text-slate-900 dark:text-white font-mono">
+                      <td className="py-3 px-3 font-extrabold text-slate-900 dark:text-white font-mono text-center align-middle">
                         {(() => {
                           const ledger = getStudentFeeLedger ? getStudentFeeLedger(st.id, activeAY) : null;
                           const ledgerAmt = ledger ? (ledger.totalPayable ?? ledger.grossAmount ?? 0) : 0;
@@ -803,10 +825,10 @@ export const StudentFeeAssignmentView: React.FC = () => {
                           return formatCurrency(dfsAmt);
                         })()}
                       </td>
-                      <td className="py-3 px-4 text-right">
+                      <td className="py-3 px-3 text-center align-middle">
                         <button
                           onClick={() => handleOpenConfigModal(st)}
-                          className="px-3 py-1 rounded-xl bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300 font-bold hover:bg-sky-100 flex items-center gap-1.5 ml-auto border border-sky-200 dark:border-sky-800 transition-colors cursor-pointer"
+                          className="px-3 py-1 rounded-xl bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300 font-bold hover:bg-sky-100 flex items-center justify-center gap-1.5 mx-auto border border-sky-200 dark:border-sky-800 transition-colors cursor-pointer"
                         >
                           <Settings2 className="w-3.5 h-3.5" /> Configure Policy
                         </button>
@@ -818,6 +840,22 @@ export const StudentFeeAssignmentView: React.FC = () => {
             </tbody>
           </table>
         </div>
+
+        {filteredStudents.length > 0 && !searchError && (
+          <div className="border-t border-slate-200 dark:border-slate-800 px-4 py-3">
+            <Pagination
+              currentPage={currentPage}
+              totalItems={filteredStudents.length}
+              itemsPerPage={pageSize}
+              onPageChange={setCurrentPage}
+              onItemsPerPageChange={(newSize) => {
+                setPageSize(newSize);
+                setCurrentPage(1);
+              }}
+              label="students"
+            />
+          </div>
+        )}
       </div>
 
       {/* POLICY & MID-YEAR ASSIGNMENT MODAL */}
@@ -857,11 +895,11 @@ export const StudentFeeAssignmentView: React.FC = () => {
                     </div>
                     <div>
                       <span className="text-[10px] text-slate-400 block uppercase tracking-wider">Academic Session</span>
-                      <span className="text-sky-600 dark:text-sky-400 font-extrabold text-sm font-mono">{activeAY}</span>
+                      <span className="text-[var(--primary-color)] font-extrabold text-sm font-mono">{activeAY}</span>
                     </div>
                   </div>
 
-                  <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-xs">
+                  <div className="rounded-2xl border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 bg-white dark:bg-slate-900 overflow-hidden shadow-xs">
                     <table className="w-full text-left text-xs border-collapse">
                       <thead>
                         <tr className="bg-slate-100 dark:bg-slate-800/80 text-[10px] font-black uppercase tracking-wider text-slate-500 border-b">
@@ -897,10 +935,10 @@ export const StudentFeeAssignmentView: React.FC = () => {
               ) : (
                 <>
                   {/* Student Metadata Card */}
-                  <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <div>
                       <span className="text-slate-400 block font-semibold text-[10px]">Academic Session</span>
-                      <span className="font-extrabold font-mono text-sky-600">{activeAY}</span>
+                      <span className="font-extrabold font-mono text-[var(--primary-color)]">{activeAY}</span>
                     </div>
                     <div>
                       <span className="text-slate-400 block font-semibold text-[10px]">Class & Section</span>
@@ -973,17 +1011,17 @@ export const StudentFeeAssignmentView: React.FC = () => {
 
                   {/* Academic Year Terms & Schedule Breakdown */}
                   {modalPolicy !== 'Full Annual Fee' && (
-                    <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3 shadow-xs">
+                    <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 space-y-3 shadow-xs">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
                         <div className="flex items-center gap-2">
                           <span className="font-black text-slate-900 dark:text-slate-100 uppercase tracking-wider text-[11px]">
                             Select Terms to Configure ({configuredTerms.length} Terms Configured):
                           </span>
-                          <span className="px-2 py-0.5 rounded-md bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300 font-extrabold text-[10px] font-mono">
+                          <span className="px-2 py-0.5 rounded-md bg-[var(--primary-color)]/10 text-[var(--primary-color)] font-extrabold text-[10px] font-mono">
                             {activeAY}
                           </span>
                         </div>
-                        <span className="text-[11px] font-bold text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/60 px-2.5 py-1 rounded-full border border-sky-200 dark:border-sky-800">
+                        <span className="text-[11px] font-bold text-[var(--primary-color)] bg-[var(--primary-color)]/10 px-2.5 py-1 rounded-full border border-[var(--primary-color)]/30">
                           {selectedTermIds.length} of {configuredTerms.length} Terms Selected ({formatCurrency(selectedTermIds.length > 0 ? Math.floor(selectableAssignedTotal / selectedTermIds.length) : selectableAssignedTotal)}/term {autoIncludedTotal > 0 ? `+ ${formatCurrency(autoIncludedTotal)} One-Time` : ''})
                         </span>
                       </div>
@@ -1137,7 +1175,7 @@ export const StudentFeeAssignmentView: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-xs">
+                    <div className="rounded-2xl border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 bg-white dark:bg-slate-900 overflow-hidden shadow-xs">
                       <table className="w-full text-left text-xs border-collapse">
                         <thead>
                           <tr className="bg-slate-100 dark:bg-slate-800/80 text-[10px] font-black uppercase tracking-wider text-slate-500 border-b">
@@ -1146,7 +1184,7 @@ export const StudentFeeAssignmentView: React.FC = () => {
                                 type="checkbox"
                                 checked={selectableItems.length > 0 && selectableItems.every((i) => i.isSelected !== false)}
                                 onChange={handleToggleAllFeeHeads}
-                                className="w-4 h-4 rounded text-sky-600 focus:ring-sky-500 cursor-pointer"
+                                className="w-4 h-4 rounded text-[var(--primary-color)] accent-[var(--primary-color)] focus:ring-[var(--primary-color)] cursor-pointer"
                                 title="Select/Deselect All Selectable Fee Types"
                               />
                             </th>

@@ -6,6 +6,8 @@ import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { ExportButton } from '../../common/ExportButton';
 import { ConfirmModal } from '../../common/ConfirmModal';
+import { ValidatedSearchInput } from '../../common/ValidatedSearchInput';
+import { Pagination } from '../../common/Pagination';
 import { compareClassesAscending } from '../../../utils/classSorter';
 import { getHostelBlocks } from '../../../api/hostel';
 
@@ -147,6 +149,8 @@ export const FeeHeadsView: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedFrequency, setSelectedFrequency] = useState<string>('All');
   const [selectedStatus, setSelectedStatus] = useState<string>('All');
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingHead, setEditingHead] = useState<FeeHead | null>(null);
@@ -279,6 +283,12 @@ const exportData = useMemo(() => {
       "Status": h.status || 'Active'
     }));
   }, [filteredHeads]);
+
+  const totalPages = Math.ceil(filteredHeads.length / pageSize) || 1;
+  const paginatedHeads = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredHeads.slice(start, start + pageSize);
+  }, [filteredHeads, currentPage, pageSize]);
 
   const handleOpenAdd = () => {
     setEditingHead(null);
@@ -451,19 +461,19 @@ const exportData = useMemo(() => {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in">
+    <div className="space-y-4 animate-in fade-in">
       {/* Header Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <Tag className="w-6 h-6 text-sky-500" /> Fee Types
+            <Tag className="w-6 h-6 text-[var(--primary-color)]" /> Fee Types
           </h2>
         </div>
 
         <div className="flex items-center gap-3">
           <button
             onClick={handleOpenAdd}
-            className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-lg shadow-sky-500/20 flex items-center gap-2 transition-all"
+            className="px-4 py-2 rounded-xl bg-[var(--primary-color)] hover:opacity-90 text-white text-xs font-bold shadow-md shadow-[var(--primary-color)]/20 flex items-center gap-2 transition-all"
           >
             <Plus className="w-4 h-4" /> Add Fee Category
           </button>
@@ -472,22 +482,23 @@ const exportData = useMemo(() => {
       </div>
 
       {/* Search & Filter Bar */}
-      <div className="glass-card p-4 rounded-2xl grid grid-cols-1 sm:grid-cols-4 gap-3">
-        <div className="relative">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-          <input
-            type="text"
-            placeholder="Search name or code..."
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none"
-          />
-        </div>
+      <div className="relative z-20 glass-card p-3.5 sm:p-4 rounded-2xl border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 grid grid-cols-1 sm:grid-cols-4 gap-3 shadow-sm">
+        <ValidatedSearchInput
+          placeholder="Search name or code..."
+          value={query}
+          onChange={val => {
+            setQuery(val);
+            setCurrentPage(1);
+          }}
+        />
 
         <select
           value={selectedCategory}
-          onChange={e => setSelectedCategory(e.target.value)}
-          className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none"
+          onChange={e => {
+            setSelectedCategory(e.target.value);
+            setCurrentPage(1);
+          }}
+          className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white outline-none"
         >
           <option value="All">All Categories</option>
           {categoryOptions.map(c => <option key={c} value={c}>{c}</option>)}
@@ -495,8 +506,11 @@ const exportData = useMemo(() => {
 
         <select
           value={selectedFrequency}
-          onChange={e => setSelectedFrequency(e.target.value)}
-          className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none"
+          onChange={e => {
+            setSelectedFrequency(e.target.value);
+            setCurrentPage(1);
+          }}
+          className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white outline-none"
         >
           <option value="All">All Frequencies</option>
           {FREQUENCIES.map(f => <option key={f} value={f}>{f}</option>)}
@@ -504,8 +518,11 @@ const exportData = useMemo(() => {
 
         <select
           value={selectedStatus}
-          onChange={e => setSelectedStatus(e.target.value)}
-          className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none"
+          onChange={e => {
+            setSelectedStatus(e.target.value);
+            setCurrentPage(1);
+          }}
+          className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white outline-none"
         >
           <option value="All">All Statuses</option>
           <option value="Active">Active Only</option>
@@ -514,24 +531,24 @@ const exportData = useMemo(() => {
       </div>
 
       {/* Table */}
-      <div className="glass-card rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800">
+      <div className="glass-card rounded-2xl overflow-hidden border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 shadow-sm bg-white dark:bg-slate-900">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
+          <table className="w-full text-center border-collapse text-xs">
             <thead>
-              <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
-                <th className="py-3.5 px-4 text-center whitespace-nowrap">#</th>
-                <th className="py-3.5 px-4 text-left whitespace-nowrap">Fee Type</th>
-                <th className="py-3.5 px-4 text-left whitespace-nowrap">Code</th>
-                <th className="py-3.5 px-4 text-left whitespace-nowrap">Category & Module Mapping</th>
-                <th className="py-3.5 px-4 text-center whitespace-nowrap">Payment Eligibility</th>
-                <th className="py-3.5 px-4 text-center whitespace-nowrap">Mandatory</th>
-                <th className="py-3.5 px-4 text-left whitespace-nowrap">Classes</th>
-                <th className="py-3.5 px-4 text-center whitespace-nowrap">Status</th>
-                <th className="py-3.5 px-4 text-right whitespace-nowrap">Actions</th>
+              <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
+                <th className="py-3 px-3 text-center align-middle whitespace-nowrap">#</th>
+                <th className="py-3 px-3 text-center align-middle whitespace-nowrap">Fee Type</th>
+                <th className="py-3 px-3 text-center align-middle whitespace-nowrap">Code</th>
+                <th className="py-3 px-3 text-center align-middle whitespace-nowrap">Category & Module Mapping</th>
+                <th className="py-3 px-3 text-center align-middle whitespace-nowrap">Payment Eligibility</th>
+                <th className="py-3 px-3 text-center align-middle whitespace-nowrap">Mandatory</th>
+                <th className="py-3 px-3 text-center align-middle whitespace-nowrap">Classes</th>
+                <th className="py-3 px-3 text-center align-middle whitespace-nowrap">Status</th>
+                <th className="py-3 px-3 text-center align-middle whitespace-nowrap">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
-              {filteredHeads.length === 0 ? (
+              {paginatedHeads.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="py-12 text-center text-slate-400">
                     <Tag className="w-10 h-10 mx-auto text-slate-300 dark:text-slate-600 mb-2 opacity-50" />
@@ -540,47 +557,47 @@ const exportData = useMemo(() => {
                   </td>
                 </tr>
               ) : (
-                filteredHeads.map((h, idx) => (
+                paginatedHeads.map((h, idx) => (
                   <tr key={h.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                    <td className="py-3 px-4 text-center text-slate-400 font-mono whitespace-nowrap align-middle">{idx + 1}</td>
-                    <td className="py-3 px-4 font-bold text-slate-900 dark:text-white align-middle">{h.name}</td>
-                    <td className="py-3 px-4 font-mono font-bold text-slate-600 dark:text-slate-300 whitespace-nowrap align-middle min-w-[90px]">{h.code}</td>
-                    <td className="py-3 px-4 align-middle">
-                      <div className="space-y-1">
-                        <span className="inline-block px-2 py-0.5 rounded-lg bg-sky-50 dark:bg-sky-950 text-sky-600 dark:text-sky-400 font-bold">
+                    <td className="py-3 px-3 text-center text-slate-400 font-mono whitespace-nowrap align-middle">{(currentPage - 1) * pageSize + idx + 1}</td>
+                    <td className="py-3 px-3 font-bold text-slate-900 dark:text-white align-middle">{h.name}</td>
+                    <td className="py-3 px-3 font-mono font-bold text-slate-600 dark:text-slate-300 whitespace-nowrap align-middle min-w-[90px]">{h.code}</td>
+                    <td className="py-3 px-3 align-middle">
+                      <div className="space-y-1 inline-flex flex-col items-center">
+                        <span className="inline-block px-2 py-0.5 rounded-lg bg-[var(--primary-color)]/10 text-[var(--primary-color)] font-bold">
                           {h.category}
                         </span>
 
                         {/* Module Mapping Badges */}
                         {h.category === 'Hostel' && (
-                          <div className="flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 font-semibold">
+                          <div className="flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 font-semibold justify-center">
                             <Building2 className="w-3 h-3 shrink-0" />
                             <span>Configured in Fee Structures</span>
                           </div>
                         )}
 
                         {h.category === 'Transport' && (h.transportRouteName || h.transportStopName) && (
-                          <div className="flex items-center gap-1 text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">
+                          <div className="flex items-center gap-1 text-[10px] text-[var(--primary-color)] font-semibold justify-center">
                             <Bus className="w-3 h-3 shrink-0" />
                             <span>{h.transportRouteName || 'Route'} {h.transportStopName ? `(${h.transportStopName})` : ''}</span>
                           </div>
                         )}
 
                         {h.category === 'Uniform' && (h.uniformItemName || h.uniformSize) && (
-                          <div className="flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">
+                          <div className="flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold justify-center">
                             <Shirt className="w-3 h-3 shrink-0" />
                             <span>{h.uniformItemName || 'Uniform'} {h.uniformSize ? `(Size: ${h.uniformSize})` : ''}</span>
                           </div>
                         )}
                       </div>
                     </td>
-                    <td className="py-3 px-4 text-center whitespace-nowrap align-middle">
+                    <td className="py-3 px-3 text-center whitespace-nowrap align-middle">
                       {h.paymentEligibility === 'One-Time Only' ? (
                         <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300 font-bold text-[10px] whitespace-nowrap">
                           One-Time Only
                         </span>
                       ) : h.paymentEligibility === 'Term-Wise Allowed' ? (
-                        <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 font-bold text-[10px] whitespace-nowrap">
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-[var(--primary-color)]/10 text-[var(--primary-color)] border border-[var(--primary-color)]/20 font-bold text-[10px] whitespace-nowrap">
                           Term-Wise ({(h.applicableTerms || []).length || 'All'} Terms)
                         </span>
                       ) : (
@@ -589,15 +606,15 @@ const exportData = useMemo(() => {
                         </span>
                       )}
                     </td>
-                    <td className="py-3 px-4 text-center whitespace-nowrap align-middle">
+                    <td className="py-3 px-3 text-center whitespace-nowrap align-middle">
                       {h.mandatory ? (
                         <span className="text-rose-500 font-bold inline-flex items-center justify-center gap-1 whitespace-nowrap"><CheckCircle2 className="w-3.5 h-3.5" /> Mandatory</span>
                       ) : (
                         <span className="text-slate-400 font-medium whitespace-nowrap">Optional</span>
                       )}
                     </td>
-                    <td className="py-3 px-4 text-slate-500 font-medium align-middle">{formatClassListForDisplay(h.applicableClasses)}</td>
-                    <td className="py-3 px-4 text-center whitespace-nowrap align-middle">
+                    <td className="py-3 px-3 text-slate-500 font-medium align-middle">{formatClassListForDisplay(h.applicableClasses)}</td>
+                    <td className="py-3 px-3 text-center whitespace-nowrap align-middle">
                       <button
                         onClick={() => toggleFeeHeadStatus(h.id)}
                         className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold transition-all whitespace-nowrap ${
@@ -607,8 +624,8 @@ const exportData = useMemo(() => {
                         {h.status}
                       </button>
                     </td>
-                    <td className="py-3 px-4 text-right whitespace-nowrap align-middle">
-                      <div className="flex items-center justify-end gap-1">
+                    <td className="py-3 px-3 text-center whitespace-nowrap align-middle">
+                      <div className="flex items-center justify-center gap-1">
                         <button onClick={() => handleOpenEdit(h)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-sky-600">
                           <Edit className="w-3.5 h-3.5" />
                         </button>
@@ -623,6 +640,17 @@ const exportData = useMemo(() => {
             </tbody>
           </table>
         </div>
+        {filteredHeads.length > 0 && (
+          <div className="p-3 border-t border-slate-100 dark:border-slate-800">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              totalItems={filteredHeads.length}
+              pageSize={pageSize}
+            />
+          </div>
+        )}
       </div>
 
       {/* Modal */}
@@ -787,8 +815,8 @@ const exportData = useMemo(() => {
                           }}
                           className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1.5 cursor-pointer col-span-2 ${
                             formData.paymentEligibility === "Both One-Time and Term-Wise"
-                              ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
-                              : "bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-indigo-300"
+                              ? "bg-[var(--primary-color)] text-white border-[var(--primary-color)] shadow-sm"
+                              : "bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-[var(--primary-color)]/50"
                           }`}
                         >
                           <Calculator className="w-3.5 h-3.5" />
@@ -801,12 +829,12 @@ const exportData = useMemo(() => {
               )}
 
               {formData.category === 'Transport' && (
-                <div className="p-3.5 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-200/80 dark:border-indigo-800/80 space-y-1">
-                  <div className="flex items-center gap-2 text-xs font-bold text-indigo-900 dark:text-indigo-200">
-                    <Bus className="w-4 h-4 text-indigo-600" />
+                <div className="p-3.5 rounded-2xl bg-[var(--primary-color)]/5 border border-[var(--primary-color)]/30 space-y-1">
+                  <div className="flex items-center gap-2 text-xs font-bold text-[var(--primary-color)]">
+                    <Bus className="w-4 h-4 text-[var(--primary-color)]" />
                     Transport Fee Head Master
                   </div>
-                  <p className="text-[11px] text-indigo-700 dark:text-indigo-300">
+                  <p className="text-[11px] text-slate-600 dark:text-slate-400">
                     Define the master fee head here (Code, Frequency, Payment Eligibility, Tax %, Applicable Classes). Transport routes, pickup stops, assigned vehicles, and term amounts are configured dynamically in the <strong>Fee Structures</strong> tab.
                   </p>
                 </div>

@@ -11,6 +11,7 @@ import { useToast } from '../../../context/ToastContext';
 import { ConfirmModal } from '../../common/ConfirmModal';
 import { getUniformPackageFeeByClass, normalizeUniformCategoryName } from '../../../utils/uniformUtils';
 import { Pagination } from '../../common/Pagination';
+import { ValidatedSearchInput } from '../../common/ValidatedSearchInput';
 
 export const FinanceUniformConfigView: React.FC = () => {
   const {
@@ -313,33 +314,32 @@ export const FinanceUniformConfigView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h3 className="font-bold text-sm text-slate-900 dark:text-white">Uniform Fee Configuration</h3>
+          <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+            <Shirt className="w-5 h-5 text-[var(--primary-color)]" /> Uniform Fee Configuration
+          </h3>
         </div>
 
         <button
           onClick={handleOpenAdd}
-          className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-lg shadow-sky-500/20 flex items-center gap-1.5 transition-all self-start sm:self-auto cursor-pointer"
+          className="px-4 py-2 rounded-xl bg-[var(--primary-color)] hover:opacity-90 text-white text-xs font-bold shadow-md shadow-[var(--primary-color)]/20 flex items-center gap-1.5 transition-all self-start sm:self-auto cursor-pointer"
         >
           <Plus className="w-4 h-4" /> Add Uniform Fee
         </button>
       </div>
 
       {/* Filter and Search */}
-      <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row gap-3 justify-between">
-        <div className="relative flex-1">
-          <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
-          <input
-            type="text"
+      <div className="relative z-20 glass-card p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 flex flex-col sm:flex-row gap-3 justify-between shadow-sm">
+        <div className="flex-1 max-w-md">
+          <ValidatedSearchInput
             placeholder="Search uniform config by package or branch..."
             value={query}
-            onChange={e => {
-              setQuery(e.target.value);
+            onChange={val => {
+              setQuery(val);
               setCurrentPage(1);
             }}
-            className="w-full pl-10 pr-4 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white outline-none"
           />
         </div>
 
@@ -357,17 +357,17 @@ export const FinanceUniformConfigView: React.FC = () => {
       </div>
 
       {/* Table List */}
-      <div className="glass-card rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
+      <div className="glass-card rounded-2xl bg-white dark:bg-slate-900 border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-slate-700 dark:text-slate-300">
-            <thead className="bg-slate-50 dark:bg-slate-800/80 uppercase font-extrabold text-[10px] tracking-wider text-slate-500 border-b border-slate-200 dark:border-slate-800">
+          <table className="w-full text-center border-collapse text-xs text-slate-700 dark:text-slate-300">
+            <thead className="bg-slate-50 dark:bg-slate-800/80 uppercase font-extrabold text-[10px] tracking-wider text-slate-600 dark:text-slate-300 border-b border-slate-200 dark:border-slate-800">
               <tr>
-                <th className="py-3 px-4 w-[18%]">Class / Grade</th>
-                <th className="py-3 px-4 w-[34%]">Uniform Package / Item</th>
-                <th className="py-3 px-4 w-[14%]">Gender</th>
-                <th className="py-3 px-4 w-[16%] text-right">Fee Amount</th>
-                <th className="py-3 px-4 w-[10%]">Status</th>
-                <th className="py-3 px-4 w-[8%] text-right">Actions</th>
+                <th className="py-3 px-3 text-center align-middle">Class / Grade</th>
+                <th className="py-3 px-3 text-center align-middle">Uniform Package / Item</th>
+                <th className="py-3 px-3 text-center align-middle">Gender</th>
+                <th className="py-3 px-3 text-center align-middle">Fee Amount</th>
+                <th className="py-3 px-3 text-center align-middle">Status</th>
+                <th className="py-3 px-3 text-center align-middle">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
@@ -380,10 +380,13 @@ export const FinanceUniformConfigView: React.FC = () => {
               ) : (
                 paginatedConfigs.map(c => (
                   <tr key={c.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
-                    <td className="py-3.5 px-4 font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-                      <Shirt className="w-4 h-4 text-sky-500 shrink-0" /> {c.className}
+                    <td className="py-3 px-3 text-center align-middle font-extrabold text-slate-900 dark:text-white">
+                      <div className="flex items-center justify-center gap-1.5">
+                        <Shirt className="w-4 h-4 text-[var(--primary-color)] shrink-0" />
+                        <span>{c.className}</span>
+                      </div>
                     </td>
-                    <td className="py-3.5 px-4 font-bold text-slate-800 dark:text-slate-200 truncate">
+                    <td className="py-3 px-3 text-center align-middle font-bold text-slate-800 dark:text-slate-200 truncate">
                       {(() => {
                         let pkgStr = (c.uniformPackage || '').trim();
                         const lower = pkgStr.toLowerCase();
@@ -403,11 +406,11 @@ export const FinanceUniformConfigView: React.FC = () => {
                         return `${pkgStr} ${(c as any).fabricMeterage ? `[${(c as any).fabricMeterage}]` : ''}`.trim();
                       })()}
                     </td>
-                    <td className="py-3.5 px-4 text-slate-600 dark:text-slate-400">{c.gender}</td>
-                    <td className="py-3.5 px-4 text-right font-black text-emerald-600 dark:text-emerald-400 text-sm truncate">
+                    <td className="py-3 px-3 text-center align-middle text-slate-600 dark:text-slate-400">{c.gender}</td>
+                    <td className="py-3 px-3 text-center align-middle font-black text-emerald-600 dark:text-emerald-400 text-sm truncate">
                       {formatCurrency(c.feeAmount || 0)}
                     </td>
-                    <td className="py-3.5 px-4">
+                    <td className="py-3 px-3 text-center align-middle">
                       {c.status === 'Active' ? (
                         <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 font-bold text-[10px] inline-flex items-center gap-1">
                           <CheckCircle2 className="w-3 h-3" /> Active
@@ -418,9 +421,9 @@ export const FinanceUniformConfigView: React.FC = () => {
                         </span>
                       )}
                     </td>
-                    <td className="py-3.5 px-4 text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button onClick={() => handleOpenEdit(c)} className="p-1.5 rounded-lg text-slate-500 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-slate-800 transition-colors">
+                    <td className="py-3 px-3 text-center align-middle whitespace-nowrap">
+                      <div className="flex items-center justify-center gap-1.5">
+                        <button onClick={() => handleOpenEdit(c)} className="p-1.5 rounded-lg text-slate-500 hover:text-[var(--primary-color)] hover:bg-[var(--primary-color)]/10 transition-colors">
                           <Edit className="w-4 h-4" />
                         </button>
                         <button onClick={() => setDeletingConfig(c)} className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-slate-800 transition-colors">

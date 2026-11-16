@@ -83,12 +83,12 @@ export const FeeCollectionContainerView: React.FC<FeeCollectionContainerViewProp
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in">
+    <div className="space-y-4 animate-in fade-in">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <IndianRupee className="w-6 h-6 text-brand-600 dark:text-brand-400" /> Fee Collection & Dues
+            <IndianRupee className="w-6 h-6 text-[var(--primary-color)]" /> Fee Collection & Dues
           </h2>
         </div>
 
@@ -100,7 +100,7 @@ export const FeeCollectionContainerView: React.FC<FeeCollectionContainerViewProp
       </div>
 
       {/* Sub-tab Selector */}
-      <div className="glass-card p-2 rounded-2xl flex items-center gap-1.5 overflow-x-auto no-scrollbar border border-slate-200/80 dark:border-slate-800">
+      <div className="glass-card p-1.5 rounded-2xl flex items-center gap-1.5 overflow-x-auto no-scrollbar border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40">
         {subTabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeSubTab === tab.id;
@@ -113,9 +113,9 @@ export const FeeCollectionContainerView: React.FC<FeeCollectionContainerViewProp
                 }
                 setActiveSubTab(tab.id as any);
               }}
-              className={`px-4.5 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap flex items-center gap-2 transition-all cursor-pointer ${
+              className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap flex items-center gap-2 transition-all cursor-pointer ${
                 isActive
-                  ? 'bg-sky-600 text-white shadow-md shadow-sky-500/20'
+                  ? 'bg-[var(--primary-color)] text-white shadow-md shadow-[var(--primary-color)]/20'
                   : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
               }`}
             >

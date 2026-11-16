@@ -422,9 +422,6 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
       label: "Total Expected Collection",
       value: totalExpected,
       valueClass: "text-slate-900 dark:text-white",
-      borderClass: "border-l-sky-500",
-      iconBgClass: "bg-sky-50 dark:bg-sky-950 text-sky-500 group-hover:bg-sky-500",
-      linkClass: "text-sky-600 dark:text-sky-400",
       linkText: "View Dues",
       targetTab: "due-fees",
       Icon: IndianRupee,
@@ -433,9 +430,6 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
       label: "Total Collected",
       value: totalCollected,
       valueClass: "text-emerald-600 dark:text-emerald-400",
-      borderClass: "border-l-emerald-500",
-      iconBgClass: "bg-emerald-50 dark:bg-emerald-950 text-emerald-500 group-hover:bg-emerald-500",
-      linkClass: "text-emerald-600 dark:text-emerald-400",
       linkText: "Collect Fees",
       targetTab: "fee-collection",
       Icon: CheckCircle,
@@ -444,9 +438,6 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
       label: "Total Pending Dues",
       value: totalPending,
       valueClass: "text-rose-600 dark:text-rose-400",
-      borderClass: "border-l-rose-500",
-      iconBgClass: "bg-rose-50 dark:bg-rose-950 text-rose-500 group-hover:bg-rose-500",
-      linkClass: "text-rose-600 dark:text-rose-400",
       linkText: "View Dues",
       targetTab: "student-fees",
       Icon: AlertCircle,
@@ -454,10 +445,7 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
     {
       label: "Today's Collection",
       value: todaysCollection,
-      valueClass: "text-sky-600 dark:text-sky-400",
-      borderClass: "border-l-sky-500",
-      iconBgClass: "bg-sky-50 dark:bg-sky-950 text-sky-500 group-hover:bg-sky-500",
-      linkClass: "text-sky-600 dark:text-sky-400",
+      valueClass: "text-slate-900 dark:text-white",
       linkText: "Receipts",
       targetTab: "fee-collection",
       Icon: TrendingUp,
@@ -465,16 +453,13 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
     {
       label: "Liquidity Accounts",
       value: totalLiquidity,
-      valueClass: "text-indigo-600 dark:text-indigo-400",
-      borderClass: "border-l-indigo-500",
-      iconBgClass: "bg-indigo-50 dark:bg-indigo-950 text-indigo-500 group-hover:bg-indigo-500",
-      linkClass: "text-indigo-600 dark:text-indigo-400",
+      valueClass: "text-slate-900 dark:text-white",
       linkText: "View Vaults",
       targetTab: "accounts",
       Icon: CreditCard,
       sublines: [
-        { label: "Bank", amount: bankBalance, cls: "text-sky-600 dark:text-sky-400 font-semibold" },
-        { label: "Cash", amount: cashBalance, cls: "text-emerald-600 dark:text-emerald-400 font-semibold" },
+        { label: "Bank", amount: bankBalance, cls: "text-slate-700 dark:text-slate-300 font-semibold" },
+        { label: "Cash", amount: cashBalance, cls: "text-slate-700 dark:text-slate-300 font-semibold" },
       ],
     },
   ];
@@ -483,9 +468,6 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
     {
       label: "Transport",
       value: transportCollected,
-      hoverBorder: "hover:border-sky-300 dark:hover:border-sky-800",
-      arrowClass: "text-sky-500",
-      iconBgClass: "bg-sky-50 text-sky-600 dark:bg-sky-950 dark:text-sky-400 group-hover:bg-sky-500",
       targetTab: "transport",
       Icon: Bus,
       sublines: [
@@ -496,9 +478,6 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
     {
       label: "Hostel",
       value: hostelCollected,
-      hoverBorder: "hover:border-cyan-300 dark:hover:border-cyan-800",
-      arrowClass: "text-cyan-500",
-      iconBgClass: "bg-cyan-50 text-cyan-600 dark:bg-cyan-950 dark:text-cyan-400 group-hover:bg-cyan-500",
       targetTab: "hostel",
       Icon: Home,
       sublines: [
@@ -509,9 +488,6 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
     {
       label: "Uniform",
       value: uniformCollected,
-      hoverBorder: "hover:border-purple-300 dark:hover:border-purple-800",
-      arrowClass: "text-purple-500",
-      iconBgClass: "bg-purple-50 text-purple-600 dark:bg-purple-950 dark:text-purple-400 group-hover:bg-purple-500",
       targetTab: "uniforms",
       Icon: Shirt,
       sublines: [
@@ -522,9 +498,6 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
     {
       label: "Scholarships",
       value: scholarshipAmount,
-      hoverBorder: "hover:border-emerald-300 dark:hover:border-emerald-800",
-      arrowClass: "text-emerald-500",
-      iconBgClass: "bg-emerald-50 text-emerald-600 dark:bg-emerald-950 dark:text-emerald-400 group-hover:bg-emerald-500",
       targetTab: "concessions",
       Icon: Gift,
       sublines: [],
@@ -532,9 +505,6 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
     {
       label: "Fines",
       value: finesCollected,
-      hoverBorder: "hover:border-rose-300 dark:hover:border-rose-800",
-      arrowClass: "text-rose-500",
-      iconBgClass: "bg-rose-50 text-rose-600 dark:bg-rose-950 dark:text-rose-400 group-hover:bg-rose-500",
       targetTab: "student-fees",
       Icon: AlertTriangle,
       sublines: [
@@ -545,12 +515,12 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
   ];
 
   return (
-    <div className="space-y-6 animate-in fade-in">
+    <div className="space-y-4 animate-in fade-in">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <TrendingUp className="w-6 h-6 text-sky-500" /> Finance Dashboard
+            <TrendingUp className="w-6 h-6 text-[var(--primary-color)]" /> Finance Dashboard
           </h2>
         </div>
         <div className="flex items-center gap-2">
@@ -562,16 +532,16 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
           <button
             onClick={() => loadDashboardData(true)}
             disabled={isLoading}
-            className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold flex items-center gap-2 transition-all cursor-pointer"
+            className="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold flex items-center gap-2 transition-all cursor-pointer border border-[var(--primary-color)]/20"
           >
-            <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin text-sky-500" : ""}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin text-[var(--primary-color)]" : ""}`} />
             Refresh Data
           </button>
         </div>
       </div>
 
       {/* Primary KPI Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3.5">
         {primaryKpiCards.map((card) => {
           const formatted = formatCurrency(card.value);
           const IconComponent = card.Icon;
@@ -579,13 +549,13 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
             <div
               key={card.label}
               onClick={() => handleCardClick(card.targetTab)}
-              className={`glass-card p-4 sm:p-5 rounded-3xl flex flex-col justify-between h-full min-w-0 overflow-hidden gap-2 border-l-4 ${card.borderClass} cursor-pointer transition-all duration-200 hover:scale-[1.01] hover:shadow-xl group`}
+              className="glass-card p-3.5 sm:p-4 rounded-2xl flex flex-col justify-between h-full min-w-0 overflow-hidden gap-2 border border-[var(--primary-color)]/35 dark:border-[var(--primary-color)]/45 hover:border-[var(--primary-color)] bg-white/80 dark:bg-slate-900/80 backdrop-blur-md cursor-pointer transition-all duration-200 hover:scale-[1.01] hover:shadow-lg group"
             >
               <div className="flex items-start justify-between gap-2 min-w-0">
                 <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wide leading-snug">
                   {card.label}
                 </span>
-                <div className={`p-2 rounded-xl shrink-0 ${card.iconBgClass} group-hover:text-white transition-colors`}>
+                <div className="p-2 rounded-xl shrink-0 text-[var(--primary-color)] bg-[var(--primary-color)]/10 dark:bg-[var(--primary-color)]/20 group-hover:bg-[var(--primary-color)] group-hover:text-white transition-all">
                   <IconComponent className="w-4 h-4" />
                 </div>
               </div>
@@ -611,7 +581,7 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
                 </div>
               )}
               <div className="flex items-center justify-end mt-auto pt-1">
-                <span className={`text-[11px] font-bold ${card.linkClass} flex items-center gap-0.5 group-hover:underline`}>
+                <span className="text-[11px] font-bold text-[var(--primary-color)] flex items-center gap-0.5 group-hover:underline">
                   {card.linkText} <ArrowUpRight className="w-3.5 h-3.5" />
                 </span>
               </div>
@@ -621,7 +591,7 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
       </div>
 
       {/* Module-Wise Functional KPI Cards Grid (Hostel, Transport, Uniform, Fines, Scholarships) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3.5">
         {secondaryKpiCards.map((card) => {
           const formatted = formatCurrency(card.value);
           const IconComponent = card.Icon;
@@ -629,13 +599,14 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
             <div
               key={card.label}
               onClick={() => handleCardClick(card.targetTab)}
-              className={`glass-card p-4 sm:p-5 rounded-2xl flex flex-col justify-between h-full min-w-0 overflow-hidden gap-2 cursor-pointer ${card.hoverBorder} transition-all hover:scale-[1.01] group`}
+              className="glass-card p-3.5 sm:p-4 rounded-2xl flex flex-col justify-between h-full min-w-0 overflow-hidden gap-2 cursor-pointer border border-[var(--primary-color)]/35 dark:border-[var(--primary-color)]/45 hover:border-[var(--primary-color)] bg-white/80 dark:bg-slate-900/80 backdrop-blur-md transition-all hover:scale-[1.01] hover:shadow-lg group"
             >
               <div className="flex items-center justify-between gap-2 min-w-0">
                 <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wide flex items-center gap-1 truncate">
-                  {card.label} <ArrowUpRight className={`w-3 h-3 shrink-0 ${card.arrowClass} opacity-0 group-hover:opacity-100 transition-opacity`} />
+                  {card.label}{" "}
+                  <ArrowUpRight className="w-3 h-3 shrink-0 text-[var(--primary-color)] opacity-0 group-hover:opacity-100 transition-opacity" />
                 </p>
-                <div className={`p-2 rounded-xl shrink-0 ${card.iconBgClass} group-hover:text-white transition-colors`}>
+                <div className="p-2 rounded-xl shrink-0 text-[var(--primary-color)] bg-[var(--primary-color)]/10 dark:bg-[var(--primary-color)]/20 group-hover:bg-[var(--primary-color)] group-hover:text-white transition-all">
                   <IconComponent className="w-4 h-4" />
                 </div>
               </div>
@@ -647,7 +618,7 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
                   {formatted}
                 </h4>
                 {card.sublines.length > 0 && (
-                  <div className="flex flex-col gap-0.5 mt-1.5 text-[11px] text-slate-500 dark:text-slate-400 font-medium min-w-0">
+                  <div className="flex flex-col gap-0.5 mt-1 text-[11px] text-slate-500 dark:text-slate-400 font-medium min-w-0">
                     {card.sublines.map((sub) => {
                       const subFormatted = formatCurrency(sub.amount);
                       return (
@@ -668,21 +639,21 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
       </div>
 
       {/* Visual Charts & Breakdown Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Class-Wise Revenue Breakdown */}
-        <div className="glass-card p-6 rounded-3xl space-y-4">
+        <div className="glass-card p-4 sm:p-5 rounded-2xl border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 space-y-3.5">
           <div className="flex items-center justify-between">
-            <h3 className="font-bold text-base text-slate-900 dark:text-white flex items-center gap-2">
-              <BarChart2 className="w-5 h-5 text-sky-500" /> Class-wise Revenue Breakdown
+            <h3 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white flex items-center gap-2">
+              <BarChart2 className="w-4.5 h-4.5 text-[var(--primary-color)]" /> Class-wise Revenue Breakdown
             </h3>
             <button
               onClick={() => handleCardClick("student-fees")}
-              className="text-xs font-bold text-sky-600 hover:text-sky-700 dark:text-sky-400 flex items-center gap-1 hover:underline cursor-pointer"
+              className="text-xs font-bold text-[var(--primary-color)] hover:underline flex items-center gap-1 cursor-pointer"
             >
               View Student Fees <ChevronRight className="w-3.5 h-3.5" />
             </button>
           </div>
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             {computedClassWiseRevenue && computedClassWiseRevenue.length > 0 ? (
               computedClassWiseRevenue.map((item: any, idx: number) => {
                 const collected = Number(item.collectedAmount || 0);
@@ -695,16 +666,16 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
                     className="space-y-1 cursor-pointer group p-1.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
                   >
                     <div className="flex justify-between text-xs font-bold">
-                      <span className="text-slate-900 dark:text-white group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors">
+                      <span className="text-slate-900 dark:text-white group-hover:text-[var(--primary-color)] transition-colors">
                         {item.className}
                       </span>
-                      <span className="text-slate-500">
+                      <span className="text-slate-500 font-mono text-[11px]">
                         Coll: {formatCurrency(collected)} / Exp: {formatCurrency(expected)} ({pct}%)
                       </span>
                     </div>
-                    <div className="w-full bg-slate-100 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden">
+                    <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
                       <div
-                        className="bg-sky-500 h-full rounded-full transition-all duration-500"
+                        className="bg-[var(--primary-color)] h-full rounded-full transition-all duration-500"
                         style={{ width: `${pct}%` }}
                       />
                     </div>
@@ -712,7 +683,7 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
                 );
               })
             ) : (
-              <div className="py-8 text-center text-slate-400 dark:text-slate-500 text-xs">
+              <div className="py-6 text-center text-slate-400 dark:text-slate-500 text-xs">
                 No classes or fee assignments configured yet.
               </div>
             )}
@@ -720,19 +691,19 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
         </div>
 
         {/* Fee Collection by Category */}
-        <div className="glass-card p-6 rounded-3xl space-y-4">
+        <div className="glass-card p-4 sm:p-5 rounded-2xl border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 space-y-3.5">
           <div className="flex items-center justify-between">
-            <h3 className="font-bold text-base text-slate-900 dark:text-white flex items-center gap-2">
-              <PieChart className="w-5 h-5 text-sky-500" /> Fee Collection by Category
+            <h3 className="font-bold text-sm sm:text-base text-slate-900 dark:text-white flex items-center gap-2">
+              <PieChart className="w-4.5 h-4.5 text-[var(--primary-color)]" /> Fee Collection by Category
             </h3>
             <button
               onClick={() => handleCardClick("fee-setup")}
-              className="text-xs font-bold text-sky-600 hover:text-sky-700 dark:text-sky-400 flex items-center gap-1 hover:underline cursor-pointer"
+              className="text-xs font-bold text-[var(--primary-color)] hover:underline flex items-center gap-1 cursor-pointer"
             >
               Fee Setup <ChevronRight className="w-3.5 h-3.5" />
             </button>
           </div>
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             {normalizedCategoryBreakdown && normalizedCategoryBreakdown.length > 0 ? (
               normalizedCategoryBreakdown.map((cat: any, idx: number) => {
                 const exp = Number(cat.expectedAmount || 0);
@@ -744,13 +715,13 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
                   <div
                     key={idx}
                     onClick={() => handleCardClick("fee-setup")}
-                    className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 flex flex-col space-y-1 text-xs cursor-pointer hover:bg-slate-100/80 dark:hover:bg-slate-800 transition-colors group"
+                    className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 flex flex-col space-y-1 text-xs cursor-pointer hover:bg-slate-100/80 dark:hover:bg-slate-800 transition-colors group border border-slate-200/50 dark:border-slate-700/50"
                   >
                     <div className="flex items-center justify-between">
-                      <p className="font-bold text-slate-900 dark:text-white group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors">
+                      <p className="font-bold text-slate-900 dark:text-white group-hover:text-[var(--primary-color)] transition-colors">
                         {cat.categoryName}
                       </p>
-                      <span className="font-bold text-slate-600 dark:text-slate-300">
+                      <span className="font-bold text-slate-600 dark:text-slate-300 font-mono text-[11px]">
                         {formatCurrency(coll)} / {formatCurrency(exp)} ({pct}%)
                       </span>
                     </div>
@@ -758,9 +729,9 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
                       <span>Collected: {formatCurrency(coll)}</span>
                       <span className="text-rose-500 font-semibold">Pending: {formatCurrency(pend)}</span>
                     </div>
-                    <div className="w-full bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden mt-1">
+                    <div className="w-full bg-slate-200 dark:bg-slate-700 h-1.5 rounded-full overflow-hidden mt-0.5">
                       <div
-                        className="bg-emerald-500 h-full rounded-full transition-all duration-500"
+                        className="bg-[var(--primary-color)] h-full rounded-full transition-all duration-500"
                         style={{ width: `${pct}%` }}
                       />
                     </div>
@@ -772,17 +743,17 @@ export const FinanceDashboardView: React.FC<FinanceDashboardViewProps> = ({ onNa
                 <div
                   key={h.id}
                   onClick={() => handleCardClick("fee-setup")}
-                  className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 flex items-center justify-between text-xs cursor-pointer hover:bg-slate-100/80 dark:hover:bg-slate-800 transition-colors group"
+                  className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 flex items-center justify-between text-xs cursor-pointer hover:bg-slate-100/80 dark:hover:bg-slate-800 transition-colors group border border-slate-200/50 dark:border-slate-700/50"
                 >
                   <div>
-                    <p className="font-bold text-slate-900 dark:text-white group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors">
+                    <p className="font-bold text-slate-900 dark:text-white group-hover:text-[var(--primary-color)] transition-colors">
                       {h.name}
                     </p>
                     <p className="text-[10px] text-slate-400">
                       {h.category} • {h.frequency}
                     </p>
                   </div>
-                  <span className="px-2.5 py-1 rounded-lg bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300 font-bold">
+                  <span className="px-2.5 py-1 rounded-lg bg-[var(--primary-color)]/10 text-[var(--primary-color)] font-bold">
                     {h.mandatory ? "Mandatory" : "Optional"}
                   </span>
                 </div>
