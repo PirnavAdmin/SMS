@@ -346,25 +346,43 @@ export const TeacherPayslipsView: React.FC = () => {
       </div>
 
       {/* Filter Bar */}
-      <div className="glass-card p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xs">
+      <div className="glass-card p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 flex flex-col sm:flex-row items-start justify-between gap-3 shadow-xs">
         <div className="w-full sm:w-80">
-          <div className="relative">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <div className="relative flex items-center">
+            <Search className={`w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none transition-colors z-10 ${isSearchInvalid ? 'text-rose-500' : 'text-slate-400'}`} />
             <input
               type="text"
+              maxLength={30}
               placeholder="Search by pay month (e.g. October, 2026)..."
               value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              className={`w-full pl-9 pr-3 py-1.5 text-xs rounded-lg bg-slate-50 dark:bg-slate-800 border font-bold outline-none text-slate-900 dark:text-white transition-colors ${
+              onChange={e => {
+                setSearchQuery(e.target.value.slice(0, 30));
+                setCurrentPage(1);
+              }}
+              className={`w-full pl-8 ${searchQuery ? 'pr-8' : 'pr-3'} h-9 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border font-semibold outline-none text-slate-900 dark:text-white transition-all ${
                 isSearchInvalid
-                  ? 'border-rose-500 focus:border-rose-500'
+                  ? 'border-rose-500 ring-1 ring-rose-500/20 text-rose-900 dark:text-rose-100 bg-rose-50/20'
                   : 'border-slate-200 dark:border-slate-700 focus:border-sky-500'
               }`}
             />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery('');
+                  setCurrentPage(1);
+                }}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 z-10 cursor-pointer"
+                title="Clear search"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
           {isSearchInvalid && (
-            <p className="text-[11px] font-bold text-rose-500 mt-1 pl-1">
-              Please enter a valid pay month (e.g., October, Oct 2026, or 2026).
+            <p className="text-[11px] font-bold text-rose-500 mt-1 pl-1 flex items-center gap-1 animate-in fade-in duration-150">
+              <AlertCircle className="w-3 h-3 shrink-0" />
+              <span>Please enter a valid pay month (e.g., October, Oct 2026, or 2026).</span>
             </p>
           )}
         </div>
@@ -373,8 +391,11 @@ export const TeacherPayslipsView: React.FC = () => {
           <div className="relative">
             <select
               value={selectedYear}
-              onChange={e => setSelectedYear(e.target.value)}
-              className="appearance-none pl-3 pr-8 py-1.5 text-xs font-semibold rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 cursor-pointer outline-none transition-all shadow-xs"
+              onChange={e => {
+                setSelectedYear(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="appearance-none pl-3 pr-8 h-9 text-xs font-semibold rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 cursor-pointer outline-none transition-all shadow-xs"
             >
               <option value="All">All Years</option>
               {availableYears.map(yr => (
@@ -388,8 +409,11 @@ export const TeacherPayslipsView: React.FC = () => {
             <div className="relative">
               <select
                 value={sortOrder}
-                onChange={e => setSortOrder(e.target.value as 'desc' | 'asc')}
-                className="appearance-none pl-3 pr-8 py-1.5 text-xs font-semibold rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 cursor-pointer outline-none transition-all shadow-xs"
+                onChange={e => {
+                  setSortOrder(e.target.value as 'desc' | 'asc');
+                  setCurrentPage(1);
+                }}
+                className="appearance-none pl-3 pr-8 h-9 text-xs font-semibold rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 cursor-pointer outline-none transition-all shadow-xs"
               >
                 <option value="desc">Latest Month First</option>
                 <option value="asc">Oldest Month First</option>

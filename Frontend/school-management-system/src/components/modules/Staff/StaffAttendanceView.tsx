@@ -43,7 +43,9 @@ import {
   Edit,
   RotateCcw,
   ChevronDown,
+  X,
 } from "lucide-react";
+import { validateSearchQuery } from "../../../utils/validation";
 import { getDepartmentOptions, getDesignationOptions } from "./staffFlowOptions";
 import { formatToDDMMYYYY, formatToISO, checkSundayOrHoliday, parseAcademicYearRange, getTargetMonthInAY } from "../../../utils/dateValidation";
 import { exportToExcel } from "../../../utils/excelExport";
@@ -2871,8 +2873,17 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     setIsDirty(false);
   }, [attendanceDate, activeTab, teachingDept, nonTeachingDept, viewMode]);
 
+  // Search Input Validation State
+  const currentSearchQuery = activeTab === "teaching" ? teachingQuery : nonTeachingQuery;
+  const searchValidation = useMemo(() => {
+    if (!currentSearchQuery.trim()) return { isValid: true, error: undefined };
+    return validateSearchQuery(currentSearchQuery, 30);
+  }, [currentSearchQuery]);
+  const searchError = searchValidation.isValid ? undefined : (searchValidation.error || "Enter a valid search term.");
+
   // Filter Active Teaching Staff
   const teachingStaffList = useMemo(() => {
+    if (searchError) return [];
     return (staff || []).filter((s) => {
       if (!isTeachingStaff(s) || s.status === "Inactive") return false;
       if (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" && selectedBranch !== "All Campuses") {
@@ -2893,10 +2904,11 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
         (s.empId || "").toLowerCase().includes(q);
       return deptMatch && desMatch && searchMatch;
     });
-  }, [staff, selectedBranch, teachingDept, teachingDesignation, teachingQuery]);
+  }, [staff, selectedBranch, teachingDept, teachingDesignation, teachingQuery, searchError]);
 
   // Filter Active Non-Teaching Staff
   const nonTeachingStaffList = useMemo(() => {
+    if (searchError) return [];
     return allStaffList.filter((s) => {
       if (isTeachingStaff(s) || s.status === "Inactive") return false;
       if (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" && selectedBranch !== "All Campuses") {
@@ -2917,7 +2929,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
         (s.empId || "").toLowerCase().includes(q);
       return deptMatch && desMatch && searchMatch;
     });
-  }, [allStaffList, selectedBranch, nonTeachingDept, nonTeachingDesignation, nonTeachingQuery]);
+  }, [allStaffList, selectedBranch, nonTeachingDept, nonTeachingDesignation, nonTeachingQuery, searchError]);
 
   // Active working staff list for currently selected tab
   const currentTabStaffList =
@@ -2958,13 +2970,6 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
     return { total, present, absent, leave, halfDay };
   }, [currentTabStaffList, attendanceMap, normalizeStatus, attendanceDate, leaveApplications]);
-
-  // Search Input Validation State
-  const currentSearchQuery = activeTab === "teaching" ? teachingQuery : nonTeachingQuery;
-  const isSearchQueryEntered = currentSearchQuery.trim().length > 0;
-  const hasInvalidSearchChars = /[^a-zA-Z0-9\s\-_./]/.test(currentSearchQuery.trim());
-  const isSearchUnmatched = isSearchQueryEntered && currentTabStaffList.length === 0;
-  const hasStaffSearchError = isSearchQueryEntered && (hasInvalidSearchChars || isSearchUnmatched);
 
   // Status Change Handler with Leave Locks & Permission Checks
   const handleStatusChange = (
@@ -3499,6 +3504,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
   }, [regYear, regMonth, regFromDate, regToDate]);
 
   const registerStaffList = useMemo(() => {
+    if (searchError) return [];
     return (staff || []).filter((s) => {
       const isTeacher = isTeachingStaff(s);
       if (activeTab === "teaching" && !isTeacher) return false;
@@ -3540,6 +3546,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
     teachingQuery,
     nonTeachingQuery,
     regEmpId,
+    searchError,
   ]);
 
   // Monthly Pagination Calculations
@@ -3817,7 +3824,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
             <select
               value={dateMode || ""}
               onChange={(e) => setDateMode(e.target.value as any)}
-              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors cursor-pointer"
+              className="w-full px-3 h-10 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors cursor-pointer"
             >
               <option value="">Select Mode</option>
               <option value="Daily">Daily</option>
@@ -3833,7 +3840,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                 type="text"
                 disabled
                 placeholder="Select Date Mode"
-                className="w-full px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-400 cursor-not-allowed"
+                className="w-full px-3 h-10 rounded-xl bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-400 cursor-not-allowed"
               />
             )}
             {dateMode === "Daily" && (
@@ -3851,7 +3858,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                   }
                   setAttendanceDate(val);
                 }}
-                className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white"
+                className="w-full px-3 h-10 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white"
               />
             )}
             {dateMode === "Monthly" && (
@@ -3871,7 +3878,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                   handleMonthInputChange(val);
                 }}
                 onClick={(e) => e.currentTarget.showPicker?.()}
-                className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors cursor-pointer"
+                className="w-full px-3 h-10 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors cursor-pointer"
               />
             )}
             {dateMode === "Custom Range" && (
@@ -3882,7 +3889,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                   max={activeAYInfo?.endDate}
                   onChange={(e) => handleFromDateChange(e.target.value)}
                   placeholder="From"
-                  className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white"
+                  className="w-full px-3 h-10 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white"
                 />
                 <span className="text-slate-400 font-bold">-</span>
                 <DateInput
@@ -3891,7 +3898,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                   max={activeAYInfo?.endDate}
                   onChange={(e) => setRegToDate(e.target.value)}
                   placeholder="To"
-                  className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white"
+                  className="w-full px-3 h-10 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white"
                 />
               </div>
             )}
@@ -3906,7 +3913,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                   ? setTeachingDept(e.target.value)
                   : setNonTeachingDept(e.target.value)
               }
-              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors cursor-pointer"
+              className="w-full px-3 h-10 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors cursor-pointer"
             >
               <option value="All">All Departments</option>
               {(activeTab === "teaching" ? teachingDepts : nonTeachingDepts).map((dept) => (
@@ -3926,7 +3933,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                   ? setTeachingDesignation(e.target.value)
                   : setNonTeachingDesignation(e.target.value)
               }
-              className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors cursor-pointer"
+              className="w-full px-3 h-10 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-brand-500 transition-colors cursor-pointer"
             >
               <option value="All">All Designations</option>
               {(activeTab === "teaching" ? teachingDesignations : nonTeachingDesignations).map((des) => (
@@ -3939,28 +3946,52 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
           {/* Search Staff */}
           <div>
-            <div className="relative">
-              <Search className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 transition-colors ${hasStaffSearchError ? "text-red-500" : "text-slate-400"}`} />
+            <div className="relative flex items-center">
+              <Search className={`w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none transition-colors z-10 ${searchError ? "text-rose-500" : "text-slate-400"}`} />
               <input
                 type="text"
+                maxLength={30}
                 placeholder="Search by name or ID..."
                 value={currentSearchQuery}
-                onChange={(e) =>
-                  activeTab === "teaching"
-                    ? setTeachingQuery(e.target.value)
-                    : setNonTeachingQuery(e.target.value)
-                }
-                className={`w-full pl-9 pr-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border text-xs font-semibold outline-none transition-colors ${
-                  hasStaffSearchError
-                    ? "border-red-500 text-red-700 dark:text-red-300 focus:border-red-500 focus:ring-1 focus:ring-red-500"
+                onChange={(e) => {
+                  const val = e.target.value.slice(0, 30);
+                  if (activeTab === "teaching") {
+                    setTeachingQuery(val);
+                  } else {
+                    setNonTeachingQuery(val);
+                  }
+                  setDailyPage(1);
+                  setMonthlyPage(1);
+                }}
+                className={`w-full pl-8 ${currentSearchQuery ? 'pr-8' : 'pr-3'} h-10 text-xs font-semibold rounded-xl bg-slate-50 dark:bg-slate-800 border transition-all ${
+                  searchError
+                    ? "border-rose-500 ring-1 ring-rose-500/20 text-rose-900 dark:text-rose-100"
                     : "border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:border-brand-500"
-                }`}
+                } outline-none`}
               />
+              {currentSearchQuery && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (activeTab === "teaching") {
+                      setTeachingQuery("");
+                    } else {
+                      setNonTeachingQuery("");
+                    }
+                    setDailyPage(1);
+                    setMonthlyPage(1);
+                  }}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 z-10 cursor-pointer"
+                  title="Clear search"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
-            {hasStaffSearchError && (
-              <p className="text-[11px] font-semibold text-red-500 mt-1 flex items-center gap-1 animate-in fade-in">
+            {searchError && (
+              <p className="text-[11px] font-bold text-rose-500 flex items-center gap-1 mt-1.5 pl-1 animate-in fade-in duration-150">
                 <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                <span>Invalid input, please enter a valid staff name/ID</span>
+                <span>{searchError}</span>
               </p>
             )}
           </div>
@@ -4160,21 +4191,23 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
-                    {currentTabStaffList.length === 0 ? (
+                    {searchError ? (
+                      <tr>
+                        <td colSpan={8} className="py-12 text-center">
+                          <div className="flex flex-col items-center justify-center gap-1.5 text-rose-500 dark:text-rose-400">
+                            <AlertCircle className="w-5 h-5 text-rose-500" />
+                            <p className="font-bold text-xs">{searchError}</p>
+                            <p className="text-[11px] text-slate-400 font-normal">Please enter a valid search criteria.</p>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : currentTabStaffList.length === 0 ? (
                       <tr>
                         <td
                           colSpan={8}
                           className="py-12 text-center text-slate-400 italic"
                         >
-                          {hasStaffSearchError ? (
-                            <div className="inline-flex flex-col items-center justify-center p-4 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-400 gap-1.5 max-w-md mx-auto shadow-sm not-italic">
-                              <AlertCircle className="w-6 h-6 shrink-0" />
-                              <p className="text-xs font-bold">Invalid input, please enter a valid staff name/ID</p>
-                              <p className="text-[11px] text-red-500/80 font-medium">No employee records match "{currentSearchQuery}". Please check the spelling or employee ID.</p>
-                            </div>
-                          ) : (
-                            "No employees found matching the filter criteria."
-                          )}
+                          No employees found matching the filter criteria.
                         </td>
                       </tr>
                     ) : (
@@ -4587,21 +4620,26 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-semibold">
-                    {registerStaffList.length === 0 ? (
+                    {searchError ? (
+                      <tr>
+                        <td
+                          colSpan={registerDaysList.length + 10}
+                          className="py-10 text-center"
+                        >
+                          <div className="flex flex-col items-center justify-center gap-1.5 text-rose-500 dark:text-rose-400">
+                            <AlertCircle className="w-5 h-5 text-rose-500" />
+                            <p className="font-bold text-xs">{searchError}</p>
+                            <p className="text-[11px] text-slate-400 font-normal">Please enter a valid search criteria.</p>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : registerStaffList.length === 0 ? (
                       <tr>
                         <td
                           colSpan={registerDaysList.length + 10}
                           className="py-8 text-center text-slate-400 italic"
                         >
-                          {hasStaffSearchError ? (
-                            <div className="inline-flex flex-col items-center justify-center p-4 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 text-red-600 dark:text-red-400 gap-1.5 max-w-md mx-auto shadow-sm not-italic">
-                              <AlertCircle className="w-6 h-6 shrink-0" />
-                              <p className="text-xs font-bold">Invalid input, please enter a valid staff name/ID</p>
-                              <p className="text-[11px] text-red-500/80 font-medium">No employee records match "{currentSearchQuery}". Please check the spelling or employee ID.</p>
-                            </div>
-                          ) : (
-                            "No employees found for the selected register criteria."
-                          )}
+                          No employees found for the selected register criteria.
                         </td>
                       </tr>
                     ) : (

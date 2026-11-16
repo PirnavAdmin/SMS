@@ -424,28 +424,28 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
       {activeTab === 'registry' && (
         <div className="space-y-3">
           {/* Filter and Search Toolbar */}
-          <div className="bg-white dark:bg-slate-900 rounded-2xl px-3.5 py-2 shadow-xs border border-sky-300 dark:border-sky-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl px-3.5 py-2 shadow-xs border border-sky-300 dark:border-sky-800 flex flex-col sm:flex-row items-start justify-between gap-2.5">
             <div className="w-full sm:w-80">
               <div className="relative w-full flex items-center">
-                <Search className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none transition-colors ${searchError ? 'text-rose-500' : 'text-slate-400 dark:text-slate-500'}`} />
+                <Search className={`w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none transition-colors ${searchError ? 'text-rose-500' : 'text-slate-400 dark:text-slate-500'}`} />
                 <input
                   type="text"
-                  maxLength={50}
+                  maxLength={30}
                   placeholder="Search by staff name..."
                   value={searchQuery}
                   onChange={(e) => {
-                    const val = e.target.value;
+                    const val = e.target.value.slice(0, 30);
                     setSearchQuery(val);
                     if (!val) {
                       setSearchError(undefined);
                     } else {
-                      const validation = validateSearchQuery(val);
+                      const validation = validateSearchQuery(val, 30);
                       setSearchError(validation.isValid ? undefined : validation.error);
                     }
                   }}
-                  className={`w-full pl-9 pr-8 py-2 text-xs font-semibold rounded-xl bg-white dark:bg-slate-900 border text-slate-900 dark:text-white outline-none transition shadow-2xs ${
+                  className={`w-full pl-8 ${searchQuery ? 'pr-8' : 'pr-3'} h-10 text-xs font-semibold rounded-xl bg-white dark:bg-slate-900 border text-slate-900 dark:text-white outline-none transition shadow-2xs ${
                     searchError
-                      ? 'border-rose-500 focus:ring-2 focus:ring-rose-500/20 bg-rose-50/20 dark:bg-rose-950/20'
+                      ? 'border-rose-500 ring-1 ring-rose-500/20 bg-rose-50/20 dark:bg-rose-950/20 text-rose-900 dark:text-rose-100'
                       : 'border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20'
                   }`}
                 />
@@ -475,7 +475,7 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
               <select
                 value={typeFilter}
                 onChange={(e) => setTypeFilter(e.target.value)}
-                className="px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-sky-200 dark:border-sky-800 font-bold text-slate-700 dark:text-slate-300 outline-none cursor-pointer"
+                className="px-3 h-10 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-sky-200 dark:border-sky-800 font-bold text-slate-700 dark:text-slate-300 outline-none cursor-pointer"
               >
                 <option value="all">All Document Types</option>
                 <option value="offer">Offer Letters</option>

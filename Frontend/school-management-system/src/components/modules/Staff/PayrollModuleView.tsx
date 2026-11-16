@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   LayoutDashboard, Layers, Users, Workflow, ReceiptText, Clock3, FileSpreadsheet, Settings,
   Search, Filter, ChevronDown, ChevronLeft, ChevronRight, Download, Mail, Printer, Eye,
-  Copy, Pencil, Trash2, CheckCircle2, AlertTriangle, Plus, Banknote, Building2, CalendarDays,
+  Copy, Pencil, Trash2, CheckCircle2, AlertTriangle, AlertCircle, Plus, Banknote, Building2, CalendarDays,
   TrendingUp, BarChart3, PieChart, Activity, ShieldCheck, ArrowRight, SlidersHorizontal,
   WalletCards, ListChecks, X, Save
 } from 'lucide-react';
@@ -13,6 +13,7 @@ import { formatCurrency } from '../../../utils/currency';
 import { useAuth } from '../../../context/AuthContext';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
+import { validateSearchQuery } from '../../../utils/validation';
 import {
   EmployeeSalaryAssignment,
   PayrollAmountLine,
@@ -551,17 +552,37 @@ function TableShell<T extends { id: string }>({
   initialPageSize = 5
 }: TableShellProps<T>) {
   const [query, setQuery] = useState('');
+  const [searchError, setSearchError] = useState<string | undefined>(undefined);
   const [sortKey, setSortKey] = useState<string>(columns.find(column => column.sortable)?.id || '');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [visibleColumns, setVisibleColumns] = useState<string[]>(columns.filter(column => column.visible !== false).map(column => column.id));
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(initialPageSize);
 
+  const handleQueryChange = (val: string) => {
+    const clamped = val.slice(0, 30);
+    setQuery(clamped);
+    if (!clamped.trim()) {
+      setSearchError(undefined);
+    } else {
+      const res = validateSearchQuery(clamped, 30);
+      setSearchError(res.isValid ? undefined : (res.error || 'Enter a valid search term.'));
+    }
+  };
+
+  const handleClearQuery = () => {
+    setQuery('');
+    setSearchError(undefined);
+  };
+
   useEffect(() => {
     setPage(1);
   }, [query, rows.length, pageSize]);
 
-  const filteredRows = useMemo(() => rows.filter(row => searchableText(row).toLowerCase().includes(query.toLowerCase())), [rows, query, searchableText]);
+  const filteredRows = useMemo(() => {
+    if (searchError) return [];
+    return rows.filter(row => searchableText(row).toLowerCase().includes(query.toLowerCase()));
+  }, [rows, query, searchableText, searchError]);
 
   const sortedRows = useMemo(() => {
     if (!sortKey) return filteredRows;
@@ -610,16 +631,39 @@ function TableShell<T extends { id: string }>({
           <h3 className="text-xs font-black text-slate-900 dark:text-white">{title}</h3>
           {subtitle && <p className="mt-0.5 text-[10px] text-slate-500">{subtitle}</p>}
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <label className="relative flex items-center min-w-[200px]">
-            <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 z-10" />
-            <input
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              placeholder="Search by Employee ID, Name, Department..."
-              className="h-9 w-full rounded-xl border border-slate-200 bg-slate-50 pl-8 pr-3 text-xs text-slate-900 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white font-medium"
-            />
-          </label>
+        <div className="flex flex-wrap items-start gap-2">
+          <div>
+            <div className="relative flex items-center min-w-[200px]">
+              <Search className={`pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 transition-colors z-10 ${searchError ? 'text-rose-500' : 'text-slate-400'}`} />
+              <input
+                value={query}
+                maxLength={30}
+                onChange={e => handleQueryChange(e.target.value)}
+                placeholder="Search by Employee ID, Name, Department..."
+                className={`h-9 w-full rounded-xl border pl-8 ${query ? 'pr-8' : 'pr-3'} text-xs outline-none transition font-medium ${
+                  searchError
+                    ? 'border-rose-500 ring-1 ring-rose-500/20 text-rose-900 dark:text-rose-100 dark:bg-slate-950'
+                    : 'border-slate-200 bg-slate-50 text-slate-900 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/15 dark:border-slate-700 dark:bg-slate-950 dark:text-white'
+                }`}
+              />
+              {query && (
+                <button
+                  type="button"
+                  onClick={handleClearQuery}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 z-10 cursor-pointer"
+                  title="Clear search"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+            {searchError && (
+              <p className="text-[11px] font-bold text-rose-500 flex items-center gap-1 mt-1 pl-1 animate-in fade-in duration-150">
+                <AlertCircle className="w-3 h-3 shrink-0" />
+                <span>{searchError}</span>
+              </p>
+            )}
+          </div>
           {filters}
           <button
             type="button"
@@ -701,7 +745,17 @@ function TableShell<T extends { id: string }>({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 bg-white dark:divide-slate-800 dark:bg-slate-900 font-medium">
-            {pageRows.length === 0 ? (
+            {searchError ? (
+              <tr key="search-error-row">
+                <td colSpan={(selectable ? 1 : 0) + visibleColumnDefs.length + (rowActions ? 1 : 0)} className="px-4 py-10 text-center">
+                  <div className="mx-auto max-w-sm space-y-1.5 text-rose-500 dark:text-rose-400">
+                    <AlertCircle className="mx-auto h-6 w-6 text-rose-500" />
+                    <p className="text-xs font-bold">{searchError}</p>
+                    <p className="text-[11px] text-slate-400 font-normal">Please enter a valid search criteria.</p>
+                  </div>
+                </td>
+              </tr>
+            ) : pageRows.length === 0 ? (
               <tr key="empty-state-row">
                 <td colSpan={(selectable ? 1 : 0) + visibleColumnDefs.length + (rowActions ? 1 : 0)} className="px-4 py-10 text-center">
                   <div className="mx-auto max-w-sm space-y-2">
