@@ -9,11 +9,14 @@ interface ConfirmModalProps {
   message?: React.ReactNode;
   children?: React.ReactNode;
   confirmLabel?: string;
+  confirmText?: string;
   cancelLabel?: string;
   variant?: 'danger' | 'warning' | 'info' | 'success' | 'primary';
+  type?: string;
   icon?: React.ReactNode;
-  onConfirm: () => void;
-  onCancel: () => void;
+  onConfirm: () => void | Promise<void>;
+  onCancel?: () => void;
+  onClose?: () => void;
   isLoading?: boolean;
 }
 
@@ -24,14 +27,21 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
   message,
   children,
   confirmLabel = 'Confirm',
+  confirmText,
   cancelLabel = 'Cancel',
-  variant = 'danger',
+  variant,
+  type,
   icon,
   onConfirm,
   onCancel,
+  onClose,
   isLoading = false,
 }) => {
   if (!isOpen) return null;
+
+  const handleCancel = onCancel || onClose || (() => {});
+  const effectiveConfirmLabel = confirmText || confirmLabel;
+  const effectiveVariant = ((variant || type || 'danger') as 'danger' | 'warning' | 'info' | 'success' | 'primary');
 
   const variantBtn = {
     danger:
@@ -47,7 +57,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
 
   const getVariantIcon = () => {
     if (icon) return icon;
-    switch (variant) {
+    switch (effectiveVariant) {
       case 'success':
         return <UserCheck className="w-6 h-6 stroke-[2.2]" />;
       case 'primary':
@@ -62,7 +72,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
   };
 
   const getIconWrapperClass = () => {
-    switch (variant) {
+    switch (effectiveVariant) {
       case 'success':
         return 'bg-emerald-500/12 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20';
       case 'primary':
@@ -79,7 +89,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
   const modalContent = (
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md animate-in fade-in"
-      onClick={onCancel}
+      onClick={handleCancel}
     >
       <div
         className="glass-surface rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 relative"
@@ -105,7 +115,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
           </div>
           <button
             type="button"
-            onClick={onCancel}
+            onClick={handleCancel}
             disabled={isLoading}
             className="w-8 h-8 rounded-full btn-glass-secondary flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer disabled:opacity-50"
             aria-label="Close"
@@ -130,7 +140,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
         <div className="flex items-center justify-end gap-3 pt-2">
           <button
             type="button"
-            onClick={onCancel}
+            onClick={handleCancel}
             disabled={isLoading}
             className="px-5 py-2.5 text-xs font-bold rounded-2xl btn-glass-secondary cursor-pointer disabled:opacity-50"
           >
@@ -140,10 +150,10 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
             type="button"
             onClick={onConfirm}
             disabled={isLoading}
-            className={`px-5 py-2.5 text-xs font-extrabold rounded-2xl transition-all cursor-pointer flex items-center gap-2 ${variantBtn[variant]} disabled:opacity-75`}
+            className={`px-5 py-2.5 text-xs font-extrabold rounded-2xl transition-all cursor-pointer flex items-center gap-2 ${variantBtn[effectiveVariant]} disabled:opacity-75`}
           >
             {isLoading && <Loader2 className="w-4 h-4 animate-spin stroke-[2.5]" />}
-            <span>{confirmLabel}</span>
+            <span>{effectiveConfirmLabel}</span>
           </button>
         </div>
       </div>

@@ -983,5 +983,88 @@ namespace SMS.Api.Services.Implementations.Settings
 
             return relativeUrl;
         }
+
+        public async Task<List<AuditLogItemDto>> GetAuditLogsAsync(int? schoolId = null, int limit = 100, string? currentUserName = null, string? currentUserRole = null, string? clientIp = null)
+        {
+            var query = _context.AuditLogs.AsQueryable();
+
+            if (schoolId.HasValue && schoolId.Value > 0)
+            {
+                query = query.Where(a => a.SchoolId == schoolId.Value || a.SchoolId == null);
+            }
+
+            var logs = await query
+                .OrderByDescending(a => a.Timestamp)
+                .Take(limit)
+                .ToListAsync();
+
+            // If zero audit logs exist in DB, record an initial entry so audit trail is immediately active
+            if (!logs.Any())
+            {
+                var initialLog = new AuditLog
+                {
+                    Action = "Admin Session Verified",
+                    Details = "System preferences, configuration records, and security audit trail accessed.",
+                    UserName = !string.IsNullOrWhiteSpace(currentUserName) ? currentUserName : "Administrator",
+                    UserRole = !string.IsNullOrWhiteSpace(currentUserRole) ? currentUserRole : "Admin",
+                    IpAddress = !string.IsNullOrWhiteSpace(clientIp) ? clientIp : "127.0.0.1",
+                    Timestamp = DateTime.UtcNow,
+                    SchoolId = schoolId
+                };
+
+                _context.AuditLogs.Add(initialLog);
+                await _context.SaveChangesAsync();
+                logs.Add(initialLog);
+            }
+
+            var schools = await _context.Schools.AsNoTracking().ToListAsync();
+
+            return logs.Select(l => new AuditLogItemDto
+            {
+                Id = l.AuditLogId.ToString(),
+                AuditLogId = l.AuditLogId,
+                UserId = l.UserId,
+                UserName = !string.IsNullOrWhiteSpace(l.UserName) ? l.UserName : "Administrator",
+                UserRole = !string.IsNullOrWhiteSpace(l.UserRole) ? l.UserRole : "Admin",
+                Action = l.Action,
+                Details = l.Details,
+                IpAddress = !string.IsNullOrWhiteSpace(l.IpAddress) ? l.IpAddress : "127.0.0.1",
+                Timestamp = l.Timestamp.ToString("yyyy-MM-dd HH:mm:ss"),
+                SchoolId = l.SchoolId,
+                SchoolName = schools.FirstOrDefault(s => s.SchoolId == l.SchoolId)?.SchoolName ?? "Institutional Portal"
+            }).ToList();
+        }
+
+        public async Task<AuditLogItemDto> CreateAuditLogAsync(CreateAuditLogRequestDto dto, int? userId = null, string? userName = null, string? userRole = null, int? schoolId = null, string? clientIp = null)
+        {
+            var log = new AuditLog
+            {
+                UserId = userId,
+                UserName = !string.IsNullOrWhiteSpace(dto.UserName) ? dto.UserName : (!string.IsNullOrWhiteSpace(userName) ? userName : "Administrator"),
+                UserRole = !string.IsNullOrWhiteSpace(dto.UserRole) ? dto.UserRole : (!string.IsNullOrWhiteSpace(userRole) ? userRole : "Admin"),
+                Action = dto.Action,
+                Details = dto.Details,
+                IpAddress = !string.IsNullOrWhiteSpace(dto.IpAddress) ? dto.IpAddress : (!string.IsNullOrWhiteSpace(clientIp) ? clientIp : "127.0.0.1"),
+                Timestamp = DateTime.UtcNow,
+                SchoolId = schoolId
+            };
+
+            _context.AuditLogs.Add(log);
+            await _context.SaveChangesAsync();
+
+            return new AuditLogItemDto
+            {
+                Id = log.AuditLogId.ToString(),
+                AuditLogId = log.AuditLogId,
+                UserId = log.UserId,
+                UserName = log.UserName,
+                UserRole = log.UserRole,
+                Action = log.Action,
+                Details = log.Details,
+                IpAddress = log.IpAddress,
+                Timestamp = log.Timestamp.ToString("yyyy-MM-dd HH:mm:ss"),
+                SchoolId = log.SchoolId
+            };
+        }
     }
 }

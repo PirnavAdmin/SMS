@@ -181,3 +181,40 @@ export {
   type UserProfileData,
 } from './profile';
 
+// ============================
+// SYSTEM AUDIT LOGS APIs
+// ============================
+
+export interface SystemAuditLogDto {
+  id: string;
+  auditLogId: number;
+  userId?: number;
+  userName?: string;
+  userRole?: string;
+  action: string;
+  details: string;
+  ipAddress?: string;
+  timestamp: string;
+  schoolId?: number;
+  schoolName?: string;
+}
+
+export const fetchAuditLogsApi = async (limit = 100) => {
+  return apiClient<{ success: boolean; data: SystemAuditLogDto[] }>(`/api/Settings/audit-logs?limit=${limit}`, {
+    method: 'GET'
+  });
+};
+
+export const createAuditLogApi = async (payload: {
+  action: string;
+  details: string;
+  userName?: string;
+  userRole?: string;
+  ipAddress?: string;
+}) => {
+  return apiClient<{ success: boolean; data: SystemAuditLogDto }>('/api/Settings/audit-logs', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+};
+

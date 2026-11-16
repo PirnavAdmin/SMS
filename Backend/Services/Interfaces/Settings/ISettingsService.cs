@@ -20,5 +20,7 @@ namespace SMS.Api.Services.Interfaces.Settings
         Task<UserProfileDto> GetUserProfileAsync(string? userId = null, string? email = null, string? mobile = null, string? claimName = null, string? claimRole = null);
         Task<UserProfileDto> UpdateUserProfileAsync(UserProfileDto dto, string? userId = null, string? claimEmail = null);
         Task<string> UploadProfileImageFileAsync(IFormFile file, string? userId = null, string? claimEmail = null);
+        Task<System.Collections.Generic.List<AuditLogItemDto>> GetAuditLogsAsync(int? schoolId = null, int limit = 100, string? currentUserName = null, string? currentUserRole = null, string? clientIp = null);
+        Task<AuditLogItemDto> CreateAuditLogAsync(CreateAuditLogRequestDto dto, int? userId = null, string? userName = null, string? userRole = null, int? schoolId = null, string? clientIp = null);
     }
 }

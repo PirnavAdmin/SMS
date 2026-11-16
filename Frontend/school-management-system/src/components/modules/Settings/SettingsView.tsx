@@ -70,6 +70,7 @@ import {
   updateUserProfileApi,
   uploadUserProfileImageApi,
   saveLocalUserProfile,
+  fetchAuditLogsApi,
 } from "../../../api/settings";
 import {
   CustomIdSequence,
@@ -144,6 +145,7 @@ export const SettingsView: React.FC = () => {
     schoolProfile,
     updateSchoolProfile,
     auditLogs,
+    fetchAuditLogs,
     academicYears,
     addAcademicYear,
     updateAcademicYear,
@@ -243,6 +245,59 @@ export const SettingsView: React.FC = () => {
       window.removeEventListener("resize", checkTabsScroll);
     };
   }, []);
+
+  // Audit Logs State & Actions
+  const [auditLogsList, setAuditLogsList] = useState<any[]>([]);
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [auditSearchTerm, setAuditSearchTerm] = useState("");
+
+  const loadAuditLogs = async () => {
+    setAuditLoading(true);
+    try {
+      if (fetchAuditLogs) {
+        await fetchAuditLogs();
+      }
+      const res: any = await fetchAuditLogsApi(150);
+      const list = res?.data || (Array.isArray(res) ? res : []);
+      if (Array.isArray(list) && list.length > 0) {
+        setAuditLogsList(list);
+      } else if (auditLogs && auditLogs.length > 0) {
+        setAuditLogsList(auditLogs);
+      }
+    } catch (err) {
+      console.warn("Error fetching audit logs:", err);
+      if (auditLogs && auditLogs.length > 0) {
+        setAuditLogsList(auditLogs);
+      }
+    } finally {
+      setAuditLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "audit") {
+      loadAuditLogs();
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (auditLogs && auditLogs.length > 0 && auditLogsList.length === 0) {
+      setAuditLogsList(auditLogs);
+    }
+  }, [auditLogs]);
+
+  const displayedAuditLogs = useMemo(() => {
+    const source = auditLogsList.length > 0 ? auditLogsList : (auditLogs || []);
+    if (!auditSearchTerm.trim()) return source;
+    const term = auditSearchTerm.toLowerCase();
+    return source.filter((l: any) =>
+      (l.action || "").toLowerCase().includes(term) ||
+      (l.details || "").toLowerCase().includes(term) ||
+      (l.userName || "").toLowerCase().includes(term) ||
+      (l.userRole || "").toLowerCase().includes(term) ||
+      (l.ipAddress || "").toLowerCase().includes(term)
+    );
+  }, [auditLogsList, auditLogs, auditSearchTerm]);
 
   // Auto-center active tab into view smoothly whenever activeTab changes
   useEffect(() => {
@@ -3597,39 +3652,139 @@ export const SettingsView: React.FC = () => {
 
       {/* TAB 6: SYSTEM AUDIT LOGS */}
       {activeTab === "audit" && (
-        <div className="glass-card rounded-3xl overflow-hidden border border-slate-200/80 dark:border-slate-800">
-          <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase">
-                <th className="py-3.5 px-4">Timestamp</th>
-                <th className="py-3.5 px-4">User</th>
-                <th className="py-3.5 px-4">Action</th>
-                <th className="py-3.5 px-4">Details</th>
-                <th className="py-3.5 px-4">IP Address</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-              {auditLogs.map((log) => (
-                <tr key={log.id}>
-                  <td className="py-3 px-4 font-mono text-slate-500">
-                    {log.timestamp}
-                  </td>
-                  <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">
-                    {log.userName} ({log.userRole})
-                  </td>
-                  <td className="py-3 px-4 text-brand-600 font-semibold">
-                    {log.action}
-                  </td>
-                  <td className="py-3 px-4 text-slate-600 dark:text-slate-400">
-                    {log.details}
-                  </td>
-                  <td className="py-3 px-4 font-mono text-slate-400">
-                    {log.ipAddress}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="space-y-4 animate-in fade-in duration-200">
+          {/* Top Toolbar */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white/70 dark:bg-slate-900/70 p-4 rounded-3xl border border-slate-200/80 dark:border-slate-800 backdrop-blur-md shadow-sm">
+            <div className="flex items-center gap-3 flex-1">
+              <div className="relative flex-1 sm:max-w-md">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search audit actions, users, or details..."
+                  value={auditSearchTerm}
+                  onChange={(e) => setAuditSearchTerm(e.target.value)}
+                  className="w-full pl-9 pr-8 py-2 text-xs bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 dark:text-white transition-all"
+                />
+                {auditSearchTerm && (
+                  <button
+                    onClick={() => setAuditSearchTerm("")}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+              <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/60 whitespace-nowrap">
+                {displayedAuditLogs.length} Events
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2 self-end sm:self-auto">
+              <button
+                onClick={loadAuditLogs}
+                disabled={auditLoading}
+                className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs flex items-center gap-2 transition-all shadow-sm"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${auditLoading ? "animate-spin text-brand-500" : ""}`} />
+                <span>Refresh Logs</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Table Container */}
+          <div className="glass-card rounded-3xl overflow-hidden border border-slate-200/80 dark:border-slate-800 shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider text-[11px] border-b border-slate-200/60 dark:border-slate-800/60">
+                    <th className="py-3.5 px-4">Timestamp</th>
+                    <th className="py-3.5 px-4">User</th>
+                    <th className="py-3.5 px-4">Action</th>
+                    <th className="py-3.5 px-4">Details</th>
+                    <th className="py-3.5 px-4">IP Address</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium text-slate-700 dark:text-slate-300">
+                  {auditLoading && displayedAuditLogs.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="py-12 text-center text-slate-400">
+                        <div className="flex flex-col items-center justify-center gap-2">
+                          <RefreshCw className="w-6 h-6 animate-spin text-brand-500" />
+                          <span className="text-xs font-semibold">Loading institutional audit trail...</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : displayedAuditLogs.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="py-12 text-center text-slate-400">
+                        <div className="flex flex-col items-center justify-center gap-2">
+                          <Activity className="w-8 h-8 text-slate-300 dark:text-slate-600 stroke-[1.5]" />
+                          <span className="text-sm font-bold text-slate-600 dark:text-slate-300">
+                            {auditSearchTerm ? "No audit records matching search filter" : "No audit activity recorded yet"}
+                          </span>
+                          <p className="text-xs text-slate-400 max-w-sm">
+                            {auditSearchTerm
+                              ? "Try clearing your search query to see all logged system events."
+                              : "Administrative actions, security checkpoints, and system updates will be logged here automatically."}
+                          </p>
+                          {auditSearchTerm && (
+                            <button
+                              onClick={() => setAuditSearchTerm("")}
+                              className="mt-2 px-3 py-1.5 rounded-lg text-xs font-bold text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-950/30 transition-colors"
+                            >
+                              Clear Search Filter
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    displayedAuditLogs.map((log: any, idx: number) => (
+                      <tr
+                        key={log.id || log.auditLogId || `audit-${idx}`}
+                        className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors"
+                      >
+                        <td className="py-3 px-4 font-mono text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                          {log.timestamp ? (log.timestamp.includes("T") ? log.timestamp.replace("T", " ").slice(0, 19) : log.timestamp) : "-"}
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-bold text-slate-900 dark:text-white">
+                              {log.userName || "Administrator"}
+                            </span>
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                (log.userRole || "").toLowerCase().includes("super")
+                                  ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300"
+                                  : (log.userRole || "").toLowerCase().includes("admin")
+                                  ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
+                                  : (log.userRole || "").toLowerCase().includes("teacher")
+                                  ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+                                  : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                              }`}
+                            >
+                              {log.userRole || "Admin"}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 text-brand-600 dark:text-brand-400 font-semibold">
+                          {log.action}
+                        </td>
+                        <td className="py-3 px-4 text-slate-600 dark:text-slate-400 max-w-md">
+                          {log.details}
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className="font-mono text-[11px] text-slate-500 dark:text-slate-400 px-2 py-0.5 rounded bg-slate-100/70 dark:bg-slate-800/70 border border-slate-200/50 dark:border-slate-700/50">
+                            {log.ipAddress || "127.0.0.1"}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       )}
 

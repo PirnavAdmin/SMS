@@ -370,5 +370,78 @@ namespace SMS.Api.Controllers
                 return StatusCode(500, new { success = false, message = ex.Message });
             }
         }
+
+        // GET: api/Settings/audit-logs
+        [HttpGet("audit-logs")]
+        [Authorize]
+        public async Task<IActionResult> GetAuditLogs([FromQuery] int limit = 100)
+        {
+            try
+            {
+                int? schoolId = null;
+                var schoolIdClaim = User.FindFirst("schoolId")?.Value;
+                if (int.TryParse(schoolIdClaim, out var parsedSchoolId))
+                {
+                    schoolId = parsedSchoolId;
+                }
+
+                var userName = User.FindFirst(ClaimTypes.Name)?.Value;
+                var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
+                var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString();
+
+                var logs = await _settingsService.GetAuditLogsAsync(schoolId, limit, userName, userRole, clientIp);
+                return Ok(new
+                {
+                    success = true,
+                    data = logs
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        // POST: api/Settings/audit-logs
+        [HttpPost("audit-logs")]
+        [Authorize]
+        public async Task<IActionResult> CreateAuditLog([FromBody] CreateAuditLogRequestDto dto)
+        {
+            if (dto == null || string.IsNullOrWhiteSpace(dto.Action))
+                return BadRequest(new { success = false, message = "Audit action is required." });
+
+            try
+            {
+                int? userId = null;
+                var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (int.TryParse(userIdClaim, out var parsedUserId))
+                {
+                    userId = parsedUserId;
+                }
+
+                int? schoolId = null;
+                var schoolIdClaim = User.FindFirst("schoolId")?.Value;
+                if (int.TryParse(schoolIdClaim, out var parsedSchoolId))
+                {
+                    schoolId = parsedSchoolId;
+                }
+
+                var userName = User.FindFirst(ClaimTypes.Name)?.Value;
+                var userRole = User.FindFirst(ClaimTypes.Role)?.Value;
+                var clientIp = HttpContext.Connection.RemoteIpAddress?.ToString();
+
+                var created = await _settingsService.CreateAuditLogAsync(dto, userId, userName, userRole, schoolId, clientIp);
+                return Ok(new
+                {
+                    success = true,
+                    message = "Audit log recorded successfully.",
+                    data = created
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
     }
 }

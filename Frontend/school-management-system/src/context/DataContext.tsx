@@ -609,6 +609,8 @@ import {
   updateSchoolSettingsApi,
   updateCertificateTemplatesApi,
   fetchIdSequenceSettingsApi,
+  fetchAuditLogsApi,
+  createAuditLogApi,
 } from "../api/settings";
 
 export interface AcademicClass {
@@ -1323,6 +1325,7 @@ interface DataContextType {
   holidays: Holiday[];
   birthdays: Birthday[];
   auditLogs: AuditLog[];
+  fetchAuditLogs?: () => Promise<void>;
   logActivity: (
     action: string,
     details: string,
@@ -4629,6 +4632,44 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     };
   }, [isAuthenticated, token, fetchBranches]);
 
+  const fetchAuditLogs = useCallback(async () => {
+    if (!isAuthenticated || !token) return;
+    try {
+      const res: any = await fetchAuditLogsApi(150);
+      const list = res?.data || (Array.isArray(res) ? res : []);
+      if (Array.isArray(list) && list.length > 0) {
+        const mapped: AuditLog[] = list.map((l: any) => ({
+          id: (l.id || l.auditLogId || "LOG-" + Date.now()).toString(),
+          timestamp: l.timestamp
+            ? (l.timestamp.includes("T")
+                ? l.timestamp.replace("T", " ").slice(0, 19)
+                : l.timestamp)
+            : new Date().toISOString().replace("T", " ").slice(0, 16),
+          userName: l.userName || "Administrator",
+          userRole: l.userRole || "Admin",
+          action: l.action || "System Event",
+          details: l.details || "",
+          ipAddress: l.ipAddress || "127.0.0.1",
+        }));
+        setAuditLogs(mapped);
+      }
+    } catch (err) {
+      console.warn("Failed to fetch system audit logs from API", err);
+    }
+  }, [isAuthenticated, token]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !token) return;
+    fetchAuditLogs();
+    const handleAuditUpdated = () => {
+      if (isAuthenticated && token) fetchAuditLogs();
+    };
+    window.addEventListener("audit_logs_updated", handleAuditUpdated);
+    return () => {
+      window.removeEventListener("audit_logs_updated", handleAuditUpdated);
+    };
+  }, [isAuthenticated, token, fetchAuditLogs]);
+
   const fetchStaff = useCallback(async () => {
     if (!isAuthenticated || !token) return;
     if (activeRequests.current["staff"]) {
@@ -6753,14 +6794,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   ) => {
     const newLog: AuditLog = {
       id: "LOG-" + Date.now().toString().slice(-6),
-      timestamp: new Date().toISOString().replace("T", " ").slice(0, 16),
+      timestamp: new Date().toISOString().replace("T", " ").slice(0, 19),
       userName,
       userRole: role,
       action,
       details,
-      ipAddress: "192.168.1.1",
+      ipAddress: "127.0.0.1",
     };
     setAuditLogs((prev) => [newLog, ...prev]);
+
+    // Persist to backend database asynchronously
+    createAuditLogApi({
+      action,
+      details,
+      userName,
+      userRole: role,
+    }).catch(() => {});
   };
 
   const updateSchoolProfile = (profile: Partial<SchoolProfile>) => {
@@ -27447,6 +27496,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         holidays: filteredHolidays,
         birthdays,
         auditLogs,
+        fetchAuditLogs,
         logActivity,
 
         // UNIFORM ERP MAPPINGS

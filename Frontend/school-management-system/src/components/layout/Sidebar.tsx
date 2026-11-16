@@ -833,7 +833,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const isSuperAdmin = safeRole.includes("super admin") || safeRole.includes("superadmin");
 
-  const menuGroups = (isSuperAdmin
+  const menuGroups: Array<{ title: string; items: any[]; isFinanceSection?: boolean }> = (isSuperAdmin
     ? [
         {
           title: "Super Admin",
@@ -946,7 +946,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       ...group,
       items: group.items.filter((item) => hasModuleAccess(role || '', item.id)),
     }))
-    .filter((group) => group.items.length > 0 || group.isFinanceSection);
+    .filter((group: any) => group.items.length > 0 || group.isFinanceSection);
 
   // Handled above
 

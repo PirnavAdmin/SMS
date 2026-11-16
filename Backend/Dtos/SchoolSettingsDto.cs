@@ -117,4 +117,58 @@ namespace SMS.Api.Dtos
     {
         public Microsoft.AspNetCore.Http.IFormFile? File { get; set; }
     }
+
+    public class AuditLogItemDto
+    {
+        [JsonPropertyName("id")]
+        public string Id { get; set; } = string.Empty;
+
+        [JsonPropertyName("auditLogId")]
+        public int AuditLogId { get; set; }
+
+        [JsonPropertyName("userId")]
+        public int? UserId { get; set; }
+
+        [JsonPropertyName("userName")]
+        public string UserName { get; set; } = string.Empty;
+
+        [JsonPropertyName("userRole")]
+        public string UserRole { get; set; } = string.Empty;
+
+        [JsonPropertyName("action")]
+        public string Action { get; set; } = string.Empty;
+
+        [JsonPropertyName("details")]
+        public string Details { get; set; } = string.Empty;
+
+        [JsonPropertyName("ipAddress")]
+        public string IpAddress { get; set; } = string.Empty;
+
+        [JsonPropertyName("timestamp")]
+        public string Timestamp { get; set; } = string.Empty;
+
+        [JsonPropertyName("schoolId")]
+        public int? SchoolId { get; set; }
+
+        [JsonPropertyName("schoolName")]
+        public string? SchoolName { get; set; }
+    }
+
+    public class CreateAuditLogRequestDto
+    {
+        [JsonPropertyName("action")]
+        public string Action { get; set; } = string.Empty;
+
+        [JsonPropertyName("details")]
+        public string Details { get; set; } = string.Empty;
+
+        [JsonPropertyName("userName")]
+        public string? UserName { get; set; }
+
+        [JsonPropertyName("userRole")]
+        public string? UserRole { get; set; }
+
+        [JsonPropertyName("ipAddress")]
+        public string? IpAddress { get; set; }
+    }
 }
