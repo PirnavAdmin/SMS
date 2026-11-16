@@ -4,7 +4,6 @@ export const SUPERADMIN_MODULES = [
   "superadmin-dashboard",
   "superadmin-schools",
   "superadmin-subscriptions",
-  "superadmin-packages",
   "superadmin-domains",
   "superadmin-transactions",
   "superadmin-metrics",

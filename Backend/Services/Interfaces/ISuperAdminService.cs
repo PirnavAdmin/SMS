@@ -19,12 +19,17 @@ public interface ISuperAdminService
 
     // School Management
     Task<SchoolResponseDto> CreateSchoolAsync(SchoolCreateDto dto, int requestedByUserId);
+    Task<InstitutionRegisterResponseDto> RegisterInstitutionAsync(InstitutionRegisterDto dto, int requestedByUserId);
     Task<SchoolResponseDto> UpdateSchoolAsync(int schoolId, SchoolUpdateDto dto, int requestedByUserId);
     Task DeleteSchoolAsync(int schoolId, int requestedByUserId);
     Task<SchoolResponseDto> ToggleSchoolStatusAsync(int schoolId, string status, int requestedByUserId);
     Task<SchoolResponseDto> GetSchoolByIdAsync(int schoolId);
     Task<List<SchoolResponseDto>> GetAllSchoolsAsync(string? search);
     Task<SchoolUsersSummaryDto> GetSchoolUsersSummaryAsync(int schoolId);
+
+    // Package & Subscription Management
+    Task<List<PackagePlanDto>> GetPackagesAsync();
+    Task<List<PackagePlanDto>> SavePackagesAsync(List<PackagePlanDto> packages);
 
     // Admin Management
     Task<AdminResponseDto> CreateAdminAsync(AdminCreateDto dto, int requestedByUserId);

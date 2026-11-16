@@ -841,7 +841,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
             { id: "superadmin-dashboard", label: "Dashboard", icon: LayoutDashboard },
             { id: "superadmin-schools", label: "Schools", icon: Building2 },
             { id: "superadmin-subscriptions", label: "Subscriptions", icon: CreditCard },
-            { id: "superadmin-packages", label: "Packages", icon: Layers },
             { id: "superadmin-domains", label: "Domain", icon: Globe },
             { id: "superadmin-transactions", label: "Purchase Transaction", icon: Receipt },
             { id: "superadmin-metrics", label: "Tenant Usage Metrics", icon: Activity, badge: "New" },
@@ -2128,8 +2127,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   (item.id === "settings" && activeModule === "settings") ||
                   (item.id === "superadmin-dashboard" && (activeModule === "superadmin-dashboard" || activeModule === "dashboard")) ||
                   (item.id === "superadmin-schools" && (activeModule === "superadmin-schools" || activeModule === "companies")) ||
-                  (item.id === "superadmin-subscriptions" && (activeModule === "superadmin-subscriptions" || activeModule === "subscriptions")) ||
-                  (item.id === "superadmin-packages" && (activeModule === "superadmin-packages" || activeModule === "packages")) ||
+                  (item.id === "superadmin-subscriptions" && (activeModule === "superadmin-subscriptions" || activeModule === "subscriptions" || activeModule === "superadmin-packages" || activeModule === "packages")) ||
                   (item.id === "superadmin-domains" && (activeModule === "superadmin-domains" || activeModule === "domain")) ||
                   (item.id === "superadmin-transactions" && (activeModule === "superadmin-transactions" || activeModule === "purchase-transaction")) ||
                   (item.id === "superadmin-metrics" && (activeModule === "superadmin-metrics" || activeModule === "tenant-metrics")) ||

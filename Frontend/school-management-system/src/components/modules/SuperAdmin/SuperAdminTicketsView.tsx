@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { LifeBuoy, Search } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { LifeBuoy, Search, X, AlertCircle, SearchX } from 'lucide-react';
 import { useToast } from '../../../context/ToastContext';
+import { validateSearchQuery } from '../../../utils/validation';
 
 interface Ticket {
   id: string;
@@ -17,6 +18,7 @@ interface Ticket {
 export const SuperAdminTicketsView: React.FC = () => {
   const { addToast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchError, setSearchError] = useState<string | undefined>(undefined);
   const [statusFilter, setStatusFilter] = useState('All');
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
 
@@ -47,14 +49,34 @@ export const SuperAdminTicketsView: React.FC = () => {
     }
   };
 
-  const filteredTickets = tickets.filter(t => {
-    const matchesSearch =
-      t.subject.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      t.schoolName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      t.ticketNo.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'All' ? true : t.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value);
+    if (!value.trim()) {
+      setSearchError(undefined);
+    } else {
+      const res = validateSearchQuery(value.trim(), 30);
+      setSearchError(res.isValid ? undefined : (res.error || 'Enter a valid search term.'));
+    }
+  };
+
+  const handleClearSearch = () => {
+    setSearchTerm('');
+    setSearchError(undefined);
+  };
+
+  const filteredTickets = useMemo(() => {
+    if (searchError) return [];
+    const term = searchTerm.toLowerCase().trim();
+    return tickets.filter(t => {
+      const matchesSearch =
+        !term ||
+        t.subject.toLowerCase().includes(term) ||
+        t.schoolName.toLowerCase().includes(term) ||
+        t.ticketNo.toLowerCase().includes(term);
+      const matchesStatus = statusFilter === 'All' ? true : t.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [tickets, searchTerm, searchError, statusFilter]);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300 pb-12">
@@ -79,22 +101,47 @@ export const SuperAdminTicketsView: React.FC = () => {
 
       {/* Main Table */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+        
+        {/* Search & Filters */}
         <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
+          
           <div className="relative">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Search ticket, school or subject..."
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              className="pl-9 pr-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none w-64 dark:text-white"
-            />
+            <div className="relative flex items-center">
+              <Search className={`w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none transition-colors z-10 ${searchError ? 'text-rose-500' : 'text-slate-400'}`} />
+              <input
+                type="text"
+                placeholder="Search ticket, school or subject..."
+                value={searchTerm}
+                maxLength={30}
+                onChange={e => handleSearchChange(e.target.value)}
+                className={`w-64 pl-8 ${searchTerm ? 'pr-8' : 'pr-3'} py-1.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border transition-all ${
+                  searchError
+                    ? 'border-rose-500 ring-1 ring-rose-500/20 text-rose-900 dark:text-rose-100 bg-rose-50/20 dark:bg-rose-950/20'
+                    : 'border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:border-orange-500'
+                } outline-none font-medium`}
+              />
+              {searchTerm && (
+                <button
+                  onClick={handleClearSearch}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                  title="Clear search"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+            {searchError && (
+              <p className="text-[11px] font-bold text-rose-500 flex items-center gap-1 mt-1 pl-1 animate-in fade-in duration-150 absolute -bottom-5 left-0 whitespace-nowrap z-20">
+                <AlertCircle className="w-3 h-3 shrink-0" />
+                <span>{searchError}</span>
+              </p>
+            )}
           </div>
 
           <select
             value={statusFilter}
             onChange={e => setStatusFilter(e.target.value)}
-            className="px-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none dark:text-white"
+            className="px-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none dark:text-white font-medium"
           >
             <option value="All">All Statuses</option>
             <option value="Open">Open</option>
@@ -117,13 +164,39 @@ export const SuperAdminTicketsView: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
-              {filteredTickets.length === 0 ? (
+              {searchError ? (
+                <tr>
+                  <td colSpan={7} className="text-center py-10">
+                    <div className="flex flex-col items-center justify-center gap-1.5 text-rose-500 dark:text-rose-400">
+                      <AlertCircle className="w-6 h-6 text-rose-500" />
+                      <p className="font-bold text-xs">{searchError}</p>
+                      <p className="text-[11px] text-slate-400 font-normal">Please enter a valid search query.</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : filteredTickets.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="p-12 text-center text-slate-400">
                     <div className="flex flex-col items-center justify-center gap-2">
-                      <LifeBuoy className="w-10 h-10 text-slate-300 dark:text-slate-600" />
-                      <p className="font-semibold text-slate-600 dark:text-slate-300">No support tickets found</p>
-                      <p className="text-xs text-slate-400">Institutional support tickets submitted by schools will be listed here.</p>
+                      {searchTerm ? (
+                        <>
+                          <SearchX className="w-10 h-10 text-slate-300 dark:text-slate-600" />
+                          <p className="font-semibold text-slate-600 dark:text-slate-300">No tickets matching "{searchTerm}"</p>
+                          <p className="text-xs text-slate-400">Try adjusting your keyword.</p>
+                          <button
+                            onClick={handleClearSearch}
+                            className="mt-2 px-3 py-1.5 rounded-xl btn-glass-secondary text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer"
+                          >
+                            Reset Search
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <LifeBuoy className="w-10 h-10 text-slate-300 dark:text-slate-600" />
+                          <p className="font-semibold text-slate-600 dark:text-slate-300">No support tickets found</p>
+                          <p className="text-xs text-slate-400">Institutional support tickets submitted by schools will be listed here.</p>
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -157,7 +230,7 @@ export const SuperAdminTicketsView: React.FC = () => {
                     <td className="p-4 text-center">
                       <button
                         onClick={() => setSelectedTicket(t)}
-                        className="px-3 py-1 text-xs font-semibold text-orange-600 hover:text-white hover:bg-orange-600 border border-orange-500/30 rounded-lg transition-colors"
+                        className="px-3 py-1.5 text-xs font-bold rounded-xl btn-glass-secondary text-orange-600 hover:text-orange-700 active:scale-95 transition-all cursor-pointer shadow-xs"
                       >
                         View Thread
                       </button>
@@ -194,14 +267,14 @@ export const SuperAdminTicketsView: React.FC = () => {
               {selectedTicket.status !== 'Resolved' && (
                 <button
                   onClick={() => handleResolveTicket(selectedTicket.id)}
-                  className="px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-all"
+                  className="px-4 py-2 text-xs font-bold rounded-xl btn-glass-primary text-white active:scale-95 transition-all cursor-pointer shadow-sm"
                 >
                   Mark as Resolved
                 </button>
               )}
               <button
                 onClick={() => setSelectedTicket(null)}
-                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl"
+                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl cursor-pointer"
               >
                 Close
               </button>

@@ -196,7 +196,7 @@ export const SuperAdminPackagesView: React.FC = () => {
           <div className="flex items-center gap-2 text-xs text-slate-500 mb-1">
             <span>Super Admin</span>
             <span>&gt;</span>
-            <span className="font-semibold text-slate-800 dark:text-slate-200">Packages & Subscriptions</span>
+            <span className="font-semibold text-slate-800 dark:text-slate-200">Subscriptions</span>
           </div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
             Subscription Packages & SaaS Tiers
@@ -235,7 +235,7 @@ export const SuperAdminPackagesView: React.FC = () => {
           {/* Add Package Button */}
           <button
             onClick={handleOpenAdd}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-orange-600 hover:bg-orange-700 active:bg-orange-800 text-xs font-bold text-white shadow-md shadow-orange-500/20 transition-all"
+            className="px-5 py-2.5 rounded-2xl btn-glass-primary text-white text-xs font-bold shadow-lg flex items-center gap-2 transition-all cursor-pointer active:scale-95"
           >
             <Plus className="w-4 h-4" />
             <span>Create Package</span>
@@ -259,7 +259,7 @@ export const SuperAdminPackagesView: React.FC = () => {
           </div>
           <button
             onClick={handleOpenAdd}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-700 active:bg-orange-800 text-xs font-bold text-white shadow-md shadow-orange-500/20 transition-all active:scale-95"
+            className="px-5 py-2.5 rounded-2xl btn-glass-primary text-white text-xs font-bold shadow-lg flex items-center gap-2 transition-all cursor-pointer active:scale-95"
           >
             <Plus className="w-4 h-4" />
             <span>Create First Package</span>
@@ -289,7 +289,7 @@ export const SuperAdminPackagesView: React.FC = () => {
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="text-lg font-extrabold text-slate-900 dark:text-white">{plan.name}</h3>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
                       {liveSchoolCount} {liveSchoolCount === 1 ? 'School' : 'Schools'}
                     </span>
                   </div>
@@ -325,10 +325,10 @@ export const SuperAdminPackagesView: React.FC = () => {
                 <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2">
                   <button
                     onClick={() => handleOpenEdit(plan)}
-                    className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all text-center ${
+                    className={`flex-1 py-2.5 rounded-2xl text-xs font-bold transition-all text-center cursor-pointer active:scale-95 ${
                       plan.isPopular
-                        ? 'bg-orange-600 hover:bg-orange-700 text-white shadow-md shadow-orange-500/20'
-                        : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-white'
+                        ? 'btn-glass-primary text-white shadow-md'
+                        : 'btn-glass-secondary text-slate-800 dark:text-white'
                     }`}
                   >
                     Configure Plan
@@ -336,7 +336,7 @@ export const SuperAdminPackagesView: React.FC = () => {
                   <button
                     onClick={() => setDeletingPlan(plan)}
                     title="Delete Package"
-                    className="p-2.5 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                    className="w-9 h-9 rounded-xl btn-glass-secondary flex items-center justify-center text-rose-500 hover:text-rose-600 active:scale-90 transition-transform cursor-pointer"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>

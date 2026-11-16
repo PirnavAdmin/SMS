@@ -214,6 +214,38 @@ export const createSchoolApi = async (payload: SchoolCreatePayload): Promise<Sch
   });
 };
 
+export interface InstitutionRegisterPayload {
+  schoolName: string;
+  schoolCode: string;
+  email: string;
+  password: string;
+  phone?: string;
+  website?: string;
+  principalName?: string;
+  address?: string;
+  planName?: string;
+  planType?: string;
+  currency?: string;
+  language?: string;
+  status?: string;
+}
+
+export interface InstitutionRegisterResponse {
+  school: SchoolItem;
+  admin: AdminItem;
+  loginUrl: string;
+  temporaryPassword: string;
+}
+
+export const registerInstitutionApi = async (
+  payload: InstitutionRegisterPayload
+): Promise<InstitutionRegisterResponse> => {
+  return apiClient<InstitutionRegisterResponse>('/api/superadmin/schools/register', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+};
+
 export const updateSchoolApi = async (id: number, payload: SchoolUpdatePayload): Promise<SchoolItem> => {
   return apiClient<SchoolItem>(`/api/superadmin/schools/${id}`, {
     method: 'PUT',
@@ -320,25 +352,20 @@ const DEFAULT_MOCK_PLAN_NAMES = [
 
 export const fetchPackagesApi = async (): Promise<PackagePlan[]> => {
   try {
+    const fromApi = await apiClient<PackagePlan[]>('/api/superadmin/packages', { method: 'GET' });
+    if (Array.isArray(fromApi)) {
+      return fromApi;
+    }
+  } catch (err) {
+    console.warn('Backend packages API unavailable, checking local cache', err);
+  }
+
+  try {
     const raw = localStorage.getItem('sms_superadmin_packages');
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
-        // Return strictly packages explicitly created by the Super Admin
-        const userCreated = parsed.filter(p => {
-          const id = (p.id || '').toLowerCase().trim();
-          const name = (p.name || '').toLowerCase().trim();
-          const isMockId = DEFAULT_MOCK_PLAN_IDS.includes(id);
-          const isMockNameAndPrice = DEFAULT_MOCK_PLAN_NAMES.includes(name) && [245, 495, 795, 1295].includes(p.monthlyPrice);
-          return !isMockId && !isMockNameAndPrice;
-        });
-
-        // Permanently sanitize localStorage if legacy mock packages were present
-        if (userCreated.length !== parsed.length) {
-          localStorage.setItem('sms_superadmin_packages', JSON.stringify(userCreated));
-        }
-
-        return userCreated;
+        return parsed;
       }
     }
   } catch {}
@@ -347,8 +374,17 @@ export const fetchPackagesApi = async (): Promise<PackagePlan[]> => {
 
 export const savePackagesApi = async (packages: PackagePlan[]): Promise<PackagePlan[]> => {
   try {
+    const saved = await apiClient<PackagePlan[]>('/api/superadmin/packages', {
+      method: 'POST',
+      body: JSON.stringify(packages)
+    });
+    localStorage.setItem('sms_superadmin_packages', JSON.stringify(saved));
+    window.dispatchEvent(new CustomEvent('packages_updated', { detail: saved }));
+    return saved;
+  } catch (err) {
+    console.warn('Backend packages save fallback to storage cache', err);
     localStorage.setItem('sms_superadmin_packages', JSON.stringify(packages));
     window.dispatchEvent(new CustomEvent('packages_updated', { detail: packages }));
-  } catch {}
-  return packages;
+    return packages;
+  }
 };

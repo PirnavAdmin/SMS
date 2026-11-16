@@ -227,3 +227,63 @@ public class SuperAdminResponseDto
     public string Role { get; set; } = "SuperAdmin";
     public DateTime CreatedAt { get; set; }
 }
+
+// --- Institution Registration with Customer Admin DTOs ---
+
+public class InstitutionRegisterDto
+{
+    [Required(ErrorMessage = "School / Institution Name is required")]
+    [MaxLength(200, ErrorMessage = "School Name cannot exceed 200 characters")]
+    [MinLength(3, ErrorMessage = "School Name must be at least 3 characters")]
+    public string SchoolName { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Account Subdomain Code is required")]
+    [MaxLength(50, ErrorMessage = "Subdomain Code cannot exceed 50 characters")]
+    [MinLength(3, ErrorMessage = "Subdomain Code must be at least 3 characters")]
+    [RegularExpression(@"^[a-z0-9]+(-[a-z0-9]+)*$", ErrorMessage = "Subdomain must contain only lowercase alphanumeric characters and hyphens (e.g., greenwood)")]
+    public string SchoolCode { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Customer Admin Email is required")]
+    [EmailAddress(ErrorMessage = "Please provide a valid email address")]
+    [MaxLength(150, ErrorMessage = "Email cannot exceed 150 characters")]
+    public string Email { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Initial Admin Password is required")]
+    [MinLength(6, ErrorMessage = "Password must be at least 6 characters")]
+    public string Password { get; set; } = string.Empty;
+
+    public string? Phone { get; set; }
+    public string? Website { get; set; }
+    public string? PrincipalName { get; set; }
+    public string? Address { get; set; }
+    public string? PlanName { get; set; }
+    public string? PlanType { get; set; } = "Monthly";
+    public string? Currency { get; set; } = "INR";
+    public string? Language { get; set; } = "English";
+    public string Status { get; set; } = "Active";
+}
+
+public class InstitutionRegisterResponseDto
+{
+    public SchoolResponseDto School { get; set; } = null!;
+    public AdminResponseDto Admin { get; set; } = null!;
+    public string LoginUrl { get; set; } = string.Empty;
+    public string TemporaryPassword { get; set; } = string.Empty;
+}
+
+public class PackagePlanDto
+{
+    public string Id { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string Tagline { get; set; } = string.Empty;
+    public decimal MonthlyPrice { get; set; }
+    public decimal YearlyPrice { get; set; }
+    public string Currency { get; set; } = "USD";
+    public int MaxStudents { get; set; }
+    public int MaxStaff { get; set; }
+    public int MaxBranches { get; set; }
+    public int StorageGb { get; set; }
+    public bool IsPopular { get; set; }
+    public string Status { get; set; } = "Active";
+    public List<string> Features { get; set; } = new();
+}

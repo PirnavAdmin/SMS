@@ -262,15 +262,15 @@ export const SuperAdminDashboardView: React.FC<SuperAdminDashboardViewProps> = (
           <div className="flex items-center gap-3">
             <button
               onClick={() => onNavigate('superadmin-schools')}
-              className="px-5 py-2.5 rounded-xl bg-slate-900/80 hover:bg-slate-900 text-xs md:text-sm font-bold text-white shadow-md transition-all active:scale-95"
+              className="px-5 py-2.5 rounded-2xl btn-glass-secondary text-xs md:text-sm font-bold text-slate-900 dark:text-white shadow-md transition-all cursor-pointer active:scale-95"
             >
               Schools
             </button>
             <button
-              onClick={() => onNavigate('superadmin-packages')}
-              className="px-5 py-2.5 rounded-xl bg-white/90 hover:bg-white text-xs md:text-sm font-bold text-orange-700 shadow-md transition-all active:scale-95"
+              onClick={() => onNavigate('superadmin-subscriptions')}
+              className="px-5 py-2.5 rounded-2xl btn-glass-primary text-xs md:text-sm font-bold text-white shadow-md transition-all cursor-pointer active:scale-95"
             >
-              All Packages
+              Subscriptions
             </button>
           </div>
         </div>
@@ -488,10 +488,10 @@ export const SuperAdminDashboardView: React.FC<SuperAdminDashboardViewProps> = (
               <div className="py-2 text-center text-slate-400 text-xs">
                 <span>No packages configured yet.</span>
                 <button
-                  onClick={() => onNavigate('superadmin-packages')}
+                  onClick={() => onNavigate('superadmin-subscriptions')}
                   className="block mx-auto mt-1 text-orange-600 hover:underline font-semibold"
                 >
-                  Configure Packages
+                  Configure Subscriptions
                 </button>
               </div>
             ) : (

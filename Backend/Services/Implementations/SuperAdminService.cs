@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
 using System.Net;
 using System.Security.Claims;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
@@ -287,6 +289,128 @@ public class SuperAdminService : ISuperAdminService
         await LogActivityAsync(requestedByUserId, adminUser?.FullName ?? "SuperAdmin", "SuperAdmin", "Create School", $"Created school: {school.SchoolName} ({school.SchoolCode})");
 
         return MapToSchoolResponseDto(school, new List<Admin>());
+    }
+
+    public async Task<InstitutionRegisterResponseDto> RegisterInstitutionAsync(InstitutionRegisterDto dto, int requestedByUserId)
+    {
+        var cleanCode = dto.SchoolCode.Trim().ToLower();
+        var existingSchool = await _saRepository.GetSchoolByCodeAsync(cleanCode);
+        if (existingSchool != null)
+        {
+            throw new AppException($"The subdomain code '{cleanCode}' is already taken by another institution. Please choose a different subdomain.", HttpStatusCode.Conflict);
+        }
+
+        var cleanEmail = dto.Email.Trim().ToLower();
+        if (await _saRepository.AdminEmailExistsAsync(cleanEmail))
+        {
+            throw new AppException($"The administrator email '{cleanEmail}' is already registered in the system. Please use a different email.", HttpStatusCode.Conflict);
+        }
+
+        var existingUser = await _userRepository.GetByIdentifierAsync(cleanEmail);
+        if (existingUser != null)
+        {
+            throw new AppException($"An account with email '{cleanEmail}' already exists. Please use a unique administrator email.", HttpStatusCode.Conflict);
+        }
+
+        // 1. Create School Entity
+        var school = new School
+        {
+            SchoolName = dto.SchoolName.Trim(),
+            SchoolCode = cleanCode.ToUpper(),
+            Address = dto.Address?.Trim(),
+            Phone = dto.Phone?.Trim(),
+            Email = cleanEmail,
+            Website = dto.Website?.Trim(),
+            PrincipalName = dto.PrincipalName?.Trim(),
+            Status = string.IsNullOrWhiteSpace(dto.Status) ? "Active" : dto.Status,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        await _saRepository.AddSchoolAsync(school);
+        await _saRepository.SaveChangesAsync();
+
+        // 2. Create School Admin Entity
+        var adminRole = await _saRepository.GetRoleByNameAsync("Admin")
+            ?? throw new AppException("Role 'Admin' not configured in DB.", HttpStatusCode.InternalServerError);
+
+        var adminFullName = !string.IsNullOrWhiteSpace(dto.PrincipalName)
+            ? dto.PrincipalName.Trim()
+            : $"{school.SchoolName} Administrator";
+
+        var admin = new Admin
+        {
+            FullName = adminFullName,
+            Email = cleanEmail,
+            MobileNumber = dto.Phone?.Trim() ?? string.Empty,
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
+            Role = "Admin",
+            SchoolId = school.SchoolId,
+            IsEmailVerified = true,
+            IsMobileVerified = true,
+            CreatedAt = DateTime.UtcNow
+        };
+        admin.Roles.Add(adminRole);
+
+        await _saRepository.AddAdminAsync(admin);
+        await _saRepository.SaveChangesAsync();
+
+        // 3. Log Audit Activity
+        var adminUser = await _userRepository.GetByIdAsync(requestedByUserId);
+        await LogActivityAsync(
+            requestedByUserId,
+            adminUser?.FullName ?? "SuperAdmin",
+            "SuperAdmin",
+            "Register Institution",
+            $"Registered institution '{school.SchoolName}' ({cleanCode}) and created administrator '{cleanEmail}'."
+        );
+
+        var schoolDto = MapToSchoolResponseDto(school, new List<Admin> { admin });
+
+        return new InstitutionRegisterResponseDto
+        {
+            School = schoolDto,
+            Admin = new AdminResponseDto
+            {
+                UserId = admin.AdminId,
+                FullName = admin.FullName,
+                Email = admin.Email ?? cleanEmail,
+                MobileNumber = admin.MobileNumber,
+                SchoolId = school.SchoolId,
+                SchoolName = school.SchoolName,
+                Role = "Admin",
+                CreatedAt = admin.CreatedAt
+            },
+            LoginUrl = "/#login",
+            TemporaryPassword = dto.Password
+        };
+    }
+
+    public async Task<List<PackagePlanDto>> GetPackagesAsync()
+    {
+        var filePath = Path.Combine(AppContext.BaseDirectory, "packages.json");
+        if (!File.Exists(filePath))
+        {
+            return new List<PackagePlanDto>();
+        }
+
+        try
+        {
+            var json = await File.ReadAllTextAsync(filePath);
+            return JsonSerializer.Deserialize<List<PackagePlanDto>>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+                ?? new List<PackagePlanDto>();
+        }
+        catch
+        {
+            return new List<PackagePlanDto>();
+        }
+    }
+
+    public async Task<List<PackagePlanDto>> SavePackagesAsync(List<PackagePlanDto> packages)
+    {
+        var filePath = Path.Combine(AppContext.BaseDirectory, "packages.json");
+        var json = JsonSerializer.Serialize(packages, new JsonSerializerOptions { WriteIndented = true });
+        await File.WriteAllTextAsync(filePath, json);
+        return packages;
     }
 
     public async Task<SchoolResponseDto> UpdateSchoolAsync(int schoolId, SchoolUpdateDto dto, int requestedByUserId)

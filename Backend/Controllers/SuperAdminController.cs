@@ -168,6 +168,32 @@ public class SuperAdminController : ControllerBase
         return CreatedAtAction(nameof(GetSchoolById), new { id = school.SchoolId }, school);
     }
 
+    [HttpPost("schools/register")]
+    [Authorize(Roles = "SuperAdmin,Super Admin")]
+    public async Task<ActionResult<InstitutionRegisterResponseDto>> RegisterInstitution([FromBody] InstitutionRegisterDto dto)
+    {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+        var userId = GetCurrentUserId();
+        var result = await _saService.RegisterInstitutionAsync(dto, userId);
+        return Ok(result);
+    }
+
+    [HttpGet("packages")]
+    [Authorize(Roles = "SuperAdmin,Super Admin")]
+    public async Task<ActionResult<List<PackagePlanDto>>> GetPackages()
+    {
+        var packages = await _saService.GetPackagesAsync();
+        return Ok(packages);
+    }
+
+    [HttpPost("packages")]
+    [Authorize(Roles = "SuperAdmin,Super Admin")]
+    public async Task<ActionResult<List<PackagePlanDto>>> SavePackages([FromBody] List<PackagePlanDto> packages)
+    {
+        var result = await _saService.SavePackagesAsync(packages);
+        return Ok(result);
+    }
+
     [HttpPut("schools/{id:int}")]
     [Authorize(Roles = "SuperAdmin,Super Admin")]
     public async Task<ActionResult<SchoolResponseDto>> UpdateSchool(int id, [FromBody] SchoolUpdateDto dto)

@@ -2,7 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
   Building2, Plus, Search, Filter, Download, Edit3, Trash2, Eye,
   CheckCircle2, XCircle, ArrowUpDown, ChevronDown, MoreVertical,
-  Globe, Mail, Phone, Users, ShieldAlert, Sparkles, RefreshCw, Calendar
+  Globe, Mail, Phone, Users, ShieldAlert, Sparkles, RefreshCw, Calendar,
+  KeyRound, X, AlertCircle, SearchX
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import {
@@ -15,7 +16,9 @@ import {
   PackagePlan
 } from '../../../api/superadmin';
 import { useToast } from '../../../context/ToastContext';
+import { validateSearchQuery } from '../../../utils/validation';
 import { AddSchoolModal } from './AddSchoolModal';
+import { CustomerLoginModal } from './CustomerLoginModal';
 import { ConfirmModal } from '../../common/ConfirmModal';
 
 interface SuperAdminSchoolsViewProps {
@@ -29,6 +32,7 @@ export const SuperAdminSchoolsView: React.FC<SuperAdminSchoolsViewProps> = ({ on
   const [packages, setPackages] = useState<PackagePlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchError, setSearchError] = useState<string | undefined>(undefined);
   const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'Inactive'>('All');
   const [planFilter, setPlanFilter] = useState<string>('All');
   const [sortBy, setSortBy] = useState<'name' | 'date' | 'users'>('date');
@@ -41,7 +45,25 @@ export const SuperAdminSchoolsView: React.FC<SuperAdminSchoolsViewProps> = ({ on
   const [editingSchool, setEditingSchool] = useState<SchoolItem | null>(null);
   const [deletingSchool, setDeletingSchool] = useState<SchoolItem | null>(null);
   const [viewingSchool, setViewingSchool] = useState<SchoolItem | null>(null);
+  const [loginModalSchool, setLoginModalSchool] = useState<SchoolItem | null>(null);
   const [schoolUsersSummary, setSchoolUsersSummary] = useState<any>(null);
+
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value);
+    setCurrentPage(1);
+    if (!value.trim()) {
+      setSearchError(undefined);
+    } else {
+      const res = validateSearchQuery(value.trim(), 30);
+      setSearchError(res.isValid ? undefined : (res.error || 'Enter a valid search term.'));
+    }
+  };
+
+  const handleClearSearch = () => {
+    setSearchTerm('');
+    setSearchError(undefined);
+    setCurrentPage(1);
+  };
 
   const loadSchools = async () => {
     setLoading(true);
@@ -66,12 +88,15 @@ export const SuperAdminSchoolsView: React.FC<SuperAdminSchoolsViewProps> = ({ on
 
   // Filtered & Sorted Schools
   const filteredSchools = useMemo(() => {
+    if (searchError) return [];
+    const term = searchTerm.toLowerCase().trim();
+
     return schools.filter(s => {
-      const matchesSearch =
-        (s.schoolName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-        (s.schoolCode?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-        (s.email?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-        (s.principalName?.toLowerCase() || '').includes(searchTerm.toLowerCase());
+      const matchesSearch = !term ||
+        (s.schoolName?.toLowerCase() || '').includes(term) ||
+        (s.schoolCode?.toLowerCase() || '').includes(term) ||
+        (s.email?.toLowerCase() || '').includes(term) ||
+        (s.principalName?.toLowerCase() || '').includes(term);
 
       const matchesStatus =
         statusFilter === 'All' ? true : s.status?.toLowerCase() === statusFilter.toLowerCase();
@@ -86,7 +111,7 @@ export const SuperAdminSchoolsView: React.FC<SuperAdminSchoolsViewProps> = ({ on
       if (sortBy === 'users') return (b.totalUsersCount || 0) - (a.totalUsersCount || 0);
       return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
     });
-  }, [schools, searchTerm, statusFilter, planFilter, sortBy]);
+  }, [schools, searchTerm, searchError, statusFilter, planFilter, sortBy]);
 
   // Pagination
   const totalPages = Math.max(1, Math.ceil(filteredSchools.length / rowsPerPage));
@@ -207,14 +232,14 @@ export const SuperAdminSchoolsView: React.FC<SuperAdminSchoolsViewProps> = ({ on
         <div className="flex items-center gap-3">
           <button
             onClick={loadSchools}
-            className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors"
+            className="w-9 h-9 rounded-2xl btn-glass-secondary flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-orange-600 transition-all cursor-pointer active:scale-95"
             title="Refresh Schools"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
           <button
             onClick={handleExportToExcel}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700/50 text-sm font-semibold text-slate-700 dark:text-slate-200 transition-colors shadow-sm"
+            className="px-4 py-2.5 rounded-2xl btn-glass-secondary text-slate-700 dark:text-slate-300 text-xs font-bold shadow-xs flex items-center gap-2 transition-all cursor-pointer active:scale-95"
           >
             <Download className="w-4 h-4 text-slate-500" />
             <span>Export</span>
@@ -224,7 +249,7 @@ export const SuperAdminSchoolsView: React.FC<SuperAdminSchoolsViewProps> = ({ on
               setEditingSchool(null);
               setIsAddModalOpen(true);
             }}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-700 active:bg-orange-800 text-sm font-semibold text-white shadow-md shadow-orange-500/20 transition-all"
+            className="px-5 py-2.5 rounded-2xl btn-glass-primary text-white text-xs font-bold shadow-lg flex items-center gap-2 transition-all cursor-pointer active:scale-95"
           >
             <Plus className="w-4 h-4" />
             <span>Add School</span>
@@ -364,19 +389,38 @@ export const SuperAdminSchoolsView: React.FC<SuperAdminSchoolsViewProps> = ({ on
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
-            {/* Search Input */}
+            {/* Search Input with Validation & Clear Button */}
             <div className="relative">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search schools..."
-                value={searchTerm}
-                onChange={e => {
-                  setSearchTerm(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="pl-9 pr-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none w-48 focus:w-64 transition-all dark:text-white"
-              />
+              <div className="relative flex items-center">
+                <Search className={`w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none transition-colors z-10 ${searchError ? 'text-rose-500' : 'text-slate-400'}`} />
+                <input
+                  type="text"
+                  placeholder="Search schools..."
+                  value={searchTerm}
+                  maxLength={30}
+                  onChange={e => handleSearchChange(e.target.value)}
+                  className={`w-48 focus:w-64 pl-8 ${searchTerm ? 'pr-8' : 'pr-3'} py-1.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border transition-all ${
+                    searchError
+                      ? 'border-rose-500 ring-1 ring-rose-500/20 text-rose-900 dark:text-rose-100 bg-rose-50/20 dark:bg-rose-950/20'
+                      : 'border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:border-orange-500'
+                  } outline-none font-medium`}
+                />
+                {searchTerm && (
+                  <button
+                    onClick={handleClearSearch}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                    title="Clear search"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+              {searchError && (
+                <p className="text-[11px] font-bold text-rose-500 flex items-center gap-1 mt-1 pl-1 animate-in fade-in duration-150 absolute -bottom-5 left-0 whitespace-nowrap z-20">
+                  <AlertCircle className="w-3 h-3 shrink-0" />
+                  <span>{searchError}</span>
+                </p>
+              )}
             </div>
 
             {/* Plan Filter */}
@@ -453,13 +497,39 @@ export const SuperAdminSchoolsView: React.FC<SuperAdminSchoolsViewProps> = ({ on
                     </div>
                   </td>
                 </tr>
+              ) : searchError ? (
+                <tr>
+                  <td colSpan={8} className="text-center py-10">
+                    <div className="flex flex-col items-center justify-center gap-1.5 text-rose-500 dark:text-rose-400">
+                      <AlertCircle className="w-6 h-6 text-rose-500" />
+                      <p className="font-bold text-xs">{searchError}</p>
+                      <p className="text-[11px] text-slate-400 font-normal">Please enter a valid search criteria (alphanumeric, max 30 characters).</p>
+                    </div>
+                  </td>
+                </tr>
               ) : paginatedSchools.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="p-12 text-center text-slate-400">
                     <div className="flex flex-col items-center justify-center gap-2">
-                      <Building2 className="w-10 h-10 text-slate-300 dark:text-slate-600" />
-                      <p className="font-semibold text-slate-600 dark:text-slate-300">No schools found</p>
-                      <p className="text-xs text-slate-400">Try adjusting your search criteria or register a new school.</p>
+                      {searchTerm ? (
+                        <>
+                          <SearchX className="w-10 h-10 text-slate-300 dark:text-slate-600" />
+                          <p className="font-semibold text-slate-600 dark:text-slate-300">No schools matching "{searchTerm}"</p>
+                          <p className="text-xs text-slate-400">Try adjusting your keyword or reset filters.</p>
+                          <button
+                            onClick={handleClearSearch}
+                            className="mt-2 px-3 py-1.5 rounded-xl btn-glass-secondary text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer"
+                          >
+                            Reset Search
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <Building2 className="w-10 h-10 text-slate-300 dark:text-slate-600" />
+                          <p className="font-semibold text-slate-600 dark:text-slate-300">No schools found</p>
+                          <p className="text-xs text-slate-400">Try adjusting your filters or register a new school.</p>
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -525,7 +595,7 @@ export const SuperAdminSchoolsView: React.FC<SuperAdminSchoolsViewProps> = ({ on
                               setEditingSchool(school);
                               setIsAddModalOpen(true);
                             }}
-                            className="px-2 py-0.5 text-[10px] font-bold text-purple-700 bg-purple-100 hover:bg-purple-200 dark:text-purple-300 dark:bg-purple-950/60 rounded-md transition-colors"
+                            className="px-2.5 py-0.5 text-[10px] font-bold text-orange-700 bg-orange-100 hover:bg-orange-200 dark:text-orange-300 dark:bg-orange-950/60 rounded-lg transition-colors cursor-pointer"
                           >
                             Upgrade
                           </button>
@@ -542,7 +612,7 @@ export const SuperAdminSchoolsView: React.FC<SuperAdminSchoolsViewProps> = ({ on
                         <button
                           onClick={() => handleToggleStatus(school)}
                           title="Click to toggle status"
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold transition-all ${
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
                             isSchoolActive
                               ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20'
                               : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20 border border-rose-500/20'
@@ -553,13 +623,20 @@ export const SuperAdminSchoolsView: React.FC<SuperAdminSchoolsViewProps> = ({ on
                         </button>
                       </td>
 
-                      {/* Actions */}
+                      {/* Actions with Customer Login Access Handover */}
                       <td className="p-4">
                         <div className="flex items-center justify-center gap-1.5">
                           <button
+                            onClick={() => setLoginModalSchool(school)}
+                            title="Customer Login Access & Credentials Handover"
+                            className="w-8 h-8 rounded-xl btn-glass-secondary flex items-center justify-center text-amber-600 dark:text-amber-400 active:scale-90 transition-transform cursor-pointer"
+                          >
+                            <KeyRound className="w-4 h-4" />
+                          </button>
+                          <button
                             onClick={() => handleViewSchool(school)}
                             title="View School Details"
-                            className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                            className="w-8 h-8 rounded-xl btn-glass-secondary flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-sky-600 dark:hover:text-sky-400 active:scale-90 transition-transform cursor-pointer"
                           >
                             <Eye className="w-4 h-4" />
                           </button>
@@ -569,14 +646,14 @@ export const SuperAdminSchoolsView: React.FC<SuperAdminSchoolsViewProps> = ({ on
                               setIsAddModalOpen(true);
                             }}
                             title="Edit School"
-                            className="p-1.5 text-slate-400 hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-950/30 rounded-lg transition-colors"
+                            className="w-8 h-8 rounded-xl btn-glass-secondary flex items-center justify-center text-orange-600 hover:text-orange-700 active:scale-90 transition-transform cursor-pointer"
                           >
                             <Edit3 className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => setDeletingSchool(school)}
                             title="Delete School"
-                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg transition-colors"
+                            className="w-8 h-8 rounded-xl btn-glass-secondary flex items-center justify-center text-rose-500 hover:text-rose-600 active:scale-90 transition-transform cursor-pointer"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -636,6 +713,14 @@ export const SuperAdminSchoolsView: React.FC<SuperAdminSchoolsViewProps> = ({ on
           });
         }}
         editingSchool={editingSchool}
+      />
+
+      {/* Customer Login Access & Handover Modal */}
+      <CustomerLoginModal
+        isOpen={!!loginModalSchool}
+        school={loginModalSchool}
+        onClose={() => setLoginModalSchool(null)}
+        onAdminUpdated={loadSchools}
       />
 
       {/* Delete Confirmation Modal */}
