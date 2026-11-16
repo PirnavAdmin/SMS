@@ -9,6 +9,7 @@ export const SUPERADMIN_MODULES = [
   "superadmin-metrics",
   "superadmin-tickets",
   "superadmin-audit",
+  "superadmin-profile",
 ] as const;
 
 export const SCHOOL_MODULES = [

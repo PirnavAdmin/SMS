@@ -82,6 +82,7 @@ import { SuperAdminTransactionsView } from "./components/modules/SuperAdmin/Supe
 import { SuperAdminMetricsView } from "./components/modules/SuperAdmin/SuperAdminMetricsView";
 import { SuperAdminTicketsView } from "./components/modules/SuperAdmin/SuperAdminTicketsView";
 import { SuperAdminAuditView } from "./components/modules/SuperAdmin/SuperAdminAuditView";
+import { SuperAdminProfileView } from "./components/modules/SuperAdmin/SuperAdminProfileView";
 
 const formatEmailToName = (email?: string): string => {
   if (!email || !email.includes('@')) return '';
@@ -303,7 +304,13 @@ const MainLayout: React.FC = () => {
 
   useEffect(() => {
     if (isSuperAdmin && isAuthenticated) {
-      if (activeModule === "dashboard" || !activeModule.startsWith("superadmin-")) {
+      if (activeModule === "dashboard") {
+        setActiveModule("superadmin-dashboard");
+      } else if (
+        !activeModule.startsWith("superadmin-") &&
+        activeModule !== "profile" &&
+        activeModule !== "my-profile"
+      ) {
         setActiveModule("superadmin-dashboard");
       }
     }
@@ -493,6 +500,18 @@ const MainLayout: React.FC = () => {
         return <SuperAdminTicketsView />;
       case "superadmin-audit":
         return <SuperAdminAuditView />;
+      case "superadmin-profile":
+        return <SuperAdminProfileView onNavigate={(mod) => setActiveModule(mod)} />;
+      case "profile":
+      case "my-profile":
+        if (isSuperAdmin) {
+          return <SuperAdminProfileView onNavigate={(mod) => setActiveModule(mod)} />;
+        }
+        return !hasModuleAccess(role || userRole, "settings") ? (
+          <DashboardView onNavigate={(mod) => setActiveModule(mod)} />
+        ) : (
+          <SettingsView />
+        );
       case "students":
       case "student-directory":
         return !hasModuleAccess(role || userRole, "students") ? (
@@ -822,6 +841,9 @@ const MainLayout: React.FC = () => {
         );
       case "profile-completion":
       case "edit-profile":
+        if (isSuperAdmin) {
+          return <SuperAdminProfileView onNavigate={(mod) => setActiveModule(mod)} />;
+        }
         return (
           <ProfileCompletionView
             onComplete={() => setActiveModule("dashboard")}

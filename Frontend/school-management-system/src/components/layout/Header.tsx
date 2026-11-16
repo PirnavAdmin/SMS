@@ -891,10 +891,17 @@ export const Header: React.FC<HeaderProps> = ({
                     onClick={() => {
                       setShowUserMenu(false);
                       const cleanRole = (role || '').toLowerCase();
-                      if (['driver', 'teacher', 'librarian', 'warden', 'hostel warden', 'accountant', 'finance', 'hr', 'receptionist', 'transport manager', 'staff'].some(r => cleanRole.includes(r))) {
+                      if (cleanRole.includes('super')) {
+                        onNavigate?.('superadmin-profile');
+                      } else if (['driver', 'teacher', 'librarian', 'warden', 'hostel warden', 'accountant', 'finance', 'hr', 'receptionist', 'transport manager', 'staff'].some(r => cleanRole.includes(r))) {
                         onNavigate?.('teacher-profile');
                       } else {
-                        onNavigate?.('profile-completion');
+                        try {
+                          localStorage.setItem("settings_active_tab", "my-profile");
+                          sessionStorage.setItem("settings_active_tab", "my-profile");
+                          window.dispatchEvent(new CustomEvent("settings_tab_changed", { detail: "my-profile" }));
+                        } catch {}
+                        onNavigate?.('settings');
                       }
                     }}
                     className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-brand-500/12 dark:hover:bg-brand-500/20 hover:text-brand-600 dark:hover:text-brand-400 rounded-2xl transition-all cursor-pointer active:scale-98 group"
