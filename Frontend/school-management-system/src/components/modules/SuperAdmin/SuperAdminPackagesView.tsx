@@ -1,107 +1,191 @@
-import React, { useState } from 'react';
-import { Layers, Check, Plus, Edit, Zap, Shield, Sparkles, Building2, CheckCircle2 } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import {
+  Layers, Check, Plus, Edit3, Trash2, Zap, Shield, Sparkles, Building2,
+  CheckCircle2, X, AlertCircle, RefreshCw, Star, Info, HelpCircle
+} from 'lucide-react';
+import {
+  PackagePlan,
+  fetchPackagesApi,
+  savePackagesApi,
+  fetchSchoolsApi,
+  SchoolItem
+} from '../../../api/superadmin';
 import { useToast } from '../../../context/ToastContext';
+import { ConfirmModal } from '../../common/ConfirmModal';
 
-interface PackagePlan {
-  id: string;
-  name: string;
-  tagline: string;
-  monthlyPrice: number;
-  yearlyPrice: number;
-  maxStudents: number;
-  maxStaff: number;
-  maxBranches: number;
-  isPopular?: boolean;
-  features: string[];
-  activeSubscribers: number;
-}
+const PREDEFINED_MODULE_FEATURES = [
+  'Student Admissions & Directory',
+  'Daily Attendance & Leave Tracking',
+  'Timetable & Automated Substitution',
+  'Examination, Marks & Report Cards',
+  'Fee Management & Online Payments',
+  'Staff Payroll Processing & Payslips',
+  'Library & Book Tracking',
+  'Transport Fleet & GPS Tracking',
+  'Hostel & Room Allocation',
+  'Uniform & Inventory Store',
+  'Multi-Branch & Multi-Campus Support',
+  'Custom Domain & Dedicated Subdomain',
+  'White-Labeling & School Branding',
+  'Automated Cloud Backups & SLA'
+];
 
 export const SuperAdminPackagesView: React.FC = () => {
   const { addToast } = useToast();
+  const [plans, setPlans] = useState<PackagePlan[]>([]);
+  const [schools, setSchools] = useState<SchoolItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [billingCycle, setBillingCycle] = useState<'Monthly' | 'Yearly'>('Monthly');
 
-  const [plans, setPlans] = useState<PackagePlan[]>([
-    {
-      id: 'basic',
-      name: 'Basic Plan',
-      tagline: 'Ideal for small schools and pre-primary institutes',
-      monthlyPrice: 245,
-      yearlyPrice: 2450,
+  // Modal State
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingPlan, setEditingPlan] = useState<PackagePlan | null>(null);
+  const [deletingPlan, setDeletingPlan] = useState<PackagePlan | null>(null);
+
+  // Form State
+  const [formData, setFormData] = useState<PackagePlan>({
+    id: '',
+    name: '',
+    tagline: '',
+    monthlyPrice: 299,
+    yearlyPrice: 2990,
+    currency: 'USD',
+    maxStudents: 500,
+    maxStaff: 50,
+    maxBranches: 1,
+    storageGb: 20,
+    isPopular: false,
+    status: 'Active',
+    features: []
+  });
+
+  const [customFeatureInput, setCustomFeatureInput] = useState('');
+
+  const loadAll = async () => {
+    setLoading(true);
+    try {
+      const [loadedPlans, loadedSchools] = await Promise.all([
+        fetchPackagesApi(),
+        fetchSchoolsApi().catch(() => [])
+      ]);
+      setPlans(loadedPlans);
+      setSchools(loadedSchools);
+    } catch (err) {
+      console.error('Failed to load packages or schools', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadAll();
+  }, []);
+
+  // Compute live schools count for a plan
+  const getSchoolCountForPlan = (planName: string): number => {
+    return schools.filter(s => {
+      const sp = (s.planName || '').toLowerCase().trim();
+      const pn = planName.toLowerCase().trim();
+      return sp === pn || sp.includes(pn) || pn.includes(sp);
+    }).length;
+  };
+
+  const handleOpenAdd = () => {
+    setEditingPlan(null);
+    setFormData({
+      id: `plan-${Date.now()}`,
+      name: '',
+      tagline: '',
+      monthlyPrice: 199,
+      yearlyPrice: 1990,
+      currency: 'USD',
       maxStudents: 500,
       maxStaff: 50,
       maxBranches: 1,
+      storageGb: 25,
+      isPopular: false,
+      status: 'Active',
       features: [
-        'Up to 500 Active Students',
-        'Single Campus / Branch',
-        'Student Attendance & Leave',
-        'Academic Timetable & Subjects',
-        'Standard Fee Collection',
-        'Email Notifications'
-      ],
-      activeSubscribers: 18
-    },
-    {
-      id: 'advanced',
-      name: 'Advanced Plan',
-      tagline: 'Perfect for growing primary and secondary schools',
-      monthlyPrice: 495,
-      yearlyPrice: 4950,
-      maxStudents: 1500,
-      maxStaff: 150,
-      maxBranches: 2,
-      isPopular: true,
-      features: [
-        'Up to 1,500 Active Students',
-        'Up to 2 Campuses / Branches',
-        'Online Admissions & Parent Portal',
-        'Staff Payroll & Payslips',
-        'Examination & Report Cards',
-        'Library & Book Tracking',
-        'Priority Technical Support'
-      ],
-      activeSubscribers: 42
-    },
-    {
-      id: 'premium',
-      name: 'Premium Plan',
-      tagline: 'Comprehensive suite for large multi-wing educational institutions',
-      monthlyPrice: 795,
-      yearlyPrice: 7950,
-      maxStudents: 3500,
-      maxStaff: 300,
-      maxBranches: 5,
-      features: [
-        'Up to 3,500 Active Students',
-        'Up to 5 Multi-Wing Campuses',
-        'Transport & GPS Bus Tracking',
-        'Hostel & Room Allocation',
-        'Automated Substitution Engine',
-        'SMS & WhatsApp Gateways',
-        '24/7 Dedicated Account Manager'
-      ],
-      activeSubscribers: 14
-    },
-    {
-      id: 'enterprise',
-      name: 'Enterprise Plan',
-      tagline: 'Custom infrastructure for school groups, trusts, and universities',
-      monthlyPrice: 1295,
-      yearlyPrice: 12950,
-      maxStudents: 99999,
-      maxStaff: 99999,
-      maxBranches: 999,
-      features: [
-        'Unlimited Students & Staff',
-        'Unlimited Campuses & Branches',
-        'Custom Domain & Dedicated Subdomain',
-        'Full White-Labeling & Custom App',
-        'Custom ERP Integrations & SLA',
-        'Automated Database Backups',
-        'Dedicated Cloud Pod'
-      ],
-      activeSubscribers: 8
+        'Student Admissions & Directory',
+        'Daily Attendance & Leave Tracking',
+        'Timetable & Automated Substitution',
+        'Fee Management & Online Payments'
+      ]
+    });
+    setCustomFeatureInput('');
+    setIsModalOpen(true);
+  };
+
+  const handleOpenEdit = (plan: PackagePlan) => {
+    setEditingPlan(plan);
+    setFormData({ ...plan });
+    setCustomFeatureInput('');
+    setIsModalOpen(true);
+  };
+
+  const handleToggleFeature = (feat: string) => {
+    setFormData(prev => {
+      const exists = prev.features.includes(feat);
+      return {
+        ...prev,
+        features: exists ? prev.features.filter(f => f !== feat) : [...prev.features, feat]
+      };
+    });
+  };
+
+  const handleAddCustomFeature = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!customFeatureInput.trim()) return;
+    if (formData.features.includes(customFeatureInput.trim())) return;
+    setFormData(prev => ({
+      ...prev,
+      features: [...prev.features, customFeatureInput.trim()]
+    }));
+    setCustomFeatureInput('');
+  };
+
+  const handleRemoveFeature = (feat: string) => {
+    setFormData(prev => ({
+      ...prev,
+      features: prev.features.filter(f => f !== feat)
+    }));
+  };
+
+  const handleCalculateYearlyDiscount = () => {
+    const discounted = Math.round(formData.monthlyPrice * 12 * 0.8);
+    setFormData(prev => ({ ...prev, yearlyPrice: discounted }));
+    addToast('info', '20% Discount Applied', `Yearly price calculated as $${discounted}.`);
+  };
+
+  const handleSavePlan = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.name.trim()) {
+      addToast('error', 'Validation Error', 'Package name is required.');
+      return;
     }
-  ]);
+
+    let updatedList: PackagePlan[];
+    if (editingPlan) {
+      updatedList = plans.map(p => (p.id === editingPlan.id ? formData : p));
+      addToast('success', 'Package Updated', `${formData.name} configuration saved.`);
+    } else {
+      updatedList = [...plans, formData];
+      addToast('success', 'Package Created', `${formData.name} is now available.`);
+    }
+
+    setPlans(updatedList);
+    await savePackagesApi(updatedList);
+    setIsModalOpen(false);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deletingPlan) return;
+    const remaining = plans.filter(p => p.id !== deletingPlan.id);
+    setPlans(remaining);
+    await savePackagesApi(remaining);
+    addToast('success', 'Package Removed', `${deletingPlan.name} has been deleted.`);
+    setDeletingPlan(null);
+  };
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300 pb-12">
@@ -117,98 +201,425 @@ export const SuperAdminPackagesView: React.FC = () => {
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
             Subscription Packages & SaaS Tiers
           </h1>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            Configure institutional pricing tiers, quotas, feature sets, and active school allocations.
+          </p>
         </div>
 
-        {/* Billing cycle toggle */}
-        <div className="flex items-center p-1 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
-          <button
-            onClick={() => setBillingCycle('Monthly')}
-            className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${
-              billingCycle === 'Monthly'
-                ? 'bg-white dark:bg-slate-900 text-orange-600 shadow-sm'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-            }`}
-          >
-            Monthly
-          </button>
-          <button
-            onClick={() => setBillingCycle('Yearly')}
-            className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${
-              billingCycle === 'Yearly'
-                ? 'bg-white dark:bg-slate-900 text-orange-600 shadow-sm'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
-            }`}
-          >
-            <span>Yearly</span>
-            <span className="px-1.5 py-0.5 text-[9px] font-black bg-emerald-500 text-white rounded">Save 20%</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Plan Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {plans.map(plan => {
-          const price = billingCycle === 'Monthly' ? plan.monthlyPrice : plan.yearlyPrice;
-
-          return (
-            <div
-              key={plan.id}
-              className={`relative flex flex-col justify-between p-6 rounded-2xl bg-white dark:bg-slate-900 border transition-all duration-300 ${
-                plan.isPopular
-                  ? 'border-orange-500 shadow-xl shadow-orange-500/10 ring-2 ring-orange-500/20'
-                  : 'border-slate-200 dark:border-slate-800 shadow-sm hover:border-slate-300'
+        <div className="flex items-center gap-3">
+          {/* Monthly / Yearly Toggle */}
+          <div className="flex items-center p-1 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
+            <button
+              onClick={() => setBillingCycle('Monthly')}
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                billingCycle === 'Monthly'
+                  ? 'bg-white dark:bg-slate-900 text-orange-600 shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
               }`}
             >
-              {plan.isPopular && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-orange-600 text-white text-[10px] font-black uppercase tracking-wider rounded-full shadow-md">
-                  Most Popular
-                </div>
-              )}
+              Monthly
+            </button>
+            <button
+              onClick={() => setBillingCycle('Yearly')}
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${
+                billingCycle === 'Yearly'
+                  ? 'bg-white dark:bg-slate-900 text-orange-600 shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+              }`}
+            >
+              <span>Yearly</span>
+              <span className="px-1.5 py-0.5 text-[9px] font-black bg-emerald-500 text-white rounded">Save 20%</span>
+            </button>
+          </div>
 
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-lg font-extrabold text-slate-900 dark:text-white">{plan.name}</h3>
-                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                    {plan.activeSubscribers} Schools
-                  </span>
-                </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400 min-h-[32px]">{plan.tagline}</p>
+          {/* Add Package Button */}
+          <button
+            onClick={handleOpenAdd}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-orange-600 hover:bg-orange-700 active:bg-orange-800 text-xs font-bold text-white shadow-md shadow-orange-500/20 transition-all"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Create Package</span>
+          </button>
+        </div>
+      </div>
 
-                {/* Price Display */}
-                <div className="my-6 pb-6 border-b border-slate-100 dark:border-slate-800">
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-3xl font-black text-slate-900 dark:text-white">${price}</span>
-                    <span className="text-xs font-semibold text-slate-400">/{billingCycle.toLowerCase()}</span>
+      {/* Plan Cards Grid / Empty State */}
+      {plans.length === 0 ? (
+        <div className="flex flex-col items-center justify-center p-12 text-center bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-300 dark:border-slate-800 space-y-4">
+          <div className="w-16 h-16 rounded-2xl bg-orange-500/10 text-orange-600 flex items-center justify-center shadow-inner">
+            <Layers className="w-8 h-8" />
+          </div>
+          <div className="max-w-md space-y-1">
+            <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+              No Subscription Packages Created Yet
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Only packages created by you will be listed here. Click below to configure your first institutional SaaS plan.
+            </p>
+          </div>
+          <button
+            onClick={handleOpenAdd}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-orange-600 hover:bg-orange-700 active:bg-orange-800 text-xs font-bold text-white shadow-md shadow-orange-500/20 transition-all active:scale-95"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Create First Package</span>
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {plans.map(plan => {
+            const price = billingCycle === 'Monthly' ? plan.monthlyPrice : plan.yearlyPrice;
+            const liveSchoolCount = getSchoolCountForPlan(plan.name);
+
+            return (
+              <div
+                key={plan.id}
+                className={`relative flex flex-col justify-between p-6 rounded-2xl bg-white dark:bg-slate-900 border transition-all duration-300 group hover:shadow-lg ${
+                  plan.isPopular
+                    ? 'border-orange-500 shadow-xl shadow-orange-500/10 ring-2 ring-orange-500/20'
+                    : 'border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                }`}
+              >
+                {plan.isPopular && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-orange-600 text-white text-[10px] font-black uppercase tracking-wider rounded-full shadow-md">
+                    Most Popular
                   </div>
+                )}
+
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-lg font-extrabold text-slate-900 dark:text-white">{plan.name}</h3>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                      {liveSchoolCount} {liveSchoolCount === 1 ? 'School' : 'Schools'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 min-h-[32px]">{plan.tagline || 'Configured institutional SaaS tier'}</p>
+
+                  {/* Price Display */}
+                  <div className="my-5 pb-5 border-b border-slate-100 dark:border-slate-800">
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-3xl font-black text-slate-900 dark:text-white">
+                        ${price}
+                      </span>
+                      <span className="text-xs font-semibold text-slate-400">/{billingCycle.toLowerCase()}</span>
+                    </div>
+                    <div className="flex items-center gap-3 mt-2 text-[11px] text-slate-500">
+                      <span>{plan.maxStudents === 0 ? 'Unlimited' : `Up to ${plan.maxStudents}`} Students</span>
+                      &bull;
+                      <span>{plan.maxBranches === 0 ? 'Unlimited' : `${plan.maxBranches}`} Campuses</span>
+                    </div>
+                  </div>
+
+                  {/* Features List */}
+                  <ul className="space-y-2.5 mb-6">
+                    {plan.features.map((feat, idx) => (
+                      <li key={idx} className="flex items-start gap-2.5 text-xs text-slate-600 dark:text-slate-300">
+                        <Check className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                        <span>{feat}</span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
 
-                {/* Features List */}
-                <ul className="space-y-3 mb-6">
-                  {plan.features.map((feat, idx) => (
-                    <li key={idx} className="flex items-start gap-2.5 text-xs text-slate-600 dark:text-slate-300">
-                      <Check className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                      <span>{feat}</span>
-                    </li>
-                  ))}
-                </ul>
+                {/* Card Footer Actions */}
+                <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2">
+                  <button
+                    onClick={() => handleOpenEdit(plan)}
+                    className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all text-center ${
+                      plan.isPopular
+                        ? 'bg-orange-600 hover:bg-orange-700 text-white shadow-md shadow-orange-500/20'
+                        : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-white'
+                    }`}
+                  >
+                    Configure Plan
+                  </button>
+                  <button
+                    onClick={() => setDeletingPlan(plan)}
+                    title="Delete Package"
+                    className="p-2.5 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Package Configuration Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in overflow-y-auto">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-2xl w-full p-6 border border-slate-200 dark:border-slate-800 shadow-2xl my-8">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-orange-500/10 text-orange-600 flex items-center justify-center">
+                  <Layers className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+                    {editingPlan ? `Configure ${editingPlan.name}` : 'Create New Subscription Package'}
+                  </h3>
+                  <p className="text-xs text-slate-500">Configure pricing, limits, and included modules for schools</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Form */}
+            <form onSubmit={handleSavePlan} className="py-4 space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Plan Name */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Plan Name <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Starter Plan"
+                    value={formData.name}
+                    onChange={e => setFormData({ ...formData, name: e.target.value })}
+                    className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 dark:text-white"
+                  />
+                </div>
+
+                {/* Tagline */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Tagline / Subtitle
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Best for pre-primary institutes"
+                    value={formData.tagline}
+                    onChange={e => setFormData({ ...formData, tagline: e.target.value })}
+                    className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 dark:text-white"
+                  />
+                </div>
+
+                {/* Monthly Price */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Monthly Price ($) <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    required
+                    value={formData.monthlyPrice}
+                    onChange={e => setFormData({ ...formData, monthlyPrice: Number(e.target.value) })}
+                    className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 dark:text-white"
+                  />
+                </div>
+
+                {/* Yearly Price */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      Yearly Price ($) <span className="text-rose-500">*</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handleCalculateYearlyDiscount}
+                      className="text-[10px] text-orange-600 hover:text-orange-700 font-bold"
+                    >
+                      Apply 20% Discount
+                    </button>
+                  </div>
+                  <input
+                    type="number"
+                    min="0"
+                    required
+                    value={formData.yearlyPrice}
+                    onChange={e => setFormData({ ...formData, yearlyPrice: Number(e.target.value) })}
+                    className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 dark:text-white"
+                  />
+                </div>
+
+                {/* Max Students */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Max Students Limit <span className="text-slate-400 font-normal">(0 = Unlimited)</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={formData.maxStudents}
+                    onChange={e => setFormData({ ...formData, maxStudents: Number(e.target.value) })}
+                    className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 dark:text-white"
+                  />
+                </div>
+
+                {/* Max Staff */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Max Staff / Faculty <span className="text-slate-400 font-normal">(0 = Unlimited)</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={formData.maxStaff}
+                    onChange={e => setFormData({ ...formData, maxStaff: Number(e.target.value) })}
+                    className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 dark:text-white"
+                  />
+                </div>
+
+                {/* Max Campuses */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Max Branches / Campuses <span className="text-slate-400 font-normal">(0 = Unlimited)</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={formData.maxBranches}
+                    onChange={e => setFormData({ ...formData, maxBranches: Number(e.target.value) })}
+                    className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 dark:text-white"
+                  />
+                </div>
+
+                {/* Storage Quota */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Storage Quota (GB)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={formData.storageGb || 25}
+                    onChange={e => setFormData({ ...formData, storageGb: Number(e.target.value) })}
+                    className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 dark:text-white"
+                  />
+                </div>
               </div>
 
-              <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+              {/* Toggles: Most Popular & Status */}
+              <div className="flex flex-wrap items-center gap-6 p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 text-xs">
+                <label className="flex items-center gap-2 cursor-pointer font-semibold text-slate-800 dark:text-slate-200">
+                  <input
+                    type="checkbox"
+                    checked={formData.isPopular}
+                    onChange={e => setFormData({ ...formData, isPopular: e.target.checked })}
+                    className="rounded text-orange-600 focus:ring-orange-500"
+                  />
+                  <span>Mark as "Most Popular"</span>
+                </label>
+
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-slate-700 dark:text-slate-300">Status:</span>
+                  <select
+                    value={formData.status}
+                    onChange={e => setFormData({ ...formData, status: e.target.value as any })}
+                    className="px-2.5 py-1 text-xs bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg outline-none"
+                  >
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive / Suspended</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Features Selection */}
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-slate-800 dark:text-slate-200">
+                  Included Features & Modules
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto p-2 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700">
+                  {PREDEFINED_MODULE_FEATURES.map((feat, idx) => {
+                    const checked = formData.features.includes(feat);
+                    return (
+                      <label key={idx} className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => handleToggleFeature(feat)}
+                          className="rounded text-orange-600 focus:ring-orange-500"
+                        />
+                        <span className="truncate">{feat}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+
+                {/* Add Custom Feature */}
+                <div className="flex items-center gap-2 pt-2">
+                  <input
+                    type="text"
+                    placeholder="Add custom feature (e.g. 24/7 Dedicated Account Manager)"
+                    value={customFeatureInput}
+                    onChange={e => setCustomFeatureInput(e.target.value)}
+                    className="flex-1 px-3 py-1.5 text-xs bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddCustomFeature}
+                    className="px-3 py-1.5 text-xs font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-white rounded-lg transition-colors"
+                  >
+                    Add
+                  </button>
+                </div>
+
+                {/* Current Active Features List Badges */}
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {formData.features.map((f, i) => (
+                    <span
+                      key={i}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-orange-50 text-orange-700 dark:bg-orange-950/60 dark:text-orange-300 border border-orange-500/20"
+                    >
+                      <span>{f}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveFeature(f)}
+                        className="hover:text-rose-600"
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Modal Actions */}
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-800">
                 <button
-                  onClick={() => addToast('info', 'Package Selected', `Assigned ${plan.name} configuration.`)}
-                  className={`w-full py-2.5 rounded-xl text-xs font-bold transition-all ${
-                    plan.isPopular
-                      ? 'bg-orange-600 hover:bg-orange-700 text-white shadow-md shadow-orange-500/20'
-                      : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-white'
-                  }`}
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl"
                 >
-                  Configure Plan
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 text-xs font-bold text-white bg-orange-600 hover:bg-orange-700 rounded-xl shadow-md transition-all"
+                >
+                  {editingPlan ? 'Save Changes' : 'Create Package'}
                 </button>
               </div>
-            </div>
-          );
-        })}
-      </div>
+
+            </form>
+
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation */}
+      <ConfirmModal
+        isOpen={!!deletingPlan}
+        onClose={() => setDeletingPlan(null)}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Package Plan"
+        message={`Are you sure you want to delete "${deletingPlan?.name}"? ${getSchoolCountForPlan(deletingPlan?.name || '')} active schools are currently on this plan.`}
+        confirmText="Delete Package"
+        type="danger"
+      />
 
     </div>
   );

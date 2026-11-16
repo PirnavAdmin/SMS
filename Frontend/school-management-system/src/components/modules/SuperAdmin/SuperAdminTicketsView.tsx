@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LifeBuoy, Search, CheckCircle2, Clock, AlertCircle, MessageSquare, Plus, ChevronRight } from 'lucide-react';
+import { LifeBuoy, Search } from 'lucide-react';
 import { useToast } from '../../../context/ToastContext';
 
 interface Ticket {
@@ -20,55 +20,27 @@ export const SuperAdminTicketsView: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState('All');
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
 
-  const [tickets, setTickets] = useState<Ticket[]>([
-    {
-      id: 't-1',
-      ticketNo: 'TCK-8921',
-      schoolName: 'BrightWave Innovations Academy',
-      subject: 'Inquiry regarding payment gateway API webhook integration',
-      category: 'Billing & Payments',
-      priority: 'High',
-      status: 'Open',
-      createdAt: '2026-11-15 14:22',
-      lastReply: 'School Admin: Webhook URL verification error on production domain.'
-    },
-    {
-      id: 't-2',
-      ticketNo: 'TCK-8919',
-      schoolName: 'Quantum Nexus High School',
-      subject: 'Request for custom domain SSL renewal & DNS propagation',
-      category: 'Domain & SSL',
-      priority: 'Medium',
-      status: 'In Progress',
-      createdAt: '2026-11-14 09:10',
-      lastReply: 'Support: DNS records are being refreshed on Cloudflare.'
-    },
-    {
-      id: 't-3',
-      ticketNo: 'TCK-8904',
-      schoolName: 'Stellar Dynamics International School',
-      subject: 'Bulk student admission import CSV formatting assistance',
-      category: 'Data Migration',
-      priority: 'Low',
-      status: 'Resolved',
-      createdAt: '2026-11-10 16:45',
-      lastReply: 'Support: Resolved via student template upload v2.'
-    },
-    {
-      id: 't-4',
-      ticketNo: 'TCK-8898',
-      schoolName: 'Aurora Technologies Academy',
-      subject: 'Storage quota upgrade request for cloud document vault',
-      category: 'Subscription Upgrade',
-      priority: 'Critical',
-      status: 'In Progress',
-      createdAt: '2026-11-09 11:30',
-      lastReply: 'Billing Dept: Upgrading tier to Enterprise 500GB allocation.'
-    }
-  ]);
+  const [tickets, setTickets] = useState<Ticket[]>(() => {
+    try {
+      const raw = localStorage.getItem('sms_superadmin_tickets');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {}
+    return [];
+  });
+
+  const saveTickets = (updated: Ticket[]) => {
+    setTickets(updated);
+    try {
+      localStorage.setItem('sms_superadmin_tickets', JSON.stringify(updated));
+    } catch {}
+  };
 
   const handleResolveTicket = (ticketId: string) => {
-    setTickets(prev => prev.map(t => t.id === ticketId ? { ...t, status: 'Resolved' } : t));
+    const updated = tickets.map(t => t.id === ticketId ? { ...t, status: 'Resolved' as const } : t);
+    saveTickets(updated);
     addToast('success', 'Ticket Resolved', 'The support ticket has been marked as resolved.');
     if (selectedTicket?.id === ticketId) {
       setSelectedTicket(prev => prev ? { ...prev, status: 'Resolved' } : null);
@@ -97,8 +69,11 @@ export const SuperAdminTicketsView: React.FC = () => {
           </div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
             <span>Tenant Support & Helpdesk Tickets</span>
-            <span className="px-2 py-0.5 text-xs font-black bg-rose-600 text-white rounded-md">NEW</span>
+            <span className="px-2 py-0.5 text-xs font-black bg-rose-600 text-white rounded-md">LIVE</span>
           </h1>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            Institutional support tickets submitted by school administrators and tenants.
+          </p>
         </div>
       </div>
 
@@ -142,42 +117,54 @@ export const SuperAdminTicketsView: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
-              {filteredTickets.map(t => (
-                <tr key={t.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
-                  <td className="p-4 font-mono font-bold text-orange-600">{t.ticketNo}</td>
-                  <td className="p-4 font-bold text-slate-900 dark:text-white">{t.schoolName}</td>
-                  <td className="p-4 max-w-xs truncate font-medium text-slate-800 dark:text-slate-200">
-                    {t.subject}
-                  </td>
-                  <td className="p-4">
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                      t.priority === 'Critical' ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/60' :
-                      t.priority === 'High' ? 'bg-orange-100 text-orange-700 dark:bg-orange-950/60' :
-                      'bg-slate-100 text-slate-700 dark:bg-slate-800'
-                    }`}>
-                      {t.priority}
-                    </span>
-                  </td>
-                  <td className="p-4 text-slate-400">{t.createdAt}</td>
-                  <td className="p-4">
-                    <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                      t.status === 'Resolved' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60' :
-                      t.status === 'In Progress' ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/60' :
-                      'bg-amber-50 text-amber-700 dark:bg-amber-950/60'
-                    }`}>
-                      {t.status}
-                    </span>
-                  </td>
-                  <td className="p-4 text-center">
-                    <button
-                      onClick={() => setSelectedTicket(t)}
-                      className="px-3 py-1 text-xs font-semibold text-orange-600 hover:text-white hover:bg-orange-600 border border-orange-500/30 rounded-lg transition-colors"
-                    >
-                      View Thread
-                    </button>
+              {filteredTickets.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="p-12 text-center text-slate-400">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <LifeBuoy className="w-10 h-10 text-slate-300 dark:text-slate-600" />
+                      <p className="font-semibold text-slate-600 dark:text-slate-300">No support tickets found</p>
+                      <p className="text-xs text-slate-400">Institutional support tickets submitted by schools will be listed here.</p>
+                    </div>
                   </td>
                 </tr>
-              ))}
+              ) : (
+                filteredTickets.map(t => (
+                  <tr key={t.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
+                    <td className="p-4 font-mono font-bold text-orange-600">{t.ticketNo}</td>
+                    <td className="p-4 font-bold text-slate-900 dark:text-white">{t.schoolName}</td>
+                    <td className="p-4 max-w-xs truncate font-medium text-slate-800 dark:text-slate-200">
+                      {t.subject}
+                    </td>
+                    <td className="p-4">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                        t.priority === 'Critical' ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/60' :
+                        t.priority === 'High' ? 'bg-orange-100 text-orange-700 dark:bg-orange-950/60' :
+                        'bg-slate-100 text-slate-700 dark:bg-slate-800'
+                      }`}>
+                        {t.priority}
+                      </span>
+                    </td>
+                    <td className="p-4 text-slate-400">{t.createdAt}</td>
+                    <td className="p-4">
+                      <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                        t.status === 'Resolved' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60' :
+                        t.status === 'In Progress' ? 'bg-blue-50 text-blue-700 dark:bg-blue-950/60' :
+                        'bg-amber-50 text-amber-700 dark:bg-amber-950/60'
+                      }`}>
+                        {t.status}
+                      </span>
+                    </td>
+                    <td className="p-4 text-center">
+                      <button
+                        onClick={() => setSelectedTicket(t)}
+                        className="px-3 py-1 text-xs font-semibold text-orange-600 hover:text-white hover:bg-orange-600 border border-orange-500/30 rounded-lg transition-colors"
+                      >
+                        View Thread
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

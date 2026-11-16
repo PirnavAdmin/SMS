@@ -831,119 +831,118 @@ export const Sidebar: React.FC<SidebarProps> = ({
     "transport-maintenance-reports",
   ];
 
-  const menuGroups = [
-    ...(safeRole.includes("super admin") || safeRole.includes("superadmin")
-      ? [
-          {
-            title: "Super Admin",
-            items: [
-              { id: "superadmin-dashboard", label: "Dashboard", icon: LayoutDashboard },
-              { id: "superadmin-schools", label: "Companies", icon: Building2 },
-              { id: "superadmin-subscriptions", label: "Subscriptions", icon: CreditCard },
-              { id: "superadmin-packages", label: "Packages", icon: Layers },
-              { id: "superadmin-domains", label: "Domain", icon: Globe },
-              { id: "superadmin-transactions", label: "Purchase Transaction", icon: Receipt },
-              { id: "superadmin-metrics", label: "Tenant Usage Metrics", icon: Activity, badge: "New" },
-              { id: "superadmin-tickets", label: "Tenant Support Tickets", icon: LifeBuoy, badge: "New" },
-              { id: "superadmin-audit", label: "Audit Logs", icon: ShieldAlert },
-            ],
-          },
-        ]
-      : []),
-    {
-      title: "Core Operations",
-      items: [
-        ...(safeRole.includes("super admin") || safeRole.includes("superadmin")
-          ? []
-          : [{ id: "dashboard", label: "Dashboard", icon: LayoutDashboard }]),
+  const isSuperAdmin = safeRole.includes("super admin") || safeRole.includes("superadmin");
+
+  const menuGroups = (isSuperAdmin
+    ? [
         {
-          id: "staff",
-          label:
-            safeRole === "parent" || safeRole === "student"
-              ? "Teachers"
-              : ["teacher", "driver", "warden", "librarian", "accountant", "staff"].some((r) =>
-                  safeRole.includes(r)
-                ) &&
-                !safeRole.includes("admin") &&
-                !safeRole.includes("principal")
-              ? "My Details"
-              : "Faculty & Staff",
-          icon: Users,
+          title: "Super Admin",
+          items: [
+            { id: "superadmin-dashboard", label: "Dashboard", icon: LayoutDashboard },
+            { id: "superadmin-schools", label: "Schools", icon: Building2 },
+            { id: "superadmin-subscriptions", label: "Subscriptions", icon: CreditCard },
+            { id: "superadmin-packages", label: "Packages", icon: Layers },
+            { id: "superadmin-domains", label: "Domain", icon: Globe },
+            { id: "superadmin-transactions", label: "Purchase Transaction", icon: Receipt },
+            { id: "superadmin-metrics", label: "Tenant Usage Metrics", icon: Activity, badge: "New" },
+            { id: "superadmin-tickets", label: "Tenant Support Tickets", icon: LifeBuoy, badge: "New" },
+            { id: "superadmin-audit", label: "Audit Logs", icon: ShieldAlert },
+          ],
         },
-      ],
-    },
-    {
-      title: "Student Management",
-      items: [
-        { id: "admissions", label: "Admissions", icon: GraduationCap },
-        { id: "students", label: safeRole.includes('warden') ? "Students" : "Student Directory", icon: UserCheck },
-        { id: "attendance", label: "Student Attendance", icon: CalendarCheck },
+      ]
+    : [
         {
-          id: "student-promotion",
-          label: "Student Promotion",
-          icon: TrendingUp,
+          title: "Core Operations",
+          items: [
+            { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+            {
+              id: "staff",
+              label:
+                safeRole === "parent" || safeRole === "student"
+                  ? "Teachers"
+                  : ["teacher", "driver", "warden", "librarian", "accountant", "staff"].some((r) =>
+                      safeRole.includes(r)
+                    ) &&
+                    !safeRole.includes("admin") &&
+                    !safeRole.includes("principal")
+                  ? "My Details"
+                  : "Faculty & Staff",
+              icon: Users,
+            },
+          ],
         },
         {
-          id: "certificates",
-          label: "Certificates",
-          icon: FileCheck,
-        },
-        { id: "alumni", label: "Alumni", icon: Award },
-      ],
-    },
-    {
-      title: "Academics",
-      items: [
-        { id: "academics", label: "Class Management", icon: Presentation },
-        { id: "subjects", label: "Subject Management", icon: BookOpen },
-        {
-          id: "timetable",
-          label:
-            safeRole === "parent" || safeRole === "student"
-              ? "Timetable"
-              : "Time Table",
-          icon: Clock,
+          title: "Student Management",
+          items: [
+            { id: "admissions", label: "Admissions", icon: GraduationCap },
+            { id: "students", label: safeRole.includes('warden') ? "Students" : "Student Directory", icon: UserCheck },
+            { id: "attendance", label: "Student Attendance", icon: CalendarCheck },
+            {
+              id: "student-promotion",
+              label: "Student Promotion",
+              icon: TrendingUp,
+            },
+            {
+              id: "certificates",
+              label: "Certificates",
+              icon: FileCheck,
+            },
+            { id: "alumni", label: "Alumni", icon: Award },
+          ],
         },
         {
-          id: "examination",
-          label: "Examinations",
-          icon: Award,
+          title: "Academics",
+          items: [
+            { id: "academics", label: "Class Management", icon: Presentation },
+            { id: "subjects", label: "Subject Management", icon: BookOpen },
+            {
+              id: "timetable",
+              label:
+                safeRole === "parent" || safeRole === "student"
+                  ? "Timetable"
+                  : "Time Table",
+              icon: Clock,
+            },
+            {
+              id: "examination",
+              label: "Examinations",
+              icon: Award,
+            },
+            {
+              id: "marks-entry",
+              label: "Marks Entry",
+              icon: Award,
+            },
+            {
+              id: "report-cards",
+              label: "Report Cards",
+              icon: ClipboardList,
+            },
+            { id: "homework", label: "Homework", icon: FileText },
+          ],
         },
         {
-          id: "marks-entry",
-          label: "Marks Entry",
-          icon: Award,
+          title: "Finance & Logistics",
+          isFinanceSection: true,
+          items: [
+            { id: "library", label: "Library", icon: Library },
+            { id: "library-timetable", label: "Library Timetable", icon: Clock },
+            { id: "inventory", label: "Inventory", icon: Package },
+          ],
         },
         {
-          id: "report-cards",
-          label: "Report Cards",
-          icon: ClipboardList,
+          title: "School Administration",
+          items: [
+            ...(safeRole.includes('librarian') ? [] : [
+              { id: "training", label: "Faculty Training", icon: GraduationCap }
+            ]),
+            { id: "communication", label: "Communication Hub", icon: Megaphone },
+            { id: "events", label: "Events & Holidays", icon: Calendar },
+            { id: "reports", label: "School Reports", icon: BarChart3 },
+            { id: "settings", label: "Settings", icon: Settings },
+          ],
         },
-        { id: "homework", label: "Homework", icon: FileText },
-      ],
-    },
-    {
-      title: "Finance & Logistics",
-      isFinanceSection: true,
-      items: [
-        { id: "library", label: "Library", icon: Library },
-        { id: "library-timetable", label: "Library Timetable", icon: Clock },
-        { id: "inventory", label: "Inventory", icon: Package },
-      ],
-    },
-    {
-      title: "School Administration",
-      items: [
-        ...(safeRole.includes('librarian') ? [] : [
-          { id: "training", label: "Faculty Training", icon: GraduationCap }
-        ]),
-        { id: "communication", label: "Communication Hub", icon: Megaphone },
-        { id: "events", label: "Events & Holidays", icon: Calendar },
-        { id: "reports", label: "School Reports", icon: BarChart3 },
-        { id: "settings", label: "Settings", icon: Settings },
-      ],
-    },
-  ]
+      ])
     .map((group) => ({
       ...group,
       items: group.items.filter((item) => hasModuleAccess(role || '', item.id)),
@@ -978,7 +977,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <div
               className="flex items-center justify-center w-11 h-11 rounded-2xl btn-glass-secondary cursor-pointer overflow-hidden p-1 active:scale-95 transition-all mx-auto"
               onClick={() => setCollapsed(false)}
-              title={schoolProfile?.name || "School Dashboard"}
+              title={isSuperAdmin ? "Super Admin Portal" : (schoolProfile?.name || "School Dashboard")}
             >
               {currentLogoUrl && !logoLoadError ? (
                 <img
@@ -1000,8 +999,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     ? "w-12 h-12 rounded-2xl p-1.5 shrink-0"
                     : "h-12 w-auto max-w-[190px] px-3 py-1 rounded-2xl shrink-0"
                 }`}
-                onClick={() => handleNav("dashboard")}
-                title={schoolProfile?.name || "School Dashboard"}
+                onClick={() => handleNav(isSuperAdmin ? "superadmin-dashboard" : "dashboard")}
+                title={isSuperAdmin ? "Super Admin Portal" : (schoolProfile?.name || "School Dashboard")}
               >
                 {currentLogoUrl && !logoLoadError ? (
                   <img
@@ -1019,7 +1018,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <div className="flex items-center justify-center gap-2 px-2 mx-auto">
                     <School className="w-6 h-6 text-sky-600 dark:text-sky-400 shrink-0" />
                     <span className="font-extrabold text-xs text-slate-800 dark:text-white truncate max-w-[145px]">
-                      {schoolProfile?.name || "School Portal"}
+                      {isSuperAdmin ? "Super Admin Portal" : (schoolProfile?.name || "School Portal")}
                     </span>
                   </div>
                 )}
@@ -1039,7 +1038,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Mobile Campus & Academic Year Context Chip */}
-        {!isDesktop && (selectedBranch || selectedAcademicYear) && (
+        {!isDesktop && !isSuperAdmin && (selectedBranch || selectedAcademicYear) && (
           <div className="px-3 pt-2 pb-0.5 lg:hidden">
             <div className="flex items-center justify-between gap-1.5 px-3 py-1.5 rounded-2xl bg-brand-500/10 border border-brand-500/20 text-[11px] font-bold text-slate-700 dark:text-slate-200 shadow-2xs">
               <div className="flex items-center gap-1.5 min-w-0">

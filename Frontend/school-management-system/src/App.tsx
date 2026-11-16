@@ -299,6 +299,16 @@ const MainLayout: React.FC = () => {
     prevAuthenticated.current = isAuthenticated;
   }, [isAuthenticated]);
 
+  const isSuperAdmin = userRole.includes("super admin") || userRole.includes("superadmin") || (role || "").toLowerCase().includes("super");
+
+  useEffect(() => {
+    if (isSuperAdmin && isAuthenticated) {
+      if (activeModule === "dashboard" || !activeModule.startsWith("superadmin-")) {
+        setActiveModule("superadmin-dashboard");
+      }
+    }
+  }, [isSuperAdmin, isAuthenticated, activeModule, setActiveModule]);
+
   useEffect(() => {
     setMobileOpen(false);
     window.scrollTo({ top: 0, behavior: "instant" });

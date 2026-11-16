@@ -288,3 +288,67 @@ export const fetchNotificationsApi = async (schoolId?: number): Promise<SystemNo
     method: 'GET'
   });
 };
+
+// -------------------------------------------------------------
+// PACKAGE & SUBSCRIPTION CONFIGURATION
+// -------------------------------------------------------------
+
+export interface PackagePlan {
+  id: string;
+  name: string;
+  tagline: string;
+  monthlyPrice: number;
+  yearlyPrice: number;
+  currency: string;
+  maxStudents: number; // 0 for unlimited
+  maxStaff: number; // 0 for unlimited
+  maxBranches: number; // 0 for unlimited
+  storageGb?: number;
+  isPopular?: boolean;
+  features: string[];
+  status: 'Active' | 'Inactive';
+}
+
+const DEFAULT_MOCK_PLAN_IDS = [
+  'basic', 'advanced', 'premium', 'enterprise',
+  'plan-basic', 'plan-advanced', 'plan-premium', 'plan-enterprise'
+];
+const DEFAULT_MOCK_PLAN_NAMES = [
+  'basic plan', 'advanced plan', 'premium plan', 'enterprise plan',
+  'basic', 'advanced', 'premium', 'enterprise'
+];
+
+export const fetchPackagesApi = async (): Promise<PackagePlan[]> => {
+  try {
+    const raw = localStorage.getItem('sms_superadmin_packages');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        // Return strictly packages explicitly created by the Super Admin
+        const userCreated = parsed.filter(p => {
+          const id = (p.id || '').toLowerCase().trim();
+          const name = (p.name || '').toLowerCase().trim();
+          const isMockId = DEFAULT_MOCK_PLAN_IDS.includes(id);
+          const isMockNameAndPrice = DEFAULT_MOCK_PLAN_NAMES.includes(name) && [245, 495, 795, 1295].includes(p.monthlyPrice);
+          return !isMockId && !isMockNameAndPrice;
+        });
+
+        // Permanently sanitize localStorage if legacy mock packages were present
+        if (userCreated.length !== parsed.length) {
+          localStorage.setItem('sms_superadmin_packages', JSON.stringify(userCreated));
+        }
+
+        return userCreated;
+      }
+    }
+  } catch {}
+  return [];
+};
+
+export const savePackagesApi = async (packages: PackagePlan[]): Promise<PackagePlan[]> => {
+  try {
+    localStorage.setItem('sms_superadmin_packages', JSON.stringify(packages));
+    window.dispatchEvent(new CustomEvent('packages_updated', { detail: packages }));
+  } catch {}
+  return packages;
+};

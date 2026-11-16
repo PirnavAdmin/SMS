@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, Upload, Eye, EyeOff, Building2, Mail, Phone, Globe, User, Shield, MapPin, CheckCircle2, AlertCircle } from 'lucide-react';
-import { SchoolItem, createSchoolApi, updateSchoolApi, createAdminApi } from '../../../api/superadmin';
+import { X, Upload, Eye, EyeOff, Building2, Mail, Phone, Globe, User, MapPin, AlertCircle } from 'lucide-react';
+import { SchoolItem, createSchoolApi, updateSchoolApi, createAdminApi, fetchPackagesApi, PackagePlan } from '../../../api/superadmin';
 import { useToast } from '../../../context/ToastContext';
 
 interface AddSchoolModalProps {
@@ -41,6 +41,22 @@ export const AddSchoolModal: React.FC<AddSchoolModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [logoPreview, setLogoPreview] = useState<string>('');
+  const [availablePackages, setAvailablePackages] = useState<PackagePlan[]>([]);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchPackagesApi().then(pkgs => {
+        const activePkgs = pkgs.filter(p => p.status === 'Active');
+        setAvailablePackages(activePkgs);
+        if (!editingSchool) {
+          setFormData(prev => ({
+            ...prev,
+            planName: activePkgs.length > 0 ? activePkgs[0].name : 'Custom Plan'
+          }));
+        }
+      }).catch(() => {});
+    }
+  }, [isOpen, editingSchool]);
 
   useEffect(() => {
     if (editingSchool) {
@@ -54,7 +70,7 @@ export const AddSchoolModal: React.FC<AddSchoolModalProps> = ({
         password: '',
         confirmPassword: '',
         address: editingSchool.address || '',
-        planName: editingSchool.planName || 'Basic',
+        planName: editingSchool.planName || (availablePackages[0]?.name ?? 'Custom Plan'),
         planType: editingSchool.planType || 'Monthly',
         currency: 'INR',
         language: 'English',
@@ -73,7 +89,7 @@ export const AddSchoolModal: React.FC<AddSchoolModalProps> = ({
         password: '',
         confirmPassword: '',
         address: '',
-        planName: 'Basic',
+        planName: availablePackages[0]?.name || 'Custom Plan',
         planType: 'Monthly',
         currency: 'INR',
         language: 'English',
@@ -83,7 +99,7 @@ export const AddSchoolModal: React.FC<AddSchoolModalProps> = ({
       setLogoPreview('');
     }
     setError('');
-  }, [editingSchool, isOpen]);
+  }, [editingSchool, isOpen, availablePackages]);
 
   if (!isOpen) return null;
 
@@ -489,10 +505,15 @@ export const AddSchoolModal: React.FC<AddSchoolModalProps> = ({
                 onChange={e => setFormData({ ...formData, planName: e.target.value })}
                 className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all dark:text-white"
               >
-                <option value="Basic">Basic (Up to 500 Students)</option>
-                <option value="Advanced">Advanced (Up to 1,500 Students)</option>
-                <option value="Premium">Premium (Up to 3,500 Students)</option>
-                <option value="Enterprise">Enterprise (Unlimited Campus & Branches)</option>
+                {availablePackages.length > 0 ? (
+                  availablePackages.map(p => (
+                    <option key={p.id} value={p.name}>
+                      {p.name} ({p.maxStudents === 0 ? 'Unlimited' : `Up to ${p.maxStudents}`} Students)
+                    </option>
+                  ))
+                ) : (
+                  <option value="Custom Plan">Custom / Default Plan (Configure in Packages)</option>
+                )}
               </select>
             </div>
 

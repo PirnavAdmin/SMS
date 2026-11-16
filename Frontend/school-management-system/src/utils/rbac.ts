@@ -1,6 +1,18 @@
 import { Role } from "../types";
 
-export const MODULES = [
+export const SUPERADMIN_MODULES = [
+  "superadmin-dashboard",
+  "superadmin-schools",
+  "superadmin-subscriptions",
+  "superadmin-packages",
+  "superadmin-domains",
+  "superadmin-transactions",
+  "superadmin-metrics",
+  "superadmin-tickets",
+  "superadmin-audit",
+] as const;
+
+export const SCHOOL_MODULES = [
   "dashboard",
   "students",
   "staff",
@@ -30,23 +42,19 @@ export const MODULES = [
   "users",
   "settings",
   "training",
-  "superadmin-dashboard",
-  "superadmin-schools",
-  "superadmin-subscriptions",
-  "superadmin-packages",
-  "superadmin-domains",
-  "superadmin-transactions",
-  "superadmin-metrics",
-  "superadmin-tickets",
-  "superadmin-audit",
+] as const;
+
+export const MODULES = [
+  ...SUPERADMIN_MODULES,
+  ...SCHOOL_MODULES,
 ] as const;
 
 export type ModuleId = (typeof MODULES)[number];
 
 // Central Role-Based Access Control matrix
 export const ROLE_PERMISSIONS: Record<Role, ModuleId[]> = {
-  "Super Admin": [...MODULES],
-  Admin: [...MODULES],
+  "Super Admin": [...SUPERADMIN_MODULES],
+  Admin: [...SCHOOL_MODULES],
   Principal: [
     "dashboard",
     "students",

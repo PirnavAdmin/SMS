@@ -188,10 +188,14 @@ export const Header: React.FC<HeaderProps> = ({
     (role || '').toLowerCase().includes('warden') ||
     (user?.role || '').toLowerCase().includes('warden');
 
-  const canViewBranch = !isHostelWarden && ['Super Admin', 'Admin', 'Principal', 'Accountant', 'Receptionist', 'HR', 'Transport Manager'].includes(role) && role !== 'Teacher';
-  const canCreateBranch = !isHostelWarden && ['Super Admin', 'Admin'].includes(role);
-  const canManageBranch = !isHostelWarden && ['Super Admin', 'Admin'].includes(role);
-  const canViewAcademicYear = !isHostelWarden && ['Super Admin', 'Admin', 'Principal', 'Accountant', 'Teacher', 'Receptionist', 'HR', 'Transport Manager'].includes(role);
+  const isSuperAdmin =
+    (role || '').toLowerCase().includes('super') ||
+    (user?.role || '').toLowerCase().includes('super');
+
+  const canViewBranch = !isSuperAdmin && !isHostelWarden && ['Admin', 'Principal', 'Accountant', 'Receptionist', 'HR', 'Transport Manager'].includes(role) && role !== 'Teacher';
+  const canCreateBranch = !isSuperAdmin && !isHostelWarden && ['Admin'].includes(role);
+  const canManageBranch = !isSuperAdmin && !isHostelWarden && ['Admin'].includes(role);
+  const canViewAcademicYear = !isSuperAdmin && !isHostelWarden && ['Admin', 'Principal', 'Accountant', 'Teacher', 'Receptionist', 'HR', 'Transport Manager'].includes(role);
 
   const branchOptions = useMemo(() => {
     const fromApi = (branches || [])

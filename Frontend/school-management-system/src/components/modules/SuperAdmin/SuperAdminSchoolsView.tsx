@@ -10,7 +10,9 @@ import {
   fetchSchoolsApi,
   deleteSchoolApi,
   toggleSchoolStatusApi,
-  fetchSchoolUsersSummaryApi
+  fetchSchoolUsersSummaryApi,
+  fetchPackagesApi,
+  PackagePlan
 } from '../../../api/superadmin';
 import { useToast } from '../../../context/ToastContext';
 import { AddSchoolModal } from './AddSchoolModal';
@@ -24,6 +26,7 @@ export const SuperAdminSchoolsView: React.FC<SuperAdminSchoolsViewProps> = ({ on
   const { addToast } = useToast();
 
   const [schools, setSchools] = useState<SchoolItem[]>([]);
+  const [packages, setPackages] = useState<PackagePlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'Inactive'>('All');
@@ -43,8 +46,12 @@ export const SuperAdminSchoolsView: React.FC<SuperAdminSchoolsViewProps> = ({ on
   const loadSchools = async () => {
     setLoading(true);
     try {
-      const data = await fetchSchoolsApi();
+      const [data, pkgs] = await Promise.all([
+        fetchSchoolsApi(),
+        fetchPackagesApi().catch(() => [])
+      ]);
       setSchools(data || []);
+      setPackages(pkgs || []);
     } catch (err: any) {
       console.error('Failed to load schools:', err);
       addToast('error', 'Error', 'Failed to load schools. Please check backend connection.');
@@ -69,7 +76,7 @@ export const SuperAdminSchoolsView: React.FC<SuperAdminSchoolsViewProps> = ({ on
       const matchesStatus =
         statusFilter === 'All' ? true : s.status?.toLowerCase() === statusFilter.toLowerCase();
 
-      const schoolPlan = s.planName || 'Basic';
+      const schoolPlan = s.planName || 'Unassigned';
       const matchesPlan =
         planFilter === 'All' ? true : schoolPlan.toLowerCase() === planFilter.toLowerCase();
 
@@ -148,7 +155,7 @@ export const SuperAdminSchoolsView: React.FC<SuperAdminSchoolsViewProps> = ({ on
       'Email': s.email || 'N/A',
       'Phone': s.phone || 'N/A',
       'Account URL': `${s.schoolCode}.sms.portal`,
-      'Plan': s.planName || 'Basic (Monthly)',
+      'Plan': s.planName ? `${s.planName} (${s.planType || 'Monthly'})` : 'Unassigned',
       'Principal': s.principalName || 'N/A',
       'Address': s.address || 'N/A',
       'Status': s.status,
@@ -190,10 +197,10 @@ export const SuperAdminSchoolsView: React.FC<SuperAdminSchoolsViewProps> = ({ on
               Super Admin
             </span>
             <span>&gt;</span>
-            <span className="text-slate-800 dark:text-slate-200 font-semibold">Companies / Schools</span>
+            <span className="text-slate-800 dark:text-slate-200 font-semibold">Schools</span>
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-            Companies / Educational Institutions
+            Schools & Educational Institutions
           </h1>
         </div>
 
@@ -225,7 +232,7 @@ export const SuperAdminSchoolsView: React.FC<SuperAdminSchoolsViewProps> = ({ on
         </div>
       </div>
 
-      {/* 4 KPI Metric Cards matching referral Image 4 */}
+      {/* 4 KPI Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
         {/* Total Schools */}
@@ -233,7 +240,7 @@ export const SuperAdminSchoolsView: React.FC<SuperAdminSchoolsViewProps> = ({ on
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                Total Companies / Schools
+                Total Schools
               </p>
               <h3 className="text-2xl font-extrabold text-slate-900 dark:text-white mt-1">
                 {stats.total}
@@ -260,7 +267,7 @@ export const SuperAdminSchoolsView: React.FC<SuperAdminSchoolsViewProps> = ({ on
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                Active Companies / Schools
+                Active Schools
               </p>
               <h3 className="text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">
                 {stats.active}
@@ -286,7 +293,7 @@ export const SuperAdminSchoolsView: React.FC<SuperAdminSchoolsViewProps> = ({ on
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                Inactive Companies
+                Inactive Schools
               </p>
               <h3 className="text-2xl font-extrabold text-rose-600 dark:text-rose-400 mt-1">
                 {stats.inactive}
@@ -312,7 +319,7 @@ export const SuperAdminSchoolsView: React.FC<SuperAdminSchoolsViewProps> = ({ on
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                Company Locations / Cities
+                School Locations / Cities
               </p>
               <h3 className="text-2xl font-extrabold text-sky-600 dark:text-sky-400 mt-1">
                 {stats.locations}
@@ -362,7 +369,7 @@ export const SuperAdminSchoolsView: React.FC<SuperAdminSchoolsViewProps> = ({ on
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
-                placeholder="Search..."
+                placeholder="Search schools..."
                 value={searchTerm}
                 onChange={e => {
                   setSearchTerm(e.target.value);
@@ -381,11 +388,10 @@ export const SuperAdminSchoolsView: React.FC<SuperAdminSchoolsViewProps> = ({ on
               }}
               className="px-3 py-1.5 text-xs font-medium bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none dark:text-white"
             >
-              <option value="All">Select Plan</option>
-              <option value="Basic">Basic</option>
-              <option value="Advanced">Advanced</option>
-              <option value="Premium">Premium</option>
-              <option value="Enterprise">Enterprise</option>
+              <option value="All">All Plans</option>
+              {packages.map(p => (
+                <option key={p.id} value={p.name}>{p.name}</option>
+              ))}
             </select>
 
             {/* Status Filter */}
@@ -415,7 +421,7 @@ export const SuperAdminSchoolsView: React.FC<SuperAdminSchoolsViewProps> = ({ on
           </div>
         </div>
 
-        {/* Data Table matching referral Image 4 */}
+        {/* Data Table */}
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -428,7 +434,7 @@ export const SuperAdminSchoolsView: React.FC<SuperAdminSchoolsViewProps> = ({ on
                     className="rounded text-orange-600 focus:ring-orange-500"
                   />
                 </th>
-                <th className="p-4">Company Name</th>
+                <th className="p-4">School Name</th>
                 <th className="p-4">Email</th>
                 <th className="p-4">Account URL</th>
                 <th className="p-4">Plan</th>
@@ -459,7 +465,9 @@ export const SuperAdminSchoolsView: React.FC<SuperAdminSchoolsViewProps> = ({ on
                 </tr>
               ) : (
                 paginatedSchools.map(school => {
-                  const planName = school.planName || 'Basic (Monthly)';
+                  const planName = school.planName
+                    ? `${school.planName}${school.planType ? ` (${school.planType})` : ''}`
+                    : 'Unassigned';
                   const isChecked = selectedIds.includes(school.schoolId);
                   const isSchoolActive = school.status?.toLowerCase() === 'active';
 
