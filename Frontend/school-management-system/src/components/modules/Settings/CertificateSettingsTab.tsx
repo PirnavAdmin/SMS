@@ -49,9 +49,54 @@ export interface DynamicPlaceholderItem {
   isSystem?: boolean;
 }
 
-export const INITIAL_DYNAMIC_PLACEHOLDERS: DynamicPlaceholderItem[] = [];
+export const INITIAL_DYNAMIC_PLACEHOLDERS: DynamicPlaceholderItem[] = [
+  // Student Info
+  { id: 'ph-studentName', placeholder: '{{studentName}}', description: "Full student name", category: 'Student Info', sampleValue: 'Aadhya Gupta', isSystem: true },
+  { id: 'ph-admissionNumber', placeholder: '{{admissionNumber}}', description: "Student official admission number", category: 'Student Info', sampleValue: 'ADM-2026-0011', isSystem: true },
+  { id: 'ph-rollNo', placeholder: '{{rollNo}}', description: "Student class roll number", category: 'Student Info', sampleValue: '12', isSystem: true },
+  { id: 'ph-fatherName', placeholder: '{{fatherName}}', description: "Father's or guardian's name", category: 'Student Info', sampleValue: 'Rajesh Gupta', isSystem: true },
+  { id: 'ph-motherName', placeholder: '{{motherName}}', description: "Mother's name", category: 'Student Info', sampleValue: 'Sunita Gupta', isSystem: true },
+  { id: 'ph-dateOfBirth', placeholder: '{{dateOfBirth}}', description: "Date of birth (DD/MM/YYYY)", category: 'Student Info', sampleValue: '15/08/2012', isSystem: true },
+  { id: 'ph-dobInWords', placeholder: '{{dobInWords}}', description: "Date of birth in words", category: 'Student Info', sampleValue: 'Fifteenth August Two Thousand Twelve', isSystem: true },
+  { id: 'ph-gender', placeholder: '{{gender}}', description: "Student gender (Male / Female / Other)", category: 'Student Info', sampleValue: 'Female', isSystem: true },
+  { id: 'ph-identificationMarks', placeholder: '{{identificationMarks}}', description: "Personal identification / mole marks", category: 'Student Info', sampleValue: 'A mole on right cheek', isSystem: true },
 
-export const ALL_DYNAMIC_PLACEHOLDERS: Array<{ placeholder: string; description: string }> = [];
+  // Academic
+  { id: 'ph-class', placeholder: '{{class}}', description: "Class or grade level", category: 'Academic', sampleValue: 'Class 10', isSystem: true },
+  { id: 'ph-section', placeholder: '{{section}}', description: "Class section", category: 'Academic', sampleValue: 'Section A', isSystem: true },
+  { id: 'ph-academicYear', placeholder: '{{academicYear}}', description: "Academic session / year (e.g. 2026-27)", category: 'Academic', sampleValue: '2026-27', isSystem: true },
+  { id: 'ph-dateOfAdmission', placeholder: '{{dateOfAdmission}}', description: "Date student joined the school", category: 'Academic', sampleValue: '12/06/2020', isSystem: true },
+  { id: 'ph-dateOfLeaving', placeholder: '{{dateOfLeaving}}', description: "Date of leaving / completion", category: 'Academic', sampleValue: '31/03/2026', isSystem: true },
+  { id: 'ph-reasonForLeaving', placeholder: '{{reasonForLeaving}}', description: "Reason for leaving / certificate request", category: 'Academic', sampleValue: 'Parent Request / Relocation', isSystem: true },
+  { id: 'ph-conduct', placeholder: '{{conduct}}', description: "General student conduct & character", category: 'Academic', sampleValue: 'Good & Exemplary', isSystem: true },
+  { id: 'ph-remarks', placeholder: '{{remarks}}', description: "Special remarks / observations", category: 'Academic', sampleValue: 'Promoted to Higher Class', isSystem: true },
+  { id: 'ph-result', placeholder: '{{result}}', description: "Annual examination result or promotion status", category: 'Academic', sampleValue: 'PASSED', isSystem: true },
+
+  // School Details
+  { id: 'ph-schoolName', placeholder: '{{schoolName}}', description: "Official school / institution name", category: 'School Details', sampleValue: 'Pirnav Educational Institution', isSystem: true },
+  { id: 'ph-schoolAddress', placeholder: '{{schoolAddress}}', description: "School campus location & address", category: 'School Details', sampleValue: 'HITEC City, Madhapur, Hyderabad', isSystem: true },
+  { id: 'ph-principalName', placeholder: '{{principalName}}', description: "Head of School / Principal name", category: 'School Details', sampleValue: 'Dr. Eleanor Vance', isSystem: true },
+
+  // Certificate Info
+  { id: 'ph-certificateNumber', placeholder: '{{certificateNumber}}', description: "Generated unique certificate number / TC No", category: 'Certificate Info', sampleValue: 'TC-2026-0001', isSystem: true },
+  { id: 'ph-issueDate', placeholder: '{{issueDate}}', description: "Date of certificate issuance", category: 'Certificate Info', sampleValue: '16/11/2026', isSystem: true },
+];
+
+export const ALL_DYNAMIC_PLACEHOLDERS: Array<{ placeholder: string; description: string }> = INITIAL_DYNAMIC_PLACEHOLDERS.map(p => ({
+  placeholder: p.placeholder,
+  description: p.description
+}));
+
+export const mergeWithDefaultPlaceholders = (existing: DynamicPlaceholderItem[]): DynamicPlaceholderItem[] => {
+  if (!Array.isArray(existing) || existing.length === 0) {
+    return INITIAL_DYNAMIC_PLACEHOLDERS;
+  }
+  const existingKeys = new Set(existing.map(p => (p.placeholder || '').toLowerCase()));
+  const missingDefaults = INITIAL_DYNAMIC_PLACEHOLDERS.filter(
+    def => !existingKeys.has(def.placeholder.toLowerCase())
+  );
+  return [...existing, ...missingDefaults];
+};
 
 export const INITIAL_CERTIFICATE_TEMPLATES: CertificateTemplateConfig[] = [];
 
@@ -103,7 +148,18 @@ export const CertificateSettingsTab: React.FC = () => {
   const [templates, setTemplates] = useState<CertificateTemplateConfig[]>(INITIAL_CERTIFICATE_TEMPLATES);
 
   // Dynamic Placeholders State (loaded and synced from Backend DB)
-  const [placeholders, setPlaceholders] = useState<DynamicPlaceholderItem[]>(INITIAL_DYNAMIC_PLACEHOLDERS);
+  const [placeholders, setPlaceholders] = useState<DynamicPlaceholderItem[]>(() => {
+    try {
+      const local = localStorage.getItem("edu_db_certificate_placeholders");
+      if (local) {
+        const parsed = JSON.parse(local);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return mergeWithDefaultPlaceholders(parsed);
+        }
+      }
+    } catch {}
+    return INITIAL_DYNAMIC_PLACEHOLDERS;
+  });
 
     // Serialization helpers for Numbering Rules & Required Fields change tracking
   const getNumberingSnapshot = (typesList: CertificateTypeConfig[]) =>
@@ -206,13 +262,13 @@ export const CertificateSettingsTab: React.FC = () => {
   }, [types, selectedFieldMatrixTypeId]);
 
   // Signatory Designation & Official Seal State (Empty Initial / Synced with Backend API & DB)
-  const [signatories, setSignatories] = useState<Array<{ id: string; title: string; name: string; show: boolean }>>([
-    { id: "sig-1", title: "", name: "", show: true },
-    { id: "sig-2", title: "", name: "", show: true },
-    { id: "sig-3", title: "", name: "", show: true },
+  const [signatories, setSignatories] = useState<CertificateSignatory[]>([
+    { id: "sig-1", title: "", name: "", show: true, signatureUrl: "" },
+    { id: "sig-2", title: "", name: "", show: true, signatureUrl: "" },
+    { id: "sig-3", title: "", name: "", show: true, signatureUrl: "" },
   ]);
 
-  const [savedSignatories, setSavedSignatories] = useState(() => signatories);
+  const [savedSignatories, setSavedSignatories] = useState<CertificateSignatory[]>(() => signatories);
 
   const [sealConfig, setSealConfig] = useState<{ show: boolean; sealText: string; sealImageUrl: string }>({
     show: true,
@@ -285,7 +341,8 @@ export const CertificateSettingsTab: React.FC = () => {
         if (certData && typeof certData === "object" && !Array.isArray(certData)) {
           const dbTypes = Array.isArray(certData.types) ? certData.types : [];
           const dbTemplates = Array.isArray(certData.templates) ? certData.templates : [];
-          const dbPlaceholders = Array.isArray(certData.placeholders) ? certData.placeholders : [];
+          const rawPlaceholders = Array.isArray(certData.placeholders) ? certData.placeholders : [];
+          const dbPlaceholders = mergeWithDefaultPlaceholders(rawPlaceholders);
 
           setTypes(dbTypes);
           setTemplates(dbTemplates);
@@ -307,7 +364,7 @@ export const CertificateSettingsTab: React.FC = () => {
         } else {
           setTypes([]);
           setTemplates([]);
-          setPlaceholders([]);
+          setPlaceholders(INITIAL_DYNAMIC_PLACEHOLDERS);
           if (!isInitialTypesLoadedRef.current) {
             setSavedNumberingSnapshot(getNumberingSnapshot([]));
             setSavedFieldsSnapshot(getRequiredFieldsSnapshot([]));
@@ -411,6 +468,42 @@ export const CertificateSettingsTab: React.FC = () => {
     setSignatoryErrors({});
     setSealError("");
     setIsEditingSignatures(false);
+  };
+
+  const handleUploadSignature = (idx: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      addToast("error", "Invalid File", "Please select an image file (PNG, JPG, WEBP, SVG).");
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      addToast("error", "File Too Large", "Signature image file size must be less than 2MB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const result = ev.target?.result as string;
+      if (result) {
+        setSignatories(prev => {
+          const next = [...prev];
+          next[idx] = { ...next[idx], signatureUrl: result };
+          return next;
+        });
+        addToast("success", "Signature Uploaded", `Signature uploaded for Signatory ${idx + 1}`);
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
+  const handleRemoveSignature = (idx: number) => {
+    setSignatories(prev => {
+      const next = [...prev];
+      next[idx] = { ...next[idx], signatureUrl: "" };
+      return next;
+    });
+    addToast("info", "Signature Removed", `Signature removed for Signatory ${idx + 1}`);
   };
 
   // Certificate Type Modal State
@@ -532,11 +625,28 @@ export const CertificateSettingsTab: React.FC = () => {
     getTemplateSnapshot(activeTemplate)
   );
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
+  const [isEditingTemplate, setIsEditingTemplate] = useState(false);
+
+  useEffect(() => {
+    if (!selectedTemplateTypeId && types.length > 0) {
+      setSelectedTemplateTypeId(types[0].id);
+    }
+  }, [types, selectedTemplateTypeId]);
 
   useEffect(() => {
     setTemplateEditorState(activeTemplate);
     setSavedTemplateSnapshot(getTemplateSnapshot(activeTemplate));
+    setIsEditingTemplate(false);
   }, [activeTemplate]);
+
+  const handleCancelEditTemplate = () => {
+    setTemplateEditorState(activeTemplate);
+    setTitleError(undefined);
+    setHeaderStyleError(undefined);
+    setThemeColorError(undefined);
+    setBodyTemplateError(undefined);
+    setIsEditingTemplate(false);
+  };
 
   const currentTemplateSnapshot = useMemo(
     () => getTemplateSnapshot(templateEditorState),
@@ -726,6 +836,7 @@ export const CertificateSettingsTab: React.FC = () => {
       await syncSettingsToDb(nextTemplates, undefined);
       setSavedTemplateSnapshot(getTemplateSnapshot(updatedTemplate));
       addToast('success', 'Template Saved', `Saved layout configuration for ${updatedTemplate.certificateTypeName}`);
+      setIsEditingTemplate(false);
     } catch (err: any) {
       console.error('Failed to save template:', err);
       addToast('error', 'Save Failed', err?.message || 'Failed to save certificate template.');
@@ -977,18 +1088,50 @@ export const CertificateSettingsTab: React.FC = () => {
           <div className="lg:col-span-5 space-y-4 glass-card p-5 rounded-3xl border border-slate-200/80 dark:border-slate-800">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">Configure Certificate Template</h4>
-              <button
-                type="button"
-                disabled={!isTemplateDirty || isSavingTemplate}
-                onClick={handleSaveTemplate}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm ${
-                  isTemplateDirty && !isSavingTemplate
-                    ? "bg-sky-600 hover:bg-sky-500 text-white cursor-pointer active:scale-95 shadow-md"
-                    : "bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed opacity-60"
-                }`}
-              >
-                <Save className="w-3.5 h-3.5" /> {isSavingTemplate ? "Saving..." : "Save"}
-              </button>
+              {!isEditingTemplate ? (
+                <button
+                  type="button"
+                  disabled={!selectedTemplateTypeId}
+                  onClick={() => {
+                    setIsEditingTemplate(true);
+                    setTemplateTypeError(undefined);
+                    setTitleError(undefined);
+                    setHeaderStyleError(undefined);
+                    setThemeColorError(undefined);
+                    setBodyTemplateError(undefined);
+                  }}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm ${
+                    selectedTemplateTypeId
+                      ? "bg-sky-600 hover:bg-sky-500 text-white cursor-pointer active:scale-95 shadow-md"
+                      : "bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed opacity-60"
+                  }`}
+                  title={!selectedTemplateTypeId ? "Select a certificate type to edit" : "Edit template layout"}
+                >
+                  <Edit className="w-3.5 h-3.5" /> Edit
+                </button>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleCancelEditTemplate}
+                    className="px-3.5 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-700/60 cursor-pointer transition-all active:scale-95"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isSavingTemplate}
+                    onClick={handleSaveTemplate}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm ${
+                      !isSavingTemplate
+                        ? "bg-sky-600 hover:bg-sky-500 text-white cursor-pointer active:scale-95 shadow-md"
+                        : "bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed opacity-60"
+                    }`}
+                  >
+                    <Save className="w-3.5 h-3.5" /> {isSavingTemplate ? "Saving..." : "Save"}
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="space-y-3 text-xs">
@@ -998,15 +1141,19 @@ export const CertificateSettingsTab: React.FC = () => {
                 </label>
                 <select
                   required
+                  disabled={isEditingTemplate}
                   value={selectedTemplateTypeId}
                   onChange={e => {
                     setSelectedTemplateTypeId(e.target.value);
+                    setIsEditingTemplate(false);
                     if (e.target.value) setTemplateTypeError(undefined);
                   }}
-                  className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold outline-none cursor-pointer ${
-                    templateTypeError ? 'border-rose-500 focus:ring-rose-500' : ''
+                  className={`w-full px-3 py-2 rounded-xl border font-bold outline-none ${
+                    isEditingTemplate
+                      ? 'bg-slate-100 dark:bg-slate-800/40 text-slate-500 dark:text-slate-400 cursor-not-allowed border-slate-200 dark:border-slate-800'
+                      : 'bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white cursor-pointer border-slate-200 dark:border-slate-700'
                   } ${
-                    'text-slate-900 dark:text-white'
+                    templateTypeError ? 'border-rose-500 focus:ring-rose-500' : ''
                   }`}
                 >
                   <option value="" disabled>Select Certificate Type</option>
@@ -1028,13 +1175,18 @@ export const CertificateSettingsTab: React.FC = () => {
                 <input
                   type="text"
                   required
+                  disabled={!isEditingTemplate}
                   value={templateEditorState.title}
                   onChange={e => {
                     const val = e.target.value;
                     setTemplateEditorState(prev => ({ ...prev, title: val }));
                     if (val.trim()) setTitleError(undefined);
                   }}
-                  className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white outline-none ${
+                  className={`w-full px-3 py-2 rounded-xl border font-bold outline-none transition-all ${
+                    !isEditingTemplate
+                      ? 'bg-slate-100 dark:bg-slate-800/40 text-slate-500 dark:text-slate-400 cursor-not-allowed border-slate-200 dark:border-slate-800'
+                      : 'bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white border-slate-200 dark:border-slate-700'
+                  } ${
                     titleError ? 'border-rose-500 focus:ring-rose-500' : ''
                   }`}
                   placeholder="e.g. BONAFIDE STUDY CERTIFICATE"
@@ -1053,6 +1205,7 @@ export const CertificateSettingsTab: React.FC = () => {
                   </label>
                   <select
                     required
+                    disabled={!isEditingTemplate}
                     title={templateEditorState.headerStyle || 'Select Header Border Style'}
                     value={templateEditorState.headerStyle || ''}
                     onChange={e => {
@@ -1060,12 +1213,14 @@ export const CertificateSettingsTab: React.FC = () => {
                       setTemplateEditorState(prev => ({ ...prev, headerStyle: val }));
                       if (val) setHeaderStyleError(undefined);
                     }}
-                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold outline-none cursor-pointer ${
+                    className={`w-full px-3 py-2 rounded-xl border font-bold outline-none transition-all ${
+                      !isEditingTemplate
+                        ? 'bg-slate-100 dark:bg-slate-800/40 text-slate-500 dark:text-slate-400 cursor-not-allowed border-slate-200 dark:border-slate-800'
+                        : 'bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white cursor-pointer border-slate-200 dark:border-slate-700'
+                    } ${
                       headerStyleError
                         ? 'border-rose-500 focus:ring-rose-500'
                         : ''
-                    } ${
-                      'text-slate-900 dark:text-white'
                     }`}
                   >
                     <option value="" disabled>Select Header Border Style</option>
@@ -1088,16 +1243,18 @@ export const CertificateSettingsTab: React.FC = () => {
                   <div className="flex items-center gap-2">
                     <input
                       type="color"
+                      disabled={!isEditingTemplate}
                       value={toColorPickerValue(templateEditorState.themeColor)}
                       onChange={e => {
                         setTemplateEditorState(prev => ({ ...prev, themeColor: e.target.value }));
                         setThemeColorError(undefined);
                       }}
-                      className="w-8 h-8 rounded-lg cursor-pointer border-0"
+                      className={`w-8 h-8 rounded-lg border-0 ${!isEditingTemplate ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
                       title="Choose Accent Theme Color"
                     />
                     <input
                       type="text"
+                      disabled={!isEditingTemplate}
                       value={templateEditorState.themeColor ?? ''}
                       onChange={e => {
                         const val = e.target.value;
@@ -1110,8 +1267,12 @@ export const CertificateSettingsTab: React.FC = () => {
                           setTemplateEditorState(prev => ({ ...prev, themeColor: `#${trimmed}` }));
                         }
                       }}
-                      className={`w-full px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono text-xs text-slate-900 dark:text-white transition outline-none ${
-                        themeColorError ? 'border-rose-500 focus:ring-rose-500' : 'border-slate-200 dark:border-slate-700'
+                      className={`w-full px-2.5 py-1.5 rounded-xl border font-mono text-xs transition outline-none ${
+                        !isEditingTemplate
+                          ? 'bg-slate-100 dark:bg-slate-800/40 text-slate-500 dark:text-slate-400 cursor-not-allowed border-slate-200 dark:border-slate-800'
+                          : 'bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white border-slate-200 dark:border-slate-700'
+                      } ${
+                        themeColorError ? 'border-rose-500 focus:ring-rose-500' : ''
                       }`}
                       placeholder="#1e3a8a"
                     />
@@ -1131,8 +1292,13 @@ export const CertificateSettingsTab: React.FC = () => {
                   </label>
                   <button
                     type="button"
+                    disabled={!isEditingTemplate}
                     onClick={() => handleInsertPlaceholder('\n')}
-                    className="px-2.5 py-0.5 rounded-lg bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300 font-mono text-[10px] font-extrabold hover:bg-sky-200 cursor-pointer"
+                    className={`px-2.5 py-0.5 rounded-lg font-mono text-[10px] font-extrabold transition-all ${
+                      !isEditingTemplate
+                        ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed opacity-60'
+                        : 'bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300 hover:bg-sky-200 cursor-pointer'
+                    }`}
                     title="Insert a new line break into template"
                   >
                     + New Line (Enter)
@@ -1141,13 +1307,18 @@ export const CertificateSettingsTab: React.FC = () => {
                 <textarea
                   rows={6}
                   required
+                  disabled={!isEditingTemplate}
                   value={templateEditorState.bodyTemplate}
                   onChange={e => {
                     const val = e.target.value;
                     setTemplateEditorState(prev => ({ ...prev, bodyTemplate: val }));
                     if (val.trim()) setBodyTemplateError(undefined);
                   }}
-                  className={`w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono text-xs text-slate-900 dark:text-white outline-none ${
+                  className={`w-full p-3 rounded-xl border font-mono text-xs outline-none transition-all ${
+                    !isEditingTemplate
+                      ? 'bg-slate-100 dark:bg-slate-800/40 text-slate-500 dark:text-slate-400 cursor-not-allowed border-slate-200 dark:border-slate-800'
+                      : 'bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white border-slate-200 dark:border-slate-700'
+                  } ${
                     bodyTemplateError ? 'border-rose-500 focus:ring-rose-500' : ''
                   }`}
                   placeholder="Body paragraph content with {{studentName}}, {{admissionNumber}}, {{class}} etc."
@@ -1173,8 +1344,13 @@ export const CertificateSettingsTab: React.FC = () => {
                     <button
                       key={p.placeholder}
                       type="button"
+                      disabled={!isEditingTemplate}
                       onClick={() => handleInsertPlaceholder(p.placeholder)}
-                      className="px-2.5 py-1 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-sky-600 dark:text-sky-400 font-mono text-[10px] font-extrabold hover:bg-sky-50 dark:hover:bg-sky-950 transition-all flex items-center gap-1 shadow-2xs cursor-pointer"
+                      className={`px-2.5 py-1 rounded-xl border font-mono text-[10px] font-extrabold flex items-center gap-1 shadow-2xs transition-all ${
+                        !isEditingTemplate
+                          ? 'bg-slate-100 dark:bg-slate-800/60 border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-500 cursor-not-allowed opacity-60'
+                          : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-sky-600 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-950 cursor-pointer'
+                      }`}
                       title={p.description}
                     >
                       + {p.placeholder}
@@ -1187,9 +1363,14 @@ export const CertificateSettingsTab: React.FC = () => {
                 <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Footer Text / Disclaimer <span className="text-slate-400 font-normal text-[10px] ml-1">(Optional)</span></label>
                 <input
                   type="text"
+                  disabled={!isEditingTemplate}
                   value={templateEditorState.footerText || ''}
                   onChange={e => setTemplateEditorState(prev => ({ ...prev, footerText: e.target.value }))}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none"
+                  className={`w-full px-3 py-2 rounded-xl border text-xs outline-none transition-all ${
+                    !isEditingTemplate
+                      ? 'bg-slate-100 dark:bg-slate-800/40 text-slate-500 dark:text-slate-400 cursor-not-allowed border-slate-200 dark:border-slate-800'
+                      : 'bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white border-slate-200 dark:border-slate-700'
+                  }`}
                 />
               </div>
             </div>
@@ -1666,6 +1847,23 @@ export const CertificateSettingsTab: React.FC = () => {
                         {sig.name ? sig.name : <span className="text-slate-400 font-normal italic">Optional / Not set</span>}
                       </p>
                     </div>
+
+                    <div>
+                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">
+                        Signature Image
+                      </span>
+                      {sig.signatureUrl ? (
+                        <div className="mt-1 h-8 px-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg inline-flex items-center">
+                          <img
+                            src={sig.signatureUrl}
+                            alt={`${sig.title || 'Signatory'} Signature`}
+                            className="h-6 max-w-[100px] object-contain"
+                          />
+                        </div>
+                      ) : (
+                        <p className="text-[11px] text-slate-400 italic mt-0.5">Physical signature on print</p>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1751,7 +1949,7 @@ export const CertificateSettingsTab: React.FC = () => {
                     </label>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-start">
                     <div>
                       <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
                         Designation Title {sig.show && <span className="text-rose-500 font-bold">*</span>}
@@ -1798,6 +1996,51 @@ export const CertificateSettingsTab: React.FC = () => {
                         className="w-full px-3 py-2 rounded-xl border text-xs bg-white dark:bg-slate-900 text-slate-900 dark:text-white outline-none border-slate-300 dark:border-slate-700 focus:border-sky-500"
                         placeholder="Signatory Name (Optional)"
                       />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                        Upload Signature (Optional)
+                      </label>
+                      {sig.signatureUrl ? (
+                        <div className="flex items-center gap-2">
+                          <div className="h-9 px-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center justify-center overflow-hidden shrink-0 shadow-2xs">
+                            <img
+                              src={sig.signatureUrl}
+                              alt="Signature Preview"
+                              className="h-7 max-w-[80px] object-contain"
+                            />
+                          </div>
+                          <label className="px-2.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold flex items-center gap-1 cursor-pointer transition border border-slate-200 dark:border-slate-700">
+                            <Upload className="w-3 h-3" /> Change
+                            <input
+                              type="file"
+                              accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                              className="hidden"
+                              onChange={e => handleUploadSignature(idx, e)}
+                            />
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveSignature(idx)}
+                            className="p-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-900 cursor-pointer transition"
+                            title="Remove Signature"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <label className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-850 border border-dashed border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition active:scale-95 shadow-2xs">
+                          <Upload className="w-3.5 h-3.5 text-sky-500" />
+                          <span>Upload Signature</span>
+                          <input
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                            className="hidden"
+                            onChange={e => handleUploadSignature(idx, e)}
+                          />
+                        </label>
+                      )}
                     </div>
                   </div>
                 </div>

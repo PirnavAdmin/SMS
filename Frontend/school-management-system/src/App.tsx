@@ -23,7 +23,6 @@ import { ChangePasswordModal } from "./components/modules/Auth/ChangePasswordMod
 
 import { DashboardView } from "./components/modules/Dashboard/DashboardView";
 import { StudentList } from "./components/modules/Students/StudentList";
-import { AcademicHistoryView } from "./components/modules/Students/AcademicHistoryView";
 import { StudentPromotionView } from "./components/modules/Students/Student Promotion/StudentPromotionView";
 import { CertificatesView } from "./components/modules/Certificates/CertificatesView";
 import { AlumniView } from "./components/modules/Students/AlumniView";
@@ -97,7 +96,8 @@ const MainLayout: React.FC = () => {
         return resume;
       }
       const saved = localStorage.getItem("active_module");
-      return saved || "dashboard";
+      if (saved && saved !== "academic-history") return saved;
+      return "dashboard";
     } catch {
       return "dashboard";
     }
@@ -106,10 +106,11 @@ const MainLayout: React.FC = () => {
   const setActiveModule = useCallback((mod: string | ((prev: string) => string)) => {
     setActiveModuleState((prev) => {
       const next = typeof mod === "function" ? mod(prev) : mod;
+      const target = next === "academic-history" ? "students" : next;
       try {
-        localStorage.setItem("active_module", next);
+        localStorage.setItem("active_module", target);
       } catch {}
-      return next;
+      return target;
     });
   }, []);
   const [showLogin, setShowLogin] = useState<boolean>(() => {
@@ -455,11 +456,7 @@ const MainLayout: React.FC = () => {
           <StudentList onNavigate={(mod) => setActiveModule(mod)} />
         );
       case "academic-history":
-        return !hasModuleAccess(role || userRole, "academic-history") ? (
-          <DashboardView onNavigate={(mod) => setActiveModule(mod)} />
-        ) : (
-          <AcademicHistoryView />
-        );
+        return <StudentList onNavigate={(mod) => setActiveModule(mod)} />;
       case "student-promotion":
         return !hasModuleAccess(role || userRole, "student-promotion") ? (
           <DashboardView onNavigate={(mod) => setActiveModule(mod)} />

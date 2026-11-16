@@ -5,7 +5,6 @@ export const MODULES = [
   "students",
   "staff",
   "admissions",
-  "academic-history",
   "student-promotion",
   "certificates",
   "transfer-certificates",
@@ -45,7 +44,6 @@ export const ROLE_PERMISSIONS: Record<Role, ModuleId[]> = {
     "staff",
     "fees",
     "admissions",
-    "academic-history",
     "academics",
     "subjects",
     "timetable",
@@ -198,7 +196,7 @@ export const hasModuleAccess = (
   if (moduleId === "library-timetable") moduleId = "library";
   if (moduleId === "teacher-profile" || moduleId === "teacher-my-profile" || moduleId === "staff-my-payslips" || moduleId === "teacher-payslips") moduleId = "staff";
   if (moduleId === "roles") moduleId = "users";
-  const preserveFullId = moduleId === "academic-history" || moduleId === "student-promotion" || moduleId === "marks-entry" || moduleId === "report-cards";
+  const preserveFullId = moduleId === "student-promotion" || moduleId === "marks-entry" || moduleId === "report-cards";
   const baseModule = (preserveFullId ? moduleId : moduleId.split("-")[0]) as ModuleId;
   const allowedModules =
     ROLE_PERMISSIONS[lookupRole] || ROLE_PERMISSIONS["Staff"] || [];

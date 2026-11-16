@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   X, FileText, CheckCircle2, AlertTriangle, ShieldCheck, Printer, 
   Download, ArrowRight, Eye, Calendar, Award, Building2, User, UserCheck, RefreshCw,
-  Search, ChevronDown, Users, Check, Minus
+  Search, ChevronDown, Users, Check, Minus, Edit3
 } from 'lucide-react';
 import { 
   Student, GeneratedCertificateRecord, CertificateTypeConfig, CertificateTemplateConfig 
@@ -12,9 +12,20 @@ import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { PrintableCertificateContainer, PrintableBatchCertificatesContainer } from './PrintableCertificateContainer';
 import { DateInput } from '../../common/DateInput';
-import { getFieldsForCertificateType } from '../../../utils/certificateFields';
+import { getFieldsForCertificateType, DEFAULT_CERTIFICATE_TYPES } from '../../../utils/certificateFields';
 import { formatDateDDMMYYYY } from '../../../utils/dateValidation';
 import { compareClassesAscending } from '../../../utils/classSorter';
+import { 
+  generateCertificateExcelTemplate, 
+  parseCertificateExcelFile, 
+  generateExcelErrorReport, 
+  ExcelValidationSummary 
+} from '../../../utils/certificateExcelHelper';
+import {
+  ExcelBulkImportSection,
+  ExcelValidationModal,
+  ExcelStagingReviewModal
+} from './ExcelBulkImportComponents';
 
 // Helper component for DOM Indeterminate Checkbox
 const IndeterminateCheckbox: React.FC<{
@@ -94,10 +105,10 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
       const saved = localStorage.getItem('edu_db_certificate_types');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       }
     } catch (e) {}
-    return [];
+    return DEFAULT_CERTIFICATE_TYPES;
   }, [isOpen]);
 
   const certificateTemplates = useMemo<CertificateTemplateConfig[]>(() => {
@@ -116,7 +127,7 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
     existingRecord?.studentId || initialStudent?.id || ''
   );
   const [selectedTypeId, setSelectedTypeId] = useState<string>(
-    existingRecord?.certificateTypeId || initialCertificateType || certificateTypes[0]?.id || ''
+    existingRecord?.certificateTypeId || initialCertificateType || ''
   );
 
   // Single Student Search Dropdown State
@@ -126,7 +137,7 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
 
   // Bulk Mode Selection States
   const [selectedBulkClass, setSelectedBulkClass] = useState<string>('');
-  const [selectedBulkSection, setSelectedBulkSection] = useState<string>('ALL');
+  const [selectedBulkSection, setSelectedBulkSection] = useState<string>('');
   const [bulkSearchQuery, setBulkSearchQuery] = useState<string>('');
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   const [bulkPreviewIndex, setBulkPreviewIndex] = useState<number>(0);
@@ -137,6 +148,15 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
   const [batchFailedList, setBatchFailedList] = useState<{ studentName: string; reason: string }[]>([]);
   const [isBatchCompletedShow, setIsBatchCompletedShow] = useState<boolean>(false);
   const [isPrintingBatch, setIsPrintingBatch] = useState<boolean>(false);
+
+  // Excel Bulk Import & Staging States
+  const [importedStudentDataMap, setImportedStudentDataMap] = useState<Record<string, Record<string, any>>>({});
+  const [excelValidationSummary, setExcelValidationSummary] = useState<ExcelValidationSummary | null>(null);
+  const [isExcelModeActive, setIsExcelModeActive] = useState<boolean>(false);
+  const [uploadedExcelFile, setUploadedExcelFile] = useState<File | null>(null);
+  const [isParsingExcel, setIsParsingExcel] = useState<boolean>(false);
+  const [showValidationModal, setShowValidationModal] = useState<boolean>(false);
+  const [showStagingReviewModal, setShowStagingReviewModal] = useState<boolean>(false);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -180,14 +200,14 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
 
   // Filtered Students for Bulk Selection List
   const bulkFilteredStudents = useMemo(() => {
-    if (!selectedBulkClass) return [];
+    if (!selectedBulkClass || !selectedBulkSection) return [];
     return students.filter(s => {
       const matchesClass = s.className === selectedBulkClass;
       const matchesSection = selectedBulkSection === 'ALL' || s.section === selectedBulkSection;
       
       const q = bulkSearchQuery.toLowerCase().trim();
       const fullName = `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase();
-      const admNo = (s.admissionNo || '').toLowerCase();
+      const admNo = (s.admissionNo || (s as any).admissionNumber || s.id || '').toLowerCase();
       const rollNo = (s.rollNo || '').toLowerCase();
       const matchesSearch = !q || fullName.includes(q) || admNo.includes(q) || rollNo.includes(q);
 
@@ -201,7 +221,7 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
     const q = studentSearchQuery.toLowerCase().trim();
     return students.filter(s => {
       const fullName = `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase();
-      const admNo = (s.admissionNo || '').toLowerCase();
+      const admNo = (s.admissionNo || (s as any).admissionNumber || s.id || '').toLowerCase();
       const cls = (s.className || '').toLowerCase();
       const sec = (s.section || '').toLowerCase();
       return fullName.includes(q) || admNo.includes(q) || cls.includes(q) || `${cls}-${sec}`.includes(q);
@@ -239,12 +259,15 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
     return students.find(s => s.id === selectedStudentId) || null;
   }, [students, selectedStudentId, existingRecord]);
 
-  const selectedTypeConfig = useMemo(() => {
-    return certificateTypes.find(t => t.id === selectedTypeId || t.name === selectedTypeId) || certificateTypes[0];
+  const selectedTypeConfig = useMemo<CertificateTypeConfig | null>(() => {
+    if (!selectedTypeId) return null;
+    const found = certificateTypes.find(t => t.id === selectedTypeId || t.name === selectedTypeId);
+    return found || null;
   }, [certificateTypes, selectedTypeId]);
 
   // Load configured dynamic fields for selected certificate type
   const activeFields = useMemo(() => {
+    if (!selectedTypeConfig) return [];
     return getFieldsForCertificateType(selectedTypeConfig);
   }, [selectedTypeConfig]);
 
@@ -321,12 +344,137 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
     setSelectedBulkSection('ALL');
     setSelectedStudentIds([]);
     setBulkPreviewIndex(0);
+    setImportedStudentDataMap({});
+    setExcelValidationSummary(null);
+    setIsExcelModeActive(false);
+    setUploadedExcelFile(null);
   };
 
   const handleBulkSectionChange = (newSection: string) => {
     setSelectedBulkSection(newSection);
     setSelectedStudentIds([]);
     setBulkPreviewIndex(0);
+    setImportedStudentDataMap({});
+    setExcelValidationSummary(null);
+    setIsExcelModeActive(false);
+    setUploadedExcelFile(null);
+  };
+
+  // Reset Excel import states when certificate type changes
+  useEffect(() => {
+    setImportedStudentDataMap({});
+    setExcelValidationSummary(null);
+    setIsExcelModeActive(false);
+    setUploadedExcelFile(null);
+  }, [selectedTypeId]);
+
+  // Excel Action Handlers
+  const handleDownloadTemplate = () => {
+    if (selectedBulkStudents.length === 0) {
+      addToast('warning', 'Selection Required', 'Please select at least one student before downloading the Excel template.');
+      return;
+    }
+    if (!selectedTypeConfig) {
+      addToast('warning', 'Type Required', 'Please select a valid certificate type.');
+      return;
+    }
+    try {
+      generateCertificateExcelTemplate(selectedBulkStudents, selectedTypeConfig, activeAY);
+      addToast('success', 'Template Downloaded', `Generated Excel template with ${selectedBulkStudents.length} students for ${selectedTypeConfig.name}.`);
+    } catch (err: any) {
+      addToast('error', 'Download Failed', err.message || 'Could not generate Excel template.');
+    }
+  };
+
+  const handleFileUpload = async (file: File) => {
+    if (!file) return;
+    const fileName = file.name.toLowerCase();
+    if (!fileName.endsWith('.xlsx') && !fileName.endsWith('.xls')) {
+      addToast('error', 'Invalid File Type', 'Please upload a valid Excel file (.xlsx or .xls).');
+      return;
+    }
+
+    if (selectedBulkStudents.length === 0) {
+      addToast('warning', 'No Students Selected', 'Please select students before uploading the filled Excel template.');
+      return;
+    }
+
+    if (!selectedTypeConfig) return;
+
+    setIsParsingExcel(true);
+    try {
+      const summary = await parseCertificateExcelFile(file, selectedBulkStudents, selectedTypeConfig);
+      setUploadedExcelFile(file);
+      setExcelValidationSummary(summary);
+
+      if (summary.validCount > 0) {
+        setImportedStudentDataMap(summary.validDataMap);
+        setIsExcelModeActive(true);
+        if (summary.errorCount > 0) {
+          addToast(
+            'warning',
+            'Partial Validation',
+            `Parsed ${summary.totalRows} rows: ${summary.validCount} valid, ${summary.errorCount} errors. Click 'Validation Details' to inspect.`
+          );
+        } else {
+          addToast(
+            'success',
+            'Excel Imported Successfully',
+            `Successfully mapped ${summary.validCount} student certificate records from Excel.`
+          );
+        }
+      } else {
+        setIsExcelModeActive(false);
+        addToast(
+          'error',
+          'Validation Failed',
+          `No valid records found in the uploaded file (${summary.errorCount} errors). Please review error details.`
+        );
+      }
+    } catch (err: any) {
+      console.error('Failed to parse Excel file', err);
+      addToast('error', 'Excel Parse Error', err.message || 'Failed to read the Excel file.');
+    } finally {
+      setIsParsingExcel(false);
+    }
+  };
+
+  const handleClearImport = () => {
+    setUploadedExcelFile(null);
+    setExcelValidationSummary(null);
+    setImportedStudentDataMap({});
+    setIsExcelModeActive(false);
+    addToast('info', 'Import Cleared', 'Switched back to manual common certificate entry.');
+  };
+
+  const handleDownloadErrorReport = () => {
+    if (!excelValidationSummary) return;
+    try {
+      generateExcelErrorReport(excelValidationSummary);
+      addToast('info', 'Report Downloaded', 'Exported validation error report to Excel.');
+    } catch (err: any) {
+      addToast('error', 'Export Failed', err.message || 'Could not export error report.');
+    }
+  };
+
+  const handleUpdateStudentStagedData = (studentId: string, updatedFields: Record<string, any>) => {
+    setImportedStudentDataMap(prev => ({
+      ...prev,
+      [studentId]: {
+        ...(prev[studentId] || {}),
+        ...updatedFields
+      }
+    }));
+  };
+
+  const handleRemoveStudentFromBatch = (studentId: string) => {
+    setSelectedStudentIds(prev => prev.filter(id => id !== studentId));
+    setImportedStudentDataMap(prev => {
+      const copy = { ...prev };
+      delete copy[studentId];
+      return copy;
+    });
+    addToast('info', 'Student Excluded', 'Student was removed from current batch issue.');
   };
 
   // Select All Checkbox States for Bulk Mode
@@ -415,6 +563,23 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
 
   // Validation function before generating certificates
   const validateFormFields = (): boolean => {
+    if (!selectedTypeId) {
+      addToast('warning', 'Selection Required', 'Please select a certificate type.');
+      return false;
+    }
+
+    // If bulk generation mode:
+    if (generationMode === 'bulk') {
+      if (isExcelModeActive && Object.keys(importedStudentDataMap).length > 0) {
+        const hasValidData = selectedBulkStudents.some(s => !!importedStudentDataMap[s.id]);
+        if (!hasValidData) {
+          addToast('error', 'Import Data Missing', 'None of the selected students have valid imported Excel data.');
+          return false;
+        }
+      }
+      return true;
+    }
+
     const errors: Record<string, string> = {};
     activeFields.forEach(field => {
       const val = certificateSpecificData[field.key];
@@ -465,6 +630,10 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
 
   // Click handler for Preview button on Configuration Form tab
   const handlePreviewClick = () => {
+    if (!selectedTypeId) {
+      addToast('warning', 'Selection Required', 'Please select a certificate type.');
+      return;
+    }
     if (generationMode === 'single') {
       if (!selectedStudent) {
         addToast('warning', 'Selection Required', 'Please select a student to preview certificate.');
@@ -484,6 +653,10 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
 
   // Click handler for Generate button
   const handleGenerateClick = () => {
+    if (!selectedTypeId) {
+      addToast('warning', 'Selection Required', 'Please select a certificate type.');
+      return;
+    }
     if (generationMode === 'single') {
       if (!selectedStudent) {
         addToast('warning', 'Selection Required', 'Please select a student to issue certificate.');
@@ -509,8 +682,8 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
     const newRecord: GeneratedCertificateRecord = {
       id: existingRecord?.id || `REC-CERT-${Date.now()}`,
       certificateNumber: generatedCertNo,
-      certificateTypeId: selectedTypeConfig.id,
-      certificateTypeName: selectedTypeConfig.name,
+      certificateTypeId: selectedTypeConfig?.id || 'CT-TC',
+      certificateTypeName: selectedTypeConfig?.name || 'Certificate',
       studentId: selectedStudent.id,
       admissionNo: selectedStudent.admissionNo,
       studentName: studentFullName,
@@ -553,7 +726,7 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
         localStorage.setItem('edu_db_generated_certificates', JSON.stringify(records));
       }
       
-      if (selectedTypeConfig.name === 'Transfer Certificate' || selectedTypeConfig.code === 'TC') {
+      if (selectedTypeConfig?.name === 'Transfer Certificate' || selectedTypeConfig?.code === 'TC') {
         const legacyTcRecords = localStorage.getItem('edu_db_tc_register');
         let tcList = legacyTcRecords ? JSON.parse(legacyTcRecords) : [];
         tcList = [newRecord, ...tcList.filter((r: any) => r.id !== newRecord.id)];
@@ -563,7 +736,7 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
       console.error('Failed to save generated certificate record', e);
     }
 
-    addToast('success', 'Certificate Generated', `Generated ${selectedTypeConfig.name} #${generatedCertNo} for ${studentFullName}`);
+    addToast('success', 'Certificate Generated', `Generated ${selectedTypeConfig?.name || 'Certificate'} #${generatedCertNo} for ${studentFullName}`);
     setIssuedSingleRecord(newRecord);
     if (onSuccess) onSuccess(newRecord);
     setActiveTab('preview');
@@ -601,11 +774,14 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
         const certNo = `${prefix}${yearPart}${String(certSeq).padStart(length, '0')}`;
         const studentFullName = `${st.firstName} ${st.lastName}`;
 
+        const studentSpecificImported = importedStudentDataMap[st.id] || {};
+        const effectiveData = { ...certificateSpecificData, ...studentSpecificImported };
+
         const rec: GeneratedCertificateRecord = {
           id: `REC-CERT-${Date.now()}-${idx}-${st.id}`,
           certificateNumber: certNo,
-          certificateTypeId: selectedTypeConfig.id,
-          certificateTypeName: selectedTypeConfig.name,
+          certificateTypeId: selectedTypeConfig?.id || 'CT-TC',
+          certificateTypeName: selectedTypeConfig?.name || 'Certificate',
           studentId: st.id,
           admissionNo: st.admissionNo,
           studentName: studentFullName,
@@ -613,26 +789,27 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
           section: st.section,
           academicYear: activeAY,
           branch: st.branch || selectedBranch || '',
-          issueDate: certificateSpecificData.issueDate || certificateSpecificData.dateOfLeaving || todayStr,
+          issueDate: effectiveData.issueDate || effectiveData.dateOfLeaving || todayStr,
           status: 'Issued',
           generatedBy: 'Authorized Administrator (Bulk Issue)',
-          remarks: certificateSpecificData.remarks || certificateSpecificData.specialRemarks || '',
-          leavingDate: certificateSpecificData.dateOfLeaving || certificateSpecificData.leavingDate,
-          reason: certificateSpecificData.reasonForLeaving || certificateSpecificData.reason || certificateSpecificData.purpose,
-          conduct: certificateSpecificData.generalConduct || certificateSpecificData.conduct,
+          remarks: effectiveData.remarks || effectiveData.specialRemarks || '',
+          leavingDate: effectiveData.dateOfLeaving || effectiveData.leavingDate,
+          reason: effectiveData.reasonForLeaving || effectiveData.reason || effectiveData.purpose,
+          conduct: effectiveData.generalConduct || effectiveData.conduct,
           tcNo: certNo,
           fieldDataSnapshot: {
-            ...certificateSpecificData,
+            ...effectiveData,
             studentName: studentFullName,
             admissionNumber: st.admissionNo,
             class: st.className,
             section: st.section,
             academicYear: activeAY,
             dateOfBirth: st.dob,
-            fatherName: st.parentName || '—',
-            dateOfAdmission: st.joiningDate,
+            fatherName: st.parentName || st.fatherName || '—',
+            motherName: st.motherName || '—',
+            dateOfAdmission: effectiveData.dateOfAdmission || st.joiningDate || st.admissionDate,
             certificateNumber: certNo,
-            issueDate: certificateSpecificData.issueDate || todayStr
+            issueDate: effectiveData.issueDate || todayStr
           },
           templateSnapshot: selectedTemplate
         };
@@ -655,7 +832,7 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
         localStorage.setItem('edu_db_generated_certificates', JSON.stringify(savedCertRecords));
       }
 
-      if (selectedTypeConfig.name === 'Transfer Certificate' || selectedTypeConfig.code === 'TC') {
+      if (selectedTypeConfig?.name === 'Transfer Certificate' || selectedTypeConfig?.code === 'TC') {
         legacyTcRecords = [...newIssuedList, ...legacyTcRecords];
         localStorage.setItem('edu_db_tc_register', JSON.stringify(legacyTcRecords));
       }
@@ -670,7 +847,7 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
     addToast(
       'success',
       'Bulk Generation Completed',
-      `Issued ${newIssuedList.length} ${selectedTypeConfig.name} certificates successfully.`
+      `Issued ${newIssuedList.length} ${selectedTypeConfig?.name || 'Certificate'} certificates successfully.`
     );
 
     if (onSuccess && newIssuedList[0]) onSuccess(newIssuedList[0]);
@@ -879,12 +1056,12 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
             {/* SINGLE vs BULK SELECTION AREA */}
               {generationMode === 'single' ? (
                 /* SINGLE STUDENT MODE SELECTION */
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 dark:bg-slate-800/40 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800">
-                  <div className="relative">
+                <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 dark:bg-slate-800/40 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 relative ${isStudentDropdownOpen ? 'z-30' : 'z-10'}`}>
+                  <div className={`relative ${isStudentDropdownOpen ? 'z-30' : 'z-10'}`}>
                     <label className="block text-xs font-extrabold text-slate-700 dark:text-slate-300 mb-1">
                       1. Select Student <span className="text-rose-500 font-bold ml-0.5">*</span></label>
 
-                    <div className="relative" ref={studentDropdownRef}>
+                    <div className="relative z-30" ref={studentDropdownRef}>
                       <div className="relative">
                         <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
 
@@ -896,7 +1073,7 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
                             isStudentDropdownOpen
                               ? studentSearchQuery
                               : selectedStudent
-                                ? `${selectedStudent.firstName} ${selectedStudent.lastName} (ID: ${selectedStudent.id}) — ${formatClassDisplayName(selectedStudent.className, selectedStudent.section)}`
+                                ? `${selectedStudent.firstName} ${selectedStudent.lastName} (Adm No: ${selectedStudent.admissionNo || (selectedStudent as any).admissionNumber || selectedStudent.id}) — ${formatClassDisplayName(selectedStudent.className, selectedStudent.section)}`
                                 : studentSearchQuery
                           }
                           onFocus={() => {
@@ -990,7 +1167,7 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
                                   >
                                     <div className="truncate">
                                       <span className="font-bold">{s.firstName} {s.lastName}</span>{' '}
-                                      <span className="font-mono text-[11px] text-sky-600 dark:text-sky-400 font-semibold">(ID: {s.id})</span>
+                                      <span className="font-mono text-[11px] text-sky-600 dark:text-sky-400 font-semibold">(Adm No: {s.admissionNo || (s as any).admissionNumber || s.id})</span>
                                     </div>
                                     <div className="text-[11px] font-medium text-slate-400 shrink-0 ml-2">
                                       {formattedClass}
@@ -1014,6 +1191,7 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
                       onChange={e => setSelectedTypeId(e.target.value)}
                       className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
                     >
+                      <option value="">-- Select Certificate Type --</option>
                       {certificateTypes.map(t => (
                         <option key={t.id} value={t.id}>{t.name} ({t.code})</option>
                       ))}
@@ -1048,6 +1226,7 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
                         onChange={e => handleBulkSectionChange(e.target.value)}
                         className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer disabled:opacity-50"
                       >
+                        <option value="">-- Select Section --</option>
                         <option value="ALL">All Sections</option>
                         {availableBulkSections.map(sec => (
                           <option key={sec} value={sec}>Section {sec}</option>
@@ -1063,6 +1242,7 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
                         onChange={e => setSelectedTypeId(e.target.value)}
                         className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
                       >
+                        <option value="">-- Select Certificate Type --</option>
                         {certificateTypes.map(t => (
                           <option key={t.id} value={t.id}>{t.name} ({t.code})</option>
                         ))}
@@ -1077,7 +1257,7 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
                         <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                         <input
                           type="text"
-                          disabled={!selectedBulkClass}
+                          disabled={!selectedBulkClass || !selectedBulkSection}
                           placeholder="Search student by name, adm no, roll no..."
                           value={bulkSearchQuery}
                           onChange={e => setBulkSearchQuery(e.target.value)}
@@ -1098,6 +1278,10 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
                         <div className="p-8 text-center text-xs text-slate-400 font-medium">
                           -- Please select Class & Section above to view student list --
                         </div>
+                      ) : !selectedBulkSection ? (
+                        <div className="p-8 text-center text-xs text-slate-400 font-medium">
+                          -- Please select Section above to view student list --
+                        </div>
                       ) : bulkFilteredStudents.length === 0 ? (
                         <div className="p-8 text-center text-xs text-slate-400 font-medium">
                           No students found matching current filters ({selectedBulkClass} {selectedBulkSection !== 'ALL' ? `Sec ${selectedBulkSection}` : ''})
@@ -1116,7 +1300,7 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
                                   />
                                 </th>
                                 <th className="p-3">Student Name</th>
-                                <th className="p-3">Student ID</th>
+                                <th className="p-3">Admission Number</th>
                                 <th className="p-3">Class & Section</th>
                                 <th className="p-3 whitespace-nowrap min-w-[5.5rem]">Roll No</th>
                               </tr>
@@ -1143,7 +1327,7 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
                                       />
                                     </td>
                                     <td className="p-3 font-extrabold">{s.firstName} {s.lastName}</td>
-                                    <td className="p-3 font-mono text-sky-600 dark:text-sky-400 font-bold">{s.id}</td>
+                                    <td className="p-3 font-mono text-sky-600 dark:text-sky-400 font-bold">{s.admissionNo || (s as any).admissionNumber || s.id}</td>
                                     <td className="p-3">{s.className} - {s.section}</td>
                                     <td className="p-3 font-mono whitespace-nowrap min-w-[5.5rem]">{s.rollNo || '—'}</td>
                                   </tr>
@@ -1158,9 +1342,28 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
                 </div>
               )}
 
+              {/* BULK DATA IMPORT SECTION (EXCEL TEMPLATE & UPLOAD) */}
+              {generationMode === 'bulk' && (
+                <ExcelBulkImportSection
+                  selectedBulkStudents={selectedBulkStudents}
+                  selectedTypeConfig={selectedTypeConfig}
+                  activeAY={activeAY}
+                  uploadedFile={uploadedExcelFile}
+                  validationSummary={excelValidationSummary}
+                  isExcelModeActive={isExcelModeActive}
+                  isParsing={isParsingExcel}
+                  onDownloadTemplate={handleDownloadTemplate}
+                  onFileUpload={handleFileUpload}
+                  onClearImport={handleClearImport}
+                  onOpenValidationModal={() => setShowValidationModal(true)}
+                  onOpenStagingModal={() => setShowStagingReviewModal(true)}
+                  onDownloadErrorReport={handleDownloadErrorReport}
+                />
+              )}
+
               {/* Single Student Summary Badge when selected in Single Mode */}
               {generationMode === 'single' && selectedStudent && (
-                <div className="p-4 rounded-2xl bg-sky-50/60 dark:bg-sky-950/20 border border-sky-200/80 dark:border-sky-900/50 flex flex-wrap items-center justify-between gap-3 text-xs">
+                <div className="p-4 rounded-2xl bg-sky-50/60 dark:bg-sky-950/20 border border-sky-200/80 dark:border-sky-900/50 flex flex-wrap items-center justify-between gap-3 text-xs relative z-0">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-sky-600 text-white font-black text-sm flex items-center justify-center">
                       {selectedStudent.firstName[0]}
@@ -1170,7 +1373,7 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
                         {selectedStudent.firstName} {selectedStudent.lastName}
                       </h4>
                       <p className="text-[11px] text-slate-500 font-mono">
-                        Student ID: {selectedStudent.id} • {formatClassDisplayName(selectedStudent.className, selectedStudent.section)}
+                        Admission No: {selectedStudent.admissionNo || (selectedStudent as any).admissionNumber || selectedStudent.id} • {formatClassDisplayName(selectedStudent.className, selectedStudent.section)}
                       </p>
                     </div>
                   </div>
@@ -1182,18 +1385,19 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
                 </div>
               )}
 
-              {/* Dynamic Certificate-Specific Fields Section */}
-              <div className="glass-card p-5 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
-                  <h4 className="font-extrabold text-xs text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
-                    {generationMode === 'bulk' ? '4. Common Certificate Fields & Remarks' : '3. Certificate Specific Fields & Remarks'} ({selectedTypeConfig.name})
-                  </h4>
-                  <span className="text-[11px] font-mono text-sky-600 font-bold">
-                    {generationMode === 'bulk' ? `Target Batch: ${selectedStudentIds.length} Students` : `Auto Cert No: ${generatedCertNo}`}
-                  </span>
-                </div>
+              {/* Dynamic Certificate-Specific Fields Section (Single Mode Only) */}
+              {generationMode === 'single' && (
+                <div className="glass-card p-5 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-4 relative z-0">
+                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+                    <h4 className="font-extrabold text-xs text-slate-900 dark:text-white uppercase tracking-wider flex items-center gap-2">
+                      3. Certificate Specific Fields & Remarks ({selectedTypeConfig?.name || 'Certificate'})
+                    </h4>
+                    <span className="text-[11px] font-mono text-sky-600 font-bold">
+                      Auto Cert No: {generatedCertNo}
+                    </span>
+                  </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                   {activeFields.map((field) => {
                     const isFullWidth = field.type === 'textarea' || (field.label && field.label.length > 35);
                     const value = certificateSpecificData[field.key] ?? '';
@@ -1354,17 +1558,35 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
                   })}
                 </div>
               </div>
-            </div>
+            )}
+          </div>
 
           {/* PREVIEW TAB */}
           <div className={`space-y-4 ${activeTab === 'preview' ? 'block' : 'hidden print:block'}`}>
             {generationMode === 'bulk' && selectedBulkStudents.length > 0 && (
-              <div className="flex items-center justify-between bg-sky-50 dark:bg-sky-950/40 p-3 rounded-2xl border border-sky-200 dark:border-sky-800 no-print">
-                <span className="text-xs font-extrabold text-sky-900 dark:text-sky-200">
-                  Previewing {bulkPreviewIndex + 1} of {selectedBulkStudents.length} selected students ({previewStudentForBulk?.firstName} {previewStudentForBulk?.lastName} - {previewStudentForBulk?.admissionNo})
-                </span>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-sky-50 dark:bg-sky-950/40 p-3 rounded-2xl border border-sky-200 dark:border-sky-800 no-print">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-extrabold text-sky-900 dark:text-sky-200">
+                    Previewing {bulkPreviewIndex + 1} of {selectedBulkStudents.length} selected students ({previewStudentForBulk?.firstName} {previewStudentForBulk?.lastName} - {previewStudentForBulk?.admissionNo || (previewStudentForBulk as any)?.admissionNumber || previewStudentForBulk?.id})
+                  </span>
+                  {isExcelModeActive && previewStudentForBulk && importedStudentDataMap[previewStudentForBulk.id] && (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 flex items-center gap-1">
+                      <Check className="w-3 h-3" /> Excel Individual Data
+                    </span>
+                  )}
+                </div>
 
                 <div className="flex items-center gap-2">
+                  {isExcelModeActive && (
+                    <button
+                      type="button"
+                      onClick={() => setShowStagingReviewModal(true)}
+                      className="px-2.5 py-1 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold flex items-center gap-1 cursor-pointer shadow-xs"
+                    >
+                      <Edit3 className="w-3 h-3" />
+                      <span>Edit Student Data</span>
+                    </button>
+                  )}
                   <button
                     type="button"
                     disabled={bulkPreviewIndex === 0}
@@ -1387,7 +1609,7 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
 
             <div className="flex items-center justify-between bg-slate-100 dark:bg-slate-800 p-3 rounded-2xl no-print">
               <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                Rendering Preview for {selectedTypeConfig.name} {generationMode === 'bulk' ? `(${selectedBulkStudents.length} Batch Certificates)` : `(${generatedCertNo})`}
+                Rendering Preview for {selectedTypeConfig?.name || 'Certificate'} {generationMode === 'bulk' ? `(${selectedBulkStudents.length} Batch Certificates)` : `(${generatedCertNo})`}
               </span>
 
               <div className="flex items-center gap-2">
@@ -1411,74 +1633,83 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
                     schoolProfile={schoolProfile}
                   />
                 ) : (
-                  <PrintableCertificateContainer
-                    template={selectedTemplate}
-                    schoolProfile={schoolProfile}
-                    academicYear={activeAY}
-                    studentName={
-                      generationMode === 'bulk'
-                        ? previewStudentForBulk ? `${previewStudentForBulk.firstName} ${previewStudentForBulk.lastName}`.trim() : ''
-                        : selectedStudent ? `${selectedStudent.firstName} ${selectedStudent.lastName}`.trim() : ''
-                    }
-                    admissionNo={
-                      generationMode === 'bulk'
-                        ? previewStudentForBulk?.admissionNo || ''
-                        : selectedStudent?.admissionNo || ''
-                    }
-                    admissionDate={
-                      generationMode === 'bulk'
-                        ? previewStudentForBulk?.joiningDate || ''
-                        : selectedStudent?.joiningDate || ''
-                    }
-                    fatherName={
-                      generationMode === 'bulk'
-                        ? previewStudentForBulk?.parentName || ''
-                        : selectedStudent?.parentName || ''
-                    }
-                    motherName={
-                      generationMode === 'bulk'
-                        ? (previewStudentForBulk as any)?.motherName || ''
-                        : (selectedStudent as any)?.motherName || ''
-                    }
-                    dob={
-                      generationMode === 'bulk'
-                        ? previewStudentForBulk?.dob || ''
-                        : selectedStudent?.dob || ''
-                    }
-                    gender={
-                      generationMode === 'bulk'
-                        ? previewStudentForBulk?.gender || ''
-                        : selectedStudent?.gender || ''
-                    }
-                    className={
-                      generationMode === 'bulk'
-                        ? previewStudentForBulk?.className || selectedBulkClass || (academicClasses && academicClasses[0] ? academicClasses[0].name : '')
-                        : selectedStudent?.className || (academicClasses && academicClasses[0] ? academicClasses[0].name : '')
-                    }
-                    section={
-                      generationMode === 'bulk'
-                        ? previewStudentForBulk?.section || ''
-                        : selectedStudent?.section || ''
-                    }
-                    rollNo={
-                      generationMode === 'bulk'
-                        ? previewStudentForBulk?.rollNo || ''
-                        : selectedStudent?.rollNo || ''
-                    }
-                    leavingDate={certificateSpecificData.dateOfLeaving || certificateSpecificData.leavingDate || ''}
-                    reason={certificateSpecificData.reasonForLeaving || certificateSpecificData.reason || certificateSpecificData.purpose || ''}
-                    conduct={certificateSpecificData.generalConduct || certificateSpecificData.conduct || ''}
-                    remarks={certificateSpecificData.specialRemarks || certificateSpecificData.remarks || ''}
-                    identificationMarks={certificateSpecificData.identificationMarks || certificateSpecificData.moleIdentification || ''}
-                    moleIdentification={certificateSpecificData.moleIdentification || certificateSpecificData.identificationMarks || ''}
-                    result="PASSED"
-                    feeClearanceStatus={certificateSpecificData.clearanceStatus === 'FULL DUES CLEARED' ? 'Full Dues Cleared' : (certificateSpecificData.clearanceStatus || "Full Dues Cleared")}
-                    certificateNumber={generatedCertNo}
-                    tcNo={generatedCertNo}
-                    issueDate={certificateSpecificData.issueDate || certificateSpecificData.dateOfLeaving || todayStr}
-                    isDraftPreview={!existingRecord && !isBatchCompletedShow && !issuedSingleRecord}
-                    fieldDataSnapshot={certificateSpecificData}
-                  />
+                  (() => {
+                    const activeBulkStudentData = (generationMode === 'bulk' && previewStudentForBulk && importedStudentDataMap[previewStudentForBulk.id])
+                      ? { ...certificateSpecificData, ...importedStudentDataMap[previewStudentForBulk.id] }
+                      : certificateSpecificData;
+
+                    return (
+                      <PrintableCertificateContainer
+                        template={selectedTemplate}
+                        schoolProfile={schoolProfile}
+                        academicYear={activeAY}
+                        studentName={
+                          generationMode === 'bulk'
+                            ? previewStudentForBulk ? `${previewStudentForBulk.firstName} ${previewStudentForBulk.lastName}`.trim() : ''
+                            : selectedStudent ? `${selectedStudent.firstName} ${selectedStudent.lastName}`.trim() : ''
+                        }
+                        admissionNo={
+                          generationMode === 'bulk'
+                            ? previewStudentForBulk?.admissionNo || ''
+                            : selectedStudent?.admissionNo || ''
+                        }
+                        admissionDate={
+                          generationMode === 'bulk'
+                            ? activeBulkStudentData.dateOfAdmission || previewStudentForBulk?.joiningDate || ''
+                            : certificateSpecificData.dateOfAdmission || selectedStudent?.joiningDate || ''
+                        }
+                        fatherName={
+                          generationMode === 'bulk'
+                            ? activeBulkStudentData.fatherName || previewStudentForBulk?.parentName || previewStudentForBulk?.fatherName || ''
+                            : selectedStudent?.parentName || selectedStudent?.fatherName || ''
+                        }
+                        motherName={
+                          generationMode === 'bulk'
+                            ? activeBulkStudentData.motherName || (previewStudentForBulk as any)?.motherName || ''
+                            : (selectedStudent as any)?.motherName || ''
+                        }
+                        dob={
+                          generationMode === 'bulk'
+                            ? previewStudentForBulk?.dob || ''
+                            : selectedStudent?.dob || ''
+                        }
+                        dobInWords={activeBulkStudentData.dobInWords || ''}
+                        gender={
+                          generationMode === 'bulk'
+                            ? previewStudentForBulk?.gender || ''
+                            : selectedStudent?.gender || ''
+                        }
+                        className={
+                          generationMode === 'bulk'
+                            ? previewStudentForBulk?.className || selectedBulkClass || (academicClasses && academicClasses[0] ? academicClasses[0].name : '')
+                            : selectedStudent?.className || (academicClasses && academicClasses[0] ? academicClasses[0].name : '')
+                        }
+                        section={
+                          generationMode === 'bulk'
+                            ? previewStudentForBulk?.section || ''
+                            : selectedStudent?.section || ''
+                        }
+                        rollNo={
+                          generationMode === 'bulk'
+                            ? previewStudentForBulk?.rollNo || ''
+                            : selectedStudent?.rollNo || ''
+                        }
+                        leavingDate={activeBulkStudentData.dateOfLeaving || activeBulkStudentData.leavingDate || ''}
+                        reason={activeBulkStudentData.reasonForLeaving || activeBulkStudentData.reason || activeBulkStudentData.purpose || ''}
+                        conduct={activeBulkStudentData.generalConduct || activeBulkStudentData.conduct || ''}
+                        remarks={activeBulkStudentData.specialRemarks || activeBulkStudentData.remarks || ''}
+                        identificationMarks={activeBulkStudentData.identificationMarks || activeBulkStudentData.moleIdentification || ''}
+                        moleIdentification={activeBulkStudentData.moleIdentification || activeBulkStudentData.identificationMarks || ''}
+                        result="PASSED"
+                        feeClearanceStatus={activeBulkStudentData.clearanceStatus === 'FULL DUES CLEARED' ? 'Full Dues Cleared' : (activeBulkStudentData.clearanceStatus || "Full Dues Cleared")}
+                        certificateNumber={generatedCertNo}
+                        tcNo={generatedCertNo}
+                        issueDate={activeBulkStudentData.issueDate || activeBulkStudentData.dateOfLeaving || todayStr}
+                        isDraftPreview={!existingRecord && !isBatchCompletedShow && !issuedSingleRecord}
+                        fieldDataSnapshot={activeBulkStudentData}
+                      />
+                    );
+                  })()
                 )}
               </div>
             </div>
@@ -1560,7 +1791,7 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
             <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 text-xs space-y-2">
               <div className="flex justify-between border-b border-slate-200 dark:border-slate-700 pb-1.5">
                 <span className="text-slate-500 font-medium">Certificate Type:</span>
-                <span className="font-extrabold text-slate-900 dark:text-white">{selectedTypeConfig.name}</span>
+                <span className="font-extrabold text-slate-900 dark:text-white">{selectedTypeConfig?.name || 'Certificate'}</span>
               </div>
               <div className="flex justify-between border-b border-slate-200 dark:border-slate-700 pb-1.5">
                 <span className="text-slate-500 font-medium">Target Class & Section:</span>
@@ -1569,6 +1800,14 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
               <div className="flex justify-between border-b border-slate-200 dark:border-slate-700 pb-1.5">
                 <span className="text-slate-500 font-medium">Students Selected:</span>
                 <span className="font-extrabold text-sky-600 dark:text-sky-400">{selectedStudentIds.length} Students</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-200 dark:border-slate-700 pb-1.5">
+                <span className="text-slate-500 font-medium">Data Source:</span>
+                <span className="font-bold text-slate-900 dark:text-white">
+                  {isExcelModeActive && Object.keys(importedStudentDataMap).length > 0
+                    ? `Excel Import (${Object.keys(importedStudentDataMap).length} Individual Records)`
+                    : 'Manual Common Form'}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500 font-medium">Date of Issue:</span>
@@ -1596,6 +1835,37 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
             </div>
           </div>
         </div>
+      )}
+
+      {/* Excel Validation Details Modal */}
+      <ExcelValidationModal
+        isOpen={showValidationModal}
+        onClose={() => setShowValidationModal(false)}
+        summary={excelValidationSummary}
+        onDownloadErrorReport={handleDownloadErrorReport}
+        onProceedToReview={() => {
+          setShowValidationModal(false);
+          setShowStagingReviewModal(true);
+        }}
+      />
+
+      {/* Excel Staging & Inline Data Editor Modal */}
+      {selectedTypeConfig && (
+        <ExcelStagingReviewModal
+          isOpen={showStagingReviewModal}
+          onClose={() => setShowStagingReviewModal(false)}
+          selectedStudents={selectedBulkStudents}
+          typeConfig={selectedTypeConfig}
+          importedDataMap={importedStudentDataMap}
+          onUpdateStudentData={handleUpdateStudentStagedData}
+          onRemoveStudentFromBatch={handleRemoveStudentFromBatch}
+          onProceedToPreview={() => {
+            setShowStagingReviewModal(false);
+            setActiveTab('preview');
+          }}
+          onDownloadErrorReport={handleDownloadErrorReport}
+          hasErrors={(excelValidationSummary?.errorCount || 0) > 0}
+        />
       )}
     </div>
   );

@@ -6,6 +6,65 @@ export const DEFAULT_GENERIC_FIELDS: CertificateFieldConfig[] = [
   { key: 'remarks', label: 'Special Remarks', type: 'textarea', required: false, displayOrder: 3, placeholder: 'Additional notes...' }
 ];
 
+export const DEFAULT_CERTIFICATE_TYPES: CertificateTypeConfig[] = [
+  {
+    id: 'CT-TC',
+    name: 'Transfer Certificate',
+    code: 'TC',
+    description: 'School Transfer Certificate issued upon student withdrawal or school completion',
+    status: 'Active',
+    displayOrder: 1,
+    requiredFields: ['dateOfLeaving'],
+    numberingPrefix: 'TC',
+    numberingStart: 1,
+    numberingLength: 4,
+    includeAcademicYearInNo: true,
+    isSystem: true
+  },
+  {
+    id: 'CT-BONAFIDE',
+    name: 'Bonafide Certificate',
+    code: 'BC',
+    description: 'Student Bonafide verification for bank account, passport, and scholarships',
+    status: 'Active',
+    displayOrder: 2,
+    requiredFields: ['purpose', 'issueDate'],
+    numberingPrefix: 'BC',
+    numberingStart: 1,
+    numberingLength: 4,
+    includeAcademicYearInNo: true,
+    isSystem: true
+  },
+  {
+    id: 'CT-STUDY',
+    name: 'Study Certificate',
+    code: 'SC',
+    description: 'Study & Conduct certificate verifying enrollment periods and curriculum',
+    status: 'Active',
+    displayOrder: 3,
+    requiredFields: ['issueDate'],
+    numberingPrefix: 'SC',
+    numberingStart: 1,
+    numberingLength: 4,
+    includeAcademicYearInNo: true,
+    isSystem: true
+  },
+  {
+    id: 'CT-CHARACTER',
+    name: 'Character Certificate',
+    code: 'CC',
+    description: 'Certificate certifying good student conduct and character',
+    status: 'Active',
+    displayOrder: 4,
+    requiredFields: ['conduct', 'issueDate'],
+    numberingPrefix: 'CC',
+    numberingStart: 1,
+    numberingLength: 4,
+    includeAcademicYearInNo: true,
+    isSystem: true
+  }
+];
+
 export const DEFAULT_CERTIFICATE_FIELDS_MAP: Record<string, CertificateFieldConfig[]> = {
   'CT-TC': [
     { key: 'dateOfLeaving', label: 'Date of Leaving / Issue Date', type: 'date', required: true, displayOrder: 1 },

@@ -105,20 +105,17 @@ export const PrintableCertificateContainer: React.FC<
     }
   };
 
-  const signatoriesList =
+  const configuredSignatories =
     Array.isArray(template.signatories) && template.signatories.length > 0
-      ? template.signatories.filter((s) => s.show !== false)
+      ? template.signatories.filter(
+          (s) => s.show !== false && (s.title || '').trim().length > 0
+        )
+      : [];
+
+  const signatoriesList =
+    configuredSignatories.length > 0
+      ? configuredSignatories
       : [
-          {
-            id: "1",
-            title: (template as any).signatory1 || "Class Teacher",
-            show: true,
-          },
-          {
-            id: "2",
-            title: (template as any).signatory2 || "Accounts Officer",
-            show: true,
-          },
           {
             id: "3",
             title: (template as any).signatory3 || "Principal",
@@ -164,7 +161,10 @@ export const PrintableCertificateContainer: React.FC<
       .replace(/{{conduct}}/gi, conduct || fieldDataSnapshot?.generalConduct || '')
       .replace(/{{remarks}}/gi, remarks || fieldDataSnapshot?.specialRemarks || fieldDataSnapshot?.remarks || '')
       .replace(/{{moleIdentification}}/gi, moleIdentification || identificationMarks || fieldDataSnapshot?.moleIdentification || fieldDataSnapshot?.identificationMarks || '')
-      .replace(/{{identificationMarks}}/gi, moleIdentification || identificationMarks || fieldDataSnapshot?.moleIdentification || fieldDataSnapshot?.identificationMarks || '');
+      .replace(/{{identificationMarks}}/gi, moleIdentification || identificationMarks || fieldDataSnapshot?.moleIdentification || fieldDataSnapshot?.identificationMarks || '')
+      .replace(/{{gender}}/gi, gender || '')
+      .replace(/{{result}}/gi, result || fieldDataSnapshot?.result || fieldDataSnapshot?.resultGrade || '')
+      .replace(/{{principalName}}/gi, schoolProfile?.principalName || 'Principal');
 
     // Dynamic fieldDataSnapshot Replacements
     if (fieldDataSnapshot) {
@@ -484,53 +484,58 @@ export const PrintableCertificateContainer: React.FC<
       )}
 
       {/* SIGNATORIES & SEAL SECTION */}
-      <div className="pt-8 pb-2 flex items-end justify-between text-xs font-sans relative">
-        {signatoriesList.map((sig, idx) => (
-          <div key={sig.id || idx} className="text-center flex-1 px-2">
-            <div className="h-10 flex items-end justify-center pb-1">
-              {(sig as any).signatureUrl ? (
+      <div className="pt-8 pb-3 flex items-end justify-between text-xs font-sans gap-6">
+        {/* Left Side: Official Seal / Stamp Graphic */}
+        <div className="flex-1 flex flex-col items-start justify-end pl-2">
+          {template.showSeal && (
+            <div className="text-left flex flex-col items-center">
+              {template.sealImageUrl ? (
                 <img
-                  src={(sig as any).signatureUrl}
-                  alt={sig.title}
-                  className="h-8 object-contain"
+                  src={template.sealImageUrl}
+                  alt="Official School Stamp"
+                  className="w-24 h-24 object-contain opacity-95"
                 />
-              ) : null}
-            </div>
-            <div className="border-t border-slate-400 pt-1 font-bold text-slate-800">
-              {sig.title}
-              {sig.name && (
-                <p className="text-[10px] text-slate-500 font-normal">
-                  {sig.name}
-                </p>
+              ) : (
+                <div
+                  className="w-20 h-20 rounded-full border-2 border-dashed flex flex-col items-center justify-center text-[9px] font-black tracking-tighter uppercase p-1.5 shadow-sm bg-white/80"
+                  style={{ color: themeColor, borderColor: themeColor }}
+                >
+                  <div className="w-full text-center leading-tight">
+                    {template.sealText || "OFFICIAL SEAL"}
+                  </div>
+                  <div className="text-[7px] text-slate-500 font-mono mt-0.5 text-center">
+                    {schoolName.substring(0, 18)}
+                  </div>
+                </div>
               )}
             </div>
-          </div>
-        ))}
+          )}
+        </div>
 
-        {/* Center Official Seal / Stamp Graphic */}
-        {template.showSeal && (
-          <div className="absolute left-1/2 -translate-x-1/2 bottom-2 text-center pointer-events-none">
-            {template.sealImageUrl ? (
-              <img
-                src={template.sealImageUrl}
-                alt="Official School Stamp"
-                className="w-20 h-20 object-contain transform rotate-6 opacity-90"
-              />
-            ) : (
-              <div
-                className="w-18 h-18 rounded-full border-2 border-dashed flex flex-col items-center justify-center text-[9px] font-black tracking-tighter uppercase p-1 transform rotate-12 mb-1 shadow-sm bg-white/80"
-                style={{ color: themeColor, borderColor: themeColor }}
-              >
-                <div className="w-full text-center leading-tight">
-                  {template.sealText || "OFFICIAL SEAL"}
-                </div>
-                <div className="text-[7px] text-slate-500 font-mono mt-0.5">
-                  {schoolName.substring(0, 18)}
-                </div>
+        {/* Right Side: Signatures */}
+        <div className="flex-1 flex items-end justify-end gap-6 sm:gap-8 pr-2">
+          {signatoriesList.map((sig, idx) => (
+            <div key={sig.id || idx} className="text-center min-w-[130px] max-w-[180px]">
+              <div className="h-12 flex items-end justify-center pb-1">
+                {(sig as any).signatureUrl ? (
+                  <img
+                    src={(sig as any).signatureUrl}
+                    alt={sig.title}
+                    className="h-10 object-contain"
+                  />
+                ) : null}
               </div>
-            )}
-          </div>
-        )}
+              <div className="border-t border-slate-500 pt-1.5 font-bold text-slate-800">
+                <span className="block text-xs font-bold text-slate-900">{sig.title}</span>
+                {sig.name && (
+                  <p className="text-[10px] text-slate-500 font-normal">
+                    {sig.name}
+                  </p>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* FOOTER DISCLAIMER */}

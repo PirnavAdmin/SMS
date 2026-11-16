@@ -235,7 +235,7 @@ export const TransferStudentModal: React.FC<TransferStudentModalProps> = ({
           .footer { margin-top: 50px; display: flex; justify-content: space-between; align-items: flex-end; }
           .sig-box { text-align: center; }
           .sig-line { border-top: 1px solid #64748b; padding-top: 4px; font-weight: bold; font-size: 12px; }
-          .seal-box { width: 70px; height: 70px; border: 2px dashed ${tcTemplateConfig.themeColor || '#1e3a8a'}; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: bold; color: ${tcTemplateConfig.themeColor || '#1e3a8a'}; transform: rotate(12deg); margin: 0 auto 5px auto; }
+          .seal-box { width: 70px; height: 70px; border: 2px dashed ${tcTemplateConfig.themeColor || '#1e3a8a'}; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: bold; color: ${tcTemplateConfig.themeColor || '#1e3a8a'}; transform: rotate(-6deg); margin: 0; }
         </style>
       </head>
       <body>
@@ -260,17 +260,22 @@ export const TransferStudentModal: React.FC<TransferStudentModalProps> = ({
             <tr><td class="label">11. Remarks:</td><td>${remarks}</td></tr>
           </table>
           <div class="footer">
-            <div class="sig-box">
-              <div style="height:35px;"></div>
-              <div class="sig-line">${tcTemplateConfig.signatory1 || 'Class Teacher Signature'}</div>
-            </div>
-            <div class="sig-box">
-              <div style="height:35px;"></div>
-              <div class="sig-line">${tcTemplateConfig.signatory2 || 'Verified By'}</div>
-            </div>
-            <div class="sig-box">
+            <div class="seal-container">
               ${tcTemplateConfig.showSeal ? `<div class="seal-box">OFFICIAL SEAL</div>` : `<div style="height:35px;"></div>`}
-              <div class="sig-line">${tcTemplateConfig.signatory3 || 'Principal Signature & Stamp'}</div>
+            </div>
+            <div style="display: flex; gap: 24px; align-items: flex-end;">
+              <div class="sig-box">
+                <div style="height:35px;"></div>
+                <div class="sig-line">${tcTemplateConfig.signatory1 || 'Class Teacher Signature'}</div>
+              </div>
+              <div class="sig-box">
+                <div style="height:35px;"></div>
+                <div class="sig-line">${tcTemplateConfig.signatory2 || 'Verified By'}</div>
+              </div>
+              <div class="sig-box">
+                <div style="height:35px;"></div>
+                <div class="sig-line">${tcTemplateConfig.signatory3 || 'Principal Signature'}</div>
+              </div>
             </div>
           </div>
         </div>
