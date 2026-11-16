@@ -269,55 +269,65 @@ export const TC_SPECIFIC_COLUMNS: CertificateExcelColumnDef[] = [
 /**
  * Returns the full ordered list of column definitions for a given certificate type.
  */
-export function getExcelColumnsForCertificate(
-  typeConfig?: Partial<CertificateTypeConfig> | null,
-  activeAY?: string
-): CertificateExcelColumnDef[] {
-  if (isTransferCertificate(typeConfig)) {
-    return [...COMMON_STUDENT_COLUMNS, ...TC_SPECIFIC_COLUMNS];
+export const CERTIFICATE_TEMPLATE_COLUMNS: CertificateExcelColumnDef[] = [
+  {
+    key: 'admissionNo',
+    header: 'Admission Number',
+    isReadOnly: true,
+    description: 'Official School Admission Number'
+  },
+  {
+    key: 'studentName',
+    header: 'Student Name',
+    isReadOnly: true,
+    description: 'Full Name of the Student'
+  },
+  {
+    key: 'classSection',
+    header: 'Class & Section',
+    isReadOnly: true,
+    description: 'Enrolled Class & Section'
+  },
+  {
+    key: 'rollNo',
+    header: 'Student Roll Number',
+    isReadOnly: true,
+    description: 'Student Roll Number'
+  },
+  {
+    key: 'identificationMarks',
+    header: 'Mole Identification / Personal Identification Marks',
+    isReadOnly: false,
+    type: 'text',
+    defaultValue: (s) => (s as any).identificationMarks || (s as any).moleIdentification || '',
+    description: 'Visible identification marks (e.g. 1. A mole on the right cheek  2. A mole on the left shoulder)'
+  },
+  {
+    key: 'characterRemarks',
+    header: 'Character / Conduct Remarks',
+    isReadOnly: false,
+    type: 'text',
+    defaultValue: () => 'Good',
+    description: 'Student general conduct & character'
+  },
+  {
+    key: 'reasonForLeaving',
+    header: 'Reason for Leaving',
+    isReadOnly: false,
+    type: 'text',
+    defaultValue: () => 'Higher Studies',
+    description: 'Reason for school leaving / certificate request'
   }
+];
 
-  // Dynamic fields for other certificate types
-  const dynamicFields: CertificateFieldConfig[] = getFieldsForCertificateType(typeConfig);
-
-  // Filter out any redundant fields already captured in common student demographic columns
-  const standardStudentKeys = new Set([
-    'studentname', 'name', 'admissionnumber', 'admissionno', 'admno',
-    'class', 'classname', 'section', 'rollno', 'dob', 'dateofbirth',
-    'fathername', 'mothername'
-  ]);
-
-  const specificDynamicColumns: CertificateExcelColumnDef[] = dynamicFields
-    .filter(f => !standardStudentKeys.has(f.key.toLowerCase()))
-    .map(f => {
-      let colType: 'text' | 'date' | 'dropdown' | 'number' = 'text';
-      if (f.type === 'date') colType = 'date';
-      else if (f.type === 'dropdown') colType = 'dropdown';
-      else if (f.type === 'number') colType = 'number';
-
-      return {
-        key: f.key,
-        header: `${f.label}${f.required ? ' *' : ''}`,
-        required: f.required,
-        type: colType,
-        options: f.options,
-        description: f.placeholder || f.label,
-        defaultValue: () => {
-          if (f.defaultValue !== undefined && f.defaultValue !== null && f.defaultValue !== '') {
-            return f.defaultValue;
-          }
-          if (f.key === 'issueDate') {
-            return new Date().toISOString().split('T')[0];
-          }
-          if (f.key === 'academicYear' && activeAY) {
-            return activeAY;
-          }
-          return '';
-        }
-      };
-    });
-
-  return [...COMMON_STUDENT_COLUMNS, ...specificDynamicColumns];
+/**
+ * Returns the exact column definitions for certificate bulk Excel download template.
+ */
+export function getExcelColumnsForCertificate(
+  _typeConfig?: Partial<CertificateTypeConfig> | null,
+  _activeAY?: string
+): CertificateExcelColumnDef[] {
+  return CERTIFICATE_TEMPLATE_COLUMNS;
 }
 
 // ---------------------------------------------------------------------------
@@ -361,7 +371,6 @@ export function generateCertificateExcelTemplate(
   typeConfig: CertificateTypeConfig,
   activeAY: string
 ): void {
-  const isTC = isTransferCertificate(typeConfig);
   const columns = getExcelColumnsForCertificate(typeConfig, activeAY);
 
   // 1. Build Sheet 1: Student Certificate Data
@@ -377,28 +386,34 @@ export function generateCertificateExcelTemplate(
     columns.forEach(col => {
       switch (col.key) {
         case 'studentId':
-          row.push(st.id);
+          row.push(st.id || '');
           break;
         case 'admissionNo':
-          row.push(st.admissionNo);
+          row.push(st.admissionNo || '');
           break;
         case 'studentName':
-          row.push(`${st.firstName} ${st.lastName}`.trim());
+          row.push(`${st.firstName || ''} ${st.lastName || ''}`.trim());
           break;
-        case 'fatherName':
-          row.push(st.fatherName || st.parentName || '—');
-          break;
-        case 'motherName':
-          row.push(st.motherName || '—');
+        case 'classSection':
+          row.push(`${st.className || ''}${st.section ? ` - ${st.section}` : ''}`.trim());
           break;
         case 'className':
-          row.push(st.className);
+          row.push(st.className || '');
           break;
         case 'section':
-          row.push(st.section);
+          row.push(st.section || '');
           break;
         case 'rollNo':
           row.push(st.rollNo || '');
+          break;
+        case 'identificationMarks':
+          row.push((st as any).identificationMarks || (st as any).moleIdentification || '');
+          break;
+        case 'characterRemarks':
+          row.push(col.defaultValue ? col.defaultValue(st, activeAY) : 'Good');
+          break;
+        case 'reasonForLeaving':
+          row.push(col.defaultValue ? col.defaultValue(st, activeAY) : 'Higher Studies');
           break;
         case 'dob':
           row.push(formatDateDDMMYYYY(st.dob) || st.dob || '');
@@ -427,7 +442,7 @@ export function generateCertificateExcelTemplate(
         if (len > maxLen) maxLen = len;
       }
     }
-    return { wch: Math.min(Math.max(maxLen + 4, 14), 45) };
+    return { wch: Math.min(Math.max(maxLen + 4, 16), 55) };
   });
   wsData['!cols'] = colWidths;
 
@@ -438,11 +453,11 @@ export function generateCertificateExcelTemplate(
     ['Academic Session', activeAY],
     ['Total Included Students', `${students.length} Student(s)`],
     ['', ''],
-    ['1. System Identifiers (STRICT)', 'Do NOT modify the Student ID or Admission Number columns. The system requires these values to match certificate data with student records.'],
+    ['1. Admission Number (STRICT)', 'Do NOT modify the Admission Number. The system uses this to match certificate records with students.'],
     ['2. Header Integrity', 'Do NOT rename, delete, add, or reorder column headers in Sheet 1 ("Student Certificate Data").'],
-    ['3. Mandatory Fields (*)', 'Columns marked with an asterisk (*) in the header are required. Rows with empty mandatory fields cannot be issued.'],
-    ['4. Date Format Guidelines', 'Enter dates in YYYY-MM-DD (e.g. 2026-05-31) or DD/MM/YYYY format. Avoid textual date variations like "May 31st".'],
-    ['5. Pre-filled Information', 'Student demographic details (Name, Class, Parents, DOB) are pre-filled as read-only references and will automatically match the school database.'],
+    ['3. Required Columns', 'Fill in Mole Identification / Personal Identification Marks, Character / Conduct Remarks, and Reason for Leaving for each student.'],
+    ['4. Pre-filled Reference', 'Admission Number, Student Name, Class & Section, and Student Roll Number are pre-filled from school records.'],
+    ['5. Upload Instructions', 'After filling in details, save this Excel file (.xlsx) and upload it in the "Upload Completed Excel File" section of Bulk Certificate Generation.'],
     ['', '']
   ];
 
@@ -455,8 +470,6 @@ export function generateCertificateExcelTemplate(
     });
     instructions.push(['', '']);
   }
-
-  instructions.push(['6. Upload Instructions', 'After filling in details, save this Excel file (.xlsx) and upload it in the "Upload Completed Excel File" section of Bulk Certificate Generation.']);
 
   const wsInstructions = XLSX.utils.aoa_to_sheet(instructions);
   wsInstructions['!cols'] = [{ wch: 32 }, { wch: 75 }];
@@ -528,11 +541,13 @@ export async function parseCertificateExcelFile(
 
       // Common aliases
       if (c.key === 'studentId' && (cleanHeader.includes('student id') || cleanHeader === 'id')) return true;
-      if (c.key === 'admissionNo' && (cleanHeader.includes('admission') || cleanHeader.includes('adm no'))) return true;
-      if (c.key === 'dateOfLeaving' && (cleanHeader.includes('leaving') || cleanHeader.includes('issue date'))) return true;
+      if (c.key === 'admissionNo' && (cleanHeader.includes('admission') || cleanHeader.includes('adm no') || cleanHeader.includes('admission number'))) return true;
+      if (c.key === 'studentName' && (cleanHeader.includes('student name') || cleanHeader === 'name')) return true;
+      if (c.key === 'classSection' && (cleanHeader.includes('class') && cleanHeader.includes('section'))) return true;
+      if (c.key === 'rollNo' && (cleanHeader.includes('roll') || cleanHeader.includes('roll no'))) return true;
+      if (c.key === 'identificationMarks' && (cleanHeader.includes('mole') || cleanHeader.includes('identification'))) return true;
+      if (c.key === 'characterRemarks' && (cleanHeader.includes('character') || cleanHeader.includes('conduct'))) return true;
       if (c.key === 'reasonForLeaving' && cleanHeader.includes('reason')) return true;
-      if (c.key === 'generalConduct' && cleanHeader.includes('conduct')) return true;
-      if (c.key === 'clearanceStatus' && (cleanHeader.includes('clearance') || cleanHeader.includes('dues'))) return true;
       return false;
     });
 
@@ -545,7 +560,7 @@ export async function parseCertificateExcelFile(
   const admNoCol = headerMap.find(m => m.colDef.key === 'admissionNo');
 
   if (!studentIdCol && !admNoCol) {
-    throw new Error('Invalid Excel Template: Missing Student ID or Admission Number column.');
+    throw new Error('Invalid Excel Template: Missing Admission Number column.');
   }
 
   // Fast lookups from current student selection
@@ -593,33 +608,35 @@ export async function parseCertificateExcelFile(
     const studentIdRaw = String(mappedData.studentId || '').trim();
     const admNoRaw = String(mappedData.admissionNo || '').trim();
     const studentNameRaw = String(mappedData.studentName || '').trim();
+    const rollNoRaw = String(mappedData.rollNo || '').trim();
 
     // 1. Check Identity Presence
-    if (!studentIdRaw && !admNoRaw) {
-      errors.push('Row is missing both Student ID and Admission Number.');
+    if (!studentIdRaw && !admNoRaw && !rollNoRaw && !studentNameRaw) {
+      errors.push('Row is missing Admission Number.');
     }
 
     // 2. Match with Selected Students
     let matchedStudent: Student | undefined = undefined;
-    if (studentIdRaw) {
+    if (admNoRaw) {
+      matchedStudent = studentMapByAdm.get(admNoRaw.toLowerCase());
+    }
+    if (!matchedStudent && studentIdRaw) {
       matchedStudent = studentMapById.get(studentIdRaw.toLowerCase());
     }
-    if (!matchedStudent && admNoRaw) {
-      matchedStudent = studentMapByAdm.get(admNoRaw.toLowerCase());
+    if (!matchedStudent && rollNoRaw) {
+      matchedStudent = selectedStudents.find(s => s.rollNo && s.rollNo.trim().toLowerCase() === rollNoRaw.toLowerCase());
+    }
+    if (!matchedStudent && studentNameRaw) {
+      matchedStudent = selectedStudents.find(s => `${s.firstName} ${s.lastName}`.trim().toLowerCase() === studentNameRaw.toLowerCase());
     }
 
     if (!matchedStudent) {
-      errors.push(`Student not found in current batch selection (ID: "${studentIdRaw}", Adm No: "${admNoRaw}").`);
+      errors.push(`Student not found in current batch selection (Admission No: "${admNoRaw || 'N/A'}").`);
     } else {
-      // Cross-verify Admission Number if both were present
-      if (admNoRaw && matchedStudent.admissionNo.toLowerCase() !== admNoRaw.toLowerCase()) {
-        errors.push(`Admission Number "${admNoRaw}" does not match record for Student ID "${matchedStudent.id}" (expected: "${matchedStudent.admissionNo}").`);
-      }
-
       // Check Duplicates
       const studentUniqueKey = matchedStudent.id.toLowerCase();
       if (encounteredStudentIds.has(studentUniqueKey)) {
-        errors.push(`Duplicate entry: Student "${matchedStudent.firstName} ${matchedStudent.lastName}" (ID: ${matchedStudent.id}) is repeated in this file.`);
+        errors.push(`Duplicate entry: Student "${matchedStudent.firstName} ${matchedStudent.lastName}" (Admission No: ${matchedStudent.admissionNo}) is repeated in this file.`);
         duplicateCount++;
       } else {
         encounteredStudentIds.add(studentUniqueKey);
@@ -663,8 +680,15 @@ export async function parseCertificateExcelFile(
     const finalStudentName = matchedStudent
       ? `${matchedStudent.firstName} ${matchedStudent.lastName}`
       : (studentNameRaw || `Row ${rowNum}`);
-    const finalClassName = matchedStudent ? matchedStudent.className : (mappedData.className || '');
-    const finalSection = matchedStudent ? matchedStudent.section : (mappedData.section || '');
+    
+    let finalClass = matchedStudent ? matchedStudent.className : (mappedData.className || '');
+    let finalSec = matchedStudent ? matchedStudent.section : (mappedData.section || '');
+    if ((!finalClass || !finalSec) && mappedData.classSection) {
+      const parts = mappedData.classSection.split('-');
+      if (!finalClass) finalClass = parts[0]?.trim() || '';
+      if (!finalSec) finalSec = parts[1]?.trim() || '';
+    }
+
     const finalAdmissionNo = matchedStudent ? matchedStudent.admissionNo : admNoRaw;
 
     const rowResult: ExcelRowValidationResult = {
@@ -672,8 +696,8 @@ export async function parseCertificateExcelFile(
       studentId: finalStudentId,
       admissionNo: finalAdmissionNo,
       studentName: finalStudentName,
-      className: finalClassName,
-      section: finalSection,
+      className: finalClass,
+      section: finalSec,
       isValid,
       status: isValid ? 'Valid' : 'Error',
       errors,
@@ -684,13 +708,26 @@ export async function parseCertificateExcelFile(
     results.push(rowResult);
 
     if (isValid && matchedStudent) {
+      const idMarks = mappedData.identificationMarks || '';
+      const charRem = mappedData.characterRemarks || 'Good';
+      const reasonLev = mappedData.reasonForLeaving || 'Higher Studies';
+
       // Store in valid map keyed by student id
       validDataMap[matchedStudent.id] = {
         ...mappedData,
         studentName: finalStudentName,
         admissionNumber: finalAdmissionNo,
-        class: finalClassName,
-        section: finalSection
+        admissionNo: finalAdmissionNo,
+        class: finalClass,
+        section: finalSec,
+        rollNo: matchedStudent.rollNo || mappedData.rollNo || '',
+        identificationMarks: idMarks,
+        moleIdentification: idMarks,
+        characterRemarks: charRem,
+        generalConduct: charRem,
+        conduct: charRem,
+        reasonForLeaving: reasonLev,
+        reason: reasonLev
       };
     }
   }
