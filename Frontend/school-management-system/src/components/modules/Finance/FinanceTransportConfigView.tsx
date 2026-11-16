@@ -34,6 +34,8 @@ import { fetchFeeScheduleConfigApi } from '../../../api/finance';
 import { Badge } from '../../common/Badge';
 import { ExportButton } from '../../common/ExportButton';
 import { ConfirmModal } from '../../common/ConfirmModal';
+import { ValidatedSearchInput } from '../../common/ValidatedSearchInput';
+import { Pagination } from '../../common/Pagination';
 import { exportToExcel } from '../../../utils/excelExport';
 
 export const FinanceTransportConfigView: React.FC = () => {
@@ -125,25 +127,22 @@ export const FinanceTransportConfigView: React.FC = () => {
 
   // Global Transport Fee Billing Policy (One-Time vs Term-Wise)
   const [globalPolicy, setGlobalPolicy] = useState<'One-Time' | 'Term-wise'>(() => {
-    const saved = localStorage.getItem('transport_fee_billing_policy');
-    return (saved === 'One-Time' || saved === 'Term-wise') ? saved : (((financeSettings as any)?.transportBillingPolicy as any) || 'Term-wise');
+    return (((financeSettings as any)?.transportBillingPolicy as any) || 'Term-wise');
   });
 
   const handlePolicyChange = (newPolicy: 'One-Time' | 'Term-wise') => {
     setGlobalPolicy(newPolicy);
-    try {
-      localStorage.setItem('transport_fee_billing_policy', newPolicy);
-      localStorage.setItem('edu_db_transport_fee_billing_policy', newPolicy);
-      if (financeSettings) {
-        (financeSettings as any).transportBillingPolicy = newPolicy;
-      }
-    } catch (e) {}
+    if (financeSettings) {
+      (financeSettings as any).transportBillingPolicy = newPolicy;
+    }
     window.dispatchEvent(new Event('transport_policy_updated'));
     addToast('success', 'Transport Fee Policy Updated', `Transport billing policy is now set to ${newPolicy === 'One-Time' ? 'One-Time (Full Annual)' : 'Term-Wise (Split across terms)'}.`);
   };
 
   const [query, setQuery] = useState('');
   const [filterRoute, setFilterRoute] = useState('All');
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingConfig, setEditingConfig] = useState<FinanceTransportConfig | null>(null);
   const [deletingConfig, setDeletingConfig] = useState<FinanceTransportConfig | null>(null);
@@ -1066,6 +1065,12 @@ export const FinanceTransportConfigView: React.FC = () => {
     return rows;
   }, [pickupPoints, routeMasters, vehicleAssignments, vehicleMasters, financeTransportConfigs, query, filterRoute, scheduleTerms]);
 
+  const totalPages = Math.ceil(pickupMatrix.length / pageSize) || 1;
+  const paginatedPickupMatrix = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return pickupMatrix.slice(start, start + pageSize);
+  }, [pickupMatrix, currentPage, pageSize]);
+
   const routeStops = useMemo(() => {
     const selectedRoute = routeMasters.find(r => String(r.id) === String(form.routeId));
     return pickupPoints.filter(p => {
@@ -1077,12 +1082,12 @@ export const FinanceTransportConfigView: React.FC = () => {
   }, [pickupPoints, form.routeId, routeMasters]);
 
   return (
-    <div className="space-y-6 animate-in fade-in">
+    <div className="space-y-4 animate-in fade-in">
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <RouteIcon className="w-6 h-6 text-sky-500" /> Transport Fee & Kilometer Rate Matrix
+            <RouteIcon className="w-6 h-6 text-[var(--primary-color)]" /> Transport Fee & Kilometer Rate Matrix
           </h2>
           <p className="text-xs text-slate-500 mt-1">
             Configure kilometer-based transport fees, select One-Time vs Term-Wise billing policy, and synchronize term due dates.
@@ -1092,7 +1097,7 @@ export const FinanceTransportConfigView: React.FC = () => {
         <div className="flex items-center gap-3">
           <button
             onClick={handleOpenAdd}
-            className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-lg shadow-sky-500/20 flex items-center gap-2 transition-all"
+            className="px-4 py-2 rounded-xl bg-[var(--primary-color)] hover:opacity-90 text-white text-xs font-bold shadow-md shadow-[var(--primary-color)]/20 flex items-center gap-2 transition-all cursor-pointer"
           >
             <Plus className="w-4 h-4" /> Add Custom Rate Override
           </button>
@@ -1122,15 +1127,15 @@ export const FinanceTransportConfigView: React.FC = () => {
       </div>
 
       {/* Official Academic Schedule Term Due Dates Banner */}
-      <div className="glass-card p-4 rounded-2xl border border-sky-200 dark:border-sky-900/60 bg-sky-50/50 dark:bg-sky-950/20 space-y-3">
+      <div className="glass-card p-3.5 sm:p-4 rounded-2xl border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 bg-[var(--primary-color)]/5 dark:bg-[var(--primary-color)]/10 space-y-3">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <CalendarDays className="w-5 h-5 text-sky-600 dark:text-sky-400 shrink-0" />
+            <CalendarDays className="w-5 h-5 text-[var(--primary-color)] shrink-0" />
             <div>
-              <h3 className="text-xs font-black uppercase tracking-wider text-sky-900 dark:text-sky-200">
+              <h3 className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-200">
                 Official Fee Schedule Term Due Dates{activeAY ? ` (${activeAY})` : ''}
               </h3>
-              <p className="text-[11px] text-sky-700 dark:text-sky-300">
+              <p className="text-[11px] text-slate-600 dark:text-slate-400">
                 These due dates apply directly to transport fee obligations and installments across both Transport and Finance modules.
               </p>
             </div>
@@ -1141,9 +1146,9 @@ export const FinanceTransportConfigView: React.FC = () => {
             <div className="inline-flex rounded-xl bg-slate-200/80 dark:bg-slate-800 p-0.5 text-xs font-bold">
               <button
                 onClick={() => handlePolicyChange('One-Time')}
-                className={`px-3 py-1 rounded-lg transition-all ${
+                className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
                   globalPolicy === 'One-Time'
-                    ? 'bg-sky-600 text-white shadow-sm'
+                    ? 'bg-[var(--primary-color)] text-white shadow-sm'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
@@ -1151,9 +1156,9 @@ export const FinanceTransportConfigView: React.FC = () => {
               </button>
               <button
                 onClick={() => handlePolicyChange('Term-wise')}
-                className={`px-3 py-1 rounded-lg transition-all ${
+                className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
                   globalPolicy === 'Term-wise'
-                    ? 'bg-sky-600 text-white shadow-sm'
+                    ? 'bg-[var(--primary-color)] text-white shadow-sm'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
@@ -1165,20 +1170,20 @@ export const FinanceTransportConfigView: React.FC = () => {
 
         {/* Due Dates Badges */}
         {scheduleTerms.length === 0 && !oneTimeDueDate ? (
-          <div className="p-3 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-dashed border-sky-200 dark:border-sky-800 text-xs text-slate-500 dark:text-slate-400">
-            No fee schedule dates configured yet{activeAY ? ` for ${activeAY}` : ''}. Configure an Academic Year and term due dates in <span className="font-bold text-sky-700 dark:text-sky-300">Fee Setup → Fee Schedule</span>.
+          <div className="p-3 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-dashed border-[var(--primary-color)]/30 text-xs text-slate-500 dark:text-slate-400">
+            No fee schedule dates configured yet{activeAY ? ` for ${activeAY}` : ''}. Configure an Academic Year and term due dates in <span className="font-bold text-[var(--primary-color)]">Fee Setup → Fee Schedule</span>.
           </div>
         ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-1 border-t border-sky-100 dark:border-sky-900/40">
-          <div className="p-2.5 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-sky-100 dark:border-sky-900/50">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-1 border-t border-[var(--primary-color)]/20">
+          <div className="p-2.5 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-[var(--primary-color)]/25">
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">One-Time / Annual</span>
-            <span className="text-xs font-mono font-black text-sky-600 dark:text-sky-400">
+            <span className="text-xs font-mono font-black text-[var(--primary-color)]">
               {oneTimeDueDate ? formatDateForDisplay(oneTimeDueDate) : 'Not configured'}
             </span>
           </div>
 
           {scheduleTerms.map((term, idx) => (
-            <div key={term.id || idx} className="p-2.5 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-sky-100 dark:border-sky-900/50">
+            <div key={term.id || idx} className="p-2.5 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-[var(--primary-color)]/25">
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">{term.termName || `Term ${idx + 1}`}</span>
               <span className="text-xs font-mono font-black text-emerald-600 dark:text-emerald-400">
                 {term.dueDate ? formatDateForDisplay(term.dueDate) : 'Not configured'}
@@ -1190,22 +1195,25 @@ export const FinanceTransportConfigView: React.FC = () => {
       </div>
 
       {/* Filter Bar */}
-      <div className="glass-card p-4 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="relative w-full sm:w-72">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-          <input
-            type="text"
+      <div className="relative z-20 glass-card p-3.5 sm:p-4 rounded-2xl border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="w-full sm:w-72">
+          <ValidatedSearchInput
             placeholder="Search stop name, route, bus..."
             value={query}
-            onChange={e => setQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none"
+            onChange={val => {
+              setQuery(val);
+              setCurrentPage(1);
+            }}
           />
         </div>
 
         <select
           value={filterRoute}
-          onChange={e => setFilterRoute(e.target.value)}
-          className="w-full sm:w-64 px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs font-bold text-slate-900 dark:text-white cursor-pointer"
+          onChange={e => {
+            setFilterRoute(e.target.value);
+            setCurrentPage(1);
+          }}
+          className="w-full sm:w-64 px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-[var(--primary-color)]/30 text-xs font-bold text-slate-900 dark:text-white cursor-pointer outline-none"
         >
           <option value="All">All Transit Routes ({routeMasters.length})</option>
           {routeMasters.map(r => (
@@ -1217,27 +1225,27 @@ export const FinanceTransportConfigView: React.FC = () => {
       </div>
 
       {/* Dynamic Rates Matrix Table */}
-      <div className="glass-card rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800">
+      <div className="glass-card rounded-2xl overflow-hidden border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 shadow-sm bg-white dark:bg-slate-900">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
+          <table className="w-full text-center border-collapse text-xs">
             <thead>
-              <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
-<th className="py-3.5 px-4 text-left whitespace-nowrap">Route & Code</th>
-                <th className="py-3.5 px-4 text-left whitespace-nowrap">Pickup Stop</th>
-                <th className="py-3.5 px-4 text-center whitespace-nowrap">Distance</th>
-                <th className="py-3.5 px-4 text-center whitespace-nowrap">Bus Type</th>
-                <th className="py-3.5 px-4 text-left whitespace-nowrap">Kilometer Slab Rates</th>
-                <th className="py-3.5 px-4 text-right whitespace-nowrap">Monthly Rate</th>
-                <th className={`py-3.5 px-4 text-right whitespace-nowrap transition-colors ${globalPolicy === 'One-Time' ? 'bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 font-black' : ''}`}>One-Time (Annual){globalPolicy === 'One-Time' ? ' ★' : ''}</th>
-                <th className={`py-3.5 px-4 text-right whitespace-nowrap transition-colors ${globalPolicy === 'Term-wise' ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-black' : ''}`}>Term-Wise ({scheduleTerms.length} Terms){globalPolicy === 'Term-wise' ? ' ★' : ''}</th>
-                <th className="py-3.5 px-4 text-center whitespace-nowrap">Active Policy</th>
-                <th className="py-3.5 px-4 text-center whitespace-nowrap">Students</th>
-                <th className="py-3.5 px-4 text-center whitespace-nowrap">Actions</th>
+              <tr className="bg-slate-50 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider border-b border-[var(--primary-color)]/20">
+                <th className="py-3 px-3 text-center align-middle whitespace-nowrap">Route & Code</th>
+                <th className="py-3 px-3 text-center align-middle whitespace-nowrap">Pickup Stop</th>
+                <th className="py-3 px-3 text-center align-middle whitespace-nowrap">Distance</th>
+                <th className="py-3 px-3 text-center align-middle whitespace-nowrap">Bus Type</th>
+                <th className="py-3 px-3 text-center align-middle whitespace-nowrap">Kilometer Slab Rates</th>
+                <th className="py-3 px-3 text-center align-middle whitespace-nowrap">Monthly Rate</th>
+                <th className={`py-3 px-3 text-center align-middle whitespace-nowrap transition-colors ${globalPolicy === 'One-Time' ? 'bg-[var(--primary-color)]/10 text-[var(--primary-color)] font-black' : ''}`}>One-Time (Annual){globalPolicy === 'One-Time' ? ' ★' : ''}</th>
+                <th className={`py-3 px-3 text-center align-middle whitespace-nowrap transition-colors ${globalPolicy === 'Term-wise' ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-black' : ''}`}>Term-Wise ({scheduleTerms.length} Terms){globalPolicy === 'Term-wise' ? ' ★' : ''}</th>
+                <th className="py-3 px-3 text-center align-middle whitespace-nowrap">Active Policy</th>
+                <th className="py-3 px-3 text-center align-middle whitespace-nowrap">Students</th>
+                <th className="py-3 px-3 text-center align-middle whitespace-nowrap">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
-              {pickupMatrix.length > 0 ? (
-                pickupMatrix.map(({ pickup, route, assignment, vehicle, isAC, fees, customConfig }) => {
+              {paginatedPickupMatrix.length > 0 ? (
+                paginatedPickupMatrix.map(({ pickup, route, assignment, vehicle, isAC, fees, customConfig }) => {
                   const effectiveAnnual = customConfig?.feePlan === 'Annual' && customConfig?.feeAmount ? customConfig.feeAmount : fees.oneTimeAnnual;
                   const effectiveTerm = (customConfig?.feePlan === 'Quarterly' || (customConfig?.feePlan as any) === 'Term-wise') && customConfig?.feeAmount
                     ? customConfig.feeAmount
@@ -1249,12 +1257,12 @@ export const FinanceTransportConfigView: React.FC = () => {
                   return (
                     <tr key={pickup.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
                       <td
-                        className="py-3 px-4 font-extrabold text-slate-900 dark:text-white cursor-pointer group/rt align-middle whitespace-nowrap"
+                        className="py-3 px-3 font-extrabold text-slate-900 dark:text-white cursor-pointer group/rt text-center align-middle whitespace-nowrap"
                         onClick={() => setSelectedRouteForStudents(route)}
                         title="Click to view students on this route"
                       >
-                        <div className="flex items-center gap-1.5 group-hover/rt:text-sky-600 transition-colors">
-                          <RouteIcon className="w-3.5 h-3.5 text-sky-500 shrink-0" />
+                        <div className="flex items-center justify-center gap-1.5 group-hover/rt:text-[var(--primary-color)] transition-colors">
+                          <RouteIcon className="w-3.5 h-3.5 text-[var(--primary-color)] shrink-0" />
                           <span className="underline decoration-dotted underline-offset-2">{route.routeName}</span>
                         </div>
                         <span className="text-[10px] font-mono text-slate-400 block mt-0.5">
@@ -1262,24 +1270,24 @@ export const FinanceTransportConfigView: React.FC = () => {
                         </span>
                       </td>
 
-                      <td className="py-3 px-4 align-middle whitespace-nowrap">
-                        <div className="flex items-center gap-1.5">
+                      <td className="py-3 px-3 text-center align-middle whitespace-nowrap">
+                        <div className="flex items-center justify-center gap-1.5">
                           <MapPin className="w-3.5 h-3.5 text-rose-500 shrink-0" />
                           <span className="font-bold text-slate-900 dark:text-white">{pickup.pickupName}</span>
                         </div>
-                        <span className="text-[10px] text-slate-400 block mt-0.5 pl-5 font-mono">
+                        <span className="text-[10px] text-slate-400 block mt-0.5 font-mono">
                           Seq #{pickup.sequenceNumber ?? 1}{pickup.arrivalTime ? ` • Arr: ${pickup.arrivalTime}` : ''}
                         </span>
                       </td>
 
-                      <td className="py-3 px-4 text-center font-mono font-bold text-slate-800 dark:text-slate-200 align-middle whitespace-nowrap">
+                      <td className="py-3 px-3 text-center font-mono font-bold text-slate-800 dark:text-slate-200 align-middle whitespace-nowrap">
                         <span className="px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-xs">
                           {fees.distance} KM
                         </span>
                       </td>
 
                       {/* BUG 08: Separate Bus Type Column */}
-                      <td className="py-3 px-4 text-center align-middle whitespace-nowrap">
+                      <td className="py-3 px-3 text-center align-middle whitespace-nowrap">
                         <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-extrabold uppercase ${isAC ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800' : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700'}`}>
                           <Bus className="w-3 h-3" />
                           {isAC ? 'AC Bus' : 'Non-AC Bus'}
@@ -1287,31 +1295,31 @@ export const FinanceTransportConfigView: React.FC = () => {
                       </td>
 
                       {/* BUG 08: Separate Slab Rates Column */}
-                      <td className="py-3 px-4 text-[11px] text-slate-600 dark:text-slate-300 align-middle whitespace-nowrap">
+                      <td className="py-3 px-3 text-[11px] text-slate-600 dark:text-slate-300 text-center align-middle whitespace-nowrap">
                         <span className="font-bold text-slate-800 dark:text-slate-200">Base: ₹{fees.baseFare}</span>
                         <span className="text-slate-400 mx-1">(0-{fees.minKm}km)</span>
-                        <span className="font-bold text-sky-600 dark:text-sky-400">+ ₹{fees.ratePerKm}/km</span>
+                        <span className="font-bold text-[var(--primary-color)]">+ ₹{fees.ratePerKm}/km</span>
                       </td>
 
-                      <td className="py-3 px-4 text-right font-extrabold text-slate-700 dark:text-slate-300 align-middle whitespace-nowrap">
+                      <td className="py-3 px-3 text-center font-extrabold text-slate-700 dark:text-slate-300 align-middle whitespace-nowrap">
                         {formatCurrency(fees.monthly)}
                       </td>
 
-                      <td className={`py-3 px-4 text-right text-xs align-middle whitespace-nowrap transition-colors ${globalPolicy === 'One-Time' ? 'bg-sky-50/60 dark:bg-sky-950/30 font-black text-sky-600 dark:text-sky-400' : 'font-bold text-slate-600 dark:text-slate-400'}`}>
+                      <td className={`py-3 px-3 text-center text-xs align-middle whitespace-nowrap transition-colors ${globalPolicy === 'One-Time' ? 'bg-[var(--primary-color)]/10 font-black text-[var(--primary-color)]' : 'font-bold text-slate-600 dark:text-slate-400'}`}>
                         {formatCurrency(effectiveAnnual)}
                       </td>
 
-                      <td className={`py-3 px-4 text-right text-xs align-middle whitespace-nowrap transition-colors ${globalPolicy === 'Term-wise' ? 'bg-emerald-50/60 dark:bg-emerald-950/30 font-black text-emerald-600 dark:text-emerald-400' : 'font-bold text-slate-600 dark:text-slate-400'}`}>
+                      <td className={`py-3 px-3 text-center text-xs align-middle whitespace-nowrap transition-colors ${globalPolicy === 'Term-wise' ? 'bg-emerald-50/60 dark:bg-emerald-950/30 font-black text-emerald-600 dark:text-emerald-400' : 'font-bold text-slate-600 dark:text-slate-400'}`}>
                         {formatCurrency(effectiveTerm)}
                         <span className="text-[10px] text-slate-400 block font-normal">/ term</span>
                       </td>
 
                       {/* BUG 07 & BUG 09: Active Policy */}
-                      <td className="py-3 px-4 text-center align-middle whitespace-nowrap">
+                      <td className="py-3 px-3 text-center align-middle whitespace-nowrap">
                         <div className="inline-flex items-center gap-1.5 justify-center">
                           <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-extrabold whitespace-nowrap ${
                             effectivePolicy === 'One-Time'
-                              ? 'bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300 border border-sky-300 dark:border-sky-800'
+                              ? 'bg-[var(--primary-color)]/10 text-[var(--primary-color)] border border-[var(--primary-color)]/30'
                               : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800'
                           }`}>
                             {effectivePolicy === 'One-Time' ? 'One-Time (Annual)' : `Term-Wise (${scheduleTerms.length} Terms)`}
@@ -1324,7 +1332,7 @@ export const FinanceTransportConfigView: React.FC = () => {
                         </div>
                       </td>
 
-                      <td className="py-3 px-4 text-center align-middle whitespace-nowrap">
+                      <td className="py-3 px-3 text-center align-middle whitespace-nowrap">
                         {(() => {
                           const routeStudents = getRouteStudentsList(route);
                           const count = routeStudents.length;
@@ -1332,7 +1340,7 @@ export const FinanceTransportConfigView: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => setSelectedRouteForStudents(route)}
-                              className="inline-flex items-center justify-center gap-1.5 px-3 py-1 rounded-full text-xs font-black transition-all bg-sky-50 text-sky-700 hover:bg-sky-600 hover:text-white dark:bg-sky-950 dark:text-sky-300 dark:hover:bg-sky-600 cursor-pointer shadow-xs border border-sky-200 dark:border-sky-800"
+                              className="inline-flex items-center justify-center gap-1.5 px-3 py-1 rounded-full text-xs font-black transition-all bg-[var(--primary-color)]/10 text-[var(--primary-color)] hover:bg-[var(--primary-color)] hover:text-white cursor-pointer shadow-xs border border-[var(--primary-color)]/30"
                               title={`View ${count} students assigned to ${route.routeName}`}
                             >
                               <Users className="w-3.5 h-3.5" />
@@ -1342,14 +1350,14 @@ export const FinanceTransportConfigView: React.FC = () => {
                         })()}
                       </td>
 
-{/* Actions column for Custom Override */}
-                      <td className="py-3 px-4 text-center align-middle whitespace-nowrap">
+                      {/* Actions column for Custom Override */}
+                      <td className="py-3 px-3 text-center align-middle whitespace-nowrap">
                         {customConfig ? (
                           <div className="flex items-center justify-center gap-1.5">
                             <button
                               type="button"
                               onClick={() => handleOpenEdit(customConfig)}
-                              className="p-1.5 rounded-lg bg-sky-50 dark:bg-sky-950 text-sky-600 dark:text-sky-400 hover:bg-sky-100 dark:hover:bg-sky-900 transition-colors cursor-pointer"
+                              className="p-1.5 rounded-lg bg-[var(--primary-color)]/10 text-[var(--primary-color)] hover:bg-[var(--primary-color)]/20 transition-colors cursor-pointer"
                               title="Edit Custom Rate Override"
                             >
                               <Edit className="w-3.5 h-3.5" />
@@ -1378,7 +1386,7 @@ export const FinanceTransportConfigView: React.FC = () => {
                               handlePickupSelect(pickup.id);
                               setIsModalOpen(true);
                             }}
-                            className="px-2.5 py-1 rounded-lg text-[10px] font-bold text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/60 hover:bg-sky-100 dark:hover:bg-sky-900/60 transition-colors cursor-pointer border border-sky-200 dark:border-sky-800"
+                            className="px-2.5 py-1 rounded-lg text-[10px] font-bold text-[var(--primary-color)] bg-[var(--primary-color)]/10 hover:bg-[var(--primary-color)]/20 transition-colors cursor-pointer border border-[var(--primary-color)]/30"
                             title="Set custom rate override for this stop"
                           >
                             + Override
@@ -1390,7 +1398,7 @@ export const FinanceTransportConfigView: React.FC = () => {
                 })
               ) : (
                 <tr>
-<td colSpan={11} className="py-8 text-center text-slate-400">
+                  <td colSpan={11} className="py-8 text-center text-slate-400">
                     No pickup points found matching search criteria.
                   </td>
                 </tr>
@@ -1398,6 +1406,13 @@ export const FinanceTransportConfigView: React.FC = () => {
             </tbody>
           </table>
         </div>
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+          totalItems={pickupMatrix.length}
+          pageSize={pageSize}
+        />
       </div>
 
       {/* Route Students Roster & Inspection Modal */}
@@ -1548,14 +1563,14 @@ export const FinanceTransportConfigView: React.FC = () => {
                 <div className="p-3 rounded-2xl bg-sky-50/70 dark:bg-sky-950/30 border border-sky-100 dark:border-sky-900/40">
                   <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-[11px] font-bold uppercase">
                     <span>Total Students</span>
-                    <Users className="w-4 h-4 text-sky-500" />
+                    <Users className="w-4 h-4 text-[var(--primary-color)]" />
                   </div>
                   <div className="text-xl font-black text-slate-900 dark:text-white mt-1">
                     {allStudentsInRoute.length}
                   </div>
                 </div>
 
-                <div className="p-3 rounded-2xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800">
+                <div className="p-3 rounded-2xl bg-slate-50/70 dark:bg-slate-800/40 border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40">
                   <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 text-[11px] font-bold uppercase">
                     <span>Total Expected</span>
                     <IndianRupee className="w-4 h-4 text-slate-500" />
@@ -1638,7 +1653,7 @@ export const FinanceTransportConfigView: React.FC = () => {
               {/* Students Table */}
               <div className="overflow-y-auto flex-1 p-5">
                 {filteredStudents.length > 0 ? (
-                  <div className="rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+                  <div className="rounded-2xl border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 overflow-hidden">
                     <table className="w-full text-left text-xs border-collapse">
                       <thead>
                         <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">

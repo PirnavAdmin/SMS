@@ -833,7 +833,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const isSuperAdmin = safeRole.includes("super admin") || safeRole.includes("superadmin");
 
-  const menuGroups: Array<{ title: string; items: any[]; isFinanceSection?: boolean }> = (isSuperAdmin
+  const menuGroups: { title: string; isFinanceSection?: boolean; items: { id: string; label: string; icon: any; badge?: string }[] }[] = (isSuperAdmin
     ? [
         {
           title: "Super Admin",

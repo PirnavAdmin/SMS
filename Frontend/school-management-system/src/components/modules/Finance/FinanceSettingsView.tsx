@@ -28,34 +28,34 @@ export const FinanceSettingsView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in max-w-4xl">
+    <div className="space-y-4 animate-in fade-in max-w-4xl">
       {/* Header */}
       <div>
         <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-          <SlidersHorizontal className="w-6 h-6 text-sky-500" /> Finance System Settings
+          <SlidersHorizontal className="w-6 h-6 text-[var(--primary-color)]" /> Finance System Settings
         </h2>
         </div>
 
-      <form onSubmit={handleSubmit} className="glass-card p-6 rounded-3xl space-y-6 text-xs">
+      <form onSubmit={handleSubmit} className="glass-card p-3.5 sm:p-4 rounded-2xl border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 space-y-4 text-xs">
         {/* Core Settings */}
         <div className="space-y-3">
-          <h3 className="font-extrabold text-sm text-slate-900 dark:text-white uppercase tracking-wider text-[11px] text-sky-600">General Financial Parameters</h3>
+          <h3 className="font-extrabold text-sm text-[var(--primary-color)] uppercase tracking-wider text-[11px]">General Financial Parameters</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block font-semibold mb-1">Academic Session Year</label>
-              <input type="text" value={form.academicYear} onChange={e => setForm({ ...form, academicYear: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border" />
+              <input type="text" value={form.academicYear} onChange={e => setForm({ ...form, academicYear: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border outline-none focus:border-[var(--primary-color)]" />
             </div>
             <div>
               <label className="block font-semibold mb-1">Financial Fiscal Year</label>
-              <input type="text" value={form.financialYear} onChange={e => setForm({ ...form, financialYear: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border" />
+              <input type="text" value={form.financialYear} onChange={e => setForm({ ...form, financialYear: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border outline-none focus:border-[var(--primary-color)]" />
             </div>
             <div>
               <label className="block font-semibold mb-1">Default Base Currency</label>
-              <input type="text" value={form.defaultCurrency} onChange={e => setForm({ ...form, defaultCurrency: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold" />
+              <input type="text" value={form.defaultCurrency} onChange={e => setForm({ ...form, defaultCurrency: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold outline-none focus:border-[var(--primary-color)]" />
             </div>
             <div>
               <label className="block font-semibold mb-1">Active Late Fee Rule</label>
-              <select value={form.lateFeeRuleId} onChange={e => setForm({ ...form, lateFeeRuleId: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border">
+              <select value={form.lateFeeRuleId} onChange={e => setForm({ ...form, lateFeeRuleId: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border outline-none focus:border-[var(--primary-color)]">
                 {fineRules.map(r => <option key={r.id} value={r.id}>{r.ruleName}</option>)}
               </select>
             </div>
@@ -63,50 +63,50 @@ export const FinanceSettingsView: React.FC = () => {
         </div>
 
         {/* Numbering & Prefixes */}
-        <div className="space-y-3 pt-4 border-t border-slate-100 dark:border-slate-800">
-          <h3 className="font-extrabold text-sm text-slate-900 dark:text-white uppercase tracking-wider text-[11px] text-sky-600">Invoice & Receipt Formatting</h3>
+        <div className="space-y-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+          <h3 className="font-extrabold text-sm text-[var(--primary-color)] uppercase tracking-wider text-[11px]">Invoice & Receipt Formatting</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block font-semibold mb-1">Receipt Number Prefix</label>
-              <input type="text" value={form.receiptPrefix} onChange={e => setForm({ ...form, receiptPrefix: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono" />
+              <input type="text" value={form.receiptPrefix} onChange={e => setForm({ ...form, receiptPrefix: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono outline-none focus:border-[var(--primary-color)]" />
             </div>
             <div>
               <label className="block font-semibold mb-1">Invoice Number Prefix</label>
-              <input type="text" value={form.invoicePrefix} onChange={e => setForm({ ...form, invoicePrefix: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono" />
+              <input type="text" value={form.invoicePrefix} onChange={e => setForm({ ...form, invoicePrefix: e.target.value })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono outline-none focus:border-[var(--primary-color)]" />
             </div>
           </div>
 
-          <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 dark:bg-slate-800">
+          <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800">
             <span className="font-semibold text-slate-700 dark:text-slate-300">Auto-Generate Sequential Receipt Numbers</span>
             <input
               type="checkbox"
               checked={form.autoReceiptNo}
               onChange={e => setForm({ ...form, autoReceiptNo: e.target.checked })}
-              className="w-4 h-4 rounded text-sky-600"
+              className="w-4 h-4 rounded text-[var(--primary-color)] accent-[var(--primary-color)] cursor-pointer"
             />
           </div>
         </div>
 
         {/* Tax Settings */}
-        <div className="space-y-3 pt-4 border-t border-slate-100 dark:border-slate-800">
-          <h3 className="font-extrabold text-sm text-slate-900 dark:text-white uppercase tracking-wider text-[11px] text-sky-600">Tax & GST Configuration</h3>
+        <div className="space-y-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+          <h3 className="font-extrabold text-sm text-[var(--primary-color)] uppercase tracking-wider text-[11px]">Tax & GST Configuration</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block font-semibold mb-1">Tax Label</label>
-              <input type="text" value={form.taxSettings.taxName} onChange={e => setForm({ ...form, taxSettings: { ...form.taxSettings, taxName: e.target.value } })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border" />
+              <input type="text" value={form.taxSettings.taxName} onChange={e => setForm({ ...form, taxSettings: { ...form.taxSettings, taxName: e.target.value } })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border outline-none focus:border-[var(--primary-color)]" />
             </div>
             <div>
               <label className="block font-semibold mb-1">Tax Percentage (%)</label>
-              <input type="number" value={form.taxSettings.percentage} onChange={e => setForm({ ...form, taxSettings: { ...form.taxSettings, percentage: Number(e.target.value) } })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border" />
+              <input type="number" value={form.taxSettings.percentage} onChange={e => setForm({ ...form, taxSettings: { ...form.taxSettings, percentage: Number(e.target.value) } })} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border outline-none focus:border-[var(--primary-color)]" />
             </div>
           </div>
         </div>
 
-        <div className="flex items-center justify-end pt-4 border-t border-slate-100 dark:border-slate-800">
+        <div className="flex items-center justify-end pt-3 border-t border-slate-100 dark:border-slate-800">
           <button 
             type="submit" 
             disabled={isSaving}
-            className="px-6 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-lg shadow-sky-500/20 flex items-center gap-2 transition-all"
+            className="px-6 py-2.5 rounded-xl bg-[var(--primary-color)] hover:opacity-90 text-white font-bold text-xs shadow-md shadow-[var(--primary-color)]/20 flex items-center gap-2 transition-all cursor-pointer"
           >
             {isSaving ? <CheckCircle2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             {isSaving ? 'Saving...' : 'Save Financial Configuration'}

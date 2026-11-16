@@ -52,6 +52,8 @@ import { useToast } from "../../../context/ToastContext";
 import { ExportButton } from "../../common/ExportButton";
 import { ConfirmModal } from "../../common/ConfirmModal";
 import { SearchableSelect } from "../../common/SearchableSelect";
+import { ValidatedSearchInput } from "../../common/ValidatedSearchInput";
+import { Pagination } from "../../common/Pagination";
 import { compareClassesAscending } from "../../../utils/classSorter";
 
 export type FeeCategoryType = string;
@@ -90,6 +92,8 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
   const [query, setQuery] = useState("");
   const [selectedClassFilter, setSelectedClassFilter] = useState<string>("All");
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>("All");
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 9;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingStruct, setEditingStruct] = useState<DynamicFeeStructure | null>(null);
@@ -164,6 +168,12 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
       })
       .sort((a, b) => compareClassesAscending(a.className || "", b.className || ""));
   }, [dynamicFeeStructures, selectedAcademicYear, selectedClassFilter, selectedStatusFilter, query]);
+
+  const totalPages = Math.ceil(filteredStructures.length / pageSize) || 1;
+  const paginatedStructures = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredStructures.slice(start, start + pageSize);
+  }, [filteredStructures, currentPage, pageSize]);
 
   // Open modal for Create
   const handleOpenAdd = () => {
@@ -403,12 +413,12 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in">
+    <div className="space-y-4 animate-in fade-in">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <Layers className="w-6 h-6 text-sky-500" /> Fee Structures
+            <Layers className="w-6 h-6 text-[var(--primary-color)]" /> Fee Structures
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
             Configure fee structures for academic classes by selecting created fee heads.
@@ -418,7 +428,7 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
         <div className="flex items-center gap-3">
           <button
             onClick={handleOpenAdd}
-            className="px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-lg shadow-sky-500/20 flex items-center gap-2 transition-all cursor-pointer"
+            className="px-4 py-2 rounded-xl bg-[var(--primary-color)] hover:opacity-90 text-white text-xs font-bold shadow-md shadow-[var(--primary-color)]/20 flex items-center gap-2 transition-all cursor-pointer"
           >
             <Plus className="w-4 h-4" /> Create Fee Structure
           </button>
@@ -427,16 +437,16 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
       </div>
 
       {/* Filter Bar */}
-      <div className="glass-card p-4 rounded-2xl grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
+      <div className="relative z-20 glass-card p-3.5 sm:p-4 rounded-2xl grid grid-cols-1 sm:grid-cols-12 gap-3 items-center border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 shadow-sm">
         {/* Search */}
-        <div className="sm:col-span-6 relative">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-          <input
-            type="text"
+        <div className="sm:col-span-6">
+          <ValidatedSearchInput
             placeholder="Search class, fee head, or structure name..."
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none"
+            onChange={(val) => {
+              setQuery(val);
+              setCurrentPage(1);
+            }}
           />
         </div>
 
@@ -448,7 +458,10 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
               ...sortedClasses.map((c) => ({ value: c.name, label: c.name })),
             ]}
             value={selectedClassFilter}
-            onChange={(val) => setSelectedClassFilter(val)}
+            onChange={(val) => {
+              setSelectedClassFilter(val);
+              setCurrentPage(1);
+            }}
             placeholder="All Class Grades"
             searchPlaceholder="Search class..."
             variant="sky"
@@ -464,7 +477,10 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
               { value: "Inactive", label: "Inactive" },
             ]}
             value={selectedStatusFilter}
-            onChange={(val) => setSelectedStatusFilter(val)}
+            onChange={(val) => {
+              setSelectedStatusFilter(val);
+              setCurrentPage(1);
+            }}
             placeholder="All Statuses"
             showSearch={false}
             variant="sky"
@@ -474,8 +490,8 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
 
       {/* Grid of Fee Structures */}
       {filteredStructures.length === 0 ? (
-        <div className="glass-card p-12 text-center rounded-3xl border border-slate-200 dark:border-slate-800 space-y-4">
-          <div className="w-12 h-12 rounded-2xl bg-sky-50 dark:bg-sky-950 text-sky-600 dark:text-sky-400 flex items-center justify-center mx-auto">
+        <div className="glass-card p-8 text-center rounded-2xl border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 space-y-4">
+          <div className="w-12 h-12 rounded-2xl bg-[var(--primary-color)]/10 text-[var(--primary-color)] flex items-center justify-center mx-auto">
             <Layers className="w-6 h-6" />
           </div>
           <div>
@@ -488,106 +504,120 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
           </div>
           <button
             onClick={handleOpenAdd}
-            className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-lg shadow-sky-500/20 inline-flex items-center gap-2 transition-all cursor-pointer"
+            className="px-4 py-2 rounded-xl bg-[var(--primary-color)] hover:opacity-90 text-white text-xs font-bold shadow-md shadow-[var(--primary-color)]/20 inline-flex items-center gap-2 transition-all cursor-pointer"
           >
             <Plus className="w-4 h-4" /> Create Fee Structure
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredStructures.map((s) => {
-            const items = s.items || [];
-            const total = items.reduce((sum, item) => sum + (Number(item.amount) || 0), 0) || s.totalAmount || 0;
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+            {paginatedStructures.map((s) => {
+              const items = s.items || [];
+              const total = items.reduce((sum, item) => sum + (Number(item.amount) || 0), 0) || s.totalAmount || 0;
 
-            return (
-              <div
-                key={s.id}
-                className="glass-card p-5 rounded-2xl space-y-3.5 border-l-4 border-l-sky-500 hover:shadow-md transition-all flex flex-col justify-between"
-              >
-                <div className="space-y-2.5">
-                  {/* Top Bar with Class and Actions */}
-                  <div className="flex items-start justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-2.5">
-                    <div>
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="px-2 py-0.5 rounded-lg font-extrabold text-[10px] uppercase tracking-wider bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-300">
-                          {s.className || "Class Grade"}
-                        </span>
-                        {s.status === "Inactive" && (
-                          <span className="px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400">
-                            Inactive
+              return (
+                <div
+                  key={s.id}
+                  className="glass-card p-3.5 sm:p-4 rounded-2xl space-y-3 border border-[var(--primary-color)]/35 dark:border-[var(--primary-color)]/45 hover:border-[var(--primary-color)] shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
+                >
+                  <div className="space-y-2.5">
+                    {/* Top Bar with Class and Actions */}
+                    <div className="flex items-start justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-2.5">
+                      <div>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="px-2 py-0.5 rounded-lg font-extrabold text-[10px] uppercase tracking-wider bg-[var(--primary-color)]/10 text-[var(--primary-color)]">
+                            {s.className || "Class Grade"}
                           </span>
-                        )}
+                          {s.status === "Inactive" && (
+                            <span className="px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400">
+                              Inactive
+                            </span>
+                          )}
+                        </div>
+                        <h3 className="font-bold text-sm text-slate-900 dark:text-white mt-1">
+                          {s.name || `${s.className} Fee Structure`}
+                        </h3>
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          Academic Year:{" "}
+                          <span className="font-semibold text-slate-600 dark:text-slate-300">
+                            {formatAcademicYear(s.academicYear) || "Current Year"}
+                          </span>
+                        </p>
                       </div>
-                      <h3 className="font-bold text-sm text-slate-900 dark:text-white mt-1">
-                        {s.name || `${s.className} Fee Structure`}
-                      </h3>
-                      <p className="text-[11px] text-slate-400 mt-0.5">
-                        Academic Year:{" "}
-                        <span className="font-semibold text-slate-600 dark:text-slate-300">
-                          {formatAcademicYear(s.academicYear) || "Current Year"}
-                        </span>
-                      </p>
+
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          onClick={() => handleOpenEdit(s)}
+                          className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-[var(--primary-color)] cursor-pointer"
+                          title="Edit Structure"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => setDeletingStruct(s)}
+                          className="p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950 text-rose-600 cursor-pointer"
+                          title="Delete Structure"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
 
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button
-                        onClick={() => handleOpenEdit(s)}
-                        className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-sky-600 cursor-pointer"
-                        title="Edit Structure"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => setDeletingStruct(s)}
-                        className="p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950 text-rose-600 cursor-pointer"
-                        title="Delete Structure"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
+                    {/* Fee Items Breakdown */}
+                    {items.length === 0 ? (
+                      <div className="py-2 text-xs text-slate-400 dark:text-slate-500 italic">
+                        No fee breakdown configured. Base amount: {formatCurrency(s.totalAmount)}
+                      </div>
+                    ) : (
+                      <div className="space-y-1.5 text-xs max-h-48 overflow-y-auto pr-1">
+                        {items.map((item, idx) => (
+                          <div
+                            key={idx}
+                            className="flex items-center justify-between text-slate-600 dark:text-slate-300 py-1 border-b border-slate-50 dark:border-slate-800/40 last:border-none"
+                          >
+                            <div>
+                              <span className="font-semibold text-slate-900 dark:text-white block">
+                                {item.feeHeadName || "Fee Head"}
+                              </span>
+                              {item.frequency && (
+                                <span className="text-[10px] text-slate-400 block">
+                                  {getFeeHeadDisplayFrequency(item as any)}
+                                </span>
+                              )}
+                            </div>
+                            <span className="font-mono font-bold text-slate-900 dark:text-white ml-2 shrink-0">
+                              {formatCurrency(item.amount)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
-                  {/* Fee Items Breakdown */}
-                  {items.length === 0 ? (
-                    <div className="py-2 text-xs text-slate-400 dark:text-slate-500 italic">
-                      No fee breakdown configured. Base amount: {formatCurrency(s.totalAmount)}
-                    </div>
-                  ) : (
-                    <div className="space-y-1.5 text-xs max-h-48 overflow-y-auto pr-1">
-                      {items.map((item, idx) => (
-                        <div
-                          key={idx}
-                          className="flex items-center justify-between text-slate-600 dark:text-slate-300 py-1 border-b border-slate-50 dark:border-slate-800/40 last:border-none"
-                        >
-                          <div>
-                            <span className="font-semibold text-slate-900 dark:text-white block">
-                              {item.feeHeadName || "Fee Head"}
-                            </span>
-                            {item.frequency && (
-                              <span className="text-[10px] text-slate-400 block">
-                                {getFeeHeadDisplayFrequency(item as any)}
-                              </span>
-                            )}
-                          </div>
-                          <span className="font-mono font-bold text-slate-900 dark:text-white ml-2 shrink-0">
-                            {formatCurrency(item.amount)}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  {/* Total */}
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center font-extrabold text-sm text-slate-900 dark:text-white">
+                    <span className="text-xs text-slate-500">Total Fee:</span>
+                    <span className="text-emerald-600 dark:text-emerald-400 font-mono text-base">
+                      {formatCurrency(total)}
+                    </span>
+                  </div>
                 </div>
+              );
+            })}
+          </div>
 
-                {/* Total */}
-                <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center font-extrabold text-sm text-slate-900 dark:text-white">
-                  <span className="text-xs text-slate-500">Total Fee:</span>
-                  <span className="text-emerald-600 dark:text-emerald-400 font-mono text-base">
-                    {formatCurrency(total)}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
+          {filteredStructures.length > 0 && (
+            <div className="pt-2">
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+                totalItems={filteredStructures.length}
+                pageSize={pageSize}
+              />
+            </div>
+          )}
         </div>
       )}
 
@@ -599,7 +629,7 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div>
                 <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                  <Layers className="w-5 h-5 text-sky-500" />
+                  <Layers className="w-5 h-5 text-[var(--primary-color)]" />
                   {editingStruct ? "Edit Fee Structure" : "Create Fee Structure"}
                 </h3>
                 <p className="text-[11px] text-slate-400 mt-0.5">
@@ -693,7 +723,7 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
               <div className="border-t border-slate-100 dark:border-slate-800 pt-4 space-y-3">
                 <div className="flex items-center justify-between">
                   <label className="font-extrabold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
-                    <Tag className="w-3.5 h-3.5 text-sky-500" /> Select Created Fee Heads
+                    <Tag className="w-3.5 h-3.5 text-[var(--primary-color)]" /> Select Created Fee Heads
                   </label>
                   <span className="text-[10px] text-slate-400">
                     {activeFeeHeads.length} Fee Head{activeFeeHeads.length !== 1 ? "s" : ""} Available
@@ -710,7 +740,7 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
                     </p>
                   </div>
                 ) : (
-                  <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-800 space-y-3">
+                  <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 space-y-3">
                     <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-end">
                       {/* Fee Head Dropdown */}
                       <div className="sm:col-span-7">
@@ -764,7 +794,7 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
                           type="button"
                           onClick={handleAddFeeHead}
                           disabled={!selectedFeeHeadId || !feeHeadInputAmount || parseFloat(feeHeadInputAmount) <= 0}
-                          className="w-full py-2 px-3 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs flex items-center justify-center gap-1 shadow-md shadow-sky-500/20 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="w-full py-2 px-3 rounded-xl bg-[var(--primary-color)] hover:opacity-90 text-white font-bold text-xs flex items-center justify-center gap-1 shadow-md shadow-[var(--primary-color)]/20 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           <Plus className="w-3.5 h-3.5" /> Add
                         </button>
@@ -853,7 +883,7 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold shadow-md shadow-sky-500/20 transition-all cursor-pointer"
+                  className="px-5 py-2 rounded-xl bg-[var(--primary-color)] hover:opacity-90 text-white font-bold shadow-md shadow-[var(--primary-color)]/20 transition-all cursor-pointer"
                 >
                   {editingStruct ? "Update Fee Structure" : "Save Fee Structure"}
                 </button>

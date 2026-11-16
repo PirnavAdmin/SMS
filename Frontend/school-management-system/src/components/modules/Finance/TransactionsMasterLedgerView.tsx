@@ -14,6 +14,7 @@ import { useToast } from '../../../context/ToastContext';
 import { exportToExcel } from '../../../utils/excelExport';
 import { validateSearchQuery } from '../../../utils/validation';
 import { ValidatedSearchInput } from '../../common/ValidatedSearchInput';
+import { Pagination } from '../../common/Pagination';
 import { fetchFinanceTransactionsSummaryApi } from '../../../api/finance';
 
 interface TransactionsMasterLedgerViewProps {
@@ -103,6 +104,12 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
     statusFilter: 'All',
     sortBy: 'date-desc' as 'date-desc' | 'date-asc' | 'amount-desc' | 'amount-asc',
   });
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(10);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [appliedFilters]);
 
   const handleApplyFilters = () => {
     const check = validateSearchQuery(searchQuery, 30);
@@ -375,6 +382,11 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
     return 0;
   });
 
+  const paginatedTxns = React.useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredTxns.slice(start, start + pageSize);
+  }, [filteredTxns, currentPage, pageSize]);
+
   const filteredBudgets = (financialBudgets || []).filter(b => {
     const bBranch = (b.branch || '').trim().toLowerCase();
     const sBranch = (selectedBranch || '').trim().toLowerCase();
@@ -593,7 +605,7 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <FileSpreadsheet className="w-6 h-6 text-sky-600 dark:text-sky-400" />
+            <FileSpreadsheet className="w-6 h-6 text-[var(--primary-color)]" />
             Transactions
           </h2>
           </div>
@@ -608,7 +620,7 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
 
           <button
             onClick={() => setIsManualModalOpen(true)}
-            className="px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-lg shadow-sky-600/20 flex items-center gap-2 transition-all"
+            className="px-4 py-2.5 rounded-xl bg-[var(--primary-color)] hover:opacity-90 text-white text-xs font-bold shadow-lg shadow-[var(--primary-color)]/20 flex items-center gap-2 transition-all cursor-pointer"
           >
             <Plus className="w-4 h-4" /> Add Manual Transaction
           </button>
@@ -616,12 +628,12 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
       </div>
 
       {/* SUMMARY KPI CARDS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
         {/* Total Income */}
-        <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-50 to-slate-50 dark:from-emerald-950/20 dark:to-slate-900 border border-emerald-200/80 dark:border-emerald-900/40 shadow-xs space-y-2 min-w-0 overflow-hidden">
+        <div className="glass-card p-3.5 sm:p-4 rounded-2xl bg-white/80 dark:bg-slate-900/80 border border-[var(--primary-color)]/35 dark:border-[var(--primary-color)]/45 hover:border-[var(--primary-color)] shadow-sm hover:shadow-md space-y-2 min-w-0 overflow-hidden transition-all">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-[11px] font-black uppercase text-emerald-600 tracking-wider">Total Income</span>
-            <div className="p-2 rounded-xl bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 shrink-0">
+            <span className="text-[11px] font-black uppercase text-[var(--primary-color)] tracking-wider">Total Income</span>
+            <div className="p-2 rounded-xl text-[var(--primary-color)] bg-[var(--primary-color)]/10 dark:bg-[var(--primary-color)]/20 shrink-0">
               <ArrowUpRight className="w-4 h-4" />
             </div>
           </div>
@@ -633,10 +645,10 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
         </div>
 
         {/* Total Expenses */}
-        <div className="p-4 rounded-2xl bg-gradient-to-br from-rose-50 to-slate-50 dark:from-rose-950/20 dark:to-slate-900 border border-rose-200/80 dark:border-rose-900/40 shadow-xs space-y-2 min-w-0 overflow-hidden">
+        <div className="glass-card p-3.5 sm:p-4 rounded-2xl bg-white/80 dark:bg-slate-900/80 border border-[var(--primary-color)]/35 dark:border-[var(--primary-color)]/45 hover:border-[var(--primary-color)] shadow-sm hover:shadow-md space-y-2 min-w-0 overflow-hidden transition-all">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-[11px] font-black uppercase text-rose-600 tracking-wider">Total Expenses</span>
-            <div className="p-2 rounded-xl bg-rose-100 dark:bg-rose-900/60 text-rose-700 dark:text-rose-300 shrink-0">
+            <span className="text-[11px] font-black uppercase text-[var(--primary-color)] tracking-wider">Total Expenses</span>
+            <div className="p-2 rounded-xl text-[var(--primary-color)] bg-[var(--primary-color)]/10 dark:bg-[var(--primary-color)]/20 shrink-0">
               <ArrowDownLeft className="w-4 h-4" />
             </div>
           </div>
@@ -648,10 +660,10 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
         </div>
 
         {/* Net Surplus / Balance */}
-        <div className="p-4 rounded-2xl bg-gradient-to-br from-sky-50 to-slate-50 dark:from-sky-950/20 dark:to-slate-900 border border-sky-200/80 dark:border-sky-900/40 shadow-xs space-y-2 min-w-0 overflow-hidden">
+        <div className="glass-card p-3.5 sm:p-4 rounded-2xl bg-white/80 dark:bg-slate-900/80 border border-[var(--primary-color)]/35 dark:border-[var(--primary-color)]/45 hover:border-[var(--primary-color)] shadow-sm hover:shadow-md space-y-2 min-w-0 overflow-hidden transition-all">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-[11px] font-black uppercase text-sky-600 tracking-wider">Net Financial Balance</span>
-            <div className="p-2 rounded-xl bg-sky-100 dark:bg-sky-900/60 text-sky-700 dark:text-sky-300 shrink-0">
+            <span className="text-[11px] font-black uppercase text-[var(--primary-color)] tracking-wider">Net Financial Balance</span>
+            <div className="p-2 rounded-xl text-[var(--primary-color)] bg-[var(--primary-color)]/10 dark:bg-[var(--primary-color)]/20 shrink-0">
               <TrendingUp className="w-4 h-4" />
             </div>
           </div>
@@ -665,21 +677,21 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
         </div>
 
         {/* Liquidity Accounts */}
-        <div className="p-4 rounded-2xl bg-gradient-to-br from-sky-50 to-slate-50 dark:from-sky-950/20 dark:to-slate-900 border border-sky-200/80 dark:border-sky-900/40 shadow-xs space-y-2 min-w-0 overflow-hidden">
+        <div className="glass-card p-3.5 sm:p-4 rounded-2xl bg-white/80 dark:bg-slate-900/80 border border-[var(--primary-color)]/35 dark:border-[var(--primary-color)]/45 hover:border-[var(--primary-color)] shadow-sm hover:shadow-md space-y-2 min-w-0 overflow-hidden transition-all">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-[11px] font-black uppercase text-sky-600 tracking-wider">Liquidity Accounts</span>
-            <div className="p-2 rounded-xl bg-sky-100 dark:bg-sky-900/60 text-sky-700 dark:text-sky-300 shrink-0">
+            <span className="text-[11px] font-black uppercase text-[var(--primary-color)] tracking-wider">Liquidity Accounts</span>
+            <div className="p-2 rounded-xl text-[var(--primary-color)] bg-[var(--primary-color)]/10 dark:bg-[var(--primary-color)]/20 shrink-0">
               <CreditCard className="w-4 h-4" />
             </div>
           </div>
           <div className="space-y-1.5 pt-1">
             <div className="flex justify-between gap-2 text-xs font-bold text-slate-900 dark:text-white min-w-0">
               <span className="text-slate-500 font-medium shrink-0">Bank Balance:</span>
-              <span title={formatCurrency(bankBalance)} className="text-sky-600 tabular-nums truncate">{formatCurrency(bankBalance)}</span>
+              <span title={formatCurrency(bankBalance)} className="text-slate-700 dark:text-slate-300 tabular-nums truncate">{formatCurrency(bankBalance)}</span>
             </div>
             <div className="flex justify-between gap-2 text-xs font-bold text-slate-900 dark:text-white min-w-0">
               <span className="text-slate-500 font-medium shrink-0">Cash Vault:</span>
-              <span title={formatCurrency(cashBalance)} className="text-emerald-600 tabular-nums truncate">{formatCurrency(cashBalance)}</span>
+              <span title={formatCurrency(cashBalance)} className="text-slate-700 dark:text-slate-300 tabular-nums truncate">{formatCurrency(cashBalance)}</span>
             </div>
           </div>
         </div>
@@ -689,9 +701,9 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
       <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-slate-100 dark:bg-slate-800/60 max-w-xl border border-slate-200/40 dark:border-slate-800">
         <button
           onClick={() => setActiveSubTab('ledger')}
-          className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+          className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
             activeSubTab === 'ledger'
-              ? 'bg-white dark:bg-slate-950 text-sky-600 dark:text-sky-400 shadow-sm'
+              ? 'bg-white dark:bg-slate-950 text-[var(--primary-color)] shadow-sm'
               : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
           }`}
         >
@@ -700,9 +712,9 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
 
         <button
           onClick={() => setActiveSubTab('categories-accounts')}
-          className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+          className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
             activeSubTab === 'categories-accounts'
-              ? 'bg-white dark:bg-slate-950 text-sky-600 dark:text-sky-400 shadow-sm'
+              ? 'bg-white dark:bg-slate-950 text-[var(--primary-color)] shadow-sm'
               : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
           }`}
         >
@@ -711,9 +723,9 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
 
         <button
           onClick={() => setActiveSubTab('budget')}
-          className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+          className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
             activeSubTab === 'budget'
-              ? 'bg-white dark:bg-slate-950 text-sky-600 dark:text-sky-400 shadow-sm'
+              ? 'bg-white dark:bg-slate-950 text-[var(--primary-color)] shadow-sm'
               : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
           }`}
         >
@@ -726,7 +738,7 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
         <div className="space-y-4">
           
           {/* Filter Bar */}
-          <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+          <div className="relative z-20 p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 shadow-xs">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 text-xs items-start">
               
               {/* Search (Spans 2 columns for wide input view) */}
@@ -777,7 +789,7 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
                 <button
                   type="button"
                   onClick={handleApplyFilters}
-                  className="w-full h-[38px] py-2 px-3 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-sky-500/20 transition-all cursor-pointer"
+                  className="w-full h-[38px] py-2 px-3 rounded-xl bg-[var(--primary-color)] hover:opacity-90 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-[var(--primary-color)]/20 transition-all cursor-pointer"
                 >
                   <Filter className="w-3.5 h-3.5" /> Apply Filters
                 </button>
@@ -858,20 +870,20 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
           </div>
 
           {/* Master Ledger Table */}
-          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs">
+              <table className="w-full text-center border-collapse text-xs">
                 <thead>
                   <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-700 text-slate-500 font-bold uppercase text-[11px] tracking-wider">
-                    <th className="py-3.5 px-4 whitespace-nowrap">Txn ID & Date</th>
-                    <th className="py-3.5 px-4 whitespace-nowrap">Type & Category</th>
-                    <th className="py-3.5 px-4 whitespace-nowrap">Source Module</th>
-                    <th className="py-3.5 px-4 whitespace-nowrap">Reference No.</th>
-                    <th className="py-3.5 px-4 whitespace-nowrap">Description</th>
-                    <th className="py-3.5 px-4 text-right whitespace-nowrap">Amount</th>
-                    <th className="py-3.5 px-4 whitespace-nowrap">Mode & Account</th>
-                    <th className="py-3.5 px-4 text-center whitespace-nowrap">Status</th>
-                    <th className="py-3.5 px-4 text-center whitespace-nowrap">Actions</th>
+                    <th className="py-3 px-3 text-center align-middle whitespace-nowrap">Txn ID & Date</th>
+                    <th className="py-3 px-3 text-center align-middle whitespace-nowrap">Type & Category</th>
+                    <th className="py-3 px-3 text-center align-middle whitespace-nowrap">Source Module</th>
+                    <th className="py-3 px-3 text-center align-middle whitespace-nowrap">Reference No.</th>
+                    <th className="py-3 px-3 text-center align-middle whitespace-nowrap">Description</th>
+                    <th className="py-3 px-3 text-center align-middle whitespace-nowrap">Amount</th>
+                    <th className="py-3 px-3 text-center align-middle whitespace-nowrap">Mode & Account</th>
+                    <th className="py-3 px-3 text-center align-middle whitespace-nowrap">Status</th>
+                    <th className="py-3 px-3 text-center align-middle whitespace-nowrap">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -882,17 +894,17 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
                       </td>
                     </tr>
                   ) : (
-                    filteredTxns.map(txn => (
+                    paginatedTxns.map(txn => (
                       <tr key={txn.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors align-middle">
                         
                         {/* Txn ID & Date */}
-                        <td className="py-3 px-4 font-mono font-bold text-slate-900 dark:text-white whitespace-nowrap">
-                          <span className="block text-sky-600 dark:text-sky-400">{txn.transactionId}</span>
+                        <td className="py-3 px-3 font-mono font-bold text-slate-900 dark:text-white whitespace-nowrap text-center align-middle">
+                          <span className="block text-[var(--primary-color)]">{txn.transactionId}</span>
                           <span className="text-[11px] text-slate-400 font-normal">{formatDateForDisplay(txn.date)} {txn.time || ''}</span>
                         </td>
 
                         {/* Type & Category */}
-                        <td className="py-3 px-4 whitespace-nowrap">
+                        <td className="py-3 px-3 whitespace-nowrap text-center align-middle">
                           <div className="space-y-1">
                             <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
                               txn.type === 'Income'
@@ -906,37 +918,37 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
                         </td>
 
                         {/* Source Module */}
-                        <td className="py-3 px-4 whitespace-nowrap">
+                        <td className="py-3 px-3 whitespace-nowrap text-center align-middle">
                           <span className="px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-[11px] inline-flex items-center gap-1 border">
                             {txn.sourceModule}
                           </span>
                         </td>
 
                         {/* Reference No */}
-                        <td className="py-3 px-4 font-mono font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap">
+                        <td className="py-3 px-3 font-mono font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap text-center align-middle">
                           {txn.referenceNumber && String(txn.referenceNumber).trim() !== '' ? txn.referenceNumber : 'N/A'}
                         </td>
 
                         {/* Description */}
-                        <td className="py-3 px-4 max-w-[220px] text-slate-700 dark:text-slate-300 font-medium">
-                          <p className="truncate" title={txn.description}>{txn.description}</p>
+                        <td className="py-3 px-3 max-w-[220px] text-slate-700 dark:text-slate-300 font-medium text-center align-middle">
+                          <p className="truncate mx-auto" title={txn.description}>{txn.description}</p>
                         </td>
 
                         {/* Amount */}
-                        <td className="py-3 px-4 text-right font-mono font-bold text-xs tabular-nums whitespace-nowrap">
+                        <td className="py-3 px-3 text-center align-middle font-mono font-bold text-xs tabular-nums whitespace-nowrap">
                           <span className={txn.type === 'Income' ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}>
                             {txn.type === 'Income' ? '+' : '-'}{formatCurrency(txn.amount)}
                           </span>
                         </td>
 
                         {/* Mode & Account */}
-                        <td className="py-3 px-4 whitespace-nowrap">
+                        <td className="py-3 px-3 whitespace-nowrap text-center align-middle">
                           <p className="font-semibold text-slate-900 dark:text-white text-xs">{txn.paymentMode}</p>
                           <p className="text-[11px] text-slate-400">{txn.account}</p>
                         </td>
 
                         {/* Status */}
-                        <td className="py-3 px-4 text-center whitespace-nowrap">
+                        <td className="py-3 px-3 text-center align-middle whitespace-nowrap">
                           <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold inline-block ${
                             txn.status === 'Completed' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' :
                             txn.status === 'Reversed' ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300' :
@@ -947,11 +959,11 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
                         </td>
 
                         {/* Actions */}
-                        <td className="py-3 px-4 text-center whitespace-nowrap">
+                        <td className="py-3 px-3 text-center align-middle whitespace-nowrap">
                           <div className="inline-flex items-center justify-center gap-1.5">
                             <button
                               onClick={() => setSelectedTxnForDetail(txn)}
-                              className="p-1.5 rounded-lg text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-950 border border-sky-200 dark:border-sky-800 transition-colors"
+                              className="p-1.5 rounded-lg text-[var(--primary-color)] hover:bg-[var(--primary-color)]/10 border border-[var(--primary-color)]/30 transition-colors"
                               title="View Transaction Details"
                             >
                               <Eye className="w-3.5 h-3.5" />
@@ -974,6 +986,22 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
                 </tbody>
               </table>
             </div>
+
+            {filteredTxns.length > 0 && (
+              <div className="border-t border-slate-200 dark:border-slate-800 px-4 py-3">
+                <Pagination
+                  currentPage={currentPage}
+                  totalItems={filteredTxns.length}
+                  itemsPerPage={pageSize}
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(newSize) => {
+                    setPageSize(newSize);
+                    setCurrentPage(1);
+                  }}
+                  label="transactions"
+                />
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -983,18 +1011,18 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           
           {/* Categories Box */}
-          <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
-            <div className="flex items-center justify-between border-b pb-3">
+          <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 shadow-sm space-y-4">
+            <div className="flex items-center justify-between pb-1">
               <div>
                 <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                  <Layers className="w-4 h-4 text-sky-600" />
+                  <Layers className="w-4 h-4 text-[var(--primary-color)]" />
                   Financial Transaction Categories
                 </h3>
                 <p className="text-[11px] text-slate-400">Income & Expense classification master</p>
               </div>
               <button
                 onClick={handleOpenAddCategory}
-                className="px-3 py-1.5 rounded-xl bg-sky-600 text-white font-bold text-xs flex items-center gap-1 shadow-xs cursor-pointer"
+                className="px-3 py-1.5 rounded-xl bg-[var(--primary-color)] hover:opacity-90 text-white font-bold text-xs flex items-center gap-1 shadow-xs cursor-pointer transition-opacity"
               >
                 <Plus className="w-3.5 h-3.5" /> Add Category
               </button>
@@ -1002,7 +1030,7 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
 
             <div className="space-y-2 max-h-[450px] overflow-y-auto pr-1">
               {financialCategories.map(cat => (
-                <div key={cat.id} className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border flex items-center justify-between text-xs">
+                <div key={cat.id} className="p-3 rounded-2xl bg-slate-50/70 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80 hover:border-[var(--primary-color)]/40 flex items-center justify-between text-xs transition-colors">
                   <div>
                     <div className="flex items-center gap-2">
                       <p className="font-bold text-slate-900 dark:text-white">{cat.name}</p>
@@ -1022,7 +1050,7 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
                       type="button"
                       onClick={() => handleOpenEditCategory(cat)}
                       title="Edit Category"
-                      className="p-1.5 rounded-lg bg-sky-100 dark:bg-sky-950 text-sky-600 dark:text-sky-300 hover:bg-sky-200 dark:hover:bg-sky-900 transition-all cursor-pointer"
+                      className="p-1.5 rounded-lg bg-[var(--primary-color)]/10 text-[var(--primary-color)] hover:bg-[var(--primary-color)]/20 transition-all cursor-pointer"
                     >
                       <Edit className="w-3.5 h-3.5" />
                     </button>
@@ -1052,18 +1080,18 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
           </div>
 
           {/* Accounts Box */}
-          <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
-            <div className="flex items-center justify-between border-b pb-3">
+          <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 shadow-sm space-y-4">
+            <div className="flex items-center justify-between pb-1">
               <div>
                 <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                  <CreditCard className="w-4 h-4 text-emerald-600" />
+                  <CreditCard className="w-4 h-4 text-[var(--primary-color)]" />
                   Financial Accounts & Liquidity Vaults
                 </h3>
                 <p className="text-[11px] text-slate-400">Cash vaults, bank accounts & department accounts</p>
               </div>
               <button
                 onClick={handleOpenAddAccount}
-                className="px-3 py-1.5 rounded-xl bg-emerald-600 text-white font-bold text-xs flex items-center gap-1 shadow-xs cursor-pointer"
+                className="px-3 py-1.5 rounded-xl bg-[var(--primary-color)] hover:opacity-90 text-white font-bold text-xs flex items-center gap-1 shadow-xs cursor-pointer transition-opacity"
               >
                 <Plus className="w-3.5 h-3.5" /> Add Account
               </button>
@@ -1071,7 +1099,7 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
 
             <div className="space-y-3 max-h-[450px] overflow-y-auto pr-1">
               {financialAccounts.map(acc => (
-                <div key={acc.id} className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border flex items-center justify-between text-xs space-y-1">
+                <div key={acc.id} className="p-4 rounded-2xl bg-slate-50/70 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80 hover:border-[var(--primary-color)]/40 flex items-center justify-between text-xs space-y-1 transition-colors">
                   <div>
                     <h4 className="font-extrabold text-slate-900 dark:text-white text-xs">{acc.accountName}</h4>
                     <p className="text-[10px] text-slate-400">{acc.accountType} {acc.accountNumber ? `• ${acc.accountNumber}` : ''}</p>
@@ -1086,7 +1114,7 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
                       type="button"
                       onClick={() => handleOpenEditAccount(acc)}
                       title="Edit Account"
-                      className="p-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-300 hover:bg-emerald-200 dark:hover:bg-emerald-900 transition-all cursor-pointer"
+                      className="p-1.5 rounded-lg bg-[var(--primary-color)]/10 text-[var(--primary-color)] hover:bg-[var(--primary-color)]/20 transition-all cursor-pointer"
                     >
                       <Edit className="w-3.5 h-3.5" />
                     </button>
@@ -1119,11 +1147,11 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
       {/* SUB-TAB 3: BUDGET INTEGRATION */}
       {activeSubTab === 'budget' && (
         <div className="space-y-4">
-          <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b pb-3">
+          <div className="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 shadow-sm space-y-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-1">
               <div>
                 <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                  <PieChart className="w-4 h-4 text-sky-600" />
+                  <PieChart className="w-4 h-4 text-[var(--primary-color)]" />
                   Budget Allocation & Consumption Tracking
                 </h3>
                 <p className="text-[11px] text-slate-400">
@@ -1133,7 +1161,7 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
               <button
                 type="button"
                 onClick={handleOpenAddBudget}
-                className="px-3.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                className="px-3.5 py-1.5 rounded-xl bg-[var(--primary-color)] hover:opacity-90 text-white text-xs font-bold shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer"
               >
                 <Plus className="w-4 h-4" /> Allocate Budget
               </button>
@@ -1155,7 +1183,7 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
                 <button
                   type="button"
                   onClick={handleOpenAddBudget}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-[var(--primary-color)] hover:opacity-90 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer"
                 >
                   <Plus className="w-4 h-4" /> Allocate Budget
                 </button>
@@ -1171,7 +1199,7 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
                   const remaining = Math.max(0, b.allocatedAmount - b.consumedAmount);
 
                   return (
-                    <div key={b.id} className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 space-y-3">
+                    <div key={b.id} className="p-4 rounded-2xl bg-slate-50/70 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80 hover:border-[var(--primary-color)]/40 space-y-3 transition-colors">
                       <div className="flex justify-between items-start">
                         <div>
                           <h4 className="font-bold text-xs text-slate-900 dark:text-white flex items-center gap-2">
@@ -1212,7 +1240,7 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
 
                       <div className="w-full bg-slate-200 dark:bg-slate-700 h-2.5 rounded-full overflow-hidden">
                         <div
-                          className={`h-full transition-all ${isOverBudget ? 'bg-rose-600' : percent >= 90 ? 'bg-amber-500' : 'bg-sky-600'}`}
+                          className={`h-full transition-all ${isOverBudget ? 'bg-rose-600' : percent >= 90 ? 'bg-amber-500' : 'bg-[var(--primary-color)]'}`}
                           style={{ width: `${progressPercent}%` }}
                         />
                       </div>
@@ -1249,7 +1277,7 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
             <div className="flex items-center justify-between border-b pb-3">
               <div>
                 <h3 className="font-black text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-sky-600" />
+                  <FileText className="w-4 h-4 text-[var(--primary-color)]" />
                   Transaction Details: {selectedTxnForDetail.transactionId}
                 </h3>
                 <p className="text-[10px] text-slate-400">Master Ledger Central Audit Entry</p>
@@ -1287,7 +1315,7 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
                 </div>
                 <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border">
                   <span className="text-[10px] font-bold text-slate-400 uppercase">Source Module</span>
-                  <p className="font-bold text-sky-600">{selectedTxnForDetail.sourceModule}</p>
+                  <p className="font-bold text-[var(--primary-color)]">{selectedTxnForDetail.sourceModule}</p>
                 </div>
                 <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border">
                   <span className="text-[10px] font-bold text-slate-400 uppercase">Reference Number</span>
@@ -1320,7 +1348,7 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
                     {selectedTxnForDetail.auditTrail.map(log => (
                       <div key={log.id} className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 border text-[11px] space-y-0.5">
                         <div className="flex justify-between font-bold">
-                          <span className="text-sky-600">{log.action} by {log.user}</span>
+                          <span className="text-[var(--primary-color)]">{log.action} by {log.user}</span>
                           <span className="text-slate-400 font-normal">{log.timestamp}</span>
                         </div>
                         {log.notes && <p className="text-slate-500 italic">{log.notes}</p>}
@@ -1383,7 +1411,7 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col text-xs">
             <div className="flex items-center justify-between border-b pb-3">
               <h3 className="font-black text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                <Plus className="w-4 h-4 text-sky-600" />
+                <Plus className="w-4 h-4 text-[var(--primary-color)]" />
                 Add Manual Financial Transaction
               </h3>
               <button onClick={() => setIsManualModalOpen(false)} className="p-1 text-slate-400"><X className="w-5 h-5" /></button>
@@ -1396,7 +1424,7 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
                   <select
                     value={manualForm.type}
                     onChange={e => setManualForm({ ...manualForm, type: e.target.value as any })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-sky-600"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-[var(--primary-color)]"
                   >
                     <option value="Income">Income (+)</option>
                     <option value="Expense">Expense (-)</option>
@@ -1497,8 +1525,8 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
               </div>
 
               <div className="flex justify-end gap-2 pt-2 border-t">
-                <button type="button" onClick={() => setIsManualModalOpen(false)} className="px-4 py-2 font-semibold bg-slate-200 dark:bg-slate-800 rounded-xl">Cancel</button>
-                <button type="submit" className="px-5 py-2 font-bold bg-sky-600 text-white rounded-xl shadow-md">Post to Master Ledger</button>
+                <button type="button" onClick={() => setIsManualModalOpen(false)} className="px-4 py-2 font-semibold bg-slate-200 dark:bg-slate-800 rounded-xl cursor-pointer">Cancel</button>
+                <button type="submit" className="px-5 py-2 font-bold bg-[var(--primary-color)] hover:opacity-90 text-white rounded-xl shadow-md cursor-pointer">Post to Master Ledger</button>
               </div>
             </form>
           </div>
@@ -1531,7 +1559,7 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
               </div>
               <div className="flex justify-end gap-2 pt-2 border-t">
                 <button type="button" onClick={() => { setIsAddCategoryOpen(false); setEditingCat(null); }} className="px-3 py-1.5 rounded-xl bg-slate-200 dark:bg-slate-800 font-semibold cursor-pointer">Cancel</button>
-                <button type="submit" className="px-4 py-1.5 rounded-xl bg-sky-600 text-white font-bold cursor-pointer">{editingCat ? 'Update Category' : 'Save Category'}</button>
+                <button type="submit" className="px-4 py-1.5 rounded-xl bg-[var(--primary-color)] hover:opacity-90 text-white font-bold cursor-pointer">{editingCat ? 'Update Category' : 'Save Category'}</button>
               </div>
             </form>
           </div>
@@ -1572,7 +1600,7 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
               </div>
               <div className="flex justify-end gap-2 pt-2 border-t">
                 <button type="button" onClick={() => { setIsAddAccountOpen(false); setEditingAcc(null); }} className="px-3 py-1.5 rounded-xl bg-slate-200 dark:bg-slate-800 font-semibold cursor-pointer">Cancel</button>
-                <button type="submit" className="px-4 py-1.5 rounded-xl bg-emerald-600 text-white font-bold cursor-pointer">{editingAcc ? 'Update Account' : 'Save Account'}</button>
+                <button type="submit" className="px-4 py-1.5 rounded-xl bg-[var(--primary-color)] hover:opacity-90 text-white font-bold cursor-pointer">{editingAcc ? 'Update Account' : 'Save Account'}</button>
               </div>
             </form>
           </div>
@@ -1585,7 +1613,7 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 text-xs">
             <div className="flex justify-between items-center border-b pb-3">
               <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
-                <PieChart className="w-4 h-4 text-sky-600" />
+                <PieChart className="w-4 h-4 text-[var(--primary-color)]" />
                 {editingBudget ? 'Edit Budget Allocation' : 'Allocate Departmental Budget'}
               </h3>
               <button
@@ -1655,7 +1683,7 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold shadow-xs cursor-pointer"
+                  className="px-4 py-1.5 rounded-xl bg-[var(--primary-color)] hover:opacity-90 text-white font-bold shadow-xs cursor-pointer"
                 >
                   {editingBudget ? 'Update Budget' : 'Save Allocation'}
                 </button>

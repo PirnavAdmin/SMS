@@ -18,6 +18,8 @@ import { matchesClassName, compareClassesAscending } from "../../../utils/classS
 import { formatDateForDisplay } from "../../../utils/dateValidation";
 import { validateSearchQuery } from "../../../utils/validation";
 import { ValidatedSearchInput } from "../../common/ValidatedSearchInput";
+import { Pagination } from "../../common/Pagination";
+import { SearchableSelect } from "../../common/SearchableSelect";
 import {
   IndianRupee,
   Search,
@@ -40,6 +42,11 @@ import {
   ShieldCheck,
   RefreshCw,
   Sparkles,
+  Percent,
+  CreditCard,
+  FileText,
+  Calendar,
+  Download,
 } from "lucide-react";
 import {
   Student,
@@ -134,7 +141,13 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedClass, setSelectedClass] = useState("ALL");
   const [selectedSection, setSelectedSection] = useState("ALL");
+  const [studentPage, setStudentPage] = useState<number>(1);
+  const [studentPageSize, setStudentPageSize] = useState<number>(10);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(initialStudent || null);
+
+  useEffect(() => {
+    setStudentPage(1);
+  }, [searchQuery, selectedClass, selectedSection]);
   const [calcResult, setCalcResult] = useState<StudentCalculationResult | null>(null);
 
   const [tempScholarshipId, setTempScholarshipId] = useState("");
@@ -702,7 +715,17 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
         }
       });
 
-    return Array.from(map.values());
+    // Deduplicate any overlapping student records by primary key id or admission number
+    const finalMap = new Map<string, Student>();
+    for (const st of map.values()) {
+      const uniqueId = String(st.id || st.admissionNo || (st as any).studentId || "");
+      if (uniqueId && !finalMap.has(uniqueId)) {
+        finalMap.set(uniqueId, st);
+      } else if (uniqueId) {
+        finalMap.set(uniqueId, { ...finalMap.get(uniqueId)!, ...st });
+      }
+    }
+    return Array.from(finalMap.values());
   }, [students, admissions, selectedBranch]);
 
   const getStudentDisplayId = React.useCallback(
@@ -814,6 +837,11 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
         return nameA.localeCompare(nameB, undefined, { numeric: true, sensitivity: 'base' });
       });
   }, [allEnrolledStudents, searchQuery, isSearchValid, selectedClass, selectedSection]);
+
+  const paginatedStudents = React.useMemo(() => {
+    const start = (studentPage - 1) * studentPageSize;
+    return filteredStudents.slice(start, start + studentPageSize);
+  }, [filteredStudents, studentPage, studentPageSize]);
 
   const selectableStudents = React.useMemo(() => {
     const list = allEnrolledStudents.filter((s) => {
@@ -1385,36 +1413,9 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
       });
     }
 
-    // Mark unpaid library fines as Paid in edu_db_library_fines if collected
-    try {
-      const s = localStorage.getItem("edu_db_library_fines");
-      if (s) {
-        const fines = JSON.parse(s);
-        const stAdm = selectedStudent.admissionNo || selectedStudent.id;
-        const stFullName = `${selectedStudent.firstName} ${selectedStudent.lastName}`.toLowerCase();
-        const updatedFines = fines.map((f: any) => {
-          if (
-            f.paymentStatus === "Unpaid" &&
-            (f.memberId === selectedStudent.id ||
-              f.memberId === stAdm ||
-              (f.memberName || "").toLowerCase() === stFullName)
-          ) {
-            return {
-              ...f,
-              paymentStatus: "Paid",
-              paidDate: new Date().toISOString().split("T")[0],
-              remarks: "Paid via Admin Fee Collection",
-            };
-          }
-          return f;
-        });
-        localStorage.setItem("edu_db_library_fines", JSON.stringify(updatedFines));
-        if (typeof window !== "undefined") {
-          window.dispatchEvent(new Event("library_fines_updated"));
-        }
-      }
-    } catch {
-      // ignore
+    // Notify library fines update if collected
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("library_fines_updated"));
     }
 
     // Check if Hostel Security Deposit was paid in this transaction
@@ -1439,30 +1440,6 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
             studentType: "Hosteller",
             residentialStatus: "Residential",
           } as any);
-        }
-
-        const rawAdmStr = localStorage.getItem("edu_db_admissions");
-        if (rawAdmStr) {
-          const rawAdms = JSON.parse(rawAdmStr);
-          const updatedRawAdms = rawAdms.map((a: any) => {
-            const matchesAdm =
-              String(a.id) === String(selectedStudent.id) ||
-              (selectedStudent.admissionNo && (String(a.admissionNo) === String(selectedStudent.admissionNo) || String(a.applicationNo) === String(selectedStudent.admissionNo) || String(a.registrationNo) === String(selectedStudent.admissionNo)));
-            return matchesAdm ? { ...a, hostelSecurityDepositPaid: true, studentType: "Residential", residentialStatus: "Residential" } : a;
-          });
-          localStorage.setItem("edu_db_admissions", JSON.stringify(updatedRawAdms));
-        }
-
-        const rawStStr = localStorage.getItem("edu_db_students");
-        if (rawStStr) {
-          const rawSts = JSON.parse(rawStStr);
-          const updatedRawSts = rawSts.map((s: any) => {
-            const matchesSt =
-              String(s.id) === String(selectedStudent.id) ||
-              (selectedStudent.admissionNo && String(s.admissionNo) === String(selectedStudent.admissionNo));
-            return matchesSt ? { ...s, hostelSecurityDepositPaid: true, studentType: "Hosteller", residentialStatus: "Residential" } : s;
-          });
-          localStorage.setItem("edu_db_students", JSON.stringify(updatedRawSts));
         }
 
         setSelectedStudent((prev: any) => (prev ? { ...prev, hostelSecurityDepositPaid: true, studentType: "Hosteller", residentialStatus: "Residential" } : prev));
@@ -1833,18 +1810,8 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
           : 0;
 
         if (trpFare <= 0) {
-          const poolRoutes = (routeMasters && routeMasters.length > 0) ? routeMasters : (() => {
-            try {
-              const raw = localStorage.getItem("edu_db_route_masters") || localStorage.getItem("route_masters");
-              return raw ? JSON.parse(raw) : [];
-            } catch { return []; }
-          })();
-          const poolPoints = (pickupPoints && pickupPoints.length > 0) ? pickupPoints : (() => {
-            try {
-              const raw = localStorage.getItem("edu_db_pickup_points") || localStorage.getItem("pickup_points");
-              return raw ? JSON.parse(raw) : [];
-            } catch { return []; }
-          })();
+          const poolRoutes = (routeMasters && routeMasters.length > 0) ? routeMasters : [];
+          const poolPoints = (pickupPoints && pickupPoints.length > 0) ? pickupPoints : [];
 
           const rObj = poolRoutes.find((r: any) => {
             const rNorm = String(r.routeName || r.routeCode || "").replace(/\s+/g, " ").trim().toLowerCase();
@@ -1875,8 +1842,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
 
         if (trpFare > 0) {
           const configuredTransportPolicy =
-            (typeof window !== "undefined" &&
-              window.localStorage?.getItem("transport_fee_billing_policy")) ||
+            ((financeSettings as any)?.transportBillingPolicy as any) ||
             "Term-wise";
 
           const isFullAnnualStudent =
@@ -3045,11 +3011,11 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
   const activeStudent = selectedStudent;
 
   return (
-    <div className="space-y-6 animate-in fade-in">
+    <div className="space-y-4 animate-in fade-in">
       {/* 1. Top Header Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-slate-200/80 dark:border-slate-800">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-500/20">
+          <div className="w-10 h-10 rounded-xl bg-[var(--primary-color)] text-white flex items-center justify-center shadow-md shadow-[var(--primary-color)]/20">
             <IndianRupee className="w-5 h-5" />
           </div>
           <div>
@@ -3076,7 +3042,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
               onClick={() => setActiveSubTab(tab.id)}
               className={`py-2.5 flex items-center gap-1.5 cursor-pointer whitespace-nowrap border-b-2 transition-colors ${
                 isActive
-                  ? "text-blue-600 border-blue-600"
+                  ? "text-[var(--primary-color)] border-[var(--primary-color)] font-extrabold"
                   : "text-slate-500 border-transparent hover:text-slate-900 dark:hover:text-white"
               }`}
             >
@@ -3087,7 +3053,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
       </div>
 
       {/* 3. Search Bar & Filter Controls */}
-      <div className="glass-card p-4.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-4">
+      <div className="relative z-20 glass-card p-3.5 sm:p-4 rounded-2xl border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 space-y-4">
         <div className="flex flex-wrap items-start gap-3">
           <ValidatedSearchInput
             value={searchQuery}
@@ -3095,41 +3061,38 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
             placeholder="Search student by Name, Adm No, or Roll No..."
             maxLength={30}
             className="flex-1 min-w-[240px]"
-            inputClassName="py-2.5 bg-white dark:bg-slate-900 font-semibold"
+            inputClassName="py-2 bg-white dark:bg-slate-900 font-semibold"
             ariaLabel="Search student by Name, Admission No, or Roll No"
           />
 
-          <div>
-            <select
+          <div className="w-full sm:w-40">
+            <SearchableSelect
               value={selectedClass}
-              onChange={(e) => setSelectedClass(e.target.value)}
-              className="px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold cursor-pointer"
-            >
-              <option value="ALL">All Classes</option>
-              {uniqueClassNames.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
+              onChange={(val) => setSelectedClass(val)}
+              options={[
+                { value: "ALL", label: "All Classes" },
+                ...uniqueClassNames.map((c) => ({ value: c, label: c }))
+              ]}
+              placeholder="All Classes"
+            />
           </div>
 
-          <div>
-            <select
+          <div className="w-full sm:w-40">
+            <SearchableSelect
               value={selectedSection}
-              onChange={(e) => setSelectedSection(e.target.value)}
-              className="px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-bold cursor-pointer"
-            >
-              <option value="ALL">All Sections</option>
-              {uniqueSections.map((sec) => (
-                <option key={sec} value={sec}>Section {sec}</option>
-              ))}
-            </select>
+              onChange={(val) => setSelectedSection(val)}
+              options={[
+                { value: "ALL", label: "All Sections" },
+                ...uniqueSections.map((sec) => ({ value: sec, label: `Section ${sec}` }))
+              ]}
+              placeholder="All Sections"
+            />
           </div>
 
-          <div>
-            <select
-              value={selectedStudent?.id || ""}
-              onChange={(e) => {
-                const val = String(e.target.value || "").trim();
+          <div className="w-full sm:w-80">
+            <SearchableSelect
+              value={selectedStudent?.id ? String(selectedStudent.id) : ""}
+              onChange={(val) => {
                 if (!val) {
                   setSelectedStudent(null);
                   return;
@@ -3142,25 +3105,30 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                   handleSelectStudent(s);
                 }
               }}
-              className="px-3 py-2.5 rounded-xl border border-blue-300 dark:border-blue-700 bg-blue-50/50 dark:bg-blue-950/40 text-blue-900 dark:text-blue-200 text-xs font-bold cursor-pointer max-w-[280px] truncate"
-            >
-              <option value="">-- Select Student ({selectableStudents.length}) --</option>
-              {selectableStudents.map((st) => (
-                <option key={st.id || st.admissionNo} value={st.id}>
-                  {st.className} - {st.section || 'A'} | {st.firstName} {st.lastName} (ID: {getStudentDisplayId(st)})
-                </option>
-              ))}
-            </select>
+              options={(() => {
+                const seenVals = new Set<string>();
+                const list: { value: string; label: string }[] = [];
+                for (const st of selectableStudents) {
+                  const val = String(st.id || st.admissionNo || "");
+                  if (val && !seenVals.has(val)) {
+                    seenVals.add(val);
+                    list.push({
+                      value: val,
+                      label: `${st.className} - ${st.section || 'A'} | ${st.firstName} ${st.lastName} (ID: ${getStudentDisplayId(st)})`,
+                    });
+                  }
+                }
+                return list;
+              })()}
+              placeholder={`-- Select Student (${selectableStudents.length}) --`}
+              searchPlaceholder="Search student..."
+            />
           </div>
         </div>
 
         {activeStudent && (
-          <div className="flex flex-col p-4 bg-slate-50/80 dark:bg-slate-900/60 rounded-xl border border-slate-200/60 dark:border-slate-800 gap-3">
+          <div className="flex flex-col p-4 bg-slate-50/80 dark:bg-slate-900/60 rounded-xl border border-[var(--primary-color)]/25 dark:border-[var(--primary-color)]/30 gap-3">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white font-black text-lg flex items-center justify-center shadow-md shrink-0">
-                {activeStudent.firstName?.[0] || "A"}
-              </div>
               <div className="min-w-0">
                 <h3 className="text-base font-black text-slate-900 dark:text-white truncate">
                   {activeStudent.firstName} {activeStudent.lastName}
@@ -3195,7 +3163,6 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                   </span>
                 </div>
               </div>
-            </div>
 
             <div className="flex flex-wrap items-center gap-2.5">
               <div className="text-right pr-2">
@@ -3216,7 +3183,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                   setTransitionNotes("");
                   setShowTransitionModal(true);
                 }}
-                className="h-9 px-3.5 rounded-xl border border-indigo-600 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                className="h-9 px-3.5 rounded-xl border border-[var(--primary-color)] text-[var(--primary-color)] hover:bg-[var(--primary-color)]/10 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
               >
                 <ArrowRightLeft className="w-3.5 h-3.5" />
                 Category Transition
@@ -3227,19 +3194,19 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                 title="Recalculate & Sync Fee Profile"
                 className="h-9 w-9 flex items-center justify-center rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
               >
-                <RefreshCw className={`w-4 h-4 ${isLoadingProfile ? "animate-spin text-blue-600" : ""}`} />
+                <RefreshCw className={`w-4 h-4 ${isLoadingProfile ? "animate-spin text-[var(--primary-color)]" : ""}`} />
               </button>
               <button
                 type="button"
                 onClick={() => setActiveSubTab("ledger")}
-                className="h-9 px-3.5 rounded-xl border border-blue-600 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 text-xs font-bold transition-all cursor-pointer flex items-center"
+                className="h-9 px-3.5 rounded-xl border border-[var(--primary-color)] text-[var(--primary-color)] hover:bg-[var(--primary-color)]/10 text-xs font-bold transition-all cursor-pointer flex items-center"
               >
                 View Ledger
               </button>
               <button
                 type="button"
                 onClick={() => setSelectedStudent(null)}
-                className="h-9 px-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition-all cursor-pointer flex items-center"
+                className="h-9 px-3.5 rounded-xl bg-[var(--primary-color)] hover:opacity-90 text-white text-xs font-bold shadow-md shadow-[var(--primary-color)]/20 transition-all cursor-pointer flex items-center"
               >
                 Change Student
               </button>
@@ -3253,7 +3220,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                 <Bed className="w-3 h-3" /> Residential (Hosteller)
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-100 text-blue-800 dark:bg-blue-950/70 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[var(--primary-color)]/10 text-[var(--primary-color)] border border-[var(--primary-color)]/30">
                 <Bus className="w-3 h-3" /> Non-Residential (Day Scholar)
               </span>
             )}
@@ -3308,21 +3275,21 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
         )}
 
         {activeStudent && (backendFeeProfile?.securityDepositRefundable > 0 || (calcResult as any)?.securityDepositRefundable > 0) && (
-          <div className="p-4 rounded-2xl bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-indigo-500/5 border border-indigo-500/30 dark:border-indigo-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in fade-in">
+          <div className="p-4 rounded-2xl bg-[var(--primary-color)]/5 border border-[var(--primary-color)]/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in fade-in">
             <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-xl bg-[var(--primary-color)]/10 text-[var(--primary-color)] flex items-center justify-center shrink-0">
                 <ShieldCheck className="w-5 h-5" />
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h4 className="text-sm font-extrabold text-indigo-900 dark:text-indigo-200">
+                  <h4 className="text-sm font-extrabold text-slate-800 dark:text-slate-200">
                     Refundable Hostel Security Deposit
                   </h4>
-                  <span className="px-2 py-0.5 rounded-full text-xs font-black bg-indigo-600 text-white shadow-xs">
+                  <span className="px-2 py-0.5 rounded-full text-xs font-black bg-[var(--primary-color)] text-white shadow-xs">
                     {formatCurrency(backendFeeProfile?.securityDepositRefundable ?? (calcResult as any)?.securityDepositRefundable ?? 0)}
                   </span>
                 </div>
-                <p className="text-xs text-indigo-800/80 dark:text-indigo-300/80 mt-0.5">
+                <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
                   Hostel security deposit is held as an independent obligation. Upon vacating or leaving the hostel, this deposit can be refunded after any damage deductions.
                 </p>
               </div>
@@ -3335,7 +3302,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                 setDeductionReasonInput("");
                 setShowRefundDepositModal(true);
               }}
-              className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md shadow-indigo-600/20 transition-all shrink-0 cursor-pointer"
+              className="px-4 py-2 rounded-xl bg-[var(--primary-color)] hover:opacity-90 text-white font-bold text-xs shadow-md shadow-[var(--primary-color)]/20 transition-all shrink-0 cursor-pointer"
             >
               Process Deposit Refund →
             </button>
@@ -3357,10 +3324,10 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
         )}
 
       {!activeStudent && (
-        <div className="glass-card p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-4">
+        <div className="glass-card p-3.5 sm:p-4 rounded-2xl border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 space-y-3.5">
           <div className="flex items-center justify-between">
             <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-              <Users className="w-5 h-5 text-blue-600" /> Select Student for Fee Collection ({filteredStudents.length} Students)
+              <Users className="w-5 h-5 text-[var(--primary-color)]" /> Select Student for Fee Collection ({filteredStudents.length} Students)
             </h3>
             <p className="text-xs text-slate-500 font-medium">
               Showing students class-wise & alphabetically (A-Z)
@@ -3368,15 +3335,15 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
           </div>
 
           <div className="overflow-x-auto rounded-xl border border-slate-200/80 dark:border-slate-800">
-            <table className="w-full text-left border-collapse text-xs">
+            <table className="w-full text-center border-collapse text-xs">
               <thead>
                 <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider text-[11px] border-b border-slate-200 dark:border-slate-800">
-                  <th className="py-3 px-4">#</th>
-                  <th className="py-3 px-4">Class & Sec</th>
-                  <th className="py-3 px-4">Student Name</th>
-                  <th className="py-3 px-4">Student ID</th>
-                  <th className="py-3 px-4">Branch</th>
-                  <th className="py-3 px-4 text-right">Action</th>
+                  <th className="py-3 px-3 text-center align-middle">#</th>
+                  <th className="py-3 px-3 text-center align-middle">Class & Sec</th>
+                  <th className="py-3 px-3 text-center align-middle">Student Name</th>
+                  <th className="py-3 px-3 text-center align-middle">Student ID</th>
+                  <th className="py-3 px-3 text-center align-middle">Branch</th>
+                  <th className="py-3 px-3 text-center align-middle">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
@@ -3389,29 +3356,28 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                     </td>
                   </tr>
                 ) : (
-                  filteredStudents.map((st, idx) => (
-                    <tr key={st.id || st.admissionNo} className="hover:bg-blue-50/40 dark:hover:bg-slate-800/50 transition-colors">
-                      <td className="py-3 px-4 text-slate-400 font-mono font-bold">{idx + 1}</td>
-                      <td className="py-3 px-4 font-bold text-slate-800 dark:text-slate-200">
+                  paginatedStudents.map((st, idx) => (
+                    <tr key={`${st.id || st.admissionNo || 'st'}-${idx}`} className="hover:bg-[var(--primary-color)]/10 transition-colors">
+                      <td className="py-3 px-3 text-slate-400 font-mono font-bold text-center align-middle">
+                        {(studentPage - 1) * studentPageSize + idx + 1}
+                      </td>
+                      <td className="py-3 px-3 font-bold text-slate-800 dark:text-slate-200 text-center align-middle">
                         {st.className} - {st.section || 'A'}
                       </td>
-                      <td className="py-3 px-4 font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 text-xs font-bold flex items-center justify-center shrink-0">
-                          {st.firstName?.[0] || 'S'}
-                        </div>
+                      <td className="py-3 px-3 font-bold text-slate-900 dark:text-white text-center align-middle whitespace-nowrap">
                         {st.firstName} {st.lastName}
                       </td>
-                      <td className="py-3 px-4 font-mono font-semibold text-slate-600 dark:text-slate-300">
+                      <td className="py-3 px-3 font-mono font-semibold text-slate-600 dark:text-slate-300 text-center align-middle">
                         {getStudentDisplayId(st)}
                       </td>
-                      <td className="py-3 px-4 text-slate-500">
+                      <td className="py-3 px-3 text-slate-500 text-center align-middle">
                         {st.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "—")}
                       </td>
-                      <td className="py-3 px-4 text-right">
+                      <td className="py-3 px-3 text-center align-middle">
                         <button
                           type="button"
                           onClick={() => handleSelectStudent(st)}
-                          className="px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-sm active:scale-95 transition-all cursor-pointer"
+                          className="px-3.5 py-1.5 rounded-lg bg-[var(--primary-color)] hover:opacity-90 text-white font-bold text-xs shadow-sm active:scale-95 transition-all cursor-pointer"
                         >
                           Select Student →
                         </button>
@@ -3422,12 +3388,28 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
               </tbody>
             </table>
           </div>
+
+          {filteredStudents.length > 0 && (
+            <div className="border-t border-slate-200 dark:border-slate-800 px-4 py-3">
+              <Pagination
+                currentPage={studentPage}
+                totalItems={filteredStudents.length}
+                itemsPerPage={studentPageSize}
+                onPageChange={setStudentPage}
+                onItemsPerPageChange={(newSize) => {
+                  setStudentPageSize(newSize);
+                  setStudentPage(1);
+                }}
+                label="students"
+              />
+            </div>
+          )}
         </div>
       )}
 
       {/* Sub-Tab Views: Transactions, Account Balance, Ledger */}
       {activeSubTab === "transactions" && (
-        <div className="glass-card p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-4">
+        <div className="glass-card p-5 rounded-2xl border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-base font-bold text-slate-900 dark:text-white">
               Transactions {activeStudent ? `— ${activeStudent.firstName} ${activeStudent.lastName}` : ""}
@@ -3463,7 +3445,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                         <button
                           type="button"
                           onClick={() => onPrintReceipt(p)}
-                          className="text-xs font-bold text-blue-600 hover:underline cursor-pointer"
+                          className="text-xs font-bold text-[var(--primary-color)] hover:underline cursor-pointer"
                         >
                           Print Receipt
                         </button>
@@ -3482,7 +3464,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
       )}
 
       {activeSubTab === "balance" && (
-        <div className="glass-card p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-4">
+        <div className="glass-card p-5 rounded-2xl border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 space-y-4">
           <h3 className="text-base font-bold text-slate-900 dark:text-white">
             Account Balance {activeStudent ? `— ${activeStudent.firstName} ${activeStudent.lastName}` : ""}
           </h3>
@@ -3490,7 +3472,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {[
                 { label: "Total Assessed Fee", val: formatCurrency(calcResult?.totalFee ?? activeStudent.totalFee ?? 0), cls: "text-slate-900 dark:text-white" },
-                { label: "Concessions / Discounts", val: formatCurrency(calcResult?.concessionAmount ?? 0), cls: "text-blue-600 dark:text-blue-400" },
+                { label: "Concessions / Discounts", val: formatCurrency(calcResult?.concessionAmount ?? 0), cls: "text-[var(--primary-color)]" },
                 { label: "Total Paid", val: formatCurrency(calcResult?.paidFee ?? activeStudent.paidFee ?? 0), cls: "text-emerald-600 dark:text-emerald-400" },
                 { label: "Current Net Balance Due", val: formatCurrency(totalOutstanding), cls: "text-rose-600 dark:text-rose-400" },
               ].map((item) => (
@@ -3511,7 +3493,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
       )}
 
       {activeSubTab === "ledger" && (
-        <div className="glass-card p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-4">
+        <div className="glass-card p-5 rounded-2xl border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-base font-bold text-slate-900 dark:text-white">
               Student Ledger {activeStudent ? `— ${activeStudent.firstName} ${activeStudent.lastName}` : ""}
@@ -3535,7 +3517,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                   {allInstallments.map((inst, idx) => (
-                    <tr key={inst.id} className="hover:bg-slate-50/60 dark:hover:bg-slate-900/50">
+                    <tr key={`${inst.id || 'inst'}-${idx}`} className="hover:bg-slate-50/60 dark:hover:bg-slate-900/50">
                       <td className="p-3 font-mono text-slate-500">{idx + 1}</td>
                       <td className="p-3 font-bold text-slate-900 dark:text-white">{inst.feeHeadName}</td>
                       <td className="p-3 text-slate-500">{inst.termName || "Full Annual Fee"}</td>
@@ -3555,23 +3537,23 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
         </div>
       )}
 
-      {/* 4. Main 2-Column Grid */}
-      {activeSubTab === "payment" && (
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      {/* 4. Main 2-Column Fee Collection Workspace - Displayed only after selecting a student */}
+      {activeSubTab === "payment" && activeStudent && (
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-in fade-in">
         {/* Left Main Column (Span 8) */}
         <div className="lg:col-span-8 space-y-6">
           {/* Outstanding Charges Table Card */}
-          <div className="glass-card p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-4">
+          <div className="glass-card p-4 sm:p-5 rounded-2xl border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 shadow-sm space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
                   Outstanding Charges
                 </h3>
                 {allInstallments.some(i => i.dueAmount > 0 && i.status !== "Paid" && i.status !== "Cancelled") && (
                   <button
                     type="button"
                     onClick={handleSelectAllCurrentYear}
-                    className="px-3 py-1 rounded-lg border border-blue-600 dark:border-blue-500 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950 font-bold text-xs transition-colors cursor-pointer"
+                    className="px-3 py-1 rounded-lg border border-[var(--primary-color)] text-[var(--primary-color)] hover:bg-[var(--primary-color)]/10 font-bold text-xs transition-colors cursor-pointer"
                   >
                     {currentYearInstallments.filter((i) => i.dueAmount > 0 && i.status !== "Paid" && i.status !== "Cancelled").every((i) => selectedInstallments.includes(i.id)) && currentYearInstallments.some(i => i.dueAmount > 0 && i.status !== "Paid" && i.status !== "Cancelled")
                       ? "Deselect All"
@@ -3581,7 +3563,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-xs text-slate-600 dark:text-slate-300 font-semibold bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2.5 py-1 rounded-lg">
-                  Configured Policy: <strong className="text-blue-600 dark:text-blue-400">
+                  Configured Policy: <strong className="text-[var(--primary-color)]">
                     {(() => {
                       const p = (selectedStudent as any)?.feeCalculationMethod || 
                                 (selectedStudent as any)?.feePolicy || 
@@ -3602,23 +3584,23 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
               </div>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs text-left">
+            <div className="overflow-x-auto rounded-xl border border-slate-200/80 dark:border-slate-800">
+              <table className="w-full text-xs text-center border-collapse">
                 <thead>
                   <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-500 font-bold uppercase text-[10px]">
-                    <th className="p-3 whitespace-nowrap">#</th>
-                    <th className="p-3 whitespace-nowrap">Fee Head</th>
-                    <th className="p-3 whitespace-nowrap">Term</th>
-                    <th className="p-3 whitespace-nowrap">Due Date</th>
-                    <th className="p-3 text-right whitespace-nowrap">Original Amount</th>
-                    <th className="p-3 text-right whitespace-nowrap">Discount</th>
-                    <th className="p-3 text-right whitespace-nowrap">Paid Amount</th>
-                    <th className="p-3 text-right whitespace-nowrap">Due Amount</th>
-                    <th className="p-3 text-right whitespace-nowrap">Paying Amount (₹)</th>
-                    <th className="p-3 text-center whitespace-nowrap">Select</th>
+                    <th className="py-3 px-3 text-center align-middle whitespace-nowrap">#</th>
+                    <th className="py-3 px-3 text-center align-middle whitespace-nowrap">Fee Head</th>
+                    <th className="py-3 px-3 text-center align-middle whitespace-nowrap">Term</th>
+                    <th className="py-3 px-3 text-center align-middle whitespace-nowrap">Due Date</th>
+                    <th className="py-3 px-3 text-center align-middle whitespace-nowrap">Original Amount</th>
+                    <th className="py-3 px-3 text-center align-middle whitespace-nowrap">Discount</th>
+                    <th className="py-3 px-3 text-center align-middle whitespace-nowrap">Paid Amount</th>
+                    <th className="py-3 px-3 text-center align-middle whitespace-nowrap">Due Amount</th>
+                    <th className="py-3 px-3 text-center align-middle whitespace-nowrap">Paying Amount (₹)</th>
+                    <th className="py-3 px-3 text-center align-middle whitespace-nowrap">Select</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
                   {allInstallments.length > 0 ? (
                     allInstallments.map((inst, index) => {
                       const isSelected = selectedInstallments.includes(inst.id);
@@ -3642,18 +3624,18 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
 
                       return (
                         <tr
-                          key={inst.id}
+                          key={`${inst.id || 'inst'}-${index}`}
                           className={`transition-colors ${
                             isPaid
                               ? "bg-emerald-50/40 dark:bg-emerald-950/20"
                               : isSelected
-                                ? "bg-blue-50/30 dark:bg-blue-950/20"
+                                ? "bg-[var(--primary-color)]/10"
                                 : "hover:bg-slate-50/50 dark:hover:bg-slate-900/50"
                           }`}
                         >
-                          <td className="p-3 font-mono font-semibold text-slate-600 dark:text-slate-400">{index + 1}</td>
-                          <td className="p-3 font-bold text-slate-900 dark:text-white">{inst.feeHeadName}</td>
-                          <td className="p-3 text-slate-600 dark:text-slate-400">
+                          <td className="py-3 px-3 font-mono font-semibold text-slate-600 dark:text-slate-400 text-center align-middle">{index + 1}</td>
+                          <td className="py-3 px-3 font-bold text-slate-900 dark:text-white text-center align-middle whitespace-nowrap">{inst.feeHeadName}</td>
+                          <td className="py-3 px-3 text-center align-middle whitespace-nowrap">
                             <span className={`px-2 py-0.5 rounded text-[11px] font-semibold ${
                               inst.termName?.toLowerCase().includes("full") 
                                 ? "bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 font-bold" 
@@ -3662,13 +3644,13 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                               {inst.termName || "Full Annual Fee"}
                             </span>
                           </td>
-                          <td className="p-3 text-slate-500 font-mono">{formatDateForDisplay(inst.dueDate)}</td>
-                          <td className="p-3 text-right font-mono font-semibold text-slate-800 dark:text-slate-200">{formatCurrency(inst.amount)}</td>
-                          <td className="p-3 text-right font-mono text-emerald-600 font-semibold">₹ 0</td>
-                          <td className="p-3 text-right font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                          <td className="py-3 px-3 text-slate-500 font-mono text-center align-middle whitespace-nowrap">{formatDateForDisplay(inst.dueDate)}</td>
+                          <td className="py-3 px-3 font-mono font-semibold text-slate-800 dark:text-slate-200 text-center align-middle whitespace-nowrap">{formatCurrency(inst.amount)}</td>
+                          <td className="py-3 px-3 font-mono text-emerald-600 font-semibold text-center align-middle whitespace-nowrap">₹ 0</td>
+                          <td className="py-3 px-3 font-mono font-bold text-emerald-600 dark:text-emerald-400 text-center align-middle whitespace-nowrap">
                             {formatCurrency(displayPaidAmt)}
                           </td>
-                          <td className="p-3 text-right font-mono font-bold">
+                          <td className="py-3 px-3 font-mono font-bold text-center align-middle whitespace-nowrap">
                             {isZeroCharge ? (
                               <span className="text-slate-400 font-medium">₹ 0</span>
                             ) : isPaid ? (
@@ -3689,11 +3671,11 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                               </div>
                             )}
                           </td>
-                          <td className="p-3 text-right font-mono">
+                          <td className="py-3 px-3 font-mono text-center align-middle whitespace-nowrap">
                             {isZeroCharge || isPaid ? (
                               <span className="text-slate-400 font-medium">₹ 0</span>
                             ) : isSelected ? (
-                              <div className="flex justify-end items-center">
+                              <div className="flex justify-center items-center">
                                 <div className="relative w-28">
                                   <span className="absolute left-2.5 top-1.5 text-xs text-slate-400 font-bold">₹</span>
                                   <input
@@ -3702,7 +3684,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                                     max={inst.dueAmount}
                                     value={customAmtVal}
                                     onChange={(e) => handleCustomAmountChange(inst.id, e.target.value)}
-                                    className="w-full pl-6 pr-2 py-1 text-right border border-blue-400 dark:border-blue-500 rounded-lg text-xs font-mono font-bold bg-white dark:bg-slate-900 text-blue-700 dark:text-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm"
+                                    className="w-full pl-6 pr-2 py-1 text-center border border-[var(--primary-color)]/40 rounded-lg text-xs font-mono font-bold bg-white dark:bg-slate-900 text-[var(--primary-color)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)]/30 shadow-sm"
                                     placeholder={String(inst.dueAmount)}
                                   />
                                 </div>
@@ -3711,7 +3693,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                               <span className="text-slate-400 font-mono">-</span>
                             )}
                           </td>
-                          <td className="p-3 text-center">
+                          <td className="py-3 px-3 text-center align-middle whitespace-nowrap">
                             {isZeroCharge ? (
                               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
                                 No Charges
@@ -3731,7 +3713,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                                   type="checkbox"
                                   checked={isSelected}
                                   onChange={() => toggleInstallmentSelection(inst.id)}
-                                  className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
+                                  className="w-4 h-4 rounded text-[var(--primary-color)] accent-[var(--primary-color)] cursor-pointer"
                                 />
                               </div>
                             )}
@@ -3741,7 +3723,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                     })
                   ) : (
                     <tr>
-                      <td colSpan={10} className="p-6 text-center text-slate-500 dark:text-slate-400 font-medium">
+                      <td colSpan={10} className="py-8 text-center text-slate-500 dark:text-slate-400 font-medium">
                         No outstanding fee heads found for this student.
                       </td>
                     </tr>
@@ -3752,188 +3734,266 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
 
             <div className="flex justify-end pt-2 text-xs font-extrabold text-slate-700 dark:text-slate-200">
               Total Selected Amount:{" "}
-              <span className="ml-2 text-blue-600 dark:text-blue-400 font-mono text-sm">
+              <span className="ml-2 text-[var(--primary-color)] font-mono text-sm">
                 {formatCurrency(baseSelectedAmount)}
               </span>
             </div>
           </div>
 
           {/* 3 Bottom Feature Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-stretch">
             {/* Card 1: Apply Fine */}
-            <div className="glass-card p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                  Apply Fine (if any)
+            <div className="glass-card p-4 rounded-2xl border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 flex flex-col justify-between space-y-3 shadow-xs">
+              <div>
+                <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+                  <span className="text-xs font-extrabold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                    <AlertCircle className="w-3.5 h-3.5 text-rose-500" /> Apply Fine (Late Fee)
+                  </span>
+                  <label className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={!isFineWaived}
+                      onChange={(e) => setIsFineWaived(!e.target.checked)}
+                      className="w-4 h-4 text-[var(--primary-color)] accent-[var(--primary-color)] rounded cursor-pointer"
+                    />
+                    <span>Enable</span>
+                  </label>
+                </div>
+                <div className="mt-3 space-y-2.5">
+                  <div>
+                    <label className="text-[10px] text-slate-500 dark:text-slate-400 font-bold block mb-1">
+                      Fine Amount (₹)
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={MAX_FEE_ADJUSTMENT_AMOUNT}
+                      disabled={isFineWaived}
+                      value={isFineWaived ? 0 : fineAmountInput}
+                      onChange={(e) => setFineAmountInput(sanitizeBoundedNumericInput(e.target.value))}
+                      placeholder="0"
+                      className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs bg-white dark:bg-slate-900 font-mono font-bold text-rose-600 dark:text-rose-400 disabled:opacity-50"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-slate-500 dark:text-slate-400 font-bold block mb-1">
+                      Reason / Remarks
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Late fee after grace period"
+                      value={fineReason}
+                      onChange={(e) => setFineReason(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs bg-white dark:bg-slate-900"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[11px]">
+                <span className="text-slate-400 font-medium">Fine Status:</span>
+                <span className={`font-bold ${!isFineWaived && Number(fineAmountInput) > 0 ? "text-rose-600 dark:text-rose-400" : "text-slate-400"}`}>
+                  {!isFineWaived && Number(fineAmountInput) > 0 ? `+ ${formatCurrency(Number(fineAmountInput))}` : "No fine applied"}
                 </span>
-                <input
-                  type="checkbox"
-                  checked={!isFineWaived}
-                  onChange={(e) => setIsFineWaived(!e.target.checked)}
-                  className="w-4 h-4 text-blue-600 rounded cursor-pointer"
-                />
-              </div>
-              <div>
-                <label className="text-[10px] text-slate-400 font-bold block mb-1">
-                  Fine Amount (₹)
-                </label>
-                <input
-                  type="number"
-                  min={0}
-                  max={MAX_FEE_ADJUSTMENT_AMOUNT}
-                  disabled={isFineWaived}
-                  value={isFineWaived ? 0 : fineAmountInput}
-                  onChange={(e) => setFineAmountInput(sanitizeBoundedNumericInput(e.target.value))}
-                  placeholder="0"
-                  className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs bg-white dark:bg-slate-900 font-mono font-bold text-rose-600 dark:text-rose-400"
-                />
-              </div>
-              <div>
-                <label className="text-[10px] text-slate-400 font-bold block mb-1">
-                  Reason
-                </label>
-                <input
-                  type="text"
-                  placeholder="Enter reason if any"
-                  value={fineReason}
-                  onChange={(e) => setFineReason(e.target.value)}
-                  className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs bg-white dark:bg-slate-900"
-                />
               </div>
             </div>
 
             {/* Card 2: Concessions / Discounts */}
-            <div className="glass-card p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 space-y-3">
-              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
-                Concessions / Discounts
-              </span>
+            <div className="glass-card p-4 rounded-2xl border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 flex flex-col justify-between space-y-3 shadow-xs">
               <div>
-                <label className="text-[10px] text-slate-400 font-bold block mb-1">
-                  Select Concession
-                </label>
-                <select
-                  value={selectedConcessionId}
-                  onChange={(e) => {
-                    setSelectedConcessionId(e.target.value);
-                    if (!e.target.value) setDiscountAmountInput("0");
-                  }}
-                  className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs bg-white dark:bg-slate-900 font-semibold"
-                >
-                  <option value="">Select Concession</option>
-                  {allConcessionOptions.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
+                <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+                  <span className="text-xs font-extrabold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                    <Percent className="w-3.5 h-3.5 text-emerald-500" /> Concessions / Discounts
+                  </span>
+                </div>
+                <div className="mt-3 space-y-2.5">
+                  <div>
+                    <label className="text-[10px] text-slate-500 dark:text-slate-400 font-bold block mb-1">
+                      Select Concession Scheme
+                    </label>
+                    <select
+                      value={selectedConcessionId}
+                      onChange={(e) => {
+                        setSelectedConcessionId(e.target.value);
+                        if (!e.target.value) setDiscountAmountInput("0");
+                      }}
+                      className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs bg-white dark:bg-slate-900 font-bold cursor-pointer"
+                    >
+                      <option value="">No Concession Applied</option>
+                      {allConcessionOptions.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px] text-slate-500 dark:text-slate-400 font-bold block mb-1">
+                        Discount (₹)
+                      </label>
+                      <input
+                        type="number"
+                        min={0}
+                        max={MAX_FEE_ADJUSTMENT_AMOUNT}
+                        value={discountAmountInput}
+                        onChange={(e) => setDiscountAmountInput(sanitizeBoundedNumericInput(e.target.value))}
+                        placeholder="0"
+                        className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs bg-white dark:bg-slate-900 font-mono font-bold text-emerald-600 dark:text-emerald-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-slate-500 dark:text-slate-400 font-bold block mb-1">
+                        Remarks
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Optional note"
+                        value={remarks}
+                        onChange={(e) => setRemarks(e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs bg-white dark:bg-slate-900"
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div>
-                <label className="text-[10px] text-slate-400 font-bold block mb-1">
-                  Discount Amount (₹)
-                </label>
-                <input
-                  type="number"
-                  min={0}
-                  max={MAX_FEE_ADJUSTMENT_AMOUNT}
-                  value={discountAmountInput}
-                  onChange={(e) => setDiscountAmountInput(sanitizeBoundedNumericInput(e.target.value))}
-                  placeholder="0"
-                  className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs bg-white dark:bg-slate-900 font-mono font-bold text-emerald-600 dark:text-emerald-400"
-                />
-              </div>
-              <div>
-                <label className="text-[10px] text-slate-400 font-bold block mb-1">
-                  Remarks
-                </label>
-                <input
-                  type="text"
-                  placeholder="Enter remarks (optional)"
-                  value={remarks}
-                  onChange={(e) => setRemarks(e.target.value)}
-                  className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs bg-white dark:bg-slate-900"
-                />
+              <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[11px]">
+                <span className="text-slate-400 font-medium">Discount Applied:</span>
+                <span className={`font-bold ${effectiveDiscountAmount > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-slate-400"}`}>
+                  {effectiveDiscountAmount > 0 ? `- ${formatCurrency(effectiveDiscountAmount)}` : "None"}
+                </span>
               </div>
             </div>
 
             {/* Card 3: Payment Method */}
-            <div className="glass-card p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 space-y-3">
-              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
-                Payment Method
-              </span>
+            <div className="glass-card p-4 rounded-2xl border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 flex flex-col justify-between space-y-3 shadow-xs">
               <div>
-                <select
-                  value={paymentMode}
-                  onChange={(e) => handlePaymentModeChange(e.target.value as any)}
-                  className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold bg-white dark:bg-slate-900"
-                >
-                  <option value="">Select Payment Method</option>
-                  <option value="Cash">Cash</option>
-                  <option value="Bank Transfer">Bank Transfer</option>
-                  <option value="Online">UPI / Online</option>
-                  <option value="Cheque">Cheque</option>
-                </select>
+                <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+                  <span className="text-xs font-extrabold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                    <CreditCard className="w-3.5 h-3.5 text-[var(--primary-color)]" /> Payment Method
+                  </span>
+                </div>
+                <div className="mt-3 space-y-2.5">
+                  <div>
+                    <label className="text-[10px] text-slate-500 dark:text-slate-400 font-bold block mb-1">
+                      Select Payment Mode <span className="text-rose-500">*</span>
+                    </label>
+                    <select
+                      value={paymentMode}
+                      onChange={(e) => handlePaymentModeChange(e.target.value as any)}
+                      className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold bg-white dark:bg-slate-900 cursor-pointer"
+                    >
+                      <option value="">Select Payment Method</option>
+                      <option value="Cash">Cash</option>
+                      <option value="Bank Transfer">Bank Transfer (NEFT/RTGS)</option>
+                      <option value="Online">UPI / Online Gateway</option>
+                      <option value="Cheque">Cheque / Demand Draft</option>
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px] text-slate-500 dark:text-slate-400 font-bold block mb-1">
+                        Ref / Cheque No
+                      </label>
+                      <input
+                        type="text"
+                        maxLength={40}
+                        placeholder="Txn ID / Ref"
+                        value={transactionId}
+                        onChange={(e) => setTransactionId(e.target.value.slice(0, 40))}
+                        className={`w-full px-3 py-2 border rounded-xl text-xs bg-white dark:bg-slate-900 ${
+                          !isReferenceNoFormatValid
+                            ? "border-rose-500 text-rose-600"
+                            : "border-slate-200 dark:border-slate-700"
+                        }`}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-slate-500 dark:text-slate-400 font-bold block mb-1">
+                        Payment Date
+                      </label>
+                      <input
+                        type="date"
+                        defaultValue={new Date().toISOString().split('T')[0]}
+                        className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs bg-white dark:bg-slate-900 font-mono"
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div>
-                <label className="text-[10px] text-slate-400 font-bold block mb-1">
-                  Amount Received (₹ Custom / Full)
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  max={computedNetPayable > 0 ? computedNetPayable : 0}
-                  disabled={isFullyPaid || computedNetPayable <= 0 || selectedInstallments.length === 0}
-                  value={computedNetPayable > 0 ? (customAmountReceived !== "" ? customAmountReceived : amountPaying) : 0}
-                  onChange={(e) => handleGlobalCustomAmountChange(e.target.value)}
-                  placeholder={String(computedNetPayable)}
-                  className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold font-mono bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 disabled:opacity-50 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:cursor-not-allowed"
-                />
-              </div>
-              <div>
-                <label className="text-[10px] text-slate-400 font-bold block mb-1">
-                  Reference No
-                </label>
-                <input
-                  type="text"
-                  maxLength={40}
-                  placeholder="Enter reference no"
-                  value={transactionId}
-                  onChange={(e) => setTransactionId(e.target.value.slice(0, 40))}
-                  className={`w-full p-2 border rounded-lg text-xs bg-white dark:bg-slate-900 ${
-                    !isReferenceNoFormatValid
-                      ? "border-rose-500 text-rose-600"
-                      : "border-slate-200 dark:border-slate-700"
-                  }`}
-                />
-                {!isReferenceNoFormatValid && (
-                  <p className="text-[10px] font-semibold text-rose-500 mt-1">
-                    Alphanumeric characters and '-', '_', '.', '/' only.
-                  </p>
-                )}
-              </div>
-              <div>
-                <label className="text-[10px] text-slate-400 font-bold block mb-1">
-                  Payment Date
-                </label>
-                <input
-                  type="date"
-                  defaultValue={new Date().toISOString().split('T')[0]}
-                  className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded-lg text-xs bg-white dark:bg-slate-900 font-mono"
-                />
+              <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[11px]">
+                <span className="text-slate-400 font-medium">Selected Mode:</span>
+                <span className="font-bold text-[var(--primary-color)]">
+                  {paymentMode || "Not Selected"}
+                </span>
               </div>
             </div>
           </div>
         </div>
 
         {/* Right Sidebar (Span 4) */}
-        <div className="lg:col-span-4 space-y-6">
-          {/* Card 1: Payment Summary */}
-          <div className="glass-card p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-4 overflow-hidden">
-            <h3 className="text-base font-bold text-slate-900 dark:text-white">
+        <div className="lg:col-span-4 space-y-4">
+          {/* Card 1: Quick Actions (MOVED TO TOP) */}
+          <div className="glass-card p-4 sm:p-5 rounded-2xl border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 shadow-sm space-y-3">
+            <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
+              <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-[var(--primary-color)]" /> Quick Actions
+              </h3>
+              <span className="text-[10px] font-bold text-[var(--primary-color)] bg-[var(--primary-color)]/10 px-2 py-0.5 rounded-full">
+                Fast Access
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <button
+                type="button"
+                onClick={() => setActiveSubTab("ledger")}
+                className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-bold text-slate-700 dark:text-slate-300 hover:border-[var(--primary-color)] hover:text-[var(--primary-color)] hover:bg-[var(--primary-color)]/5 flex flex-col items-center justify-center text-center gap-1.5 cursor-pointer transition-all shadow-2xs"
+              >
+                <FileText className="w-4 h-4 text-[var(--primary-color)]" />
+                <span className="text-[11px] leading-tight">View Ledger</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveSubTab("balance")}
+                className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-bold text-slate-700 dark:text-slate-300 hover:border-[var(--primary-color)] hover:text-[var(--primary-color)] hover:bg-[var(--primary-color)]/5 flex flex-col items-center justify-center text-center gap-1.5 cursor-pointer transition-all shadow-2xs"
+              >
+                <Calendar className="w-4 h-4 text-[var(--primary-color)]" />
+                <span className="text-[11px] leading-tight">Fee Balance</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (feePayments && feePayments.length > 0) {
+                    onPrintReceipt(feePayments[0]);
+                  } else {
+                    addToast("info", "No Receipts", "No previous payments found to print.");
+                  }
+                }}
+                className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-bold text-slate-700 dark:text-slate-300 hover:border-[var(--primary-color)] hover:text-[var(--primary-color)] hover:bg-[var(--primary-color)]/5 flex flex-col items-center justify-center text-center gap-1.5 cursor-pointer transition-all shadow-2xs"
+              >
+                <Printer className="w-4 h-4 text-[var(--primary-color)]" />
+                <span className="text-[11px] leading-tight">Print Receipt</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  addToast("success", "Downloading Receipt", "Generating PDF receipt file...");
+                }}
+                className="p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-bold text-slate-700 dark:text-slate-300 hover:border-[var(--primary-color)] hover:text-[var(--primary-color)] hover:bg-[var(--primary-color)]/5 flex flex-col items-center justify-center text-center gap-1.5 cursor-pointer transition-all shadow-2xs"
+              >
+                <Download className="w-4 h-4 text-[var(--primary-color)]" />
+                <span className="text-[11px] leading-tight">Download PDF</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Card 2: Payment Summary */}
+          <div className="glass-card p-4 sm:p-5 rounded-2xl border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 space-y-4 overflow-hidden shadow-sm">
+            <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
               Payment Summary
             </h3>
             <div className="space-y-2.5 text-xs">
               <div className="flex justify-between items-center gap-3 min-w-0 text-slate-600 dark:text-slate-400">
-                <span className="shrink-0">Total Selected Amount</span>
+                <span className="shrink-0 font-medium">Total Selected Amount</span>
                 <span
                   title={formatCurrency(baseSelectedAmount)}
                   className="font-mono font-bold text-slate-900 dark:text-white truncate tabular-nums"
@@ -3942,7 +4002,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                 </span>
               </div>
               <div className="flex justify-between items-center gap-3 min-w-0 text-slate-600 dark:text-slate-400">
-                <span className="shrink-0">Fine Amount</span>
+                <span className="shrink-0 font-medium">Fine Amount</span>
                 <span
                   title={effectiveFineAmount > 0 ? `+ ${formatCurrency(effectiveFineAmount)}` : "₹ 0"}
                   className="font-mono font-bold text-rose-600 dark:text-rose-400 truncate tabular-nums"
@@ -3951,7 +4011,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                 </span>
               </div>
               <div className="flex justify-between items-center gap-3 min-w-0 text-slate-600 dark:text-slate-400">
-                <span className="shrink-0">Discount Amount</span>
+                <span className="shrink-0 font-medium">Discount Amount</span>
                 <span
                   title={effectiveDiscountAmount > 0 ? `- ${formatCurrency(effectiveDiscountAmount)}` : "₹ 0"}
                   className="font-mono font-bold text-emerald-600 dark:text-emerald-400 truncate tabular-nums"
@@ -3970,7 +4030,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                     <button
                       type="button"
                       onClick={() => handleGlobalCustomAmountChange("")}
-                      className="text-[10px] font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                      className="text-[10px] font-bold text-[var(--primary-color)] hover:underline cursor-pointer"
                     >
                       Reset to Full
                     </button>
@@ -3986,7 +4046,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                     value={customAmountReceived}
                     onChange={(e) => handleGlobalCustomAmountChange(e.target.value)}
                     placeholder={String(computedNetPayable)}
-                    className="w-full pl-7 pr-3 py-1.5 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-mono font-bold bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:cursor-not-allowed"
+                    className="w-full pl-7 pr-3 py-1.5 border border-slate-300 dark:border-slate-700 rounded-lg text-xs font-mono font-bold bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)]/30 focus:border-[var(--primary-color)] disabled:opacity-50 disabled:bg-slate-100 dark:disabled:bg-slate-900 disabled:cursor-not-allowed"
                   />
                 </div>
                 <p className="text-[10px] text-slate-400">
@@ -4009,7 +4069,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
               </div>
 
               <div className="border-t border-slate-200 dark:border-slate-800 pt-3 flex justify-between items-center gap-3 min-w-0">
-                <span className="font-bold text-slate-900 dark:text-white shrink-0">
+                <span className="font-extrabold text-slate-900 dark:text-white shrink-0">
                   Amount to Collect
                 </span>
                 <span
@@ -4028,7 +4088,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
               title={!isFormValid ? validationMessage : undefined}
               className={`w-full py-3.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-lg transition-all ${
                 isFormValid && !isProcessingPayment
-                  ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20 cursor-pointer"
+                  ? "bg-[var(--primary-color)] hover:opacity-90 text-white shadow-[var(--primary-color)]/25 cursor-pointer"
                   : "bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 shadow-none cursor-not-allowed opacity-70"
               }`}
             >
@@ -4037,26 +4097,26 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
             </button>
           </div>
 
-          {/* Card 2: Recent Payments */}
-          <div className="glass-card p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
+          {/* Card 3: Recent Payments */}
+          <div className="glass-card p-4 sm:p-5 rounded-2xl border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 space-y-3 shadow-sm">
+            <div className="flex items-center justify-between pb-1 border-b border-slate-100 dark:border-slate-800">
+              <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
                 Recent Payments
               </h3>
               <button
                 type="button"
                 onClick={() => setShowPaymentHistoryModal(true)}
-                className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+                className="text-xs font-bold text-[var(--primary-color)] hover:underline cursor-pointer"
               >
                 View All
               </button>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-2.5">
               {(displayedRecentPayments && displayedRecentPayments.length > 0) ? (
-                displayedRecentPayments.map((p) => (
+                displayedRecentPayments.map((p, pIdx) => (
                   <div
-                    key={p.id}
+                    key={`${p.id || p.receiptNo || 'rec'}-${pIdx}`}
                     className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 flex items-center justify-between text-xs border border-slate-100 dark:border-slate-800"
                   >
                     <div>
@@ -4080,50 +4140,6 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
               ) : (
                 <p className="text-xs text-slate-500 py-2">No recent payment receipts found.</p>
               )}
-            </div>
-          </div>
-
-          {/* Card 3: Quick Actions */}
-          <div className="glass-card p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 space-y-3">
-            <h3 className="text-base font-bold text-slate-900 dark:text-white">
-              Quick Actions
-            </h3>
-            <div className="space-y-2 text-xs">
-              <button
-                type="button"
-                onClick={() => setShowPaymentHistoryModal(true)}
-                className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-left font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900 flex items-center gap-2 cursor-pointer transition-colors"
-              >
-                📄 View Student Ledger
-              </button>
-              <button
-                type="button"
-                className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-left font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900 flex items-center gap-2 cursor-pointer transition-colors"
-              >
-                📅 View Fee Schedule
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (feePayments && feePayments.length > 0) {
-                    onPrintReceipt(feePayments[0]);
-                  } else {
-                    addToast("info", "No Receipts", "No previous payments found to print.");
-                  }
-                }}
-                className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-left font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900 flex items-center gap-2 cursor-pointer transition-colors"
-              >
-                🖨️ Print Receipt
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  addToast("success", "Downloading Receipt", "Generating PDF receipt file...");
-                }}
-                className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-left font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900 flex items-center gap-2 cursor-pointer transition-colors"
-              >
-                📥 Download Receipt
-              </button>
             </div>
           </div>
         </div>
@@ -4213,9 +4229,9 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
 
             <div className="space-y-3">
               {displayedHistoryPayments.length > 0 ? (
-                displayedHistoryPayments.map((p) => (
+                displayedHistoryPayments.map((p, pIdx) => (
                   <div
-                    key={p.receiptNo || p.id}
+                    key={`${p.receiptNo || p.id || 'hist'}-${pIdx}`}
                     className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 flex justify-between items-center text-xs"
                   >
                     <div>
@@ -4236,7 +4252,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                           setShowPaymentHistoryModal(false);
                           onPrintReceipt(p);
                         }}
-                        className="text-[10px] font-bold text-blue-600 hover:underline mt-1 block"
+                        className="text-[10px] font-bold text-[var(--primary-color)] hover:underline mt-1 block"
                       >
                         Print Receipt
                       </button>
@@ -4269,7 +4285,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
           <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-xl w-full max-h-[90vh] overflow-y-auto border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
             <div className="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-lg bg-[var(--primary-color)]/10 text-[var(--primary-color)] flex items-center justify-center">
                   <ArrowRightLeft className="w-4 h-4" />
                 </div>
                 <div>
@@ -4294,7 +4310,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
               <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/60 space-y-1">
                 <p className="font-bold text-slate-700 dark:text-slate-300">
                   Current Classification:{" "}
-                  <span className="font-black text-blue-600 dark:text-blue-400">
+                  <span className="font-black text-[var(--primary-color)]">
                     {isHostellerStudent ? "Residential (Hosteller)" : "Non-Residential (Day Scholar)"}
                   </span>
                 </p>
@@ -4363,8 +4379,8 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
               </div>
 
               {transitionTargetType === "Residential" && (
-                <div className="p-3.5 rounded-xl border border-indigo-200/80 dark:border-indigo-900/60 bg-indigo-50/40 dark:bg-indigo-950/20 space-y-3">
-                  <h4 className="font-extrabold text-indigo-900 dark:text-indigo-200 flex items-center gap-1.5 text-xs">
+                <div className="p-3.5 rounded-xl border border-[var(--primary-color)]/30 bg-[var(--primary-color)]/5 space-y-3">
+                  <h4 className="font-extrabold text-[var(--primary-color)] flex items-center gap-1.5 text-xs">
                     <Bed className="w-3.5 h-3.5" /> Hostel Room & Bed Allocation
                   </h4>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
@@ -4439,7 +4455,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                       type="checkbox"
                       checked={applyCreditOnTransition}
                       onChange={(e) => setApplyCreditOnTransition(e.target.checked)}
-                      className="rounded text-indigo-600 focus:ring-indigo-500 w-4 h-4"
+                      className="rounded text-[var(--primary-color)] accent-[var(--primary-color)] w-4 h-4"
                     />
                     <span className="font-bold text-slate-700 dark:text-slate-300 text-xs">
                       Automatically apply any excess transport payment credit to hostel charges
@@ -4491,7 +4507,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                     !transitionTargetType ||
                     !TRANSITION_REMARKS_REGEX.test(transitionNotes)
                   }
-                  className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-md shadow-indigo-600/20 disabled:opacity-50 transition-all flex items-center gap-1.5"
+                  className="px-5 py-2 rounded-xl bg-[var(--primary-color)] hover:opacity-90 text-white font-bold shadow-md shadow-[var(--primary-color)]/20 disabled:opacity-50 transition-all flex items-center gap-1.5 cursor-pointer"
                 >
                   {isSubmittingTransition ? "Processing..." : "Confirm Category Transition"}
                 </button>
@@ -4607,7 +4623,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
           <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-md w-full border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
             <div className="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-3">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-lg bg-[var(--primary-color)]/10 text-[var(--primary-color)] flex items-center justify-center">
                   <ShieldCheck className="w-4 h-4" />
                 </div>
                 <div>
@@ -4629,11 +4645,11 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
             </div>
 
             <form onSubmit={handleRefundDeposit} className="space-y-4 text-xs">
-              <div className="p-3 rounded-xl bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-200/60 dark:border-indigo-800/50 flex justify-between items-center">
-                <span className="font-bold text-indigo-900 dark:text-indigo-300">
+              <div className="p-3 rounded-xl bg-[var(--primary-color)]/5 border border-[var(--primary-color)]/20 flex justify-between items-center">
+                <span className="font-bold text-slate-800 dark:text-slate-200">
                   Total Refundable Deposit:
                 </span>
-                <span className="text-sm font-black text-indigo-600 dark:text-indigo-400">
+                <span className="text-sm font-black text-[var(--primary-color)]">
                   {formatCurrency(backendFeeProfile?.securityDepositRefundable ?? 0)}
                 </span>
               </div>
@@ -4734,7 +4750,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                 <button
                   type="submit"
                   disabled={isSubmittingRefund}
-                  className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-md shadow-indigo-600/20 disabled:opacity-50 transition-all"
+                  className="px-5 py-2 rounded-xl bg-[var(--primary-color)] hover:opacity-90 text-white font-bold shadow-md shadow-[var(--primary-color)]/20 disabled:opacity-50 transition-all cursor-pointer"
                 >
                   {isSubmittingRefund ? "Processing..." : "Disburse Refund"}
                 </button>

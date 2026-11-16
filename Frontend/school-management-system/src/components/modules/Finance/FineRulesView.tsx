@@ -61,18 +61,18 @@ export const FineRulesView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in">
+    <div className="space-y-4 animate-in fade-in">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <AlertTriangle className="w-6 h-6 text-rose-500" /> Fine Rules
+            <AlertTriangle className="w-6 h-6 text-[var(--primary-color)]" /> Fine Rules
           </h2>
           </div>
 
         <button
           onClick={handleOpenAdd}
-          className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-lg shadow-sky-500/20 flex items-center gap-2"
+          className="px-4 py-2 rounded-xl bg-[var(--primary-color)] hover:opacity-90 text-white text-xs font-bold shadow-md shadow-[var(--primary-color)]/20 flex items-center gap-2 cursor-pointer transition-all"
         >
           <Plus className="w-4 h-4" /> Add Late Fine
         </button>
@@ -81,7 +81,7 @@ export const FineRulesView: React.FC = () => {
       {/* Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {fineRules.map(r => (
-          <div key={r.id} className="glass-card p-5 rounded-2xl space-y-3">
+          <div key={r.id} className="glass-card p-3.5 sm:p-4 rounded-2xl border border-[var(--primary-color)]/35 dark:border-[var(--primary-color)]/45 hover:border-[var(--primary-color)] shadow-sm hover:shadow-md transition-all space-y-3">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
               <div>
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
@@ -93,14 +93,14 @@ export const FineRulesView: React.FC = () => {
               </div>
 
               <div className="flex items-center gap-1">
-                <button onClick={() => handleOpenEdit(r)} className="p-1.5 rounded hover:bg-slate-100 text-sky-600"><Edit className="w-4 h-4" /></button>
-                <button onClick={() => setDeletingRule(r)} className="p-1.5 rounded hover:bg-rose-50 text-rose-600"><Trash2 className="w-4 h-4" /></button>
+                <button onClick={() => handleOpenEdit(r)} className="p-1.5 rounded hover:bg-[var(--primary-color)]/10 text-[var(--primary-color)] cursor-pointer"><Edit className="w-4 h-4" /></button>
+                <button onClick={() => setDeletingRule(r)} className="p-1.5 rounded hover:bg-rose-50 text-rose-600 cursor-pointer"><Trash2 className="w-4 h-4" /></button>
               </div>
             </div>
 
             <div className="space-y-1.5 text-xs text-slate-600 dark:text-slate-300">
               <div className="flex justify-between"><span>Due Date:</span><span className="font-bold text-slate-900 dark:text-white">{r.dueDate}</span></div>
-              <div className="flex justify-between"><span>Grace Days:</span><span className="font-semibold text-sky-600">{r.graceDays} Days</span></div>
+              <div className="flex justify-between"><span>Grace Days:</span><span className="font-semibold text-[var(--primary-color)]">{r.graceDays} Days</span></div>
               <div className="flex justify-between"><span>Fine Type:</span><span className="font-semibold">{r.fineType}</span></div>
               {r.fineType === 'Daily Fine' ? (
                 <div className="flex justify-between"><span>Daily Rate:</span><span className="font-bold text-rose-500">{formatCurrency(r.dailyFine || 0)}/day</span></div>
@@ -162,8 +162,8 @@ export const FineRulesView: React.FC = () => {
               )}
 
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 font-semibold bg-slate-100 dark:bg-slate-800 rounded-xl">Cancel</button>
-                <button type="submit" className="px-4 py-2 font-bold bg-sky-600 text-white rounded-xl">Save</button>
+                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 font-semibold bg-slate-100 dark:bg-slate-800 rounded-xl cursor-pointer">Cancel</button>
+                <button type="submit" className="px-4 py-2 font-bold bg-[var(--primary-color)] hover:opacity-90 text-white rounded-xl shadow-md shadow-[var(--primary-color)]/20 cursor-pointer">Save</button>
               </div>
             </form>
           </div>

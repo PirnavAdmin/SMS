@@ -24,6 +24,8 @@ import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { Badge } from '../../common/Badge';
 import { ExportButton } from '../../common/ExportButton';
+import { ValidatedSearchInput } from '../../common/ValidatedSearchInput';
+import { Pagination } from '../../common/Pagination';
 
 export const RefundManagementView: React.FC = () => {
   const { refunds, students, feePayments, addRefund, updateRefundStatus } = useData();
@@ -34,6 +36,8 @@ export const RefundManagementView: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<'All' | 'Pending' | 'Approved' | 'Rejected'>('All');
   const [reasonFilter, setReasonFilter] = useState('All');
   const [classFilter, setClassFilter] = useState('All');
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -137,6 +141,12 @@ export const RefundManagementView: React.FC = () => {
     });
   }, [refunds, query, statusFilter, reasonFilter, classFilter]);
 
+  const totalPages = Math.ceil(filteredRefunds.length / pageSize) || 1;
+  const paginatedRefunds = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredRefunds.slice(start, start + pageSize);
+  }, [filteredRefunds, currentPage, pageSize]);
+
   // Summary Metrics
   const metrics = useMemo(() => {
     const totalAmount = refunds.reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
@@ -196,12 +206,12 @@ export const RefundManagementView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in">
+    <div className="space-y-4 animate-in fade-in">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <RotateCcw className="w-6 h-6 text-sky-500" /> Refunds
+            <RotateCcw className="w-6 h-6 text-[var(--primary-color)]" /> Refunds
           </h2>
           <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1">
             Manage fee refunds, scholarship adjustments, and security deposit returns
@@ -211,7 +221,7 @@ export const RefundManagementView: React.FC = () => {
         <div className="flex items-center gap-3">
           <button
             onClick={() => setIsModalOpen(true)}
-            className="px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-lg shadow-sky-500/20 flex items-center gap-2 transition-all"
+            className="px-4 py-2 rounded-xl bg-[var(--primary-color)] hover:opacity-90 text-white text-xs font-bold shadow-md shadow-[var(--primary-color)]/20 flex items-center gap-2 transition-all"
           >
             <Plus className="w-4 h-4" /> Request Refund
           </button>
@@ -220,11 +230,13 @@ export const RefundManagementView: React.FC = () => {
       </div>
 
       {/* Summary KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="glass-card p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white/70 dark:bg-slate-900/60 shadow-sm">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
+        <div className="glass-card p-3.5 sm:p-4 rounded-2xl border border-[var(--primary-color)]/35 dark:border-[var(--primary-color)]/45 hover:border-[var(--primary-color)] bg-white/70 dark:bg-slate-900/60 shadow-sm hover:shadow-md transition-all">
           <div className="flex items-center justify-between text-slate-500 mb-1.5">
             <span className="text-xs font-bold uppercase tracking-wider">Total Requested</span>
-            <RotateCcw className="w-4 h-4 text-sky-500" />
+            <div className="w-8 h-8 rounded-xl bg-[var(--primary-color)]/10 dark:bg-[var(--primary-color)]/20 text-[var(--primary-color)] flex items-center justify-center">
+              <RotateCcw className="w-4 h-4" />
+            </div>
           </div>
           <div className="text-lg sm:text-xl font-black text-slate-900 dark:text-white">
             {formatCurrency(metrics.totalAmount)}
@@ -234,12 +246,14 @@ export const RefundManagementView: React.FC = () => {
           </div>
         </div>
 
-        <div className="glass-card p-4 rounded-2xl border border-emerald-200/60 dark:border-emerald-900/40 bg-emerald-50/40 dark:bg-emerald-950/20 shadow-sm">
-          <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400 mb-1.5">
+        <div className="glass-card p-3.5 sm:p-4 rounded-2xl border border-[var(--primary-color)]/35 dark:border-[var(--primary-color)]/45 hover:border-[var(--primary-color)] bg-white/70 dark:bg-slate-900/60 shadow-sm hover:shadow-md transition-all">
+          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1.5">
             <span className="text-xs font-bold uppercase tracking-wider">Approved</span>
-            <CheckCircle className="w-4 h-4 text-emerald-500" />
+            <div className="w-8 h-8 rounded-xl bg-[var(--primary-color)]/10 dark:bg-[var(--primary-color)]/20 text-[var(--primary-color)] flex items-center justify-center">
+              <CheckCircle className="w-4 h-4" />
+            </div>
           </div>
-          <div className="text-lg sm:text-xl font-black text-emerald-700 dark:text-emerald-300">
+          <div className="text-lg sm:text-xl font-black text-emerald-600 dark:text-emerald-400">
             {formatCurrency(metrics.approvedAmount)}
           </div>
           <div className="text-[11px] font-semibold text-emerald-600/80 dark:text-emerald-400/80 mt-0.5">
@@ -247,12 +261,14 @@ export const RefundManagementView: React.FC = () => {
           </div>
         </div>
 
-        <div className="glass-card p-4 rounded-2xl border border-amber-200/60 dark:border-amber-900/40 bg-amber-50/40 dark:bg-amber-950/20 shadow-sm">
-          <div className="flex items-center justify-between text-amber-600 dark:text-amber-400 mb-1.5">
+        <div className="glass-card p-3.5 sm:p-4 rounded-2xl border border-[var(--primary-color)]/35 dark:border-[var(--primary-color)]/45 hover:border-[var(--primary-color)] bg-white/70 dark:bg-slate-900/60 shadow-sm hover:shadow-md transition-all">
+          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1.5">
             <span className="text-xs font-bold uppercase tracking-wider">Pending Review</span>
-            <Clock className="w-4 h-4 text-amber-500" />
+            <div className="w-8 h-8 rounded-xl bg-[var(--primary-color)]/10 dark:bg-[var(--primary-color)]/20 text-[var(--primary-color)] flex items-center justify-center">
+              <Clock className="w-4 h-4" />
+            </div>
           </div>
-          <div className="text-lg sm:text-xl font-black text-amber-700 dark:text-amber-300">
+          <div className="text-lg sm:text-xl font-black text-amber-600 dark:text-amber-400">
             {formatCurrency(metrics.pendingAmount)}
           </div>
           <div className="text-[11px] font-semibold text-amber-600/80 dark:text-amber-400/80 mt-0.5">
@@ -260,12 +276,14 @@ export const RefundManagementView: React.FC = () => {
           </div>
         </div>
 
-        <div className="glass-card p-4 rounded-2xl border border-rose-200/60 dark:border-rose-900/40 bg-rose-50/40 dark:bg-rose-950/20 shadow-sm">
-          <div className="flex items-center justify-between text-rose-600 dark:text-rose-400 mb-1.5">
+        <div className="glass-card p-3.5 sm:p-4 rounded-2xl border border-[var(--primary-color)]/35 dark:border-[var(--primary-color)]/45 hover:border-[var(--primary-color)] bg-white/70 dark:bg-slate-900/60 shadow-sm hover:shadow-md transition-all">
+          <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1.5">
             <span className="text-xs font-bold uppercase tracking-wider">Rejected</span>
-            <XCircle className="w-4 h-4 text-rose-500" />
+            <div className="w-8 h-8 rounded-xl bg-[var(--primary-color)]/10 dark:bg-[var(--primary-color)]/20 text-[var(--primary-color)] flex items-center justify-center">
+              <XCircle className="w-4 h-4" />
+            </div>
           </div>
-          <div className="text-lg sm:text-xl font-black text-rose-700 dark:text-rose-300">
+          <div className="text-lg sm:text-xl font-black text-rose-600 dark:text-rose-400">
             {metrics.rejectedCount}
           </div>
           <div className="text-[11px] font-semibold text-rose-600/80 dark:text-rose-400/80 mt-0.5">
@@ -275,15 +293,15 @@ export const RefundManagementView: React.FC = () => {
       </div>
 
       {/* Filter Bar */}
-      <div className="glass-card p-4 rounded-2xl flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 border border-slate-200/80 dark:border-slate-800 bg-white/70 dark:bg-slate-900/60">
-        <div className="relative flex-1 max-w-md">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-          <input
-            type="text"
+      <div className="relative z-20 glass-card p-3.5 sm:p-4 rounded-2xl flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 bg-white/70 dark:bg-slate-900/60 shadow-sm">
+        <div className="flex-1 max-w-md">
+          <ValidatedSearchInput
             placeholder="Search refund no, student name, receipt ref..."
             value={query}
-            onChange={e => setQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-sky-500/20"
+            onChange={val => {
+              setQuery(val);
+              setCurrentPage(1);
+            }}
           />
         </div>
 
@@ -293,10 +311,13 @@ export const RefundManagementView: React.FC = () => {
             {(['All', 'Pending', 'Approved', 'Rejected'] as const).map(st => (
               <button
                 key={st}
-                onClick={() => setStatusFilter(st)}
+                onClick={() => {
+                  setStatusFilter(st);
+                  setCurrentPage(1);
+                }}
                 className={`px-3 py-1.5 rounded-lg transition-all ${
                   statusFilter === st
-                    ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-sm'
+                    ? 'bg-[var(--primary-color)] text-white shadow-sm'
                     : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
@@ -309,7 +330,10 @@ export const RefundManagementView: React.FC = () => {
           <div className="relative">
             <select
               value={reasonFilter}
-              onChange={e => setReasonFilter(e.target.value)}
+              onChange={e => {
+                setReasonFilter(e.target.value);
+                setCurrentPage(1);
+              }}
               className="appearance-none pl-3 pr-8 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none"
             >
               <option value="All">All Reasons</option>
@@ -328,7 +352,10 @@ export const RefundManagementView: React.FC = () => {
           <div className="relative">
             <select
               value={classFilter}
-              onChange={e => setClassFilter(e.target.value)}
+              onChange={e => {
+                setClassFilter(e.target.value);
+                setCurrentPage(1);
+              }}
               className="appearance-none pl-3 pr-8 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none"
             >
               <option value="All">All Classes</option>
@@ -342,24 +369,24 @@ export const RefundManagementView: React.FC = () => {
       </div>
 
       {/* Refunds Table */}
-      <div className="glass-card rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800 shadow-sm bg-white dark:bg-slate-900">
+      <div className="glass-card rounded-2xl overflow-hidden border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 shadow-sm bg-white dark:bg-slate-900">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
+          <table className="w-full text-center border-collapse text-xs">
             <thead>
-              <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
-                <th className="py-3.5 px-4">Refund No</th>
-                <th className="py-3.5 px-4">Receipt Ref</th>
-                <th className="py-3.5 px-4">Student Name</th>
-                <th className="py-3.5 px-4">Reason</th>
-                <th className="py-3.5 px-4">Mode</th>
-                <th className="py-3.5 px-4">Amount</th>
-                <th className="py-3.5 px-4">Approved By</th>
-                <th className="py-3.5 px-4">Status</th>
-                <th className="py-3.5 px-4 text-right">Approve / Reject</th>
+              <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
+                <th className="py-3 px-3 text-center align-middle">Refund No</th>
+                <th className="py-3 px-3 text-center align-middle">Receipt Ref</th>
+                <th className="py-3 px-3 text-center align-middle">Student Name</th>
+                <th className="py-3 px-3 text-center align-middle">Reason</th>
+                <th className="py-3 px-3 text-center align-middle">Mode</th>
+                <th className="py-3 px-3 text-center align-middle">Amount</th>
+                <th className="py-3 px-3 text-center align-middle">Approved By</th>
+                <th className="py-3 px-3 text-center align-middle">Status</th>
+                <th className="py-3 px-3 text-center align-middle">Approve / Reject</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
-              {filteredRefunds.length === 0 ? (
+              {paginatedRefunds.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="py-8 text-center text-slate-400">
                     <RotateCcw className="w-8 h-8 mx-auto mb-2 opacity-30 animate-spin-slow" />
@@ -367,18 +394,20 @@ export const RefundManagementView: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                filteredRefunds.map(r => (
+                paginatedRefunds.map(r => (
                   <tr key={r.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
-                    <td className="py-3.5 px-4 font-mono font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-sky-500 inline-block" />
-                      {r.refundNo}
+                    <td className="py-3 px-3 text-center align-middle font-mono font-bold text-slate-900 dark:text-white">
+                      <span className="inline-flex items-center gap-1.5 justify-center">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[var(--primary-color)] inline-block" />
+                        {r.refundNo}
+                      </span>
                     </td>
-                    <td className="py-3.5 px-4 font-mono text-slate-500">
+                    <td className="py-3 px-3 text-center align-middle font-mono text-slate-500">
                       <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 font-semibold text-[11px]">
                         {r.receiptNo || 'N/A'}
                       </span>
                     </td>
-                    <td className="py-3.5 px-4 font-bold text-slate-900 dark:text-white">
+                    <td className="py-3 px-3 text-center align-middle font-bold text-slate-900 dark:text-white">
                       <div>{r.studentName}</div>
                       {r.className && (
                         <div className="text-[10px] text-slate-400 font-medium">
@@ -386,26 +415,26 @@ export const RefundManagementView: React.FC = () => {
                         </div>
                       )}
                     </td>
-                    <td className="py-3.5 px-4 font-semibold text-slate-700 dark:text-slate-300">
+                    <td className="py-3 px-3 text-center align-middle font-semibold text-slate-700 dark:text-slate-300">
                       {r.reason}
                     </td>
-                    <td className="py-3.5 px-4 text-slate-600 dark:text-slate-400 font-medium">
+                    <td className="py-3 px-3 text-center align-middle text-slate-600 dark:text-slate-400 font-medium">
                       {r.refundMode}
                     </td>
-                    <td className="py-3.5 px-4 font-black text-emerald-600 dark:text-emerald-400">
+                    <td className="py-3 px-3 text-center align-middle font-black text-emerald-600 dark:text-emerald-400">
                       {formatCurrency(r.amount)}
                     </td>
-                    <td className="py-3.5 px-4 text-slate-500 text-[11px]">
+                    <td className="py-3 px-3 text-center align-middle text-slate-500 text-[11px]">
                       {r.approvedBy || 'Pending Admin Review'}
                     </td>
-                    <td className="py-3.5 px-4">
+                    <td className="py-3 px-3 text-center align-middle">
                       <Badge variant={r.status === 'Approved' ? 'success' : r.status === 'Pending' ? 'warning' : 'danger'}>
                         {r.status}
                       </Badge>
                     </td>
-                    <td className="py-3.5 px-4 text-right">
+                    <td className="py-3 px-3 text-center align-middle">
                       {r.status === 'Pending' ? (
-                        <div className="flex items-center justify-end gap-1.5">
+                        <div className="flex items-center justify-center gap-1.5">
                           <button
                             onClick={() => {
                               updateRefundStatus(r.id, 'Approved', 'Dr. Eleanor Vance (Principal)');
@@ -439,6 +468,17 @@ export const RefundManagementView: React.FC = () => {
             </tbody>
           </table>
         </div>
+        {filteredRefunds.length > 0 && (
+          <div className="p-3 border-t border-slate-100 dark:border-slate-800">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              totalItems={filteredRefunds.length}
+              pageSize={pageSize}
+            />
+          </div>
+        )}
       </div>
 
       {/* ========================================================= */}
@@ -451,7 +491,7 @@ export const RefundManagementView: React.FC = () => {
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div>
                 <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                  <RotateCcw className="w-4 h-4 text-sky-500" /> Create Refund Request
+                  <RotateCcw className="w-4 h-4 text-[var(--primary-color)]" /> Create Refund Request
                 </h3>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
                   Filter students by class/section, search student profile, and link paid receipts
@@ -467,10 +507,10 @@ export const RefundManagementView: React.FC = () => {
 
             <form onSubmit={handleSubmit} className="space-y-4 text-xs">
               {/* Student Search & Filters Container */}
-              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/60 space-y-2.5">
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 space-y-2.5">
                 <div className="flex items-center justify-between">
                   <label className="font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-                    <User className="w-3.5 h-3.5 text-sky-500" /> Filter & Select Student <span className="text-rose-500 font-bold">*</span>
+                    <User className="w-3.5 h-3.5 text-[var(--primary-color)]" /> Filter & Select Student <span className="text-rose-500 font-bold">*</span>
                   </label>
                   <span className="text-[10px] text-slate-400 font-medium">
                     {modalFilteredStudents.length} matching students
@@ -544,18 +584,13 @@ export const RefundManagementView: React.FC = () => {
 
                 {/* Selected Student Information Card */}
                 {selectedStudent && (
-                  <div className="p-3 rounded-xl bg-sky-50/70 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-800/60 flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-full bg-sky-600 text-white font-black text-xs flex items-center justify-center">
-                        {selectedStudent.firstName?.[0] || 'S'}
+                  <div className="p-3 rounded-xl bg-[var(--primary-color)]/10 border border-[var(--primary-color)]/30 flex items-center justify-between">
+                    <div>
+                      <div className="font-bold text-slate-900 dark:text-white text-xs">
+                        {selectedStudent.firstName} {selectedStudent.lastName}
                       </div>
-                      <div>
-                        <div className="font-bold text-slate-900 dark:text-white text-xs">
-                          {selectedStudent.firstName} {selectedStudent.lastName}
-                        </div>
-                        <div className="text-[11px] text-sky-700 dark:text-sky-300 font-medium">
-                          {selectedStudent.className} - Sec {selectedStudent.section || 'A'} • Adm: {selectedStudent.admissionNumber || `ADM-${selectedStudent.id}`}
-                        </div>
+                      <div className="text-[11px] text-[var(--primary-color)] font-medium">
+                        {selectedStudent.className} - Sec {selectedStudent.section || 'A'} • Adm: {selectedStudent.admissionNumber || `ADM-${selectedStudent.id}`}
                       </div>
                     </div>
                     <button
@@ -581,7 +616,7 @@ export const RefundManagementView: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setReceiptSelectionMode(receiptSelectionMode === 'select' ? 'manual' : 'select')}
-                        className="text-[10px] text-sky-600 font-bold hover:underline"
+                        className="text-[10px] text-[var(--primary-color)] font-bold hover:underline"
                       >
                         {receiptSelectionMode === 'select' ? 'Manual Ref' : 'From Receipts'}
                       </button>
@@ -710,7 +745,7 @@ export const RefundManagementView: React.FC = () => {
                   disabled={!selectedStudentId}
                   className={`px-5 py-2 font-bold rounded-xl shadow-lg transition-all ${
                     selectedStudentId 
-                      ? 'bg-sky-600 hover:bg-sky-500 text-white shadow-sky-500/25' 
+                      ? 'bg-[var(--primary-color)] hover:opacity-90 text-white shadow-[var(--primary-color)]/25 cursor-pointer' 
                       : 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed'
                   }`}
                 >

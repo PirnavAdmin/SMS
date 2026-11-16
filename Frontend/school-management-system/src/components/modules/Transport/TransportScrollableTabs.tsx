@@ -80,7 +80,7 @@ export const TransportScrollableTabs: React.FC<TransportScrollableTabsProps> = (
     <div
       className={[
         sticky ? 'sticky top-20 z-30' : '',
-        'glass-card p-1.5 rounded-2xl bg-white/85 dark:bg-slate-900/85 backdrop-blur-md border border-slate-200/80 dark:border-slate-800 shadow-sm',
+        'glass-card p-1.5 rounded-2xl bg-white/85 dark:bg-slate-900/85 backdrop-blur-md border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 shadow-sm',
         className
       ].join(' ')}
     >
@@ -117,13 +117,13 @@ export const TransportScrollableTabs: React.FC<TransportScrollableTabsProps> = (
                   type="button"
                   data-tab-id={tab.id}
                   onClick={() => onChange(tab.id)}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex-shrink-0 ${
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex-shrink-0 cursor-pointer ${
                     isActive
-                      ? 'bg-sky-600 text-white shadow-md shadow-sky-500/20'
+                      ? 'bg-[var(--primary-color)] text-white shadow-md shadow-[var(--primary-color)]/20'
                       : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
-                  <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-sky-500'}`} />
+                  <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-[var(--primary-color)]'}`} />
                   <span>{tab.label}</span>
                   {tab.badge && (
                     <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${

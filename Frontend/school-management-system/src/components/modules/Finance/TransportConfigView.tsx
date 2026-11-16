@@ -1,11 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { formatCurrency } from '../../../utils/currency';
-import { Route, Plus, Search, Edit, Trash2, Bus, AlertTriangle } from 'lucide-react';
+import { Route, Plus, Edit, Trash2, Bus, AlertTriangle } from 'lucide-react';
 import { TransportRoute } from '../../../types';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { ExportButton } from '../../common/ExportButton';
 import { ConfirmModal } from '../../common/ConfirmModal';
+import { ValidatedSearchInput } from '../../common/ValidatedSearchInput';
 
 export const TransportConfigView: React.FC = () => {
   const { erpTransportRoutes, studentTransports = [], students = [], admissions = [], addERPTransportRoute, updateERPTransportRoute, deleteERPTransportRoute } = useData();
@@ -171,12 +172,12 @@ export const TransportConfigView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in">
+    <div className="space-y-4 animate-in fade-in">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-            <Route className="w-6 h-6 text-sky-500" /> Transport Route Master Configuration
+            <Route className="w-6 h-6 text-[var(--primary-color)]" /> Transport Route Master Configuration
           </h2>
           <p className="text-xs text-slate-500">Configure vehicle routes, drivers, stops, and frequency-based transport fee slabs</p>
         </div>
@@ -184,7 +185,7 @@ export const TransportConfigView: React.FC = () => {
         <div className="flex items-center gap-3">
           <button
             onClick={handleOpenAdd}
-            className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-lg shadow-sky-500/20 flex items-center gap-2"
+            className="px-4 py-2 rounded-xl bg-[var(--primary-color)] hover:opacity-90 text-white text-xs font-bold shadow-md shadow-[var(--primary-color)]/20 flex items-center gap-2 cursor-pointer transition-all"
           >
             <Plus className="w-4 h-4" /> Add Route Master
           </button>
@@ -193,15 +194,12 @@ export const TransportConfigView: React.FC = () => {
       </div>
 
       {/* Filter */}
-      <div className="glass-card p-4 rounded-2xl flex items-center justify-between">
-        <div className="relative w-full sm:w-72">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-          <input
-            type="text"
+      <div className="glass-card p-3.5 sm:p-4 rounded-2xl border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 flex items-center justify-between">
+        <div className="w-full sm:w-72">
+          <ValidatedSearchInput
             placeholder="Search route name or code..."
             value={query}
-            onChange={e => setQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none"
+            onChange={val => setQuery(val)}
           />
         </div>
       </div>
@@ -209,18 +207,18 @@ export const TransportConfigView: React.FC = () => {
       {/* Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {filteredRoutes.map(r => (
-          <div key={r.id} className="glass-card p-5 rounded-2xl space-y-3">
+          <div key={r.id} className="glass-card p-3.5 sm:p-4 rounded-2xl border border-[var(--primary-color)]/35 dark:border-[var(--primary-color)]/45 hover:border-[var(--primary-color)] shadow-sm hover:shadow-md transition-all space-y-3">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
               <div>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-[var(--primary-color)]/10 text-[var(--primary-color)]">
                   {r.routeCode} • {r.distanceKm} km
                 </span>
                 <h3 className="font-bold text-sm text-slate-900 dark:text-white mt-1">{r.routeName}</h3>
               </div>
 
               <div className="flex items-center gap-1">
-                <button onClick={() => handleOpenEdit(r)} className="p-1.5 rounded hover:bg-slate-100 text-sky-600"><Edit className="w-4 h-4" /></button>
-                <button onClick={() => setDeletingRoute(r)} className="p-1.5 rounded hover:bg-rose-50 text-rose-600"><Trash2 className="w-4 h-4" /></button>
+                <button onClick={() => handleOpenEdit(r)} className="p-1.5 rounded hover:bg-[var(--primary-color)]/10 text-[var(--primary-color)] cursor-pointer"><Edit className="w-4 h-4" /></button>
+                <button onClick={() => setDeletingRoute(r)} className="p-1.5 rounded hover:bg-rose-50 text-rose-600 cursor-pointer"><Trash2 className="w-4 h-4" /></button>
               </div>
             </div>
 
@@ -231,10 +229,10 @@ export const TransportConfigView: React.FC = () => {
             </div>
 
             <div className="pt-2 border-t border-slate-100 dark:border-slate-800 grid grid-cols-4 gap-2 text-[11px] text-center">
-              <div className="p-1.5 rounded-lg bg-slate-50 dark:bg-slate-800"><p className="text-[10px] text-slate-400">Monthly</p><p className="font-bold text-sky-600">{formatCurrency(r.monthlyFee)}</p></div>
-              <div className="p-1.5 rounded-lg bg-slate-50 dark:bg-slate-800"><p className="text-[10px] text-slate-400">Quarterly</p><p className="font-bold text-sky-600">{formatCurrency(r.quarterlyFee)}</p></div>
-              <div className="p-1.5 rounded-lg bg-slate-50 dark:bg-slate-800"><p className="text-[10px] text-slate-400">Half-Yr</p><p className="font-bold text-sky-600">{formatCurrency(r.halfYearlyFee)}</p></div>
-              <div className="p-1.5 rounded-lg bg-slate-50 dark:bg-slate-800"><p className="text-[10px] text-slate-400">Annual</p><p className="font-bold text-sky-600">{formatCurrency(r.annualFee)}</p></div>
+              <div className="p-1.5 rounded-lg bg-slate-50 dark:bg-slate-800"><p className="text-[10px] text-slate-400">Monthly</p><p className="font-bold text-[var(--primary-color)]">{formatCurrency(r.monthlyFee)}</p></div>
+              <div className="p-1.5 rounded-lg bg-slate-50 dark:bg-slate-800"><p className="text-[10px] text-slate-400">Quarterly</p><p className="font-bold text-[var(--primary-color)]">{formatCurrency(r.quarterlyFee)}</p></div>
+              <div className="p-1.5 rounded-lg bg-slate-50 dark:bg-slate-800"><p className="text-[10px] text-slate-400">Half-Yr</p><p className="font-bold text-[var(--primary-color)]">{formatCurrency(r.halfYearlyFee)}</p></div>
+              <div className="p-1.5 rounded-lg bg-slate-50 dark:bg-slate-800"><p className="text-[10px] text-slate-400">Annual</p><p className="font-bold text-[var(--primary-color)]">{formatCurrency(r.annualFee)}</p></div>
             </div>
           </div>
         ))}
@@ -304,8 +302,8 @@ export const TransportConfigView: React.FC = () => {
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 font-semibold bg-slate-100 dark:bg-slate-800 rounded-xl">Cancel</button>
-                <button type="submit" className="px-4 py-2 font-bold bg-sky-600 text-white rounded-xl">Save Route</button>
+                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 font-semibold bg-slate-100 dark:bg-slate-800 rounded-xl cursor-pointer">Cancel</button>
+                <button type="submit" className="px-4 py-2 font-bold bg-[var(--primary-color)] hover:opacity-90 text-white rounded-xl shadow-md shadow-[var(--primary-color)]/20 cursor-pointer">Save Route</button>
               </div>
             </form>
           </div>

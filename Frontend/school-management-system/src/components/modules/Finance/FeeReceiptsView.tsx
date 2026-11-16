@@ -78,7 +78,7 @@ export const FeeReceiptsView: React.FC = () => {
   return (
     <div className="space-y-6 animate-in fade-in">
       {/* Filter */}
-      <div className="glass-card p-4 rounded-2xl flex flex-col sm:flex-row items-center gap-3">
+      <div className="relative z-20 glass-card p-3.5 sm:p-4 rounded-2xl flex flex-col sm:flex-row items-center gap-3 border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40">
         <ValidatedSearchInput
           value={query}
           onChange={(val) => {
@@ -128,23 +128,23 @@ export const FeeReceiptsView: React.FC = () => {
       </div>
 
       {/* Receipts Table */}
-      <div id="printable-content" className="glass-card rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800 p-4 print:p-0 print:border-none">
+      <div id="printable-content" className="glass-card rounded-2xl overflow-hidden border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 p-4 print:p-0 print:border-none">
         <SchoolPrintHeader
           title="Fee Collection & Receipts Register"
           subtitle={`Total Receipts: ${filteredPayments.length}`}
         />
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
+          <table className="w-full text-center border-collapse text-xs">
             <thead>
               <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
-                <th className="py-3.5 px-4">Receipt No</th>
-                <th className="py-3.5 px-4">Student Name</th>
-                <th className="py-3.5 px-4">Class</th>
-                <th className="py-3.5 px-4">Date</th>
-                <th className="py-3.5 px-4">Mode</th>
-                <th className="py-3.5 px-4">Amount Paid</th>
-                <th className="py-3.5 px-4">Status</th>
-                <th className="py-3.5 px-4 text-right">Actions</th>
+                <th className="py-3 px-3 text-center align-middle">Receipt No</th>
+                <th className="py-3 px-3 text-center align-middle">Student Name</th>
+                <th className="py-3 px-3 text-center align-middle">Class</th>
+                <th className="py-3 px-3 text-center align-middle">Date</th>
+                <th className="py-3 px-3 text-center align-middle">Mode</th>
+                <th className="py-3 px-3 text-center align-middle font-mono">Amount Paid</th>
+                <th className="py-3 px-3 text-center align-middle">Status</th>
+                <th className="py-3 px-3 text-center align-middle">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
@@ -178,29 +178,29 @@ export const FeeReceiptsView: React.FC = () => {
 
                   return (
                     <tr key={p.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40">
-                      <td className="py-3 px-4 font-mono font-bold text-slate-900 dark:text-white">
+                      <td className="py-3 px-3 font-mono font-bold text-slate-900 dark:text-white text-center align-middle">
                         {displayReceiptNo}
                       </td>
-                      <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">
+                      <td className="py-3 px-3 font-bold text-slate-900 dark:text-white text-center align-middle">
                         {displayStudentName}
                       </td>
-                      <td className="py-3 px-4 text-slate-600 dark:text-slate-300">
+                      <td className="py-3 px-3 text-slate-600 dark:text-slate-300 text-center align-middle">
                         {displayClass}
                       </td>
-                      <td className="py-3 px-4 text-slate-500 font-mono">{displayDate}</td>
-                      <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">
+                      <td className="py-3 px-3 text-slate-500 font-mono text-center align-middle">{displayDate}</td>
+                      <td className="py-3 px-3 font-semibold text-slate-700 dark:text-slate-300 text-center align-middle">
                         {p.paymentMode || "Cash"}
                       </td>
-                      <td className="py-3 px-4 font-extrabold text-emerald-600 dark:text-emerald-400">
+                      <td className="py-3 px-3 font-extrabold text-emerald-600 dark:text-emerald-400 font-mono text-center align-middle">
                         {formatCurrency(p.amountPaid)}
                       </td>
-                      <td className="py-3 px-4">
+                      <td className="py-3 px-3 text-center align-middle">
                         <Badge variant="success">{p.status || "Paid"}</Badge>
                       </td>
-                      <td className="py-3 px-4 text-right">
+                      <td className="py-3 px-3 text-center align-middle">
                         <button
                           onClick={() => setSelectedReceipt(fullPaymentObj)}
-                          className="px-3 py-1 rounded-lg bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300 font-bold hover:bg-sky-100 flex items-center gap-1 ml-auto cursor-pointer"
+                          className="px-3 py-1 rounded-lg bg-[var(--primary-color)]/10 text-[var(--primary-color)] dark:bg-[var(--primary-color)]/20 font-bold hover:bg-[var(--primary-color)] hover:text-white flex items-center justify-center gap-1 mx-auto cursor-pointer transition-colors"
                         >
                           <Printer className="w-3.5 h-3.5" /> View / Print Receipt
                         </button>

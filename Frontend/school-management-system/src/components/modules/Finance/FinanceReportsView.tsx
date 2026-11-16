@@ -10,6 +10,8 @@ import { useAuth } from '../../../context/AuthContext';
 import { resolveMediaUrl } from '../../../utils/mediaUtils';
 import { ExportButton } from '../../common/ExportButton';
 import { SchoolPrintHeader } from '../../common/SchoolPrintHeader';
+import { ValidatedSearchInput } from '../../common/ValidatedSearchInput';
+import { Pagination } from '../../common/Pagination';
 import * as FinanceAPI from '../../../api/finance';
 
 const REPORT_CATEGORIES = [
@@ -580,47 +582,47 @@ export const FinanceReportsView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in">
+    <div className="space-y-4 animate-in fade-in">
       {/* Title */}
       <div className="no-print">
         <h2 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-          <FileSpreadsheet className="w-6 h-6 text-sky-500" />Finance Reports
+          <FileSpreadsheet className="w-6 h-6 text-[var(--primary-color)]" />Finance Reports
         </h2>
       </div>
 
       {/* KPI Cards (Hidden in Print) */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 no-print">
-        <div className="glass-card p-4.5 rounded-3xl space-y-1.5 border-l-4 border-l-sky-500 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5 no-print">
+        <div className="glass-card p-3.5 sm:p-4 rounded-2xl space-y-1.5 border border-[var(--primary-color)]/35 dark:border-[var(--primary-color)]/45 hover:border-[var(--primary-color)] bg-white/70 dark:bg-slate-900/60 shadow-sm hover:shadow-md transition-all">
           <span className="text-[10px] font-extrabold text-slate-400 uppercase">Today's Collection</span>
           <h4 className="text-sm sm:text-base font-black text-slate-900 dark:text-white truncate">{formatCurrency(todayCollection)}</h4>
-          <span className="text-[9px] text-sky-500 font-bold">Daily Receipts</span>
+          <span className="text-[9px] text-[var(--primary-color)] font-bold">Daily Receipts</span>
         </div>
 
-        <div className="glass-card p-4.5 rounded-3xl space-y-1.5 border-l-4 border-l-emerald-500 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+        <div className="glass-card p-3.5 sm:p-4 rounded-2xl space-y-1.5 border border-[var(--primary-color)]/35 dark:border-[var(--primary-color)]/45 hover:border-[var(--primary-color)] bg-white/70 dark:bg-slate-900/60 shadow-sm hover:shadow-md transition-all">
           <span className="text-[10px] font-extrabold text-slate-400 uppercase">Monthly Collection</span>
           <h4 className="text-sm sm:text-base font-black text-emerald-600 dark:text-emerald-400 truncate">{formatCurrency(monthlyCollection)}</h4>
           <span className="text-[9px] text-emerald-500 font-bold">Monthly Receipts</span>
         </div>
 
-        <div className="glass-card p-4.5 rounded-3xl space-y-1.5 border-l-4 border-l-rose-500 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+        <div className="glass-card p-3.5 sm:p-4 rounded-2xl space-y-1.5 border border-[var(--primary-color)]/35 dark:border-[var(--primary-color)]/45 hover:border-[var(--primary-color)] bg-white/70 dark:bg-slate-900/60 shadow-sm hover:shadow-md transition-all">
           <span className="text-[10px] font-extrabold text-slate-400 uppercase">Pending Dues</span>
           <h4 className="text-sm sm:text-base font-black text-rose-600 dark:text-rose-400 truncate">{formatCurrency(pendingFees)}</h4>
           <span className="text-[9px] text-rose-500 font-bold">Outstanding dues</span>
         </div>
 
-        <div className="glass-card p-4.5 rounded-3xl space-y-1.5 border-l-4 border-l-sky-500 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+        <div className="glass-card p-3.5 sm:p-4 rounded-2xl space-y-1.5 border border-[var(--primary-color)]/35 dark:border-[var(--primary-color)]/45 hover:border-[var(--primary-color)] bg-white/70 dark:bg-slate-900/60 shadow-sm hover:shadow-md transition-all">
           <span className="text-[10px] font-extrabold text-slate-400 uppercase">Students Paid</span>
-          <h4 className="text-sm sm:text-base font-black text-sky-600 dark:text-sky-400 truncate">{distinctPaidStudents} Students</h4>
+          <h4 className="text-sm sm:text-base font-black text-[var(--primary-color)] truncate">{distinctPaidStudents} Students</h4>
           <span className="text-[9px] text-slate-400 font-bold">Distinct Payees</span>
         </div>
 
-        <div className="glass-card p-4.5 rounded-3xl space-y-1.5 border-l-4 border-l-sky-500 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+        <div className="glass-card p-3.5 sm:p-4 rounded-2xl space-y-1.5 border border-[var(--primary-color)]/35 dark:border-[var(--primary-color)]/45 hover:border-[var(--primary-color)] bg-white/70 dark:bg-slate-900/60 shadow-sm hover:shadow-md transition-all">
           <span className="text-[10px] font-extrabold text-slate-400 uppercase">Scholarships & Discounts</span>
-          <h4 className="text-sm sm:text-base font-black text-sky-600 dark:text-sky-400 truncate">{formatCurrency(totalScholarshipsAmount + totalDiscountsAmount)}</h4>
+          <h4 className="text-sm sm:text-base font-black text-[var(--primary-color)] truncate">{formatCurrency(totalScholarshipsAmount + totalDiscountsAmount)}</h4>
           <span className="text-[9px] text-slate-400 font-bold">Total Concessions</span>
         </div>
 
-        <div className="glass-card p-4.5 rounded-3xl space-y-1.5 border-l-4 border-l-amber-500 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+        <div className="glass-card p-3.5 sm:p-4 rounded-2xl space-y-1.5 border border-[var(--primary-color)]/35 dark:border-[var(--primary-color)]/45 hover:border-[var(--primary-color)] bg-white/70 dark:bg-slate-900/60 shadow-sm hover:shadow-md transition-all">
           <span className="text-[10px] font-extrabold text-slate-400 uppercase">Transport & Hostel</span>
           <h4 className="text-sm sm:text-base font-black text-amber-600 dark:text-amber-400 truncate">{formatCurrency(transportRevenue + hostelRevenue)}</h4>
           <span className="text-[9px] text-slate-400 font-bold">Services Collection</span>
@@ -628,7 +630,7 @@ export const FinanceReportsView: React.FC = () => {
       </div>
 
       {/* Report Selector & Filter Panel (Hidden in Print) */}
-      <div className="glass-card p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-6 no-print">
+      <div className="relative z-20 glass-card p-3.5 sm:p-4 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 shadow-sm space-y-4 no-print">
         <h3 className="text-xs font-extrabold text-slate-400 uppercase tracking-wider">Report Selection & Parameters</h3>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -792,7 +794,7 @@ export const FinanceReportsView: React.FC = () => {
         <div className="flex justify-end pt-2">
           <button
             onClick={handleGenerate}
-            className="px-6 py-2.5 text-xs font-bold text-white bg-sky-600 hover:bg-sky-500 rounded-xl shadow-md shadow-sky-500/25 transition-all flex items-center gap-2"
+            className="px-5 py-2 text-xs font-bold text-white bg-[var(--primary-color)] hover:opacity-90 rounded-xl shadow-md shadow-[var(--primary-color)]/25 transition-all flex items-center gap-2 cursor-pointer"
           >
             <BarChart3 className="w-4 h-4" /> Generate Report
           </button>
@@ -801,11 +803,11 @@ export const FinanceReportsView: React.FC = () => {
 
       {/* Generated Report Output */}
       {isGenerated ? (
-        <div className="glass-card p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-3.5">
+        <div className="glass-card p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 shadow-sm space-y-3.5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-3">
             <div>
               <h3 className="font-extrabold text-base text-slate-900 dark:text-white flex items-center gap-2">
-                <BarChart3 className="w-5 h-5 text-sky-500" /> {generatedReportType}
+                <BarChart3 className="w-5 h-5 text-[var(--primary-color)]" /> {generatedReportType}
               </h3>
               <p className="text-[10px] text-slate-400 font-semibold mt-0.5">Total Records Found: {totalRecords} • Current Page: {currentPage} / {totalPages || 1}</p>
             </div>
@@ -823,16 +825,14 @@ export const FinanceReportsView: React.FC = () => {
 
           {/* Search Box & Page Size */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="relative w-full sm:w-72">
-              <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search className="h-3.5 w-3.5 text-slate-400" />
-              </span>
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
+            <div className="w-full sm:w-72">
+              <ValidatedSearchInput
                 placeholder="Search name, receipt, admission..."
-                className="pl-9 pr-4 py-2 w-full text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none font-bold text-slate-800 dark:text-slate-200"
+                value={searchQuery}
+                onChange={val => {
+                  setSearchQuery(val);
+                  setCurrentPage(1);
+                }}
               />
             </div>
 
@@ -855,16 +855,16 @@ export const FinanceReportsView: React.FC = () => {
           </div>
 
           {/* Dynamic Table */}
-          <div id="printable-content" className="overflow-x-auto border border-slate-100 dark:border-slate-800 rounded-2xl p-4 print:p-0 print:border-none">
+          <div id="printable-content" className="overflow-x-auto border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 rounded-2xl p-3 print:p-0 print:border-none">
             <SchoolPrintHeader
               title={`Finance Report - ${generatedReportType}`}
               subtitle={`Total Filtered Records: ${currentData.length}`}
             />
-            <table className="w-full text-left border-collapse text-xs">
+            <table className="w-full text-center border-collapse text-xs">
               <thead>
-                <tr className="bg-slate-50 dark:bg-slate-800/50 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-100 dark:border-slate-800">
+                <tr className="bg-slate-50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-300 font-bold uppercase tracking-wider border-b border-slate-100 dark:border-slate-800">
                   {Object.keys(currentData[0] || { Record: '' }).map(key => (
-                    <th key={key} className="py-3 px-4 capitalize">{key.replace(/([A-Z])/g, ' $1')}</th>
+                    <th key={key} className="py-3 px-3 text-center align-middle capitalize">{key.replace(/([A-Z])/g, ' $1')}</th>
                   ))}
                 </tr>
               </thead>
@@ -877,7 +877,7 @@ export const FinanceReportsView: React.FC = () => {
                   paginatedData.map((row, idx) => (
                     <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40">
                       {Object.entries(row).map(([key, val]: any, valIdx) => (
-                        <td key={valIdx} className="py-3.5 px-4 font-bold text-slate-900 dark:text-white">
+                        <td key={valIdx} className="py-3 px-3 text-center align-middle font-bold text-slate-900 dark:text-white">
                           {key.toLowerCase().includes('amount') || key.toLowerCase().includes('fee') || key === 'cost' ? formatCurrency(val) : String(val)}
                         </td>
                       ))}
@@ -890,52 +890,29 @@ export const FinanceReportsView: React.FC = () => {
 
           {/* Table Totals Summary Bar */}
           {displayedData.length > 0 && (
-            <div className="p-4 rounded-2xl bg-sky-50/50 dark:bg-sky-950/20 border border-sky-100/60 dark:border-sky-900/30 flex items-center justify-between text-xs font-bold text-sky-700 dark:text-sky-300">
+            <div className="p-3.5 rounded-2xl bg-[var(--primary-color)]/5 border border-[var(--primary-color)]/20 flex items-center justify-between text-xs font-bold text-[var(--primary-color)]">
               <span>Filtered Summary (Sum of Amounts):</span>
               <span className="font-black text-sm">{formatCurrency(totalAmountSum)}</span>
             </div>
           )}
 
           {/* Pagination Controls */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
-              <span className="text-[11px] font-bold text-slate-400">Showing {Math.min(totalRecords, (currentPage - 1) * pageSize + 1)}-{Math.min(totalRecords, currentPage * pageSize)} of {totalRecords} records</span>
-              <div className="flex items-center gap-1.5">
-                <button
-                  disabled={currentPage === 1}
-                  onClick={() => setCurrentPage(currentPage - 1)}
-                  className="px-3 py-1.5 text-[10px] font-bold rounded-lg border bg-white dark:bg-slate-900 disabled:opacity-40 hover:bg-slate-50"
-                >
-                  Previous
-                </button>
-                {Array.from({ length: totalPages }).map((_, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => setCurrentPage(idx + 1)}
-                    className={`w-7 h-7 text-[10px] font-bold rounded-lg transition-all ${
-                      currentPage === idx + 1
-                        ? 'bg-sky-600 text-white'
-                        : 'border bg-white dark:bg-slate-900 hover:bg-slate-50'
-                    }`}
-                  >
-                    {idx + 1}
-                  </button>
-                ))}
-                <button
-                  disabled={currentPage === totalPages}
-                  onClick={() => setCurrentPage(currentPage + 1)}
-                  className="px-3 py-1.5 text-[10px] font-bold rounded-lg border bg-white dark:bg-slate-900 disabled:opacity-40 hover:bg-slate-50"
-                >
-                  Next
-                </button>
-              </div>
+          {totalRecords > 0 && (
+            <div className="pt-2">
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+                totalItems={totalRecords}
+                pageSize={pageSize}
+              />
             </div>
           )}
         </div>
       ) : (
         /* Empty State */
-        <div className="glass-card p-12 text-center rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col items-center justify-center space-y-3 shadow-sm">
-          <div className="p-3.5 rounded-2xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400">
+        <div className="glass-card p-8 text-center rounded-2xl border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40 bg-white dark:bg-slate-900 flex flex-col items-center justify-center space-y-3 shadow-sm">
+          <div className="p-3.5 rounded-2xl bg-[var(--primary-color)]/10 text-[var(--primary-color)]">
             <Info className="w-6 h-6" />
           </div>
           <div>

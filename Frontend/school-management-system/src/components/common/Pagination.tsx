@@ -6,6 +6,7 @@ export interface PaginationProps {
   totalItems?: number;
   totalPages?: number;
   itemsPerPage?: number;
+  pageSize?: number;
   onPageChange: (page: number) => void;
   onItemsPerPageChange?: (perPage: number) => void;
   itemsPerPageOptions?: number[];
@@ -19,7 +20,8 @@ export const Pagination: React.FC<PaginationProps> = ({
   currentPage,
   totalItems: propTotalItems,
   totalPages: propTotalPages,
-  itemsPerPage = 10,
+  itemsPerPage: propItemsPerPage,
+  pageSize,
   onPageChange,
   onItemsPerPageChange,
   itemsPerPageOptions = [10, 25, 50, 100],
@@ -28,6 +30,7 @@ export const Pagination: React.FC<PaginationProps> = ({
   className = '',
   showBorder = true,
 }) => {
+  const itemsPerPage = propItemsPerPage ?? pageSize ?? 10;
   const calculatedTotalPages = Math.max(1, Math.ceil((propTotalItems ?? 0) / itemsPerPage));
   const totalPages = propTotalPages !== undefined ? propTotalPages : calculatedTotalPages;
   const page = Math.min(Math.max(1, currentPage), totalPages);
