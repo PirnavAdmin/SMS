@@ -269,7 +269,7 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
           {onNavigate && (
             <button
               onClick={() => onNavigate('superadmin-dashboard')}
-              className="p-2 rounded-2xl btn-glass-secondary text-slate-600 dark:text-slate-300 hover:text-orange-600 dark:hover:text-orange-400 transition-colors cursor-pointer"
+              className="p-2 rounded-2xl btn-glass-secondary text-slate-600 dark:text-slate-300 hover:text-sky-600 dark:hover:text-sky-400 transition-colors cursor-pointer"
               title="Back to Dashboard"
             >
               <ArrowLeft className="w-5 h-5" />
@@ -277,7 +277,7 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
           )}
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-orange-600 dark:text-orange-400 uppercase tracking-wider">
+              <span className="text-xs font-bold text-sky-600 dark:text-sky-400 uppercase tracking-wider">
                 Super Admin Account
               </span>
               <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-700" />
@@ -300,9 +300,9 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
       </div>
 
       {/* Hero Identity Banner */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500 p-6 sm:p-8 text-white shadow-xl">
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-sky-600 via-blue-600 to-indigo-700 p-6 sm:p-8 text-white shadow-xl">
         <div className="absolute -right-12 -bottom-12 w-72 h-72 rounded-full bg-white/10 blur-2xl pointer-events-none" />
-        <div className="absolute right-40 top-4 w-28 h-28 rounded-full bg-amber-400/20 blur-xl pointer-events-none" />
+        <div className="absolute right-40 top-4 w-28 h-28 rounded-full bg-sky-400/20 blur-xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-col md:flex-row items-center md:items-start gap-6">
           {/* Avatar with Upload */}
@@ -341,7 +341,7 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
 
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="absolute -bottom-2 -right-2 p-2 rounded-xl bg-white text-orange-600 shadow-lg hover:scale-110 active:scale-95 transition-all cursor-pointer"
+              className="absolute -bottom-2 -right-2 p-2 rounded-xl bg-white text-sky-600 shadow-lg hover:scale-110 active:scale-95 transition-all cursor-pointer"
               title="Change Photo"
             >
               <Camera className="w-4 h-4 stroke-[2.5]" />
@@ -360,7 +360,7 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
                     Root Role
                   </span>
                 </div>
-                <p className="text-orange-100 text-sm font-medium mt-1">
+                <p className="text-sky-100 text-sm font-medium mt-1">
                   {profileForm.email} &bull; {profileForm.phone}
                 </p>
               </div>
@@ -369,9 +369,9 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
                 {!isEditing ? (
                   <button
                     onClick={() => setIsEditing(true)}
-                    className="px-4 py-2 rounded-2xl bg-white/95 hover:bg-white text-orange-700 font-extrabold text-xs shadow-md flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
+                    className="px-4 py-2 rounded-2xl bg-white/95 hover:bg-white text-sky-700 font-extrabold text-xs shadow-md flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
                   >
-                    <Edit className="w-3.5 h-3.5 text-orange-600" />
+                    <Edit className="w-3.5 h-3.5 text-sky-600" />
                     <span>Edit Profile Details</span>
                   </button>
                 ) : (
@@ -395,7 +395,7 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
                 Super Admin Access
               </span>
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-black/20 text-white backdrop-blur-md border border-white/10 font-bold">
-                <Building2 className="w-3.5 h-3.5 text-orange-200" />
+                <Building2 className="w-3.5 h-3.5 text-sky-200" />
                 {profileForm.organization}
               </span>
               <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-black/20 text-white backdrop-blur-md border border-white/10 font-bold">
@@ -409,19 +409,19 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
         {/* Quick KPI Strip at Bottom of Banner */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-6 border-t border-white/20 text-xs">
           <div className="bg-black/15 backdrop-blur-md p-3 rounded-2xl border border-white/10">
-            <span className="text-[11px] font-bold text-orange-100 uppercase tracking-wider block">Managed Schools</span>
+            <span className="text-[11px] font-bold text-sky-100 uppercase tracking-wider block">Managed Schools</span>
             <span className="text-xl font-black text-white mt-0.5 block">{stats.totalSchools}</span>
           </div>
           <div className="bg-black/15 backdrop-blur-md p-3 rounded-2xl border border-white/10">
-            <span className="text-[11px] font-bold text-orange-100 uppercase tracking-wider block">SaaS Packages</span>
+            <span className="text-[11px] font-bold text-sky-100 uppercase tracking-wider block">SaaS Packages</span>
             <span className="text-xl font-black text-white mt-0.5 block">{stats.totalPackages}</span>
           </div>
           <div className="bg-black/15 backdrop-blur-md p-3 rounded-2xl border border-white/10">
-            <span className="text-[11px] font-bold text-orange-100 uppercase tracking-wider block">Security Level</span>
+            <span className="text-[11px] font-bold text-sky-100 uppercase tracking-wider block">Security Level</span>
             <span className="text-sm font-black text-emerald-300 mt-1 block">Tier 1 Master</span>
           </div>
           <div className="bg-black/15 backdrop-blur-md p-3 rounded-2xl border border-white/10">
-            <span className="text-[11px] font-bold text-orange-100 uppercase tracking-wider block">Status</span>
+            <span className="text-[11px] font-bold text-sky-100 uppercase tracking-wider block">Status</span>
             <span className="text-sm font-black text-white mt-1 block">Active Account</span>
           </div>
         </div>
@@ -433,7 +433,7 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
         <div className="lg:col-span-7 glass-card p-6 sm:p-7 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-6">
           <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
             <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-2xl bg-orange-500/10 text-orange-600 dark:text-orange-400">
+              <div className="p-2.5 rounded-2xl bg-sky-500/10 text-sky-600 dark:text-sky-400">
                 <UserIcon className="w-5 h-5 stroke-[2]" />
               </div>
               <div>
@@ -484,7 +484,7 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
                         ? 'bg-slate-50/80 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 cursor-not-allowed'
                         : formErrors.name
                         ? 'bg-rose-50/20 border-rose-400 focus:ring-2 focus:ring-rose-500/20'
-                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20'
+                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20'
                     }`}
                   />
                 </div>
@@ -518,7 +518,7 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
                         ? 'bg-slate-50/80 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 cursor-not-allowed'
                         : formErrors.email
                         ? 'bg-rose-50/20 border-rose-400 focus:ring-2 focus:ring-rose-500/20'
-                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20'
+                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20'
                     }`}
                   />
                 </div>
@@ -552,7 +552,7 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
                         ? 'bg-slate-50/80 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 cursor-not-allowed'
                         : formErrors.phone
                         ? 'bg-rose-50/20 border-rose-400 focus:ring-2 focus:ring-rose-500/20'
-                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20'
+                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20'
                     }`}
                   />
                 </div>
@@ -578,7 +578,7 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
                     className={`w-full pl-10 pr-3.5 py-2.5 rounded-xl border text-xs font-semibold transition ${
                       !isEditing
                         ? 'bg-slate-50/80 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 cursor-not-allowed'
-                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20'
+                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20'
                     }`}
                   />
                 </div>
@@ -599,7 +599,7 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
                     className={`w-full pl-10 pr-3.5 py-2.5 rounded-xl border text-xs font-semibold transition ${
                       !isEditing
                         ? 'bg-slate-50/80 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 cursor-not-allowed'
-                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20'
+                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20'
                     }`}
                   />
                 </div>
@@ -620,7 +620,7 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
                     className={`w-full pl-10 pr-3.5 py-2.5 rounded-xl border text-xs font-semibold transition ${
                       !isEditing
                         ? 'bg-slate-50/80 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 cursor-not-allowed'
-                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20'
+                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20'
                     }`}
                   />
                 </div>
@@ -642,7 +642,7 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className="px-5 py-2 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-black shadow-md shadow-orange-600/20 flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 disabled:opacity-60"
+                  className="px-5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-black shadow-md shadow-sky-600/20 flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 disabled:opacity-60"
                 >
                   <Save className={`w-3.5 h-3.5 ${isSaving ? 'animate-spin' : ''}`} />
                   <span>{isSaving ? 'Saving Changes...' : 'Save Profile Details'}</span>
@@ -667,7 +667,7 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
                 { title: 'System Security Audit Trail', desc: 'Unrestricted security event log inspection', icon: Server },
               ].map((c, i) => (
                 <div key={i} className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-slate-700/60 flex items-center gap-2.5">
-                  <div className="p-1.5 rounded-lg bg-orange-500/10 text-orange-600 dark:text-orange-400 shrink-0">
+                  <div className="p-1.5 rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400 shrink-0">
                     <c.icon className="w-3.5 h-3.5" />
                   </div>
                   <div className="min-w-0">
@@ -803,7 +803,7 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
           {/* Quick Support / Emergency Box */}
           <div className="p-5 rounded-3xl bg-slate-900 dark:bg-black text-white space-y-3 shadow-lg border border-slate-800">
             <div className="flex items-center gap-2">
-              <Server className="w-4 h-4 text-orange-400" />
+              <Server className="w-4 h-4 text-sky-400" />
               <h4 className="font-black text-xs uppercase tracking-wider text-slate-200">
                 Master Platform Telemetry
               </h4>

@@ -113,7 +113,7 @@ export const AddSchoolModal: React.FC<AddSchoolModalProps> = ({
         phoneNumber: '',
         website: '',
         principalName: '',
-        password: `Pass@${Math.floor(1000 + Math.random() * 9000)}`,
+        password: '',
         confirmPassword: '',
         address: '',
         planName: availablePackages[0]?.name || 'Custom Plan',
@@ -159,11 +159,17 @@ export const AddSchoolModal: React.FC<AddSchoolModalProps> = ({
         }
         return '';
 
-      case 'phoneNumber':
-        if (value.trim() && !/^[+]?[(]?[0-9]{1,4}[)]?[-\s./0-9]{6,15}$/.test(value.trim())) {
-          return 'Please enter a valid phone number (e.g. +91 98765 43210)';
+      case 'phoneNumber': {
+        const clean = (value || '').trim();
+        if (!clean) return 'Phone / Mobile Number is required';
+        const digits = clean.replace(/\D/g, '');
+        if (digits.length < 10) return 'Mobile number must be at least 10 digits';
+        if (digits.length > 15) return 'Mobile number cannot exceed 15 digits';
+        if (!/^[+]?[0-9\s\-()]{10,20}$/.test(clean)) {
+          return 'Please enter a valid mobile number (e.g. 9876543210 or +91 98765 43210)';
         }
         return '';
+      }
 
       case 'website':
         if (value.trim() && !/^(https?:\/\/)?([a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}(\/.*)?$/.test(value.trim())) {
@@ -264,11 +270,10 @@ export const AddSchoolModal: React.FC<AddSchoolModalProps> = ({
 
   const validateAll = (): boolean => {
     const errors: Record<string, string> = {};
-    const fieldsToValidate: (keyof typeof formData)[] = ['name', 'accountUrl', 'email'];
+    const fieldsToValidate: (keyof typeof formData)[] = ['name', 'accountUrl', 'email', 'phoneNumber'];
     if (!editingSchool) {
       fieldsToValidate.push('password', 'confirmPassword');
     }
-    if (formData.phoneNumber) fieldsToValidate.push('phoneNumber');
     if (formData.website) fieldsToValidate.push('website');
 
     fieldsToValidate.forEach(field => {
@@ -428,7 +433,7 @@ LOGIN INSTRUCTIONS:
         {/* Modal Header */}
         <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-orange-500/10 text-orange-600 flex items-center justify-center">
+            <div className="w-10 h-10 rounded-2xl bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center">
               <Building2 className="w-5 h-5" />
             </div>
             <div>
@@ -478,7 +483,7 @@ LOGIN INSTRUCTIONS:
                 </div>
                 <div>
                   <span className="text-[11px] text-slate-400 block font-semibold">Subdomain Code</span>
-                  <span className="font-mono font-bold text-orange-600">{createdAccessSlip.schoolCode}</span>
+                  <span className="font-mono font-bold text-sky-600 dark:text-sky-400">{createdAccessSlip.schoolCode}</span>
                 </div>
                 <div>
                   <span className="text-[11px] text-slate-400 block font-semibold">Portal Login URL</span>
@@ -512,7 +517,7 @@ LOGIN INSTRUCTIONS:
               <button
                 type="button"
                 onClick={handleCopySlip}
-                className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-2xl btn-glass-primary font-bold text-xs shadow-md shadow-orange-500/20 active:scale-95 transition-all cursor-pointer"
+                className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-2xl btn-glass-primary font-bold text-xs shadow-md shadow-sky-500/20 active:scale-95 transition-all cursor-pointer"
               >
                 {copied ? <Check className="w-4 h-4 text-emerald-200" /> : <Copy className="w-4 h-4" />}
                 <span>{copied ? 'Credentials Copied!' : 'Copy Customer Access Details'}</span>
@@ -572,7 +577,7 @@ LOGIN INSTRUCTIONS:
                   PNG, JPG or SVG formats up to 4MB recommended
                 </p>
                 <div className="flex items-center gap-3 pt-1">
-                  <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white bg-orange-600 hover:bg-orange-700 active:scale-95 transition-all shadow-sm">
+                  <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white bg-sky-600 hover:bg-sky-700 active:scale-95 transition-all shadow-sm">
                     <Upload className="w-3.5 h-3.5" />
                     <span>Upload</span>
                     <input
@@ -607,13 +612,13 @@ LOGIN INSTRUCTIONS:
                   <Building2 className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                   <input
                     type="text"
-                    placeholder="e.g. Greenwood International School"
+                    placeholder="Enter school or institution name"
                     value={formData.name}
                     onChange={e => handleFieldChange('name', e.target.value)}
                     onBlur={() => handleBlur('name')}
                     className={`w-full pl-9 pr-3 py-2 text-sm bg-white dark:bg-slate-800 border ${
                       fieldErrors.name ? 'border-rose-500 ring-2 ring-rose-500/20' : 'border-slate-300 dark:border-slate-700'
-                    } rounded-xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all dark:text-white`}
+                    } rounded-xl focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all dark:text-white`}
                   />
                 </div>
                 {fieldErrors.name && (
@@ -633,13 +638,13 @@ LOGIN INSTRUCTIONS:
                   <Mail className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                   <input
                     type="email"
-                    placeholder="admin@greenwood.edu"
+                    placeholder="admin@school.com"
                     value={formData.email}
                     onChange={e => handleFieldChange('email', e.target.value)}
                     onBlur={() => handleBlur('email')}
                     className={`w-full pl-9 pr-3 py-2 text-sm bg-white dark:bg-slate-800 border ${
                       fieldErrors.email ? 'border-rose-500 ring-2 ring-rose-500/20' : 'border-slate-300 dark:border-slate-700'
-                    } rounded-xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all dark:text-white`}
+                    } rounded-xl focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all dark:text-white`}
                   />
                 </div>
                 {fieldErrors.email && (
@@ -657,10 +662,10 @@ LOGIN INSTRUCTIONS:
                 </label>
                 <div className={`flex rounded-xl shadow-xs overflow-hidden border ${
                   fieldErrors.accountUrl ? 'border-rose-500 ring-2 ring-rose-500/20' : 'border-slate-300 dark:border-slate-700'
-                } focus-within:ring-2 focus-within:ring-orange-500/20 focus-within:border-orange-500`}>
+                } focus-within:ring-2 focus-within:ring-sky-500/20 focus-within:border-sky-500`}>
                   <input
                     type="text"
-                    placeholder="greenwood"
+                    placeholder="subdomain-code"
                     value={formData.accountUrl}
                     onChange={e => handleFieldChange('accountUrl', e.target.value)}
                     onBlur={() => handleBlur('accountUrl')}
@@ -682,19 +687,19 @@ LOGIN INSTRUCTIONS:
               {/* Phone Number */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Phone Number
+                  Phone / Mobile Number <span className="text-rose-500">*</span>
                 </label>
                 <div className="relative">
                   <Phone className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                   <input
                     type="tel"
-                    placeholder="+91 98765 43210"
+                    placeholder="10-digit mobile number (e.g. 9876543210)"
                     value={formData.phoneNumber}
                     onChange={e => handleFieldChange('phoneNumber', e.target.value)}
                     onBlur={() => handleBlur('phoneNumber')}
                     className={`w-full pl-9 pr-3 py-2 text-sm bg-white dark:bg-slate-800 border ${
                       fieldErrors.phoneNumber ? 'border-rose-500 ring-2 ring-rose-500/20' : 'border-slate-300 dark:border-slate-700'
-                    } rounded-xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all dark:text-white`}
+                    } rounded-xl focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all dark:text-white`}
                   />
                 </div>
                 {fieldErrors.phoneNumber && (
@@ -714,13 +719,13 @@ LOGIN INSTRUCTIONS:
                   <Globe className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                   <input
                     type="text"
-                    placeholder="https://www.greenwood.edu"
+                    placeholder="https://www.yourschool.com"
                     value={formData.website}
                     onChange={e => handleFieldChange('website', e.target.value)}
                     onBlur={() => handleBlur('website')}
                     className={`w-full pl-9 pr-3 py-2 text-sm bg-white dark:bg-slate-800 border ${
                       fieldErrors.website ? 'border-rose-500 ring-2 ring-rose-500/20' : 'border-slate-300 dark:border-slate-700'
-                    } rounded-xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all dark:text-white`}
+                    } rounded-xl focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all dark:text-white`}
                   />
                 </div>
                 {fieldErrors.website && (
@@ -740,10 +745,10 @@ LOGIN INSTRUCTIONS:
                   <User className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                   <input
                     type="text"
-                    placeholder="Dr. Arthur Pendelton"
+                    placeholder="Principal or Head of Institution"
                     value={formData.principalName}
                     onChange={e => handleFieldChange('principalName', e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all dark:text-white"
+                    className="w-full pl-9 pr-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all dark:text-white"
                   />
                 </div>
               </div>
@@ -759,7 +764,7 @@ LOGIN INSTRUCTIONS:
                       <button
                         type="button"
                         onClick={handleGeneratePassword}
-                        className="text-[11px] font-bold text-orange-600 hover:text-orange-700 inline-flex items-center gap-1 cursor-pointer"
+                        className="text-[11px] font-bold text-sky-600 hover:text-sky-700 inline-flex items-center gap-1 cursor-pointer"
                       >
                         <Sparkles className="w-3 h-3" />
                         <span>Generate Secure</span>
@@ -768,13 +773,13 @@ LOGIN INSTRUCTIONS:
                     <div className="relative">
                       <input
                         type={showPassword ? 'text' : 'password'}
-                        placeholder="••••••••"
+                        placeholder="Enter password (min 6 characters)"
                         value={formData.password}
                         onChange={e => handleFieldChange('password', e.target.value)}
                         onBlur={() => handleBlur('password')}
                         className={`w-full px-3 py-2 pr-10 text-sm bg-white dark:bg-slate-800 border ${
                           fieldErrors.password ? 'border-rose-500 ring-2 ring-rose-500/20' : 'border-slate-300 dark:border-slate-700'
-                        } rounded-xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all dark:text-white font-mono`}
+                        } rounded-xl focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all dark:text-white font-mono`}
                       />
                       <button
                         type="button"
@@ -799,13 +804,13 @@ LOGIN INSTRUCTIONS:
                     <div className="relative">
                       <input
                         type={showConfirmPassword ? 'text' : 'password'}
-                        placeholder="••••••••"
+                        placeholder="Confirm password"
                         value={formData.confirmPassword}
                         onChange={e => handleFieldChange('confirmPassword', e.target.value)}
                         onBlur={() => handleBlur('confirmPassword')}
                         className={`w-full px-3 py-2 pr-10 text-sm bg-white dark:bg-slate-800 border ${
                           fieldErrors.confirmPassword ? 'border-rose-500 ring-2 ring-rose-500/20' : 'border-slate-300 dark:border-slate-700'
-                        } rounded-xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all dark:text-white font-mono`}
+                        } rounded-xl focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all dark:text-white font-mono`}
                       />
                       <button
                         type="button"
@@ -837,7 +842,7 @@ LOGIN INSTRUCTIONS:
                     placeholder="Street, City, State, Postal Code"
                     value={formData.address}
                     onChange={e => handleFieldChange('address', e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all dark:text-white resize-none"
+                    className="w-full pl-9 pr-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all dark:text-white resize-none"
                   />
                 </div>
               </div>
@@ -850,7 +855,7 @@ LOGIN INSTRUCTIONS:
                 <select
                   value={formData.planName}
                   onChange={e => handleFieldChange('planName', e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all dark:text-white font-medium"
+                  className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all dark:text-white font-medium"
                 >
                   {availablePackages.length > 0 ? (
                     availablePackages.map(p => (
@@ -877,7 +882,7 @@ LOGIN INSTRUCTIONS:
                 <select
                   value={formData.planType}
                   onChange={e => handleFieldChange('planType', e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all dark:text-white font-medium"
+                  className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all dark:text-white font-medium"
                 >
                   <option value="Monthly">Monthly Recurring</option>
                   <option value="Yearly">Yearly (Institutional Discount)</option>
@@ -892,7 +897,7 @@ LOGIN INSTRUCTIONS:
                 <select
                   value={formData.currency}
                   onChange={e => handleFieldChange('currency', e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all dark:text-white font-medium"
+                  className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all dark:text-white font-medium"
                 >
                   <option value="INR">INR (₹)</option>
                   <option value="USD">USD ($)</option>
@@ -910,7 +915,7 @@ LOGIN INSTRUCTIONS:
                 <select
                   value={formData.language}
                   onChange={e => handleFieldChange('language', e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all dark:text-white font-medium"
+                  className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all dark:text-white font-medium"
                 >
                   <option value="English">English</option>
                   <option value="Hindi">Hindi</option>
@@ -928,7 +933,7 @@ LOGIN INSTRUCTIONS:
                 <select
                   value={formData.status}
                   onChange={e => handleFieldChange('status', e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all dark:text-white font-medium"
+                  className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all dark:text-white font-medium"
                 >
                   <option value="Active">Active</option>
                   <option value="Inactive">Inactive / Suspended</option>
@@ -949,7 +954,7 @@ LOGIN INSTRUCTIONS:
               <button
                 type="submit"
                 disabled={loading}
-                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-2xl btn-glass-primary font-bold text-xs shadow-md shadow-orange-500/20 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-2xl btn-glass-primary font-bold text-xs shadow-md shadow-sky-500/20 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
               >
                 {loading ? (
                   <>

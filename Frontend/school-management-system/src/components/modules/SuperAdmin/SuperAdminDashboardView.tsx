@@ -241,20 +241,20 @@ export const SuperAdminDashboardView: React.FC<SuperAdminDashboardViewProps> = (
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300 pb-12">
+    <div className="space-y-4 animate-in fade-in duration-300 pb-6">
       
       {/* Top Banner: Welcome Back {Admin Name} */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500 p-6 md:p-8 text-white shadow-lg">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-sky-600 via-blue-600 to-indigo-700 p-4 sm:p-5 md:p-6 text-white shadow-lg">
         {/* Decorative background shape */}
         <div className="absolute -right-10 -bottom-10 w-64 h-64 rounded-full bg-white/10 blur-2xl pointer-events-none" />
-        <div className="absolute right-32 top-4 w-20 h-20 rounded-full bg-amber-400/20 blur-xl pointer-events-none" />
+        <div className="absolute right-32 top-4 w-20 h-20 rounded-full bg-sky-400/20 blur-xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-1.5">
             <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
               Welcome Back, {user?.name || 'Administrator'}
             </h1>
-            <p className="text-orange-100 text-sm font-medium">
+            <p className="text-sky-100 text-sm font-medium">
               {newSchoolsToday} New Schools Subscribed Today &bull; {totalSchools} Total Institutions Active
             </p>
           </div>
@@ -280,7 +280,7 @@ export const SuperAdminDashboardView: React.FC<SuperAdminDashboardViewProps> = (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
         {/* Card 1: Total Schools */}
-        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm relative overflow-hidden group hover:border-orange-500/40 transition-all">
+        <div className="p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm relative overflow-hidden group hover:border-sky-500/40 transition-all">
           <div className="flex items-start justify-between">
             <div className="space-y-1">
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold text-emerald-700 bg-emerald-50 dark:text-emerald-300 dark:bg-emerald-950/60">
@@ -291,16 +291,16 @@ export const SuperAdminDashboardView: React.FC<SuperAdminDashboardViewProps> = (
               </h2>
               <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Total Schools</p>
             </div>
-            <div className="flex items-end gap-1 h-10 w-16 pt-2">
+            <div className="flex items-end gap-1 h-6 w-14 pt-1">
               {[30, 45, 60, 40, 75, 90, 85, 100].map((h, i) => (
-                <div key={i} className="flex-1 bg-orange-400/30 rounded-t" style={{ height: `${h}%` }} />
+                <div key={i} className="flex-1 bg-sky-400/30 rounded-t" style={{ height: `${h}%` }} />
               ))}
             </div>
           </div>
         </div>
 
         {/* Card 2: Active Schools */}
-        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm relative overflow-hidden group hover:border-orange-500/40 transition-all">
+        <div className="p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm relative overflow-hidden group hover:border-sky-500/40 transition-all">
           <div className="flex items-start justify-between">
             <div className="space-y-1">
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold text-emerald-700 bg-emerald-50 dark:text-emerald-300 dark:bg-emerald-950/60">
@@ -311,7 +311,7 @@ export const SuperAdminDashboardView: React.FC<SuperAdminDashboardViewProps> = (
               </h2>
               <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Active Schools</p>
             </div>
-            <div className="flex items-end gap-1 h-10 w-16 pt-2">
+            <div className="flex items-end gap-1 h-6 w-14 pt-1">
               {[50, 70, 65, 80, 85, 90, 95, 100].map((h, i) => (
                 <div key={i} className="flex-1 bg-emerald-500/30 rounded-t" style={{ height: `${h}%` }} />
               ))}
@@ -320,7 +320,7 @@ export const SuperAdminDashboardView: React.FC<SuperAdminDashboardViewProps> = (
         </div>
 
         {/* Card 3: Total Subscribers */}
-        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm relative overflow-hidden group hover:border-orange-500/40 transition-all">
+        <div className="p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm relative overflow-hidden group hover:border-sky-500/40 transition-all">
           <div className="flex items-start justify-between">
             <div className="space-y-1">
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold text-blue-700 bg-blue-50 dark:text-blue-300 dark:bg-blue-950/60">
@@ -331,7 +331,7 @@ export const SuperAdminDashboardView: React.FC<SuperAdminDashboardViewProps> = (
               </h2>
               <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Total Subscribers</p>
             </div>
-            <div className="flex items-end gap-1 h-10 w-16 pt-2">
+            <div className="flex items-end gap-1 h-6 w-14 pt-1">
               {[25, 40, 55, 70, 60, 80, 90, 95].map((h, i) => (
                 <div key={i} className="flex-1 bg-sky-500/30 rounded-t" style={{ height: `${h}%` }} />
               ))}
@@ -340,7 +340,7 @@ export const SuperAdminDashboardView: React.FC<SuperAdminDashboardViewProps> = (
         </div>
 
         {/* Card 4: Total Earnings */}
-        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm relative overflow-hidden group hover:border-orange-500/40 transition-all">
+        <div className="p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm relative overflow-hidden group hover:border-sky-500/40 transition-all">
           <div className="flex items-start justify-between">
             <div className="space-y-1">
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold text-amber-700 bg-amber-50 dark:text-amber-300 dark:bg-amber-950/60">
@@ -351,7 +351,7 @@ export const SuperAdminDashboardView: React.FC<SuperAdminDashboardViewProps> = (
               </h2>
               <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Total Earnings</p>
             </div>
-            <div className="flex items-end gap-1 h-10 w-16 pt-2">
+            <div className="flex items-end gap-1 h-6 w-14 pt-1">
               {[35, 50, 45, 65, 80, 85, 95, 100].map((h, i) => (
                 <div key={i} className="flex-1 bg-amber-500/30 rounded-t" style={{ height: `${h}%` }} />
               ))}
@@ -365,7 +365,7 @@ export const SuperAdminDashboardView: React.FC<SuperAdminDashboardViewProps> = (
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
         {/* Chart 1: Schools Weekly Registration Chart */}
-        <div className="lg:col-span-4 p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+        <div className="lg:col-span-4 p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-bold text-sm text-slate-900 dark:text-white">Schools</h3>
             <span className="text-xs text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 px-2 py-1 rounded-lg">
@@ -377,11 +377,11 @@ export const SuperAdminDashboardView: React.FC<SuperAdminDashboardViewProps> = (
           <div className="flex items-end justify-between gap-2 h-44 px-2 pt-4">
             {weeklyData.map((bar, i) => (
               <div key={i} className="flex-1 flex flex-col items-center gap-2 h-full justify-end group">
-                <span className="text-[10px] font-bold text-slate-400 group-hover:text-orange-600 transition-colors">
+                <span className="text-[10px] font-bold text-slate-400 group-hover:text-sky-600 transition-colors">
                   {bar.count}
                 </span>
                 <div
-                  className="w-full max-w-[28px] bg-slate-800 dark:bg-slate-700 group-hover:bg-orange-600 rounded-md transition-all duration-300"
+                  className="w-full max-w-[28px] bg-slate-800 dark:bg-slate-700 group-hover:bg-sky-600 rounded-md transition-all duration-300"
                   style={{ height: `${bar.height}%` }}
                 />
                 <span className="text-[11px] font-bold text-slate-400">{bar.day}</span>
@@ -398,7 +398,7 @@ export const SuperAdminDashboardView: React.FC<SuperAdminDashboardViewProps> = (
         </div>
 
         {/* Chart 2: Revenue Monthly Bar Chart */}
-        <div className="lg:col-span-5 p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+        <div className="lg:col-span-5 p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between">
           <div className="flex items-center justify-between mb-2">
             <div>
               <h3 className="font-bold text-sm text-slate-900 dark:text-white">Revenue</h3>
@@ -420,7 +420,7 @@ export const SuperAdminDashboardView: React.FC<SuperAdminDashboardViewProps> = (
             {monthlyRevenueData.map((bar, i) => (
               <div key={i} className="flex-1 flex flex-col items-center gap-1.5 h-full justify-end group">
                 <div
-                  className="w-full bg-orange-500 group-hover:bg-orange-600 rounded-t-sm transition-all"
+                  className="w-full bg-sky-500 group-hover:bg-sky-600 rounded-t-sm transition-all"
                   style={{ height: `${bar.height}%` }}
                   title={`${bar.m}: ${bar.count} Schools`}
                 />
@@ -430,13 +430,13 @@ export const SuperAdminDashboardView: React.FC<SuperAdminDashboardViewProps> = (
           </div>
 
           <div className="mt-3 flex items-center justify-end gap-2 text-xs text-slate-500">
-            <span className="w-2.5 h-2.5 bg-orange-500 rounded-sm" />
+            <span className="w-2.5 h-2.5 bg-sky-500 rounded-sm" />
             <span>Monthly Distribution</span>
           </div>
         </div>
 
         {/* Chart 3: Top Plans Donut Chart */}
-        <div className="lg:col-span-3 p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+        <div className="lg:col-span-3 p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between">
           <div className="flex items-center justify-between mb-2">
             <h3 className="font-bold text-sm text-slate-900 dark:text-white">Top Plans</h3>
             <span className="text-xs text-slate-500 border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded-lg">
@@ -489,7 +489,7 @@ export const SuperAdminDashboardView: React.FC<SuperAdminDashboardViewProps> = (
                 <span>No packages configured yet.</span>
                 <button
                   onClick={() => onNavigate('superadmin-subscriptions')}
-                  className="block mx-auto mt-1 text-orange-600 hover:underline font-semibold"
+                  className="block mx-auto mt-1 text-sky-600 hover:underline font-semibold"
                 >
                   Configure Subscriptions
                 </button>
@@ -514,12 +514,12 @@ export const SuperAdminDashboardView: React.FC<SuperAdminDashboardViewProps> = (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* Box 1: Recent Transactions */}
-        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+        <div className="p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between">
           <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 mb-2">
             <h3 className="font-bold text-sm text-slate-900 dark:text-white">Recent Transactions</h3>
             <button
               onClick={() => onNavigate('superadmin-transactions')}
-              className="text-xs font-semibold text-orange-600 hover:text-orange-700"
+              className="text-xs font-semibold text-sky-600 hover:text-sky-700 cursor-pointer"
             >
               View All
             </button>
@@ -534,7 +534,7 @@ export const SuperAdminDashboardView: React.FC<SuperAdminDashboardViewProps> = (
               dynamicTransactions.map(tx => (
                 <div key={tx.id} className="py-2.5 flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-orange-500/10 text-orange-600 flex items-center justify-center font-bold text-xs">
+                    <div className="w-8 h-8 rounded-lg bg-sky-500/10 text-sky-600 flex items-center justify-center font-bold text-xs">
                       {tx.schoolName.charAt(0)}
                     </div>
                     <div>
@@ -553,12 +553,12 @@ export const SuperAdminDashboardView: React.FC<SuperAdminDashboardViewProps> = (
         </div>
 
         {/* Box 2: Recently Registered Schools */}
-        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+        <div className="p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between">
           <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 mb-2">
             <h3 className="font-bold text-sm text-slate-900 dark:text-white">Recently Registered</h3>
             <button
               onClick={() => onNavigate('superadmin-schools')}
-              className="text-xs font-semibold text-orange-600 hover:text-orange-700"
+              className="text-xs font-semibold text-sky-600 hover:text-sky-700 cursor-pointer"
             >
               View All
             </button>
@@ -596,7 +596,7 @@ export const SuperAdminDashboardView: React.FC<SuperAdminDashboardViewProps> = (
         </div>
 
         {/* Box 3: Recent Plan Expired */}
-        <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+        <div className="p-3.5 sm:p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between">
           <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 mb-2">
             <h3 className="font-bold text-sm text-slate-900 dark:text-white">Recent Plan Expired</h3>
             <span className="text-xs text-rose-500 font-semibold border border-rose-200 dark:border-rose-900/50 bg-rose-50 dark:bg-rose-950/40 px-2 py-0.5 rounded-lg">
@@ -615,11 +615,11 @@ export const SuperAdminDashboardView: React.FC<SuperAdminDashboardViewProps> = (
                   <div>
                     <p className="text-xs font-bold text-slate-900 dark:text-white truncate max-w-[130px]">{exp.name}</p>
                     <p className="text-[10px] text-slate-400">{exp.id} &bull; {exp.date}</p>
-                    <p className="text-[10px] text-orange-600 font-medium">{exp.plan}</p>
+                    <p className="text-[10px] text-sky-600 font-medium">{exp.plan}</p>
                   </div>
                   <button
                     onClick={() => handleSendReminder(exp.name)}
-                    className="px-2.5 py-1 text-[11px] font-bold text-orange-600 hover:text-white hover:bg-orange-600 border border-orange-500/30 rounded-lg transition-colors"
+                    className="px-2.5 py-1 text-[11px] font-bold text-sky-600 hover:text-white hover:bg-sky-600 border border-sky-500/30 rounded-lg transition-colors cursor-pointer"
                   >
                     Send Reminder
                   </button>

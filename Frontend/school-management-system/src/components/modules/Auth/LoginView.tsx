@@ -18,6 +18,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { fetchSchoolSettingsApi } from '../../../api/settings';
 import { getSuperAdminSetupStatusApi, setupInitialSuperAdminApi } from '../../../api/superadmin';
+import { useTenant } from '../../../context/TenantContext';
 import pirnavLogo from '../../../assets/pirnav-school-logo.png';
 
 interface LoginViewProps {
@@ -28,6 +29,7 @@ interface LoginViewProps {
 export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => {
   const { login, sendOtp, verifyOtp, resetPasswordWithOtp } = useAuth();
   const { addToast } = useToast();
+  const { tenant } = useTenant();
 
   const [schoolName, setSchoolName] = useState<string>(() => {
     return localStorage.getItem('school_name') || 'Campus Portal';
@@ -37,6 +39,9 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
   const [dynamicLogo, setDynamicLogo] = useState<string>(() => {
     return localStorage.getItem('school_logo') || localStorage.getItem('logoUrl') || '';
   });
+
+  const effectiveLogo = tenant?.logoUrl || dynamicLogo || pirnavLogo;
+  const effectiveName = tenant?.companyName || (initialRole === 'Super Admin' ? 'Super Admin Portal' : schoolName);
 
   useEffect(() => {
     const updateLogo = () => {
@@ -499,29 +504,37 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
               {/* Header: School Logo & Title */}
               <div className="mb-4 flex flex-col items-center text-center space-y-2">
                 
-                {/* School Logo */}
-                {dynamicLogo ? (
-                  <div className="w-13 h-13 sm:w-15 sm:h-15 rounded-2xl bg-white dark:bg-slate-950 p-1.5 shadow-lg ring-3 ring-sky-500/20 shrink-0 flex items-center justify-center overflow-hidden transition-transform hover:scale-105 duration-300">
+                {/* School / Company Logo */}
+                {effectiveLogo ? (
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-white dark:bg-slate-950 p-2 shadow-lg ring-3 ring-sky-500/20 shrink-0 flex items-center justify-center overflow-hidden transition-transform hover:scale-105 duration-300">
                     <img
-                      src={dynamicLogo}
-                      alt={schoolName || 'School Logo'}
+                      src={effectiveLogo}
+                      alt={effectiveName || 'Company Logo'}
                       className="w-full h-full object-contain"
                       onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = 'none';
+                        const img = e.target as HTMLImageElement;
+                        if (img.src !== pirnavLogo) {
+                          img.src = pirnavLogo;
+                        }
                       }}
                     />
                   </div>
                 ) : (
-                  <div className="w-13 h-13 sm:w-15 sm:h-15 rounded-2xl bg-gradient-to-tr from-sky-500 to-blue-600 p-1.5 shadow-lg ring-3 ring-sky-500/20 shrink-0 flex items-center justify-center text-white transition-transform hover:scale-105 duration-300">
-                    <GraduationCap className="w-7 h-7" />
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-tr from-sky-500 to-blue-600 p-2 shadow-lg ring-3 ring-sky-500/20 shrink-0 flex items-center justify-center text-white transition-transform hover:scale-105 duration-300">
+                    <GraduationCap className="w-8 h-8" />
                   </div>
                 )}
 
-                {/* School Name */}
+                {/* Company / School Name */}
                 <div>
                   <h1 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white tracking-tight leading-snug">
-                    {schoolName}
+                    {effectiveName}
                   </h1>
+                  {initialRole === 'Super Admin' && (
+                    <p className="text-xs text-sky-600 dark:text-sky-400 font-bold mt-0.5">
+                      Multi-Tenant Central Administration
+                    </p>
+                  )}
                   {mode !== 'login' && (
                     <p className="text-xs text-slate-600 dark:text-slate-400 font-medium mt-1">
                       {mode === 'setup-superadmin' && 'Initial System Setup'}

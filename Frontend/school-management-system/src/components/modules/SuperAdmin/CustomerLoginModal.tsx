@@ -67,7 +67,7 @@ export const CustomerLoginModal: React.FC<CustomerLoginModalProps> = ({
           fullName: school.principalName || `${school.schoolName} Administrator`,
           email: school.email || '',
           mobileNumber: school.phone || '',
-          password: `Pass@${Math.floor(1000 + Math.random() * 9000)}`,
+          password: '',
           confirmPassword: ''
         });
       } else {
@@ -121,6 +121,21 @@ export const CustomerLoginModal: React.FC<CustomerLoginModalProps> = ({
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(createForm.email.trim())) {
       errors.email = 'Please enter a valid email address';
     }
+
+    const cleanPhone = (createForm.mobileNumber || '').trim();
+    if (!cleanPhone) {
+      errors.mobileNumber = 'Mobile number is required';
+    } else {
+      const digits = cleanPhone.replace(/\D/g, '');
+      if (digits.length < 10) {
+        errors.mobileNumber = 'Mobile number must be at least 10 digits';
+      } else if (digits.length > 15) {
+        errors.mobileNumber = 'Mobile number cannot exceed 15 digits';
+      } else if (!/^[+]?[0-9\s\-()]{10,20}$/.test(cleanPhone)) {
+        errors.mobileNumber = 'Please enter a valid mobile number (e.g. 9876543210)';
+      }
+    }
+
     if (!createForm.password) errors.password = 'Password is required';
     else if (createForm.password.length < 6) errors.password = 'Password must be at least 6 characters';
     if (createForm.password !== createForm.confirmPassword) {
@@ -239,13 +254,13 @@ LOGIN INSTRUCTIONS FOR THE CUSTOMER:
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/60">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold">
+            <div className="w-10 h-10 rounded-2xl bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center font-bold">
               <KeyRound className="w-5 h-5" />
             </div>
             <div>
               <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <span>Customer Login Access</span>
-                <span className="px-2 py-0.5 text-[10px] font-black uppercase rounded bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-300">
+                <span className="px-2 py-0.5 text-[10px] font-black uppercase rounded bg-sky-100 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300 border border-sky-500/20">
                   {school.schoolCode}
                 </span>
               </h2>
@@ -273,7 +288,7 @@ LOGIN INSTRUCTIONS FOR THE CUSTOMER:
               <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 space-y-3">
                 <div className="flex items-center justify-between pb-3 border-b border-slate-200/60 dark:border-slate-700/60">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-9 h-9 rounded-xl bg-orange-600 text-white font-bold flex items-center justify-center text-sm shadow-sm">
+                    <div className="w-9 h-9 rounded-xl bg-sky-600 text-white font-bold flex items-center justify-center text-sm shadow-sm">
                       {admin.fullName.charAt(0)}
                     </div>
                     <div>
@@ -297,7 +312,7 @@ LOGIN INSTRUCTIONS FOR THE CUSTOMER:
                   </div>
                   <div>
                     <span className="text-slate-400 block text-[11px]">School Code / Tenant</span>
-                    <span className="font-semibold text-orange-600 font-mono">{school.schoolCode}</span>
+                    <span className="font-semibold text-sky-600 font-mono">{school.schoolCode}</span>
                   </div>
                   <div>
                     <span className="text-slate-400 block text-[11px]">Portal Login URL</span>
@@ -327,7 +342,7 @@ LOGIN INSTRUCTIONS FOR THE CUSTOMER:
                 <button
                   type="button"
                   onClick={handleCopyAccessSlip}
-                  className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl btn-glass-primary font-bold text-xs shadow-md shadow-orange-500/20 active:scale-95 transition-all"
+                  className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl btn-glass-primary font-bold text-xs shadow-md shadow-sky-500/20 active:scale-95 transition-all"
                 >
                   {copied ? <Check className="w-4 h-4 text-emerald-200" /> : <Copy className="w-4 h-4" />}
                   <span>{copied ? 'Credentials Copied!' : 'Copy Customer Access'}</span>
@@ -344,7 +359,7 @@ LOGIN INSTRUCTIONS FOR THE CUSTOMER:
                 <button
                   type="button"
                   onClick={() => setMode('reset')}
-                  className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-2xl btn-glass-secondary text-orange-600 dark:text-orange-400 font-bold text-xs hover:bg-orange-50 active:scale-95 transition-all"
+                  className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-2xl btn-glass-secondary text-sky-600 dark:text-sky-400 font-bold text-xs hover:bg-sky-50 dark:hover:bg-sky-950/40 active:scale-95 transition-all"
                 >
                   <KeyRound className="w-4 h-4" />
                   <span>Reset Password</span>
@@ -396,7 +411,7 @@ LOGIN INSTRUCTIONS FOR THE CUSTOMER:
                     value={createForm.fullName}
                     onChange={e => setCreateForm({ ...createForm, fullName: e.target.value })}
                     placeholder="e.g. Dr. Johnathan Doe"
-                    className={`w-full px-3 py-2 bg-white dark:bg-slate-800 border ${createErrors.fullName ? 'border-rose-500' : 'border-slate-200 dark:border-slate-700'} rounded-xl outline-none focus:ring-2 focus:ring-orange-500/20 dark:text-white`}
+                    className={`w-full px-3 py-2 bg-white dark:bg-slate-800 border ${createErrors.fullName ? 'border-rose-500' : 'border-slate-200 dark:border-slate-700'} rounded-xl outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 dark:text-white`}
                   />
                   {createErrors.fullName && <p className="text-[11px] text-rose-500 mt-1">{createErrors.fullName}</p>}
                 </div>
@@ -411,7 +426,7 @@ LOGIN INSTRUCTIONS FOR THE CUSTOMER:
                     value={createForm.email}
                     onChange={e => setCreateForm({ ...createForm, email: e.target.value })}
                     placeholder="e.g. principal@greenwood.edu"
-                    className={`w-full px-3 py-2 bg-white dark:bg-slate-800 border ${createErrors.email ? 'border-rose-500' : 'border-slate-200 dark:border-slate-700'} rounded-xl outline-none focus:ring-2 focus:ring-orange-500/20 dark:text-white`}
+                    className={`w-full px-3 py-2 bg-white dark:bg-slate-800 border ${createErrors.email ? 'border-rose-500' : 'border-slate-200 dark:border-slate-700'} rounded-xl outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 dark:text-white`}
                   />
                   {createErrors.email && <p className="text-[11px] text-rose-500 mt-1">{createErrors.email}</p>}
                 </div>
@@ -419,15 +434,21 @@ LOGIN INSTRUCTIONS FOR THE CUSTOMER:
                 {/* Mobile Number */}
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Mobile / Phone Number
+                    Mobile / Phone Number <span className="text-rose-500">*</span>
                   </label>
                   <input
                     type="tel"
                     value={createForm.mobileNumber}
-                    onChange={e => setCreateForm({ ...createForm, mobileNumber: e.target.value })}
-                    placeholder="+91 98765 43210"
-                    className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500/20 dark:text-white"
+                    onChange={e => {
+                      setCreateForm({ ...createForm, mobileNumber: e.target.value });
+                      if (createErrors.mobileNumber) {
+                        setCreateErrors(prev => ({ ...prev, mobileNumber: '' }));
+                      }
+                    }}
+                    placeholder="10-digit mobile number (e.g. 9876543210)"
+                    className={`w-full px-3 py-2 bg-white dark:bg-slate-800 border ${createErrors.mobileNumber ? 'border-rose-500' : 'border-slate-200 dark:border-slate-700'} rounded-xl outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 dark:text-white`}
                   />
+                  {createErrors.mobileNumber && <p className="text-[11px] text-rose-500 mt-1">{createErrors.mobileNumber}</p>}
                 </div>
 
                 {/* Password with Auto-generator */}
@@ -439,7 +460,7 @@ LOGIN INSTRUCTIONS FOR THE CUSTOMER:
                     <button
                       type="button"
                       onClick={() => handleGeneratePassword('create')}
-                      className="text-[11px] font-bold text-orange-600 hover:text-orange-700 inline-flex items-center gap-1 cursor-pointer"
+                      className="text-[11px] font-bold text-sky-600 hover:text-sky-700 inline-flex items-center gap-1 cursor-pointer"
                     >
                       <Sparkles className="w-3 h-3" />
                       <span>Generate Secure</span>
@@ -451,7 +472,7 @@ LOGIN INSTRUCTIONS FOR THE CUSTOMER:
                       value={createForm.password}
                       onChange={e => setCreateForm({ ...createForm, password: e.target.value })}
                       placeholder="Min 6 characters"
-                      className={`w-full px-3 py-2 pr-10 bg-white dark:bg-slate-800 border ${createErrors.password ? 'border-rose-500' : 'border-slate-200 dark:border-slate-700'} rounded-xl outline-none focus:ring-2 focus:ring-orange-500/20 dark:text-white font-mono`}
+                      className={`w-full px-3 py-2 pr-10 bg-white dark:bg-slate-800 border ${createErrors.password ? 'border-rose-500' : 'border-slate-200 dark:border-slate-700'} rounded-xl outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 dark:text-white font-mono`}
                     />
                     <button
                       type="button"
@@ -474,7 +495,7 @@ LOGIN INSTRUCTIONS FOR THE CUSTOMER:
                     value={createForm.confirmPassword}
                     onChange={e => setCreateForm({ ...createForm, confirmPassword: e.target.value })}
                     placeholder="Repeat password"
-                    className={`w-full px-3 py-2 bg-white dark:bg-slate-800 border ${createErrors.confirmPassword ? 'border-rose-500' : 'border-slate-200 dark:border-slate-700'} rounded-xl outline-none focus:ring-2 focus:ring-orange-500/20 dark:text-white font-mono`}
+                    className={`w-full px-3 py-2 bg-white dark:bg-slate-800 border ${createErrors.confirmPassword ? 'border-rose-500' : 'border-slate-200 dark:border-slate-700'} rounded-xl outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 dark:text-white font-mono`}
                   />
                   {createErrors.confirmPassword && <p className="text-[11px] text-rose-500 mt-1">{createErrors.confirmPassword}</p>}
                 </div>
@@ -493,7 +514,7 @@ LOGIN INSTRUCTIONS FOR THE CUSTOMER:
                 <button
                   type="submit"
                   disabled={loading}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl btn-glass-primary font-bold text-xs shadow-md shadow-orange-500/20 active:scale-95 transition-all"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl btn-glass-primary font-bold text-xs shadow-md shadow-sky-500/20 active:scale-95 transition-all"
                 >
                   <KeyRound className="w-4 h-4" />
                   <span>{loading ? 'Creating Account...' : 'Create & Handover Access'}</span>
@@ -505,11 +526,11 @@ LOGIN INSTRUCTIONS FOR THE CUSTOMER:
           {/* Mode 3: RESET EXISTING PASSWORD */}
           {mode === 'reset' && admin && (
             <form onSubmit={handleResetPassword} className="space-y-4">
-              <div className="p-3.5 rounded-2xl bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-900/60">
-                <p className="font-bold text-xs text-orange-900 dark:text-orange-200">
+              <div className="p-3.5 rounded-2xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-900/60">
+                <p className="font-bold text-xs text-sky-900 dark:text-sky-200">
                   Reset Password for {admin.fullName}
                 </p>
-                <p className="text-[11px] text-orange-700 dark:text-orange-300 mt-0.5">
+                <p className="text-[11px] text-sky-700 dark:text-sky-300 mt-0.5">
                   Update customer login credentials so they can regain immediate access to their portal.
                 </p>
               </div>
@@ -528,7 +549,7 @@ LOGIN INSTRUCTIONS FOR THE CUSTOMER:
                     <button
                       type="button"
                       onClick={() => handleGeneratePassword('reset')}
-                      className="text-[11px] font-bold text-orange-600 hover:text-orange-700 inline-flex items-center gap-1 cursor-pointer"
+                      className="text-[11px] font-bold text-sky-600 hover:text-sky-700 inline-flex items-center gap-1 cursor-pointer"
                     >
                       <Sparkles className="w-3 h-3" />
                       <span>Generate</span>
@@ -540,7 +561,7 @@ LOGIN INSTRUCTIONS FOR THE CUSTOMER:
                       value={resetPassword}
                       onChange={e => setResetPassword(e.target.value)}
                       placeholder="Min 6 characters"
-                      className="w-full px-3 py-2 pr-10 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500/20 dark:text-white font-mono"
+                      className="w-full px-3 py-2 pr-10 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 dark:text-white font-mono"
                     />
                     <button
                       type="button"
@@ -559,7 +580,7 @@ LOGIN INSTRUCTIONS FOR THE CUSTOMER:
                     value={confirmResetPassword}
                     onChange={e => setConfirmResetPassword(e.target.value)}
                     placeholder="Repeat new password"
-                    className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500/20 dark:text-white font-mono"
+                    className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 dark:text-white font-mono"
                   />
                 </div>
               </div>
@@ -575,7 +596,7 @@ LOGIN INSTRUCTIONS FOR THE CUSTOMER:
                 <button
                   type="submit"
                   disabled={loading}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl btn-glass-primary font-bold text-xs shadow-md shadow-orange-500/20 active:scale-95 transition-all"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl btn-glass-primary font-bold text-xs shadow-md shadow-sky-500/20 active:scale-95 transition-all"
                 >
                   <Check className="w-4 h-4" />
                   <span>{loading ? 'Updating...' : 'Save New Password'}</span>

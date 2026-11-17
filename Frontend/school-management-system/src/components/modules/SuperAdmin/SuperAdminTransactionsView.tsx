@@ -28,6 +28,8 @@ export const SuperAdminTransactionsView: React.FC = () => {
   const [schools, setSchools] = useState<SchoolItem[]>([]);
   const [packages, setPackages] = useState<PackagePlan[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   const loadData = async () => {
     setLoading(true);
@@ -51,6 +53,7 @@ export const SuperAdminTransactionsView: React.FC = () => {
 
   const handleSearchChange = (value: string) => {
     setSearchTerm(value);
+    setCurrentPage(1);
     if (!value.trim()) {
       setSearchError(undefined);
     } else {
@@ -62,6 +65,7 @@ export const SuperAdminTransactionsView: React.FC = () => {
   const handleClearSearch = () => {
     setSearchTerm('');
     setSearchError(undefined);
+    setCurrentPage(1);
   };
 
   // Map package rates dynamically
@@ -117,6 +121,13 @@ export const SuperAdminTransactionsView: React.FC = () => {
     });
   }, [transactions, searchTerm, searchError, statusFilter]);
 
+  const totalPages = Math.ceil(filtered.length / rowsPerPage) || 1;
+
+  const paginatedTransactions = useMemo(() => {
+    const start = (currentPage - 1) * rowsPerPage;
+    return filtered.slice(start, start + rowsPerPage);
+  }, [filtered, currentPage, rowsPerPage]);
+
   const handleExport = () => {
     if (filtered.length === 0) {
       addToast('info', 'Export', 'No transactions available to export.');
@@ -140,7 +151,7 @@ export const SuperAdminTransactionsView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300 pb-12">
+    <div className="space-y-4 animate-in fade-in duration-300 pb-6">
       
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -153,15 +164,12 @@ export const SuperAdminTransactionsView: React.FC = () => {
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
             Subscription Invoices & Purchase Transactions
           </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Real-time institutional subscription billing records derived from registered schools.
-          </p>
         </div>
 
         <div className="flex items-center gap-3">
           <button
             onClick={loadData}
-            className="w-9 h-9 rounded-2xl btn-glass-secondary flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-orange-600 transition-all cursor-pointer active:scale-95"
+            className="w-9 h-9 rounded-2xl btn-glass-secondary flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-sky-600 transition-all cursor-pointer active:scale-95"
             title="Refresh Invoices"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -181,63 +189,83 @@ export const SuperAdminTransactionsView: React.FC = () => {
         
         {/* Filter & Search Toolbar */}
         <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
-          
-          <div className="relative">
-            <div className="relative flex items-center">
-              <Search className={`w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none transition-colors z-10 ${searchError ? 'text-rose-500' : 'text-slate-400'}`} />
-              <input
-                type="text"
-                placeholder="Search invoice or school..."
-                value={searchTerm}
-                maxLength={30}
-                onChange={e => handleSearchChange(e.target.value)}
-                className={`w-64 pl-8 ${searchTerm ? 'pr-8' : 'pr-3'} py-1.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border transition-all ${
-                  searchError
-                    ? 'border-rose-500 ring-1 ring-rose-500/20 text-rose-900 dark:text-rose-100 bg-rose-50/20 dark:bg-rose-950/20'
-                    : 'border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:border-orange-500'
-                } outline-none font-medium`}
-              />
-              {searchTerm && (
-                <button
-                  onClick={handleClearSearch}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-                  title="Clear search"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
-            {searchError && (
-              <p className="text-[11px] font-bold text-rose-500 flex items-center gap-1 mt-1 pl-1 animate-in fade-in duration-150 absolute -bottom-5 left-0 whitespace-nowrap z-20">
-                <AlertCircle className="w-3 h-3 shrink-0" />
-                <span>{searchError}</span>
-              </p>
-            )}
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Row Per Page</span>
+            <select
+              value={rowsPerPage}
+              onChange={e => {
+                setRowsPerPage(Number(e.target.value));
+                setCurrentPage(1);
+              }}
+              className="px-2.5 py-1.5 text-xs font-medium bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none dark:text-white"
+            >
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+            </select>
           </div>
 
-          <select
-            value={statusFilter}
-            onChange={e => setStatusFilter(e.target.value)}
-            className="px-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none dark:text-white font-medium"
-          >
-            <option value="All">All Statuses</option>
-            <option value="Paid">Paid</option>
-            <option value="Pending">Pending</option>
-            <option value="Failed">Failed</option>
-          </select>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <div className="relative">
+              <div className="relative flex items-center">
+                <Search className={`w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none transition-colors z-10 ${searchError ? 'text-rose-500' : 'text-slate-400'}`} />
+                <input
+                  type="text"
+                  placeholder="Search invoice or school..."
+                  value={searchTerm}
+                  maxLength={30}
+                  onChange={e => handleSearchChange(e.target.value)}
+                  className={`w-64 pl-8 ${searchTerm ? 'pr-8' : 'pr-3'} py-1.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border transition-all ${
+                    searchError
+                      ? 'border-rose-500 ring-1 ring-rose-500/20 text-rose-900 dark:text-rose-100 bg-rose-50/20 dark:bg-rose-950/20'
+                      : 'border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:border-sky-500'
+                  } outline-none font-medium`}
+                />
+                {searchTerm && (
+                  <button
+                    onClick={handleClearSearch}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                    title="Clear search"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+              {searchError && (
+                <p className="text-[11px] font-bold text-rose-500 flex items-center gap-1 mt-1 pl-1 animate-in fade-in duration-150 absolute -bottom-5 left-0 whitespace-nowrap z-20">
+                  <AlertCircle className="w-3 h-3 shrink-0" />
+                  <span>{searchError}</span>
+                </p>
+              )}
+            </div>
+
+            <select
+              value={statusFilter}
+              onChange={e => {
+                setStatusFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="px-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none dark:text-white font-medium"
+            >
+              <option value="All">All Statuses</option>
+              <option value="Paid">Paid</option>
+              <option value="Pending">Pending</option>
+              <option value="Failed">Failed</option>
+            </select>
+          </div>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
+          <table className="w-full text-center border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                <th className="p-4">Invoice #</th>
-                <th className="p-4">School Name</th>
-                <th className="p-4">Plan & Cycle</th>
-                <th className="p-4">Amount</th>
-                <th className="p-4">Payment Method</th>
-                <th className="p-4">Date</th>
-                <th className="p-4 text-center">Status</th>
+                <th className="p-3 text-center">Invoice #</th>
+                <th className="p-3 text-center">School Name</th>
+                <th className="p-3 text-center">Plan & Cycle</th>
+                <th className="p-3 text-center">Amount</th>
+                <th className="p-3 text-center">Payment Method</th>
+                <th className="p-3 text-center">Date</th>
+                <th className="p-3 text-center">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
@@ -245,7 +273,7 @@ export const SuperAdminTransactionsView: React.FC = () => {
                 <tr>
                   <td colSpan={7} className="p-12 text-center text-slate-400">
                     <div className="flex flex-col items-center justify-center gap-2">
-                      <div className="w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                      <div className="w-6 h-6 border-2 border-sky-500 border-t-transparent rounded-full animate-spin" />
                       <span>Loading subscription invoices...</span>
                     </div>
                   </td>
@@ -260,15 +288,15 @@ export const SuperAdminTransactionsView: React.FC = () => {
                     </div>
                   </td>
                 </tr>
-              ) : filtered.length === 0 ? (
+              ) : paginatedTransactions.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="p-12 text-center text-slate-400">
-                    <div className="flex flex-col items-center justify-center gap-2">
+                    <div className="flex flex-col items-center justify-center gap-2 max-w-sm mx-auto">
                       {searchTerm ? (
                         <>
                           <SearchX className="w-10 h-10 text-slate-300 dark:text-slate-600" />
-                          <p className="font-semibold text-slate-600 dark:text-slate-300">No invoices matching "{searchTerm}"</p>
-                          <p className="text-xs text-slate-400">Try adjusting your keyword.</p>
+                          <p className="font-bold text-sm text-slate-700 dark:text-slate-200">No Matching Invoices</p>
+                          <p className="text-xs text-slate-400">No invoice records found matching "{searchTerm}". Try checking your invoice number or school name.</p>
                           <button
                             onClick={handleClearSearch}
                             className="mt-2 px-3 py-1.5 rounded-xl btn-glass-secondary text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer"
@@ -278,28 +306,30 @@ export const SuperAdminTransactionsView: React.FC = () => {
                         </>
                       ) : (
                         <>
-                          <CreditCard className="w-10 h-10 text-slate-300 dark:text-slate-600" />
-                          <p className="font-semibold text-slate-600 dark:text-slate-300">No subscription invoices found</p>
-                          <p className="text-xs text-slate-400">When schools subscribe to packages, billing records appear here automatically.</p>
+                          <div className="w-12 h-12 rounded-2xl bg-sky-500/10 text-sky-600 flex items-center justify-center shadow-inner">
+                            <CreditCard className="w-6 h-6" />
+                          </div>
+                          <p className="font-bold text-sm text-slate-800 dark:text-slate-100">No Subscription Transactions Recorded</p>
+                          <p className="text-xs text-slate-400">No client school payment transactions or invoices have been recorded yet. When schools subscribe to packages, billing records appear here automatically.</p>
                         </>
                       )}
                     </div>
                   </td>
                 </tr>
               ) : (
-                filtered.map(tx => (
+                paginatedTransactions.map(tx => (
                   <tr key={tx.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
-                    <td className="p-4 font-mono font-bold text-orange-600">{tx.invoiceNo}</td>
-                    <td className="p-4 font-bold text-slate-900 dark:text-white">{tx.schoolName}</td>
-                    <td className="p-4">
+                    <td className="p-3 text-center font-mono font-bold text-sky-600">{tx.invoiceNo}</td>
+                    <td className="p-3 text-center font-bold text-slate-900 dark:text-white">{tx.schoolName}</td>
+                    <td className="p-3 text-center">
                       <span className="font-semibold">{tx.planName}</span>
                     </td>
-                    <td className="p-4 font-extrabold text-slate-900 dark:text-white">
+                    <td className="p-3 text-center font-extrabold text-slate-900 dark:text-white">
                       ${tx.amount.toLocaleString()}
                     </td>
-                    <td className="p-4 text-slate-500">{tx.paymentMethod}</td>
-                    <td className="p-4 text-slate-500">{tx.date}</td>
-                    <td className="p-4 text-center">
+                    <td className="p-3 text-center text-slate-500">{tx.paymentMethod}</td>
+                    <td className="p-3 text-center text-slate-500">{tx.date}</td>
+                    <td className="p-3 text-center">
                       <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
                         tx.status === 'Paid'
                           ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-500/20'
@@ -314,6 +344,33 @@ export const SuperAdminTransactionsView: React.FC = () => {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Pagination Footer */}
+        <div className="p-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500">
+          <span>
+            Showing {filtered.length === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1} to{' '}
+            {Math.min(currentPage * rowsPerPage, filtered.length)} of {filtered.length} entries
+          </span>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 transition-colors cursor-pointer"
+            >
+              Previous
+            </button>
+            <span className="px-3 py-1.5 font-bold text-slate-900 dark:text-white">
+              {currentPage} / {totalPages}
+            </span>
+            <button
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 transition-colors cursor-pointer"
+            >
+              Next
+            </button>
+          </div>
         </div>
       </div>
 

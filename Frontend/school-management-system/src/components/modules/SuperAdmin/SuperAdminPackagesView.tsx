@@ -47,13 +47,13 @@ export const SuperAdminPackagesView: React.FC = () => {
     id: '',
     name: '',
     tagline: '',
-    monthlyPrice: 299,
-    yearlyPrice: 2990,
+    monthlyPrice: 0,
+    yearlyPrice: 0,
     currency: 'USD',
-    maxStudents: 500,
-    maxStaff: 50,
-    maxBranches: 1,
-    storageGb: 20,
+    maxStudents: 0,
+    maxStaff: 0,
+    maxBranches: 0,
+    storageGb: 0,
     isPopular: false,
     status: 'Active',
     features: []
@@ -96,13 +96,13 @@ export const SuperAdminPackagesView: React.FC = () => {
       id: `plan-${Date.now()}`,
       name: '',
       tagline: '',
-      monthlyPrice: 199,
-      yearlyPrice: 1990,
+      monthlyPrice: 0,
+      yearlyPrice: 0,
       currency: 'USD',
-      maxStudents: 500,
-      maxStaff: 50,
-      maxBranches: 1,
-      storageGb: 25,
+      maxStudents: 0,
+      maxStaff: 0,
+      maxBranches: 0,
+      storageGb: 0,
       isPopular: false,
       status: 'Active',
       features: [
@@ -201,9 +201,6 @@ export const SuperAdminPackagesView: React.FC = () => {
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
             Subscription Packages & SaaS Tiers
           </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Configure institutional pricing tiers, quotas, feature sets, and active school allocations.
-          </p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -213,7 +210,7 @@ export const SuperAdminPackagesView: React.FC = () => {
               onClick={() => setBillingCycle('Monthly')}
               className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
                 billingCycle === 'Monthly'
-                  ? 'bg-white dark:bg-slate-900 text-orange-600 shadow-sm'
+                  ? 'bg-white dark:bg-slate-900 text-sky-600 shadow-sm'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
               }`}
             >
@@ -223,7 +220,7 @@ export const SuperAdminPackagesView: React.FC = () => {
               onClick={() => setBillingCycle('Yearly')}
               className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 ${
                 billingCycle === 'Yearly'
-                  ? 'bg-white dark:bg-slate-900 text-orange-600 shadow-sm'
+                  ? 'bg-white dark:bg-slate-900 text-sky-600 shadow-sm'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
               }`}
             >
@@ -246,7 +243,7 @@ export const SuperAdminPackagesView: React.FC = () => {
       {/* Plan Cards Grid / Empty State */}
       {plans.length === 0 ? (
         <div className="flex flex-col items-center justify-center p-12 text-center bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-300 dark:border-slate-800 space-y-4">
-          <div className="w-16 h-16 rounded-2xl bg-orange-500/10 text-orange-600 flex items-center justify-center shadow-inner">
+          <div className="w-16 h-16 rounded-2xl bg-sky-500/10 text-sky-600 flex items-center justify-center shadow-inner">
             <Layers className="w-8 h-8" />
           </div>
           <div className="max-w-md space-y-1">
@@ -276,12 +273,12 @@ export const SuperAdminPackagesView: React.FC = () => {
                 key={plan.id}
                 className={`relative flex flex-col justify-between p-6 rounded-2xl bg-white dark:bg-slate-900 border transition-all duration-300 group hover:shadow-lg ${
                   plan.isPopular
-                    ? 'border-orange-500 shadow-xl shadow-orange-500/10 ring-2 ring-orange-500/20'
+                    ? 'border-sky-500 shadow-xl shadow-sky-500/10 ring-2 ring-sky-500/20'
                     : 'border-slate-200 dark:border-slate-800 hover:border-slate-300'
                 }`}
               >
                 {plan.isPopular && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-orange-600 text-white text-[10px] font-black uppercase tracking-wider rounded-full shadow-md">
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-sky-600 text-white text-[10px] font-black uppercase tracking-wider rounded-full shadow-md">
                     Most Popular
                   </div>
                 )}
@@ -355,7 +352,7 @@ export const SuperAdminPackagesView: React.FC = () => {
             {/* Modal Header */}
             <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-orange-500/10 text-orange-600 flex items-center justify-center">
+                <div className="w-9 h-9 rounded-xl bg-sky-500/10 text-sky-600 flex items-center justify-center">
                   <Layers className="w-5 h-5" />
                 </div>
                 <div>
@@ -367,7 +364,7 @@ export const SuperAdminPackagesView: React.FC = () => {
               </div>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg"
+                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -388,7 +385,7 @@ export const SuperAdminPackagesView: React.FC = () => {
                     placeholder="e.g. Starter Plan"
                     value={formData.name}
                     onChange={e => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 dark:text-white"
+                    className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 dark:text-white"
                   />
                 </div>
 
@@ -402,7 +399,7 @@ export const SuperAdminPackagesView: React.FC = () => {
                     placeholder="e.g. Best for pre-primary institutes"
                     value={formData.tagline}
                     onChange={e => setFormData({ ...formData, tagline: e.target.value })}
-                    className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 dark:text-white"
+                    className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 dark:text-white"
                   />
                 </div>
 
@@ -415,9 +412,10 @@ export const SuperAdminPackagesView: React.FC = () => {
                     type="number"
                     min="0"
                     required
-                    value={formData.monthlyPrice}
-                    onChange={e => setFormData({ ...formData, monthlyPrice: Number(e.target.value) })}
-                    className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 dark:text-white"
+                    placeholder="0"
+                    value={formData.monthlyPrice === 0 ? '' : formData.monthlyPrice}
+                    onChange={e => setFormData({ ...formData, monthlyPrice: e.target.value === '' ? 0 : Math.max(0, Number(e.target.value)) })}
+                    className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 dark:text-white"
                   />
                 </div>
 
@@ -430,7 +428,7 @@ export const SuperAdminPackagesView: React.FC = () => {
                     <button
                       type="button"
                       onClick={handleCalculateYearlyDiscount}
-                      className="text-[10px] text-orange-600 hover:text-orange-700 font-bold"
+                      className="text-[10px] text-sky-600 hover:text-sky-700 font-bold cursor-pointer"
                     >
                       Apply 20% Discount
                     </button>
@@ -439,9 +437,10 @@ export const SuperAdminPackagesView: React.FC = () => {
                     type="number"
                     min="0"
                     required
-                    value={formData.yearlyPrice}
-                    onChange={e => setFormData({ ...formData, yearlyPrice: Number(e.target.value) })}
-                    className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 dark:text-white"
+                    placeholder="0"
+                    value={formData.yearlyPrice === 0 ? '' : formData.yearlyPrice}
+                    onChange={e => setFormData({ ...formData, yearlyPrice: e.target.value === '' ? 0 : Math.max(0, Number(e.target.value)) })}
+                    className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 dark:text-white"
                   />
                 </div>
 
@@ -453,9 +452,10 @@ export const SuperAdminPackagesView: React.FC = () => {
                   <input
                     type="number"
                     min="0"
-                    value={formData.maxStudents}
-                    onChange={e => setFormData({ ...formData, maxStudents: Number(e.target.value) })}
-                    className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 dark:text-white"
+                    placeholder="0"
+                    value={formData.maxStudents === 0 ? '' : formData.maxStudents}
+                    onChange={e => setFormData({ ...formData, maxStudents: e.target.value === '' ? 0 : Math.max(0, Number(e.target.value)) })}
+                    className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 dark:text-white"
                   />
                 </div>
 
@@ -467,9 +467,10 @@ export const SuperAdminPackagesView: React.FC = () => {
                   <input
                     type="number"
                     min="0"
-                    value={formData.maxStaff}
-                    onChange={e => setFormData({ ...formData, maxStaff: Number(e.target.value) })}
-                    className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 dark:text-white"
+                    placeholder="0"
+                    value={formData.maxStaff === 0 ? '' : formData.maxStaff}
+                    onChange={e => setFormData({ ...formData, maxStaff: e.target.value === '' ? 0 : Math.max(0, Number(e.target.value)) })}
+                    className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 dark:text-white"
                   />
                 </div>
 
@@ -481,9 +482,10 @@ export const SuperAdminPackagesView: React.FC = () => {
                   <input
                     type="number"
                     min="0"
-                    value={formData.maxBranches}
-                    onChange={e => setFormData({ ...formData, maxBranches: Number(e.target.value) })}
-                    className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 dark:text-white"
+                    placeholder="0"
+                    value={formData.maxBranches === 0 ? '' : formData.maxBranches}
+                    onChange={e => setFormData({ ...formData, maxBranches: e.target.value === '' ? 0 : Math.max(0, Number(e.target.value)) })}
+                    className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 dark:text-white"
                   />
                 </div>
 
@@ -494,10 +496,11 @@ export const SuperAdminPackagesView: React.FC = () => {
                   </label>
                   <input
                     type="number"
-                    min="1"
-                    value={formData.storageGb || 25}
-                    onChange={e => setFormData({ ...formData, storageGb: Number(e.target.value) })}
-                    className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 dark:text-white"
+                    min="0"
+                    placeholder="0"
+                    value={formData.storageGb === 0 ? '' : formData.storageGb}
+                    onChange={e => setFormData({ ...formData, storageGb: e.target.value === '' ? 0 : Math.max(0, Number(e.target.value)) })}
+                    className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 dark:text-white"
                   />
                 </div>
               </div>
@@ -509,7 +512,7 @@ export const SuperAdminPackagesView: React.FC = () => {
                     type="checkbox"
                     checked={formData.isPopular}
                     onChange={e => setFormData({ ...formData, isPopular: e.target.checked })}
-                    className="rounded text-orange-600 focus:ring-orange-500"
+                    className="rounded text-sky-600 focus:ring-sky-500"
                   />
                   <span>Mark as "Most Popular"</span>
                 </label>
@@ -541,7 +544,7 @@ export const SuperAdminPackagesView: React.FC = () => {
                           type="checkbox"
                           checked={checked}
                           onChange={() => handleToggleFeature(feat)}
-                          className="rounded text-orange-600 focus:ring-orange-500"
+                          className="rounded text-sky-600 focus:ring-sky-500"
                         />
                         <span className="truncate">{feat}</span>
                       </label>
@@ -556,12 +559,12 @@ export const SuperAdminPackagesView: React.FC = () => {
                     placeholder="Add custom feature (e.g. 24/7 Dedicated Account Manager)"
                     value={customFeatureInput}
                     onChange={e => setCustomFeatureInput(e.target.value)}
-                    className="flex-1 px-3 py-1.5 text-xs bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg outline-none"
+                    className="flex-1 px-3 py-1.5 text-xs bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500"
                   />
                   <button
                     type="button"
                     onClick={handleAddCustomFeature}
-                    className="px-3 py-1.5 text-xs font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-white rounded-lg transition-colors"
+                    className="px-3 py-1.5 text-xs font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-white rounded-lg transition-colors cursor-pointer"
                   >
                     Add
                   </button>
@@ -572,13 +575,13 @@ export const SuperAdminPackagesView: React.FC = () => {
                   {formData.features.map((f, i) => (
                     <span
                       key={i}
-                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-orange-50 text-orange-700 dark:bg-orange-950/60 dark:text-orange-300 border border-orange-500/20"
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-sky-50 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300 border border-sky-500/20"
                     >
                       <span>{f}</span>
                       <button
                         type="button"
                         onClick={() => handleRemoveFeature(f)}
-                        className="hover:text-rose-600"
+                        className="hover:text-rose-600 cursor-pointer"
                       >
                         ✕
                       </button>
@@ -592,13 +595,13 @@ export const SuperAdminPackagesView: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl"
+                  className="px-5 py-2.5 text-xs font-bold btn-glass-secondary rounded-2xl active:scale-95 transition-all cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 text-xs font-bold text-white bg-orange-600 hover:bg-orange-700 rounded-xl shadow-md transition-all"
+                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-2xl btn-glass-primary font-bold text-xs shadow-md shadow-sky-500/20 active:scale-95 transition-all cursor-pointer"
                 >
                   {editingPlan ? 'Save Changes' : 'Create Package'}
                 </button>
