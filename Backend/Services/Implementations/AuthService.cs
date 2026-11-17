@@ -721,11 +721,11 @@ namespace SMS.Api.Services.Implementations
                 if (user != null)
                 {
                     bool isSuperAdmin = user.Role == "SuperAdmin" || user.Role == "Super Admin" ||
-                                        user.Roles.Any(r => r.RoleName == "SuperAdmin" || r.RoleName == "Super Admin");
+                                        (user.Roles != null && user.Roles.Any(r => r.RoleName == "SuperAdmin" || r.RoleName == "Super Admin"));
 
                     if (isSuperAdmin && VerifyPassword(user.PasswordHash, dto.Password))
                     {
-                        var saRoles = user.Roles.Select(r => r.RoleName).ToList();
+                        var saRoles = user.Roles != null ? user.Roles.Select(r => r.RoleName).ToList() : new List<string>();
                         if (!saRoles.Contains("SuperAdmin")) saRoles.Add("SuperAdmin");
                         if (!saRoles.Contains("Super Admin")) saRoles.Add("Super Admin");
 
@@ -813,16 +813,29 @@ namespace SMS.Api.Services.Implementations
             {
                 // 1. Direct check in Users table by immutable email/mobile
                 var directUser = await _dbContext.Users
+                    .Include(u => u.Roles)
                     .FirstOrDefaultAsync(u =>
                         (u.Email != null && u.Email.ToLower() == lower) ||
                         u.MobileNumber == identifier ||
                         (digitsOnly.Length >= 10 && u.MobileNumber != null && u.MobileNumber.EndsWith(digitsOnly))
                     );
 
+                if (directUser == null)
+                {
+                    directUser = await _dbContext.Users
+                        .IgnoreQueryFilters()
+                        .Include(u => u.Roles)
+                        .FirstOrDefaultAsync(u =>
+                            (u.Email != null && u.Email.ToLower() == lower) ||
+                            u.MobileNumber == identifier ||
+                            (digitsOnly.Length >= 10 && u.MobileNumber != null && u.MobileNumber.EndsWith(digitsOnly))
+                        );
+                }
+
                 if (directUser != null)
                 {
                     bool passValid = !string.IsNullOrEmpty(directUser.PasswordHash) && VerifyPassword(directUser.PasswordHash, dto.Password);
-                    if (!passValid && (directUser.Role == "Admin" || directUser.Roles.Any(r => r.RoleName == "Admin")))
+                    if (!passValid && (directUser.Role == "Admin" || (directUser.Roles != null && directUser.Roles.Any(r => r.RoleName == "Admin"))))
                     {
                         var adminMatch = await _adminRepository.GetByIdentifierAsync(identifier);
                         if (adminMatch != null && VerifyPassword(adminMatch.PasswordHash, dto.Password))
@@ -839,7 +852,7 @@ namespace SMS.Api.Services.Implementations
                         throw new AppException("Invalid email/mobile number or password.", HttpStatusCode.Unauthorized);
                     }
 
-                    if (passValid && (directUser.Role == "Admin" || directUser.Roles.Any(r => r.RoleName == "Admin")))
+                    if (passValid && (directUser.Role == "Admin" || (directUser.Roles != null && directUser.Roles.Any(r => r.RoleName == "Admin"))))
                     {
                         var adminMatch = await _adminRepository.GetByIdentifierAsync(identifier);
                         if (adminMatch != null && adminMatch.PasswordHash != directUser.PasswordHash)
@@ -1095,8 +1108,8 @@ namespace SMS.Api.Services.Implementations
             var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.NameIdentifier, admin.AdminId.ToString()),
-                new Claim(ClaimTypes.Name, admin.FullName),
-                new Claim(ClaimTypes.MobilePhone, admin.MobileNumber)
+                new Claim(ClaimTypes.Name, admin.FullName ?? string.Empty),
+                new Claim(ClaimTypes.MobilePhone, admin.MobileNumber ?? string.Empty)
             };
 
             if (!string.IsNullOrEmpty(admin.Email))

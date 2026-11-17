@@ -845,7 +845,7 @@ namespace SMS.Api.Data
             modelBuilder.Entity<AdmissionApplication>(entity =>
             {
                 entity.ToTable("admission_applications");
-                entity.HasQueryFilter(x => !x.IsDeleted && (TenantInfo == null || EF.Property<string>(x, "TenantId") == TenantInfo.Id));
+                entity.HasQueryFilter(x => !x.IsDeleted && (TenantInfo == null || EF.Property<string>(x, "TenantId") == TenantInfo.Id || EF.Property<string>(x, "TenantId") == null || EF.Property<string>(x, "TenantId") == ""));
                 entity.HasOne(x => x.AppliedClass)
                     .WithMany(classGrade =>
                         classGrade.AdmissionApplications)
@@ -1475,7 +1475,7 @@ namespace SMS.Api.Data
                 entity.HasIndex(x => x.AcademicYearName)
                     .IsUnique();
 
-                entity.HasQueryFilter(x => !x.IsDeleted && (TenantInfo == null || EF.Property<string>(x, "TenantId") == TenantInfo.Id));
+                entity.HasQueryFilter(x => !x.IsDeleted && (TenantInfo == null || EF.Property<string>(x, "TenantId") == TenantInfo.Id || EF.Property<string>(x, "TenantId") == null || EF.Property<string>(x, "TenantId") == ""));
             });
         }
 
@@ -1630,7 +1630,7 @@ namespace SMS.Api.Data
                     .HasForeignKey(x => x.SectionId)
                     .OnDelete(DeleteBehavior.Restrict);
 
-                entity.HasQueryFilter(x => !x.IsDeleted && (TenantInfo == null || EF.Property<string>(x, "TenantId") == TenantInfo.Id));
+                entity.HasQueryFilter(x => !x.IsDeleted && (TenantInfo == null || EF.Property<string>(x, "TenantId") == TenantInfo.Id || EF.Property<string>(x, "TenantId") == null || EF.Property<string>(x, "TenantId") == ""));
             });
         }
         private static void ConfigureStudentAttendanceSession(ModelBuilder modelBuilder)

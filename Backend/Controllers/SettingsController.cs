@@ -51,7 +51,7 @@ namespace SMS.Api.Controllers
 
         // GET: api/Settings
         [HttpGet]
-        [Authorize]
+        [AllowAnonymous]
         public async Task<IActionResult> GetSettings()
         {
             try

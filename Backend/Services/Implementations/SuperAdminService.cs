@@ -116,7 +116,7 @@ public class SuperAdminService : ISuperAdminService
             throw new AppException("Invalid email/mobile number or password.", HttpStatusCode.Unauthorized);
 
         // Verify the user is a Super Admin
-        var roles = user.Roles.Select(r => r.RoleName).ToList();
+        var roles = user.Roles != null ? user.Roles.Select(r => r.RoleName).ToList() : new List<string>();
         if (!string.IsNullOrEmpty(user.Role)) roles.Add(user.Role);
         roles = roles.Distinct().ToList();
 

@@ -98,11 +98,13 @@ public class ExceptionMiddleware
 
         context.Response.StatusCode = (int)statusCode;
 
+        var detailMsg = exception.InnerException?.Message ?? exception.Message;
         var response = new
         {
             success = false,
             statusCode = context.Response.StatusCode,
             message,
+            error = !string.IsNullOrWhiteSpace(detailMsg) ? detailMsg : message,
             timestamp = DateTime.UtcNow
         };
 

@@ -1276,17 +1276,24 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     }
     // Security deposit is independent of room sharing. If the user configured a security deposit
     // for this student's class under any config in Fee Setup, use it.
-    const studentClass = formData.appliedClass || formData.className || "";
+    const studentClass = (formData.appliedClass || formData.className || "").trim().toLowerCase();
     const activeConfigs = (financeHostelConfigs || []).filter(
       (c) => !c.status || c.status === "Active"
     );
     const classConfigWithDeposit = activeConfigs.find(
       (c) =>
-        (!studentClass || isClassInRange(studentClass, c.startClass, c.endClass, c.classRange, academicClasses)) &&
+        (!studentClass ||
+          (c.startClass && c.startClass.trim().toLowerCase() === studentClass) ||
+          (c.classRange && c.classRange.trim().toLowerCase().includes(studentClass)) ||
+          isClassInRange(studentClass, c.startClass, c.endClass, c.classRange, academicClasses)) &&
         Number(c.securityDeposit) > 0
     );
     if (classConfigWithDeposit) {
       return Number(classConfigWithDeposit.securityDeposit);
+    }
+    const anyConfigWithDeposit = activeConfigs.find((c) => Number(c.securityDeposit) > 0);
+    if (anyConfigWithDeposit) {
+      return Number(anyConfigWithDeposit.securityDeposit);
     }
     return 0;
   }, [
