@@ -1001,7 +1001,7 @@ public class SuperAdminService : ISuperAdminService
         var model = new PlatformCompanyProfile
         {
             Id = dto.Id > 0 ? dto.Id : 1,
-            CompanyName = string.IsNullOrWhiteSpace(dto.CompanyName) ? "Main School" : dto.CompanyName.Trim(),
+            CompanyName = dto.CompanyName?.Trim() ?? string.Empty,
             Tagline = dto.Tagline?.Trim() ?? string.Empty,
             LogoUrl = dto.LogoUrl?.Trim() ?? string.Empty,
             SupportEmail = dto.SupportEmail?.Trim() ?? string.Empty,

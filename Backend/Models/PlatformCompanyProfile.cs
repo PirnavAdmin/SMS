@@ -11,12 +11,11 @@ namespace SMS.Api.Models
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; } = 1;
 
-        [Required]
         [MaxLength(200)]
-        public string CompanyName { get; set; } = "Main School";
+        public string CompanyName { get; set; } = string.Empty;
 
         [MaxLength(300)]
-        public string Tagline { get; set; } = "Multi-Tenant Educational Cloud Infrastructure";
+        public string Tagline { get; set; } = string.Empty;
 
         public string LogoUrl { get; set; } = string.Empty;
 

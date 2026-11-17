@@ -237,108 +237,51 @@ public class SuperAdminRepository : ISuperAdminRepository
 
     public async Task<PlatformCompanyProfile> GetCompanyProfileAsync()
     {
-        try
+        var profile = await _context.PlatformCompanyProfiles.FirstOrDefaultAsync(p => p.Id == 1);
+        if (profile != null)
         {
-            var profile = await _context.PlatformCompanyProfiles.FirstOrDefaultAsync(p => p.Id == 1);
-            if (profile != null)
-            {
-                return profile;
-            }
+            return profile;
+        }
 
-            var initial = new PlatformCompanyProfile
-            {
-                Id = 1,
-                CompanyName = "Main School",
-                Tagline = "Multi-Tenant Educational Cloud Infrastructure",
-                LogoUrl = "/pirnav-school-logo.png",
-                SupportEmail = "superadmin@gmail.com",
-                SupportPhone = "+91 9581768554",
-                WebsiteUrl = "https://smscloud.portal",
-                PrimaryColor = "#0284c7",
-                UpdatedAt = DateTime.UtcNow
-            };
-            await _context.PlatformCompanyProfiles.AddAsync(initial);
-            await _context.SaveChangesAsync();
-            return initial;
-        }
-        catch (Exception ex)
+        var initial = new PlatformCompanyProfile
         {
-            Console.WriteLine($"[SuperAdminRepository] GetCompanyProfileAsync fallback: {ex.Message}");
-            return await LoadFallbackCompanyProfileFileAsync();
-        }
+            Id = 1,
+            CompanyName = string.Empty,
+            Tagline = string.Empty,
+            LogoUrl = string.Empty,
+            SupportEmail = string.Empty,
+            SupportPhone = string.Empty,
+            WebsiteUrl = string.Empty,
+            PrimaryColor = "#0284c7",
+            UpdatedAt = DateTime.UtcNow
+        };
+        await _context.PlatformCompanyProfiles.AddAsync(initial);
+        await _context.SaveChangesAsync();
+        return initial;
     }
 
     public async Task<PlatformCompanyProfile> UpdateCompanyProfileAsync(PlatformCompanyProfile profile)
     {
-        try
+        var existing = await _context.PlatformCompanyProfiles.FirstOrDefaultAsync(p => p.Id == 1);
+        if (existing == null)
         {
-            var existing = await _context.PlatformCompanyProfiles.FirstOrDefaultAsync(p => p.Id == 1);
-            if (existing == null)
-            {
-                profile.Id = 1;
-                profile.UpdatedAt = DateTime.UtcNow;
-                await _context.PlatformCompanyProfiles.AddAsync(profile);
-                existing = profile;
-            }
-            else
-            {
-                existing.CompanyName = profile.CompanyName;
-                existing.Tagline = profile.Tagline;
-                existing.LogoUrl = profile.LogoUrl;
-                existing.SupportEmail = profile.SupportEmail;
-                existing.SupportPhone = profile.SupportPhone;
-                existing.WebsiteUrl = profile.WebsiteUrl;
-                existing.PrimaryColor = profile.PrimaryColor;
-                existing.UpdatedAt = DateTime.UtcNow;
-            }
-            await _context.SaveChangesAsync();
-            await SaveFallbackCompanyProfileFileAsync(existing);
-            return existing;
+            profile.Id = 1;
+            profile.UpdatedAt = DateTime.UtcNow;
+            await _context.PlatformCompanyProfiles.AddAsync(profile);
+            existing = profile;
         }
-        catch (Exception ex)
+        else
         {
-            Console.WriteLine($"[SuperAdminRepository] UpdateCompanyProfileAsync fallback: {ex.Message}");
-            await SaveFallbackCompanyProfileFileAsync(profile);
-            return profile;
+            existing.CompanyName = profile.CompanyName;
+            existing.Tagline = profile.Tagline;
+            existing.LogoUrl = profile.LogoUrl;
+            existing.SupportEmail = profile.SupportEmail;
+            existing.SupportPhone = profile.SupportPhone;
+            existing.WebsiteUrl = profile.WebsiteUrl;
+            existing.PrimaryColor = profile.PrimaryColor;
+            existing.UpdatedAt = DateTime.UtcNow;
         }
-    }
-
-    private static async Task<PlatformCompanyProfile> LoadFallbackCompanyProfileFileAsync()
-    {
-        var filePath = Path.Combine(AppContext.BaseDirectory, "platform_company_profile.json");
-        if (File.Exists(filePath))
-        {
-            try
-            {
-                var json = await File.ReadAllTextAsync(filePath);
-                var loaded = JsonSerializer.Deserialize<PlatformCompanyProfile>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                if (loaded != null) return loaded;
-            }
-            catch { }
-        }
-
-        return new PlatformCompanyProfile
-        {
-            Id = 1,
-            CompanyName = "Main School",
-            Tagline = "Multi-Tenant Educational Cloud Infrastructure",
-            LogoUrl = "/pirnav-school-logo.png",
-            SupportEmail = "superadmin@gmail.com",
-            SupportPhone = "+91 9581768554",
-            WebsiteUrl = "https://smscloud.portal",
-            PrimaryColor = "#0284c7",
-            UpdatedAt = DateTime.UtcNow
-        };
-    }
-
-    private static async Task SaveFallbackCompanyProfileFileAsync(PlatformCompanyProfile profile)
-    {
-        try
-        {
-            var filePath = Path.Combine(AppContext.BaseDirectory, "platform_company_profile.json");
-            var json = JsonSerializer.Serialize(profile, new JsonSerializerOptions { WriteIndented = true });
-            await File.WriteAllTextAsync(filePath, json);
-        }
-        catch { }
+        await _context.SaveChangesAsync();
+        return existing;
     }
 }

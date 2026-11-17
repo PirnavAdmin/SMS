@@ -54,6 +54,7 @@ import { useData } from "../../context/DataContext";
 import { hasModuleAccess } from "../../utils/rbac";
 import { resolveMediaUrl } from "../../utils/mediaUtils";
 import { normalizeStudentType } from "../../utils/studentTypeUtils";
+import { fetchCompanyProfileApi } from "../../api/superadmin";
 
 interface SidebarProps {
   activeModule: string;
@@ -123,29 +124,48 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const students = Array.isArray(dataCtx.students) ? dataCtx.students : [];
   const studentHostels = Array.isArray(dataCtx.studentHostels) ? dataCtx.studentHostels : [];
   const studentTransports = Array.isArray(dataCtx.studentTransports) ? dataCtx.studentTransports : [];
-  const resolveActiveLogo = () => {
-    const saLogo =
-      localStorage.getItem("superadmin_logo") ||
-      localStorage.getItem("platform_logo") ||
-      "";
+
+  const [superAdminLogo, setSuperAdminLogo] = useState<string>("");
+
+  React.useEffect(() => {
     if (isSuperAdmin) {
-      return saLogo || "/pirnav-school-logo.png";
+      fetchCompanyProfileApi()
+        .then((res) => {
+          setSuperAdminLogo(res?.logoUrl || "");
+        })
+        .catch(() => setSuperAdminLogo(""));
+    }
+  }, [isSuperAdmin]);
+
+  React.useEffect(() => {
+    const handleSuperAdminUpdate = () => {
+      if (isSuperAdmin) {
+        fetchCompanyProfileApi()
+          .then((res) => {
+            setSuperAdminLogo(res?.logoUrl || "");
+          })
+          .catch(() => setSuperAdminLogo(""));
+      }
+    };
+    window.addEventListener("superadmin_profile_updated", handleSuperAdminUpdate);
+    return () => {
+      window.removeEventListener("superadmin_profile_updated", handleSuperAdminUpdate);
+    };
+  }, [isSuperAdmin]);
+
+  const resolveActiveLogo = () => {
+    if (isSuperAdmin) {
+      return superAdminLogo || "";
     }
     // For School Admin, Teacher, Student, Parent, Staff:
     // Strictly return the school/tenant logo, NEVER the superadmin platform logo!
     const tenantUploadedLogo =
       localStorage.getItem("tenant_school_logo") ||
-      (localStorage.getItem("school_logo") && localStorage.getItem("school_logo") !== saLogo
-        ? localStorage.getItem("school_logo")
-        : "") ||
-      (localStorage.getItem("logoUrl") && localStorage.getItem("logoUrl") !== saLogo
-        ? localStorage.getItem("logoUrl")
-        : "");
+      localStorage.getItem("school_logo") ||
+      localStorage.getItem("logoUrl") ||
+      "";
 
-    const profileLogo =
-      schoolProfile?.logoUrl && schoolProfile.logoUrl !== saLogo
-        ? schoolProfile.logoUrl
-        : "";
+    const profileLogo = schoolProfile?.logoUrl || "";
 
     return profileLogo || tenantUploadedLogo || "/pirnav-school-logo.png";
   };
@@ -168,7 +188,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       window.removeEventListener("school_profile_updated", updateLogo);
       window.removeEventListener("storage", updateLogo);
     };
-  }, [isSuperAdmin, schoolProfile?.logoUrl]);
+  }, [isSuperAdmin, superAdminLogo, schoolProfile?.logoUrl]);
 
   const handleSidebarLogoLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
     const img = e.currentTarget;
@@ -859,7 +879,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             { id: "superadmin-metrics", label: "Tenant Usage Metrics", icon: Activity },
             { id: "superadmin-tickets", label: "Tenant Support Tickets", icon: LifeBuoy },
             { id: "superadmin-audit", label: "Audit Logs", icon: ShieldAlert },
-            { id: "superadmin-profile", label: "Company Profile & Branding", icon: Settings },
+            { id: "superadmin-profile", label: "Company Profile", icon: Settings },
           ],
         },
       ]
@@ -1000,6 +1020,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   onLoad={handleSidebarLogoLoad}
                   className="max-h-8 max-w-8 object-contain mx-auto"
                 />
+              ) : isSuperAdmin ? (
+                <Building2 className="w-5 h-5 text-sky-600 dark:text-sky-400 stroke-[2.2]" />
               ) : (
                 <School className="w-5 h-5 text-sky-600 dark:text-sky-400 stroke-[2.2]" />
               )}
@@ -1027,11 +1049,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         : "max-h-10 max-w-full w-auto"
                     }`}
                   />
+                ) : isSuperAdmin ? (
+                  <div className="flex items-center justify-center gap-2 px-2 mx-auto">
+                    <Building2 className="w-5 h-5 text-sky-600 dark:text-sky-400 shrink-0" />
+                    <span className="font-extrabold text-xs text-slate-800 dark:text-white truncate max-w-[145px]">
+                      Super Admin
+                    </span>
+                  </div>
                 ) : (
                   <div className="flex items-center justify-center gap-2 px-2 mx-auto">
                     <School className="w-6 h-6 text-sky-600 dark:text-sky-400 shrink-0" />
                     <span className="font-extrabold text-xs text-slate-800 dark:text-white truncate max-w-[145px]">
-                      {isSuperAdmin ? "Super Admin Portal" : (schoolProfile?.name || "School Portal")}
+                      {schoolProfile?.name || "School Portal"}
                     </span>
                   </div>
                 )}

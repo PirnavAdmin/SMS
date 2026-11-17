@@ -291,8 +291,8 @@ public class PackagePlanDto
 public class PlatformCompanyProfileDto
 {
     public int Id { get; set; } = 1;
-    public string CompanyName { get; set; } = "Main School";
-    public string Tagline { get; set; } = "Multi-Tenant Educational Cloud Infrastructure";
+    public string CompanyName { get; set; } = string.Empty;
+    public string Tagline { get; set; } = string.Empty;
     public string LogoUrl { get; set; } = string.Empty;
     public string SupportEmail { get; set; } = string.Empty;
     public string SupportPhone { get; set; } = string.Empty;

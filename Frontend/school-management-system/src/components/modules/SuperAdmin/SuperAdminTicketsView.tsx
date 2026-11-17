@@ -24,22 +24,10 @@ export const SuperAdminTicketsView: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
-  const [tickets, setTickets] = useState<Ticket[]>(() => {
-    try {
-      const raw = localStorage.getItem('sms_superadmin_tickets');
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) return parsed;
-      }
-    } catch {}
-    return [];
-  });
+  const [tickets, setTickets] = useState<Ticket[]>([]);
 
   const saveTickets = (updated: Ticket[]) => {
     setTickets(updated);
-    try {
-      localStorage.setItem('sms_superadmin_tickets', JSON.stringify(updated));
-    } catch {}
   };
 
   const handleResolveTicket = (ticketId: string) => {

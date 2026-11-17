@@ -17,7 +17,7 @@ import {
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { fetchSchoolSettingsApi } from '../../../api/settings';
-import { getSuperAdminSetupStatusApi, setupInitialSuperAdminApi } from '../../../api/superadmin';
+import { getSuperAdminSetupStatusApi, setupInitialSuperAdminApi, fetchCompanyProfileApi } from '../../../api/superadmin';
 import { useTenant } from '../../../context/TenantContext';
 import pirnavLogo from '../../../assets/pirnav-school-logo.png';
 
@@ -37,37 +37,46 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
 
   // Dynamic Logo resolution with strict SuperAdmin vs Tenant isolation
   const isSuperAdminLogin = initialRole === 'Super Admin';
-  const getSuperAdminLogo = () => localStorage.getItem('superadmin_logo') || localStorage.getItem('platform_logo') || '';
-  const getTenantLogo = () => {
-    const saLogo = getSuperAdminLogo();
-    const storedSchoolLogo = localStorage.getItem('tenant_school_logo') || localStorage.getItem('school_logo') || '';
-    if (storedSchoolLogo && storedSchoolLogo !== saLogo) {
-      return storedSchoolLogo;
+  const [superAdminBranding, setSuperAdminBranding] = useState<{ logoUrl: string; companyName: string }>({ logoUrl: '', companyName: '' });
+
+  useEffect(() => {
+    if (isSuperAdminLogin) {
+      fetchCompanyProfileApi()
+        .then(p => {
+          if (p) {
+            setSuperAdminBranding({
+              logoUrl: p.logoUrl || '',
+              companyName: p.companyName || '',
+            });
+          }
+        })
+        .catch(() => {});
     }
-    return '';
+  }, [isSuperAdminLogin]);
+
+  const getTenantLogo = () => {
+    const storedSchoolLogo = localStorage.getItem('tenant_school_logo') || localStorage.getItem('school_logo') || '';
+    return storedSchoolLogo;
   };
 
   const [dynamicLogo, setDynamicLogo] = useState<string>(() => {
     if (isSuperAdminLogin) {
-      return getSuperAdminLogo() || pirnavLogo;
+      return '';
     }
     return tenant?.logoUrl || getTenantLogo() || pirnavLogo;
   });
 
   const effectiveLogo = isSuperAdminLogin
-    ? (getSuperAdminLogo() || pirnavLogo)
+    ? superAdminBranding.logoUrl
     : (tenant?.logoUrl || dynamicLogo || pirnavLogo);
 
   const effectiveName = isSuperAdminLogin
-    ? (localStorage.getItem('superadmin_company_name') || localStorage.getItem('company_name') || 'Super Admin Portal')
+    ? (superAdminBranding.companyName || 'Super Admin Portal')
     : (tenant?.companyName || schoolName);
 
   useEffect(() => {
     const updateLogo = () => {
-      if (initialRole === 'Super Admin') {
-        const saLogo = getSuperAdminLogo();
-        setDynamicLogo(saLogo || pirnavLogo);
-      } else {
+      if (initialRole !== 'Super Admin') {
         const tLogo = tenant?.logoUrl || getTenantLogo() || pirnavLogo;
         setDynamicLogo(tLogo);
         const savedName = localStorage.getItem('school_name');
@@ -535,12 +544,20 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
                       alt={effectiveName || 'Company Logo'}
                       className="w-full h-full object-contain"
                       onError={(e) => {
-                        const img = e.target as HTMLImageElement;
-                        if (img.src !== pirnavLogo) {
-                          img.src = pirnavLogo;
+                        if (isSuperAdminLogin) {
+                          setSuperAdminBranding(prev => ({ ...prev, logoUrl: '' }));
+                        } else {
+                          const img = e.target as HTMLImageElement;
+                          if (img.src !== pirnavLogo) {
+                            img.src = pirnavLogo;
+                          }
                         }
                       }}
                     />
+                  </div>
+                ) : isSuperAdminLogin ? (
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-tr from-sky-500 to-blue-600 p-2 shadow-lg ring-3 ring-sky-500/20 shrink-0 flex items-center justify-center text-white transition-transform hover:scale-105 duration-300">
+                    <ShieldCheck className="w-8 h-8" />
                   </div>
                 ) : (
                   <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-tr from-sky-500 to-blue-600 p-2 shadow-lg ring-3 ring-sky-500/20 shrink-0 flex items-center justify-center text-white transition-transform hover:scale-105 duration-300">

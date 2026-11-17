@@ -1574,40 +1574,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       }
       keysToRemove.forEach((k) => localStorage.removeItem(k));
-
-      // Multi-tenant logo cleanup: if school_logo was contaminated by superadmin_logo, reset it
-      const saLogo = localStorage.getItem("superadmin_logo") || localStorage.getItem("platform_logo");
-      if (saLogo && localStorage.getItem("school_logo") === saLogo) {
-        const tenantSaved = localStorage.getItem("tenant_school_logo");
-        if (tenantSaved) {
-          localStorage.setItem("school_logo", tenantSaved);
-        } else {
-          localStorage.removeItem("school_logo");
-        }
-      }
     } catch {}
   }, []);
 
   const [schoolProfile, setSchoolProfile] = useState<SchoolProfile>(() => {
     const profile = getStored("profile", initialSchoolProfile);
-    const saLogo = localStorage.getItem("superadmin_logo") || localStorage.getItem("platform_logo") || "";
     const storedTenantLogo = localStorage.getItem("tenant_school_logo");
     const storedLogo =
       storedTenantLogo ??
-      (localStorage.getItem("school_logo") && localStorage.getItem("school_logo") !== saLogo
-        ? localStorage.getItem("school_logo")
-        : null) ??
-      (localStorage.getItem("logoUrl") && localStorage.getItem("logoUrl") !== saLogo
-        ? localStorage.getItem("logoUrl")
-        : null) ??
-      (localStorage.getItem("schoolLogo") && localStorage.getItem("schoolLogo") !== saLogo
-        ? localStorage.getItem("schoolLogo")
-        : null);
+      localStorage.getItem("school_logo") ??
+      localStorage.getItem("logoUrl") ??
+      localStorage.getItem("schoolLogo");
     const base = { ...profile };
     if (base.boardType === "CBSE" && !localStorage.getItem("edu_db_profile_board_saved")) {
       base.boardType = "";
     }
-    if (storedLogo !== null && storedLogo !== undefined && storedLogo !== saLogo) {
+    if (storedLogo !== null && storedLogo !== undefined) {
       return { ...base, logoUrl: storedLogo };
     }
     return base;

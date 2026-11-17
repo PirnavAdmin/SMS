@@ -341,52 +341,18 @@ export interface PackagePlan {
   status: 'Active' | 'Inactive';
 }
 
-const DEFAULT_MOCK_PLAN_IDS = [
-  'basic', 'advanced', 'premium', 'enterprise',
-  'plan-basic', 'plan-advanced', 'plan-premium', 'plan-enterprise'
-];
-const DEFAULT_MOCK_PLAN_NAMES = [
-  'basic plan', 'advanced plan', 'premium plan', 'enterprise plan',
-  'basic', 'advanced', 'premium', 'enterprise'
-];
-
 export const fetchPackagesApi = async (): Promise<PackagePlan[]> => {
-  try {
-    const fromApi = await apiClient<PackagePlan[]>('/api/superadmin/packages', { method: 'GET' });
-    if (Array.isArray(fromApi)) {
-      return fromApi;
-    }
-  } catch (err) {
-    console.warn('Backend packages API unavailable, checking local cache', err);
-  }
-
-  try {
-    const raw = localStorage.getItem('sms_superadmin_packages');
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) {
-        return parsed;
-      }
-    }
-  } catch {}
-  return [];
+  const fromApi = await apiClient<PackagePlan[]>('/api/superadmin/packages', { method: 'GET' });
+  return Array.isArray(fromApi) ? fromApi : [];
 };
 
 export const savePackagesApi = async (packages: PackagePlan[]): Promise<PackagePlan[]> => {
-  try {
-    const saved = await apiClient<PackagePlan[]>('/api/superadmin/packages', {
-      method: 'POST',
-      body: JSON.stringify(packages)
-    });
-    localStorage.setItem('sms_superadmin_packages', JSON.stringify(saved));
-    window.dispatchEvent(new CustomEvent('packages_updated', { detail: saved }));
-    return saved;
-  } catch (err) {
-    console.warn('Backend packages save fallback to storage cache', err);
-    localStorage.setItem('sms_superadmin_packages', JSON.stringify(packages));
-    window.dispatchEvent(new CustomEvent('packages_updated', { detail: packages }));
-    return packages;
-  }
+  const saved = await apiClient<PackagePlan[]>('/api/superadmin/packages', {
+    method: 'POST',
+    body: JSON.stringify(packages),
+  });
+  window.dispatchEvent(new CustomEvent('packages_updated', { detail: saved }));
+  return saved;
 };
 
 // =========================================================
@@ -458,5 +424,36 @@ export const toggleCompanyStatusApi = async (id: string, isActive: boolean): Pro
 export const deleteCompanyApi = async (id: string): Promise<void> => {
   return apiClient<void>(`/api/superadmin/companies/${id}`, {
     method: 'DELETE'
+  });
+};
+
+// =========================================================
+// PLATFORM COMPANY PROFILE & BRANDING APIS (SUPER ADMIN)
+// =========================================================
+
+export interface PlatformCompanyProfile {
+  id?: number;
+  companyName: string;
+  tagline?: string;
+  logoUrl?: string;
+  supportEmail?: string;
+  supportPhone?: string;
+  websiteUrl?: string;
+  primaryColor?: string;
+  updatedAt?: string;
+}
+
+export const fetchCompanyProfileApi = async (): Promise<PlatformCompanyProfile> => {
+  return apiClient<PlatformCompanyProfile>('/api/superadmin/company-profile', {
+    method: 'GET',
+  });
+};
+
+export const updateCompanyProfileApi = async (
+  payload: Partial<PlatformCompanyProfile>
+): Promise<PlatformCompanyProfile> => {
+  return apiClient<PlatformCompanyProfile>('/api/superadmin/company-profile', {
+    method: 'PUT',
+    body: JSON.stringify(payload),
   });
 };

@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   User as UserIcon, ShieldCheck, Mail, Phone, Lock, Eye, EyeOff,
-  Edit, Save, X, Building2, Globe, Layers,
+  Edit, Save, X, Building2, Globe,
   Server, Key, CheckCircle2, AlertTriangle, ArrowLeft, Activity,
   Database, RefreshCw, Award, Upload, Image as ImageIcon,
-  Link as LinkIcon, Sparkles, Sun, Moon, Check, Info, Palette,
+  Link as LinkIcon, Sparkles, Check, Info,
   RotateCcw, Trash2
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
@@ -14,7 +14,12 @@ import {
   updateUserProfileApi,
   UserProfileData
 } from '../../../api/profile';
-import { fetchSchoolsApi, fetchPackagesApi } from '../../../api/superadmin';
+import {
+  fetchSchoolsApi,
+  fetchPackagesApi,
+  fetchCompanyProfileApi,
+  updateCompanyProfileApi,
+} from '../../../api/superadmin';
 import { uploadSchoolLogoFileApi, uploadSchoolLogoApi } from '../../../api/settings';
 import { createOptimizedLogoDataUrl, resolveMediaUrl } from '../../../utils/mediaUtils';
 import { validateEmail, validateFullName, validatePhoneNumber, sanitizeEmailInput, sanitizePhoneInput } from '../../../utils/validation';
@@ -22,8 +27,6 @@ import { validateEmail, validateFullName, validatePhoneNumber, sanitizeEmailInpu
 interface SuperAdminProfileViewProps {
   onNavigate?: (module: string) => void;
 }
-
-const DEFAULT_PLATFORM_LOGO = '/pirnav-school-logo.png';
 
 export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ onNavigate }) => {
   const { user, setUser, changePassword } = useAuth();
@@ -35,26 +38,25 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Company / Platform Branding State
+  // Company / Platform Branding State (Direct API & DB driven - No LocalStorage / No Mock Data)
   const [companyBranding, setCompanyBranding] = useState({
-    name: localStorage.getItem('superadmin_company_name') || localStorage.getItem('company_name') || 'SaaS Cloud Portal',
-    logo: localStorage.getItem('superadmin_logo') || localStorage.getItem('platform_logo') || DEFAULT_PLATFORM_LOGO,
-    tagline: localStorage.getItem('platform_tagline') || 'Multi-Tenant Educational Cloud Infrastructure',
-    supportEmail: localStorage.getItem('platform_support_email') || user?.email || 'admin@saascloud.com',
-    supportPhone: localStorage.getItem('platform_support_phone') || user?.phone || '+91 98765 43210',
-    websiteUrl: localStorage.getItem('platform_website') || 'https://smscloud.portal',
+    name: '',
+    logo: '',
+    tagline: '',
+    supportEmail: user?.email || '',
+    supportPhone: user?.phone || '',
+    websiteUrl: '',
   });
   const [logoSourceMode, setLogoSourceMode] = useState<'upload' | 'url'>('upload');
   const [logoUrlInput, setLogoUrlInput] = useState('');
   const [isUploadingCompanyLogo, setIsUploadingCompanyLogo] = useState(false);
-  const [previewContrast, setPreviewContrast] = useState<'light' | 'dark'>('light');
 
   // Personal Profile State
   const [profileForm, setProfileForm] = useState({
     name: user?.name || '',
     email: user?.email || '',
     phone: user?.phone || '',
-    organization: localStorage.getItem('company_name') || 'Multi-Tenant SaaS Portal',
+    organization: '',
   });
 
   const [formErrors, setFormErrors] = useState<{
@@ -90,19 +92,34 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
     return name.slice(0, 2).toUpperCase();
   };
 
-  // Load existing profile & stats
+  // Load existing profile & stats directly from Backend APIs
   useEffect(() => {
     let isMounted = true;
 
     const loadProfileData = async () => {
       try {
-        const [profileRes, schools, pkgs] = await Promise.all([
+        const [profileRes, schools, pkgs, companyProfile] = await Promise.all([
           user?.email ? fetchUserProfileApi(user.email).catch(() => null) : Promise.resolve(null),
           fetchSchoolsApi().catch(() => []),
           fetchPackagesApi().catch(() => []),
+          fetchCompanyProfileApi().catch(() => null),
         ]);
 
         if (isMounted) {
+          if (companyProfile) {
+            setCompanyBranding({
+              name: companyProfile.companyName || '',
+              logo: companyProfile.logoUrl || '',
+              tagline: companyProfile.tagline || '',
+              supportEmail: companyProfile.supportEmail || user?.email || '',
+              supportPhone: companyProfile.supportPhone || user?.phone || '',
+              websiteUrl: companyProfile.websiteUrl || '',
+            });
+            if (companyProfile.companyName) {
+              setProfileForm(prev => ({ ...prev, organization: companyProfile.companyName }));
+            }
+          }
+
           if (profileRes?.data) {
             const data = profileRes.data as UserProfileData;
             setProfileForm(prev => ({
@@ -187,20 +204,26 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
   };
 
   // Delete / Remove Company Logo
-  const handleDeleteCompanyLogo = () => {
-    const defaultLogo = DEFAULT_PLATFORM_LOGO;
-    setCompanyBranding(prev => ({ ...prev, logo: defaultLogo }));
-    localStorage.removeItem('superadmin_logo');
-    localStorage.removeItem('platform_logo');
-    
-    // Ensure tenant logo is restored to school_logo if previously polluted
-    const tenantSaved = localStorage.getItem('tenant_school_logo');
-    if (tenantSaved) {
-      localStorage.setItem('school_logo', tenantSaved);
+  const handleDeleteCompanyLogo = async () => {
+    setCompanyBranding(prev => ({ ...prev, logo: '' }));
+
+    if (!isEditing) {
+      try {
+        await updateCompanyProfileApi({
+          companyName: companyBranding.name.trim(),
+          tagline: companyBranding.tagline.trim(),
+          logoUrl: '',
+          supportEmail: companyBranding.supportEmail.trim(),
+          supportPhone: companyBranding.supportPhone.trim(),
+          websiteUrl: companyBranding.websiteUrl.trim(),
+        });
+      } catch (err) {
+        console.warn('Backend logo removal note:', err);
+      }
     }
-    window.dispatchEvent(new Event('school_profile_updated'));
-    window.dispatchEvent(new Event('storage'));
-    addToast('info', 'Logo Removed', 'Custom platform logo deleted. Reverted to standard default.');
+
+    window.dispatchEvent(new Event('superadmin_profile_updated'));
+    addToast('info', 'Logo Removed', 'Custom platform logo deleted. Reverted to empty icon.');
   };
 
   // Save All Changes (Company Branding + Personal Profile)
@@ -237,37 +260,21 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
 
     setIsSaving(true);
     try {
-      const finalLogo = companyBranding.logo.trim() || DEFAULT_PLATFORM_LOGO;
+      const finalLogo = companyBranding.logo.trim();
       const finalCompanyName = companyBranding.name.trim();
 
-      // Persist to isolated Super Admin platform keys
-      if (finalLogo && finalLogo !== DEFAULT_PLATFORM_LOGO) {
-        localStorage.setItem('superadmin_logo', finalLogo);
-        localStorage.setItem('platform_logo', finalLogo);
-      } else {
-        localStorage.removeItem('superadmin_logo');
-        localStorage.removeItem('platform_logo');
-      }
+      // 1. Persist Company Profile to Backend DB API
+      await updateCompanyProfileApi({
+        companyName: finalCompanyName,
+        tagline: companyBranding.tagline.trim(),
+        logoUrl: finalLogo,
+        supportEmail: companyBranding.supportEmail.trim(),
+        supportPhone: companyBranding.supportPhone.trim(),
+        websiteUrl: companyBranding.websiteUrl.trim(),
+        primaryColor: '#0284c7',
+      });
 
-      localStorage.setItem('superadmin_company_name', finalCompanyName);
-      localStorage.setItem('company_name', finalCompanyName);
-      localStorage.setItem('platform_tagline', companyBranding.tagline.trim());
-      localStorage.setItem('platform_support_email', companyBranding.supportEmail.trim());
-      localStorage.setItem('platform_support_phone', companyBranding.supportPhone.trim());
-      localStorage.setItem('platform_website', companyBranding.websiteUrl.trim());
-
-      // Restore tenant logo if school_logo was previously overwritten
-      const currentSchoolLogo = localStorage.getItem('school_logo');
-      const tenantSaved = localStorage.getItem('tenant_school_logo');
-      if (currentSchoolLogo === finalLogo) {
-        if (tenantSaved) {
-          localStorage.setItem('school_logo', tenantSaved);
-        } else {
-          localStorage.removeItem('school_logo');
-        }
-      }
-
-      // Save user profile to backend
+      // 2. Save user profile to backend
       const payload: Partial<UserProfileData> = {
         name: profileForm.name.trim(),
         email: profileForm.email.trim(),
@@ -296,10 +303,9 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
       setFormErrors({});
       setIsEditing(false);
 
-      window.dispatchEvent(new Event('school_profile_updated'));
-      window.dispatchEvent(new Event('storage'));
+      window.dispatchEvent(new Event('superadmin_profile_updated'));
 
-      addToast('success', 'Changes Saved', 'Company branding and profile details updated successfully.');
+      addToast('success', 'Changes Saved', 'Company profile and branding saved to database successfully.');
     } catch (err: any) {
       addToast('error', 'Save Failed', err?.message || 'Failed to save changes.');
     } finally {
@@ -343,11 +349,7 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
     }
   };
 
-  const isCustomLogo = Boolean(
-    companyBranding.logo &&
-    companyBranding.logo !== DEFAULT_PLATFORM_LOGO &&
-    !companyBranding.logo.includes('pirnav-school-logo')
-  );
+  const isCustomLogo = Boolean(companyBranding.logo && companyBranding.logo.trim());
 
   return (
     <div className="space-y-4 animate-in fade-in duration-300 pb-12">
@@ -374,7 +376,7 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
               </span>
             </div>
             <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
-              Super Administrator & Company Profile
+              Company Profile
             </h1>
           </div>
         </div>
@@ -408,21 +410,23 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
           <div className="flex flex-col sm:flex-row md:flex-col items-center sm:items-end gap-2 shrink-0">
             <div className="flex items-center gap-2.5 p-2 bg-black/25 backdrop-blur-md rounded-xl border border-white/15">
               <div className="w-9 h-9 rounded-lg bg-white/95 p-1 flex items-center justify-center overflow-hidden shrink-0">
-                <img
-                  src={resolveMediaUrl(companyBranding.logo)}
-                  alt="Company Logo"
-                  className="max-h-7 max-w-7 object-contain"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = DEFAULT_PLATFORM_LOGO;
-                  }}
-                />
+                {companyBranding.logo ? (
+                  <img
+                    src={resolveMediaUrl(companyBranding.logo)}
+                    alt="Company Logo"
+                    className="max-h-7 max-w-7 object-contain"
+                    onError={() => setCompanyBranding(prev => ({ ...prev, logo: '' }))}
+                  />
+                ) : (
+                  <Building2 className="w-5 h-5 text-sky-600" />
+                )}
               </div>
               <div className="text-left pr-1.5">
                 <span className="text-[9px] uppercase font-bold tracking-wider text-sky-200 block">
                   Company Brand
                 </span>
                 <span className="text-xs font-black text-white truncate max-w-[130px] block">
-                  {companyBranding.name}
+                  {companyBranding.name || 'Platform Identity'}
                 </span>
               </div>
             </div>
@@ -557,19 +561,21 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
                   />
                   <div className="flex flex-col sm:flex-row items-center gap-3.5">
                     <div className="w-16 h-16 rounded-xl bg-white dark:bg-slate-800 p-1.5 border border-slate-200 dark:border-slate-700 shadow-xs shrink-0 flex items-center justify-center overflow-hidden">
-                      <img
-                        src={resolveMediaUrl(companyBranding.logo)}
-                        alt="Platform Logo"
-                        className="max-h-12 max-w-12 object-contain"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = DEFAULT_PLATFORM_LOGO;
-                        }}
-                      />
+                      {companyBranding.logo ? (
+                        <img
+                          src={resolveMediaUrl(companyBranding.logo)}
+                          alt="Platform Logo"
+                          className="max-h-12 max-w-12 object-contain"
+                          onError={() => setCompanyBranding(prev => ({ ...prev, logo: '' }))}
+                        />
+                      ) : (
+                        <Building2 className="w-8 h-8 text-slate-400 stroke-[1.5]" />
+                      )}
                     </div>
 
                     <div className="flex-1 text-center sm:text-left space-y-1">
                       <h4 className="font-bold text-xs text-slate-800 dark:text-slate-200">
-                        {isCustomLogo ? 'Custom Platform Logo Active' : 'Default Platform Logo'}
+                        {isCustomLogo ? 'Custom Platform Logo Active' : 'No Logo Uploaded (Empty Icon)'}
                       </h4>
                       <p className="text-[10px] text-slate-500 dark:text-slate-400">
                         PNG, SVG, JPG, or WebP up to 4MB. Transparent background recommended.
@@ -931,109 +937,9 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
             )}
           </div>
 
-          {/* Right Column (5 cols): Live Preview + Security & Password */}
+          {/* Right Column (5 cols): Security & Master Password */}
           <div className="lg:col-span-5 space-y-4">
-            
-            {/* Card 3: Live Preview Simulator */}
-            <div className="glass-card p-4 sm:p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-3">
-              <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 dark:border-slate-800">
-                <div className="flex items-center gap-2">
-                  <Palette className="w-3.5 h-3.5 text-sky-500" />
-                  <h4 className="font-black text-xs sm:text-sm text-slate-900 dark:text-white">
-                    Live Portal Preview
-                  </h4>
-                </div>
-
-                <div className="flex items-center gap-1 p-0.5 bg-slate-100 dark:bg-slate-800 rounded-lg">
-                  <button
-                    type="button"
-                    onClick={() => setPreviewContrast('light')}
-                    className={`p-1 rounded-md text-[10px] font-bold cursor-pointer ${
-                      previewContrast === 'light'
-                        ? 'bg-white text-slate-900 shadow-2xs'
-                        : 'text-slate-400'
-                    }`}
-                    title="Light Contrast"
-                  >
-                    <Sun className="w-3 h-3" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPreviewContrast('dark')}
-                    className={`p-1 rounded-md text-[10px] font-bold cursor-pointer ${
-                      previewContrast === 'dark'
-                        ? 'bg-slate-900 text-white shadow-2xs'
-                        : 'text-slate-400'
-                    }`}
-                    title="Dark Contrast"
-                  >
-                    <Moon className="w-3 h-3" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Login View Simulator */}
-              <div className="space-y-1">
-                <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                  <ShieldCheck className="w-3 h-3 text-sky-500" />
-                  Super Admin Login Screen
-                </span>
-
-                <div className={`p-3.5 rounded-xl border text-center transition-all ${
-                  previewContrast === 'dark'
-                    ? 'bg-slate-950 border-slate-800 text-white'
-                    : 'bg-white border-slate-200 text-slate-900'
-                }`}>
-                  <div className="inline-block p-1.5 rounded-xl bg-white/10 dark:bg-slate-800/60 shadow-xs mb-1.5">
-                    <img
-                      src={resolveMediaUrl(companyBranding.logo)}
-                      alt="Brand Preview"
-                      className="h-8 max-w-[120px] object-contain mx-auto"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = DEFAULT_PLATFORM_LOGO;
-                      }}
-                    />
-                  </div>
-                  <h5 className="font-black text-xs">{companyBranding.name}</h5>
-                  <p className="text-[10px] opacity-70 mt-0.5">{companyBranding.tagline}</p>
-                  <div className="mt-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20">
-                    <ShieldCheck className="w-2.5 h-2.5" />
-                    <span>Super Administrator Portal</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Sidebar Header Simulator */}
-              <div className="space-y-1 pt-1">
-                <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1">
-                  <Layers className="w-3 h-3 text-sky-500" />
-                  Sidebar Navigation Header
-                </span>
-
-                <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-white/95 p-1 flex items-center justify-center overflow-hidden shrink-0">
-                    <img
-                      src={resolveMediaUrl(companyBranding.logo)}
-                      alt="Sidebar Logo"
-                      className="max-h-6 max-w-6 object-contain"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = DEFAULT_PLATFORM_LOGO;
-                      }}
-                    />
-                  </div>
-                  <div className="min-w-0">
-                    <h6 className="font-extrabold text-xs truncate text-white">
-                      {companyBranding.name}
-                    </h6>
-                    <span className="text-[9px] text-sky-300 font-semibold block truncate">
-                      Multi-Tenant Console
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Card 4: Security & Master Password */}
+            {/* Security & Master Password */}
             <div className="glass-card p-4 sm:p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-3.5">
               <div className="flex items-center gap-2.5 pb-2.5 border-b border-slate-100 dark:border-slate-800">
                 <div className="p-2 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
