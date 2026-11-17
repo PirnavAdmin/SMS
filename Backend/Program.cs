@@ -744,6 +744,46 @@ using (var scope = app.Services.CreateScope())
                         }
                     }
                     catch { }
+
+                    // Automatic Multi-Tenant Column Upgrade: ensure TenantId exists on all tables
+                    try
+                    {
+                        cmd.CommandText = $"SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = '{dbName}' AND TABLE_TYPE = 'BASE TABLE';";
+                        var existingTables = new System.Collections.Generic.List<string>();
+                        using (var reader = cmd.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                existingTables.Add(reader.GetString(0));
+                            }
+                        }
+
+                        foreach (var targetTable in existingTables)
+                        {
+                            if (targetTable.StartsWith("__", StringComparison.OrdinalIgnoreCase)) continue;
+                            try
+                            {
+                                cmd.CommandText = $"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '{dbName}' AND TABLE_NAME = '{targetTable}' AND COLUMN_NAME = 'TenantId';";
+                                var hasCol = System.Convert.ToInt32(cmd.ExecuteScalar());
+                                if (hasCol == 0)
+                                {
+                                    cmd.CommandText = $"ALTER TABLE `{targetTable}` ADD COLUMN `TenantId` varchar(64) NULL DEFAULT 'tenant-default';";
+                                    cmd.ExecuteNonQuery();
+                                    cmd.CommandText = $"UPDATE `{targetTable}` SET `TenantId` = 'tenant-default' WHERE `TenantId` IS NULL;";
+                                    cmd.ExecuteNonQuery();
+                                    System.Console.WriteLine($"[Database Schema Upgrade] Added column `TenantId` to `{targetTable}`.");
+                                }
+                            }
+                            catch (System.Exception exCol)
+                            {
+                                System.Console.WriteLine($"[Database Schema Upgrade Warning for {targetTable}.TenantId] {exCol.Message}");
+                            }
+                        }
+                    }
+                    catch (System.Exception ex)
+                    {
+                        System.Console.WriteLine($"[Database Multi-Tenant Upgrade Warning] {ex.Message}");
+                    }
                 }
                 catch (System.Exception ex)
                 {
