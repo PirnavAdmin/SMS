@@ -5,6 +5,7 @@ import { fetchUserProfileApi, getLocalUserProfile, saveLocalUserProfile, getActi
 import { DEFAULT_USER_AVATAR } from '../utils/mediaUtils';
 import { fetchBranchesApi, fetchAcademicYearsApi } from '../api/settings';
 import { setActiveBranchHeader, setActiveAcademicYearHeader, cancelPendingRequests } from '../api/client';
+import { setActiveTenantIdentifier, clearActiveTenantIdentifier } from '../utils/subdomain';
 
 interface AuthContextType {
   user: User | null;
@@ -46,6 +47,20 @@ const getNameFromJwt = (jwt?: string | null): string => {
       payload?.name ||
       '';
     return typeof claimName === 'string' ? claimName.trim() : '';
+  } catch {
+    return '';
+  }
+};
+
+const getTenantSlugFromJwt = (jwt?: string | null): string => {
+  if (!jwt) return '';
+  try {
+    const parts = jwt.split('.');
+    if (parts.length !== 3) return '';
+    let b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    while (b64.length % 4 !== 0) b64 += '=';
+    const payload = JSON.parse(atob(b64));
+    return payload?.tenant_slug || (payload?.TenantId === 'tenant-default' ? 'default' : '') || '';
   } catch {
     return '';
   }
@@ -413,6 +428,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch {}
     setUser(null);
     setToken(null);
+    clearActiveTenantIdentifier();
     localStorage.removeItem('auth_user');
     localStorage.removeItem('user');
     localStorage.removeItem('auth_token');
@@ -583,6 +599,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(loggedUser);
       setRoleState(mappedRole);
       setToken(realToken);
+      const jwtTenant = getTenantSlugFromJwt(realToken);
+      if (jwtTenant) {
+        setActiveTenantIdentifier(jwtTenant);
+      } else {
+        clearActiveTenantIdentifier();
+      }
       localStorage.setItem('auth_user', JSON.stringify(loggedUser));
       localStorage.setItem('auth_token', realToken);
       localStorage.setItem('auth_token_timestamp', Date.now().toString());

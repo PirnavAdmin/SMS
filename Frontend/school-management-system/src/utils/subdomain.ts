@@ -75,7 +75,28 @@ export const detectTenant = (): DetectedTenantInfo => {
     }
   }
 
-  // 3. Cached identifier from localStorage
+  // 3. If an authenticated user token is present, use their token's tenant
+  try {
+    const token = localStorage.getItem('auth_token');
+    if (token && token.split('.').length === 3) {
+      const parts = token.split('.');
+      let b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+      while (b64.length % 4 !== 0) b64 += '=';
+      const jsonStr = decodeURIComponent(
+        atob(b64)
+          .split('')
+          .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+          .join('')
+      );
+      const payload = JSON.parse(jsonStr);
+      const userTenant = payload.tenant_slug || (payload.TenantId === 'tenant-default' ? 'default' : null);
+      if (userTenant) {
+        return { identifier: userTenant.toLowerCase(), source: 'storage' };
+      }
+    }
+  } catch {}
+
+  // 4. Cached identifier from localStorage
   const stored = localStorage.getItem('active_tenant_identifier');
   if (stored && stored.trim() && stored !== 'null' && stored !== 'undefined') {
     return { identifier: stored.trim().toLowerCase(), source: 'storage' };
