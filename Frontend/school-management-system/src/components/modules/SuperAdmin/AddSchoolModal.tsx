@@ -97,11 +97,11 @@ export const AddSchoolModal: React.FC<AddSchoolModalProps> = ({
         password: '',
         confirmPassword: '',
         address: editingSchool.address || '',
-        planName: editingSchool.planName || (availablePackages[0]?.name ?? 'Custom Plan'),
-        planType: editingSchool.planType || 'Monthly',
-        currency: 'INR',
-        language: 'English',
-        status: editingSchool.status || 'Active',
+        planName: editingSchool.planName || '',
+        planType: editingSchool.planType || '',
+        currency: (editingSchool as any).currency || '',
+        language: (editingSchool as any).language || '',
+        status: editingSchool.status || '',
         logoUrl: editingSchool.logoUrl || ''
       });
       setLogoPreview(editingSchool.logoUrl || '');
@@ -116,11 +116,11 @@ export const AddSchoolModal: React.FC<AddSchoolModalProps> = ({
         password: '',
         confirmPassword: '',
         address: '',
-        planName: availablePackages[0]?.name || 'Custom Plan',
-        planType: 'Monthly',
-        currency: 'INR',
-        language: 'English',
-        status: 'Active',
+        planName: '',
+        planType: '',
+        currency: '',
+        language: '',
+        status: '',
         logoUrl: ''
       });
       setLogoPreview('');
@@ -189,6 +189,26 @@ export const AddSchoolModal: React.FC<AddSchoolModalProps> = ({
           if (!value) return 'Please confirm the initial password';
           if (value !== currentForm.password) return 'Passwords do not match';
         }
+        return '';
+
+      case 'planName':
+        if (!value.trim()) return 'Please select a subscription plan';
+        return '';
+
+      case 'planType':
+        if (!value.trim()) return 'Please select a billing cycle';
+        return '';
+
+      case 'currency':
+        if (!value.trim()) return 'Please select a currency';
+        return '';
+
+      case 'language':
+        if (!value.trim()) return 'Please select a language';
+        return '';
+
+      case 'status':
+        if (!value.trim()) return 'Please select an account status';
         return '';
 
       default:
@@ -270,7 +290,10 @@ export const AddSchoolModal: React.FC<AddSchoolModalProps> = ({
 
   const validateAll = (): boolean => {
     const errors: Record<string, string> = {};
-    const fieldsToValidate: (keyof typeof formData)[] = ['name', 'accountUrl', 'email', 'phoneNumber'];
+    const fieldsToValidate: (keyof typeof formData)[] = [
+      'name', 'accountUrl', 'email', 'phoneNumber',
+      'planName', 'planType', 'currency', 'language', 'status'
+    ];
     if (!editingSchool) {
       fieldsToValidate.push('password', 'confirmPassword');
     }
@@ -855,23 +878,28 @@ LOGIN INSTRUCTIONS:
                 <select
                   value={formData.planName}
                   onChange={e => handleFieldChange('planName', e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all dark:text-white font-medium"
+                  className={`w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border ${
+                    fieldErrors.planName ? 'border-rose-500 ring-1 ring-rose-500/20' : 'border-slate-300 dark:border-slate-700'
+                  } rounded-xl focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all dark:text-white font-medium`}
                 >
+                  <option value="">Select Subscription Plan</option>
                   {availablePackages.length > 0 ? (
                     availablePackages.map(p => (
                       <option key={p.id} value={p.name}>
-                        {p.name} ({p.maxStudents === 0 ? 'Unlimited' : `Up to ${p.maxStudents}`} Students)
+                        {p.name} (₹{p.monthlyPrice}/mo - {p.maxStudents === 0 ? 'Unlimited' : `Up to ${p.maxStudents}`} Students)
                       </option>
                     ))
                   ) : (
                     <option value="Custom Plan">Custom Plan (Configure plans under Subscriptions)</option>
                   )}
                 </select>
-                {availablePackages.length === 0 && (
+                {fieldErrors.planName ? (
+                  <p className="text-[11px] font-bold text-rose-500 mt-1">{fieldErrors.planName}</p>
+                ) : availablePackages.length === 0 ? (
                   <p className="text-[11px] text-slate-400 mt-1">
                     No packages created yet. You can configure packages under Subscriptions.
                   </p>
-                )}
+                ) : null}
               </div>
 
               {/* Billing Cycle */}
@@ -882,11 +910,17 @@ LOGIN INSTRUCTIONS:
                 <select
                   value={formData.planType}
                   onChange={e => handleFieldChange('planType', e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all dark:text-white font-medium"
+                  className={`w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border ${
+                    fieldErrors.planType ? 'border-rose-500 ring-1 ring-rose-500/20' : 'border-slate-300 dark:border-slate-700'
+                  } rounded-xl focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all dark:text-white font-medium`}
                 >
+                  <option value="">Select Billing Cycle</option>
                   <option value="Monthly">Monthly Recurring</option>
                   <option value="Yearly">Yearly (Institutional Discount)</option>
                 </select>
+                {fieldErrors.planType && (
+                  <p className="text-[11px] font-bold text-rose-500 mt-1">{fieldErrors.planType}</p>
+                )}
               </div>
 
               {/* Currency */}
@@ -897,14 +931,20 @@ LOGIN INSTRUCTIONS:
                 <select
                   value={formData.currency}
                   onChange={e => handleFieldChange('currency', e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all dark:text-white font-medium"
+                  className={`w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border ${
+                    fieldErrors.currency ? 'border-rose-500 ring-1 ring-rose-500/20' : 'border-slate-300 dark:border-slate-700'
+                  } rounded-xl focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all dark:text-white font-medium`}
                 >
-                  <option value="INR">INR (₹)</option>
-                  <option value="USD">USD ($)</option>
-                  <option value="EUR">EUR (€)</option>
-                  <option value="GBP">GBP (£)</option>
-                  <option value="AED">AED (د.إ)</option>
+                  <option value="">Select Currency</option>
+                  <option value="INR">INR (₹) - Indian Rupee</option>
+                  <option value="USD">USD ($) - US Dollar</option>
+                  <option value="EUR">EUR (€) - Euro</option>
+                  <option value="GBP">GBP (£) - British Pound</option>
+                  <option value="AED">AED (د.إ) - UAE Dirham</option>
                 </select>
+                {fieldErrors.currency && (
+                  <p className="text-[11px] font-bold text-rose-500 mt-1">{fieldErrors.currency}</p>
+                )}
               </div>
 
               {/* Language */}
@@ -915,14 +955,20 @@ LOGIN INSTRUCTIONS:
                 <select
                   value={formData.language}
                   onChange={e => handleFieldChange('language', e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all dark:text-white font-medium"
+                  className={`w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border ${
+                    fieldErrors.language ? 'border-rose-500 ring-1 ring-rose-500/20' : 'border-slate-300 dark:border-slate-700'
+                  } rounded-xl focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all dark:text-white font-medium`}
                 >
+                  <option value="">Select Language</option>
                   <option value="English">English</option>
                   <option value="Hindi">Hindi</option>
                   <option value="Spanish">Spanish</option>
                   <option value="French">French</option>
                   <option value="Arabic">Arabic</option>
                 </select>
+                {fieldErrors.language && (
+                  <p className="text-[11px] font-bold text-rose-500 mt-1">{fieldErrors.language}</p>
+                )}
               </div>
 
               {/* Status */}
@@ -933,11 +979,17 @@ LOGIN INSTRUCTIONS:
                 <select
                   value={formData.status}
                   onChange={e => handleFieldChange('status', e.target.value)}
-                  className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all dark:text-white font-medium"
+                  className={`w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border ${
+                    fieldErrors.status ? 'border-rose-500 ring-1 ring-rose-500/20' : 'border-slate-300 dark:border-slate-700'
+                  } rounded-xl focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 outline-none transition-all dark:text-white font-medium`}
                 >
+                  <option value="">Select Account Status</option>
                   <option value="Active">Active</option>
                   <option value="Inactive">Inactive / Suspended</option>
                 </select>
+                {fieldErrors.status && (
+                  <p className="text-[11px] font-bold text-rose-500 mt-1">{fieldErrors.status}</p>
+                )}
               </div>
             </div>
 

@@ -170,7 +170,7 @@ export const SuperAdminTicketsView: React.FC = () => {
               }}
               className="px-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none dark:text-white font-medium"
             >
-              <option value="All">All Statuses</option>
+              <option value="All">Select Status (All)</option>
               <option value="Open">Open</option>
               <option value="In Progress">In Progress</option>
               <option value="Resolved">Resolved</option>

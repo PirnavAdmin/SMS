@@ -432,7 +432,7 @@ export const SuperAdminSchoolsView: React.FC<SuperAdminSchoolsViewProps> = ({ on
               }}
               className="px-3 py-1.5 text-xs font-medium bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none dark:text-white"
             >
-              <option value="All">All Plans</option>
+              <option value="All">Select Plan (All)</option>
               {packages.map(p => (
                 <option key={p.id} value={p.name}>{p.name}</option>
               ))}
@@ -566,22 +566,13 @@ export const SuperAdminSchoolsView: React.FC<SuperAdminSchoolsViewProps> = ({ on
                         />
                       </td>
 
-                      {/* School Name & Logo */}
+                      {/* School Name */}
                       <td className="p-3 text-center">
-                        <div className="flex items-center justify-center gap-2.5">
-                          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-sky-500 to-blue-600 text-white flex items-center justify-center font-bold text-xs shadow-sm overflow-hidden shrink-0">
-                            {school.logoUrl ? (
-                              <img src={school.logoUrl} alt={school.schoolName} className="w-full h-full object-cover" />
-                            ) : (
-                              school.schoolName.charAt(0).toUpperCase()
-                            )}
-                          </div>
-                          <div className="text-left">
-                            <p className="font-bold text-slate-900 dark:text-white hover:text-sky-600 cursor-pointer" onClick={() => handleViewSchool(school)}>
-                              {school.schoolName}
-                            </p>
-                            <p className="text-[11px] text-slate-400">Code: {school.schoolCode}</p>
-                          </div>
+                        <div className="flex flex-col items-center justify-center">
+                          <p className="font-bold text-slate-900 dark:text-white hover:text-sky-600 cursor-pointer" onClick={() => handleViewSchool(school)}>
+                            {school.schoolName}
+                          </p>
+                          <p className="text-[11px] text-slate-400 font-mono">Code: {school.schoolCode}</p>
                         </div>
                       </td>
 

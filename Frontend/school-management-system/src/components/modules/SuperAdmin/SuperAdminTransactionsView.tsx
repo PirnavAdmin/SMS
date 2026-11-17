@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   CreditCard, Download, Search, CheckCircle2, Clock, RefreshCw,
-  DollarSign, Building2, X, AlertCircle, SearchX
+  IndianRupee, Building2, X, AlertCircle, SearchX
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { fetchSchoolsApi, fetchPackagesApi, SchoolItem, PackagePlan } from '../../../api/superadmin';
@@ -137,7 +137,7 @@ export const SuperAdminTransactionsView: React.FC = () => {
       'Invoice No': t.invoiceNo,
       'School Name': t.schoolName,
       'Plan': t.planName,
-      'Amount ($)': t.amount,
+      'Amount (₹)': t.amount,
       'Billing Cycle': t.billingCycle,
       'Date': t.date,
       'Payment Method': t.paymentMethod,
@@ -247,7 +247,7 @@ export const SuperAdminTransactionsView: React.FC = () => {
               }}
               className="px-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none dark:text-white font-medium"
             >
-              <option value="All">All Statuses</option>
+              <option value="All">Select Status (All)</option>
               <option value="Paid">Paid</option>
               <option value="Pending">Pending</option>
               <option value="Failed">Failed</option>
@@ -325,7 +325,7 @@ export const SuperAdminTransactionsView: React.FC = () => {
                       <span className="font-semibold">{tx.planName}</span>
                     </td>
                     <td className="p-3 text-center font-extrabold text-slate-900 dark:text-white">
-                      ${tx.amount.toLocaleString()}
+                      ₹{tx.amount.toLocaleString()}
                     </td>
                     <td className="p-3 text-center text-slate-500">{tx.paymentMethod}</td>
                     <td className="p-3 text-center text-slate-500">{tx.date}</td>
