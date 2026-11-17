@@ -21,14 +21,27 @@ public class AdminRepository : IAdminRepository
     {
         try
         {
-            return await _context.Admins
+            var admin = await _context.Admins
                 .AsNoTracking()
                 .Include(a => a.Roles)
                 .FirstOrDefaultAsync(a => a.Email == identifier || a.MobileNumber == identifier);
+
+            if (admin == null)
+            {
+                // Fallback across all tenants if logging in via generic host or unmapped subdomain
+                admin = await _context.Admins
+                    .IgnoreQueryFilters()
+                    .AsNoTracking()
+                    .Include(a => a.Roles)
+                    .FirstOrDefaultAsync(a => a.Email == identifier || a.MobileNumber == identifier);
+            }
+
+            return admin;
         }
         catch
         {
             return await _context.Admins
+                .IgnoreQueryFilters()
                 .AsNoTracking()
                 .FirstOrDefaultAsync(a => a.Email == identifier || a.MobileNumber == identifier);
         }

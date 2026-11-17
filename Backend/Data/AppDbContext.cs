@@ -21,14 +21,14 @@ namespace SMS.Api.Data
             : base(multiTenantContextAccessor.MultiTenantContext?.TenantInfo ?? FallbackTenant, options)
         {
             TenantNotSetMode = TenantNotSetMode.Overwrite;
-            TenantMismatchMode = TenantMismatchMode.Overwrite;
+            TenantMismatchMode = TenantMismatchMode.Ignore;
         }
 
         public AppDbContext(DbContextOptions<AppDbContext> options)
             : base((ITenantInfo?)FallbackTenant, options)
         {
             TenantNotSetMode = TenantNotSetMode.Overwrite;
-            TenantMismatchMode = TenantMismatchMode.Overwrite;
+            TenantMismatchMode = TenantMismatchMode.Ignore;
         }
 
         // =====================================================

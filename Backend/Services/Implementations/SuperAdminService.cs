@@ -401,6 +401,23 @@ public class SuperAdminService : ISuperAdminService
         admin.Roles.Add(adminRole);
 
         await _saRepository.AddAdminAsync(admin);
+
+        var user = new User
+        {
+            FullName = admin.FullName,
+            Email = admin.Email,
+            MobileNumber = admin.MobileNumber,
+            PasswordHash = admin.PasswordHash,
+            Role = "Admin",
+            SchoolId = school.SchoolId,
+            TenantId = tenantId,
+            IsEmailVerified = true,
+            IsMobileVerified = true,
+            CreatedAt = DateTime.UtcNow
+        };
+        user.Roles.Add(adminRole);
+        await _saRepository.AddUserAsync(user);
+
         await _saRepository.SaveChangesAsync();
 
         // 3. Log Audit Activity
@@ -591,9 +608,6 @@ public class SuperAdminService : ISuperAdminService
 
     public async Task<AdminResponseDto> CreateAdminAsync(AdminCreateDto dto, int requestedByUserId)
     {
-        if (await _saRepository.AdminEmailExistsAsync(dto.Email.Trim()))
-            throw new AppException($"User with email '{dto.Email}' already exists.", HttpStatusCode.Conflict);
-
         var school = await _saRepository.GetSchoolByIdAsync(dto.SchoolId)
             ?? throw new NotFoundException($"School with ID '{dto.SchoolId}' not found.");
 
@@ -620,26 +634,100 @@ public class SuperAdminService : ISuperAdminService
                 await _tenantStore.AppTenants.AddAsync(tenant);
                 await _tenantStore.SaveChangesAsync();
             }
+            else if (tenant.Identifier != sCode)
+            {
+                tenant.Identifier = sCode;
+                tenant.UpdatedAt = DateTime.UtcNow;
+                await _tenantStore.SaveChangesAsync();
+            }
             tenantId = tenant.Id;
         }
 
-        var admin = new Admin
+        // Check if an admin record already exists for this school
+        var allAdmins = await _saRepository.GetAdminsAsync(null);
+        var existingAdmin = allAdmins.FirstOrDefault(a => a.SchoolId == school.SchoolId);
+
+        // Check uniqueness of email and mobile for other institutions
+        var cleanEmail = dto.Email.Trim().ToLower();
+        var cleanPhone = dto.MobileNumber.Trim();
+
+        var emailTaken = allAdmins.Any(a => a.Email != null && a.Email.ToLower() == cleanEmail && a.AdminId != (existingAdmin?.AdminId ?? 0));
+        if (emailTaken)
+            throw new AppException($"User with email '{dto.Email}' already exists for another institution.", HttpStatusCode.Conflict);
+
+        var phoneTaken = allAdmins.Any(a => a.MobileNumber == cleanPhone && a.AdminId != (existingAdmin?.AdminId ?? 0));
+        if (phoneTaken)
+            throw new AppException($"User with mobile number '{cleanPhone}' already exists for another institution.", HttpStatusCode.Conflict);
+
+        Admin admin;
+        if (existingAdmin != null)
         {
-            FullName = dto.FullName.Trim(),
-            Email = dto.Email.Trim().ToLower(),
-            MobileNumber = dto.MobileNumber.Trim(),
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
-            Role = "Admin",
-            SchoolId = school.SchoolId,
-            TenantId = tenantId,
-            IsEmailVerified = true,
-            IsMobileVerified = true,
-            CreatedAt = DateTime.UtcNow
-        };
+            existingAdmin.FullName = dto.FullName.Trim();
+            existingAdmin.Email = cleanEmail;
+            existingAdmin.MobileNumber = cleanPhone;
+            existingAdmin.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password);
+            existingAdmin.Role = "Admin";
+            existingAdmin.TenantId = tenantId;
+            if (existingAdmin.Roles.All(r => r.RoleName != "Admin"))
+            {
+                existingAdmin.Roles.Add(adminRole);
+            }
+            admin = existingAdmin;
+        }
+        else
+        {
+            admin = new Admin
+            {
+                FullName = dto.FullName.Trim(),
+                Email = cleanEmail,
+                MobileNumber = cleanPhone,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
+                Role = "Admin",
+                SchoolId = school.SchoolId,
+                TenantId = tenantId,
+                IsEmailVerified = true,
+                IsMobileVerified = true,
+                CreatedAt = DateTime.UtcNow
+            };
+            admin.Roles.Add(adminRole);
+            await _saRepository.AddAdminAsync(admin);
+        }
 
-        admin.Roles.Add(adminRole);
+        // Synchronize corresponding User record for authentication & user listings
+        var existingUser = await _userRepository.GetByIdentifierAsync(admin.Email ?? cleanPhone);
+        if (existingUser != null)
+        {
+            existingUser.FullName = admin.FullName;
+            existingUser.Email = admin.Email;
+            existingUser.MobileNumber = admin.MobileNumber;
+            existingUser.PasswordHash = admin.PasswordHash;
+            existingUser.Role = "Admin";
+            existingUser.SchoolId = school.SchoolId;
+            existingUser.TenantId = tenantId;
+            if (existingUser.Roles.All(r => r.RoleName != "Admin"))
+            {
+                existingUser.Roles.Add(adminRole);
+            }
+        }
+        else
+        {
+            var user = new User
+            {
+                FullName = admin.FullName,
+                Email = admin.Email,
+                MobileNumber = admin.MobileNumber,
+                PasswordHash = admin.PasswordHash,
+                Role = "Admin",
+                SchoolId = school.SchoolId,
+                TenantId = tenantId,
+                IsEmailVerified = true,
+                IsMobileVerified = true,
+                CreatedAt = DateTime.UtcNow
+            };
+            user.Roles.Add(adminRole);
+            await _saRepository.AddUserAsync(user);
+        }
 
-        await _saRepository.AddAdminAsync(admin);
         await _saRepository.SaveChangesAsync();
 
         var saUser = await _userRepository.GetByIdAsync(requestedByUserId);
