@@ -51,7 +51,7 @@ public class EmailNotificationService : IEmailNotificationService
 
             var loginUrl = !string.IsNullOrWhiteSpace(portalUrl) 
                 ? portalUrl 
-                : (_configuration["AppUrl"] ?? "https://roping-crumpled-exclude.ngrok-free.dev");
+                : (_configuration["AppUrl"] ?? "https://pupilscholar.com");
 
             var cleanName = string.IsNullOrWhiteSpace(recipientName) ? "User" : recipientName.Trim();
             var cleanRole = string.IsNullOrWhiteSpace(roleName) ? "Member" : roleName.Trim();
@@ -206,7 +206,7 @@ public class EmailNotificationService : IEmailNotificationService
 
         var loginUrl = !string.IsNullOrWhiteSpace(portalUrl) 
             ? portalUrl 
-            : (_configuration["AppUrl"] ?? "http://localhost:5173/login");
+            : (_configuration["AppUrl"] ?? "https://pupilscholar.com/login");
 
         if (!loginUrl.EndsWith("/#login") && !loginUrl.Contains("login"))
         {
@@ -476,7 +476,7 @@ public class EmailNotificationService : IEmailNotificationService
 
             var loginUrl = !string.IsNullOrWhiteSpace(portalUrl) 
                 ? portalUrl 
-                : (_configuration["AppUrl"] ?? "http://localhost:5173");
+                : (_configuration["AppUrl"] ?? "https://pupilscholar.com");
 
             if (!loginUrl.EndsWith("/#login") && !loginUrl.Contains("login"))
             {
