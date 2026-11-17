@@ -26,6 +26,7 @@ namespace SMS.Api.Repositories.Implementations
             try
             {
                 return await _context.Users
+                    .IgnoreQueryFilters()
                     .AsNoTracking()
                     .Include(u => u.Roles)
                     .FirstOrDefaultAsync(u => (u.Email != null && u.Email.ToLower() == lower) || u.MobileNumber == trimmed || u.MobileNumber == lower);
@@ -33,6 +34,7 @@ namespace SMS.Api.Repositories.Implementations
             catch
             {
                 return await _context.Users
+                    .IgnoreQueryFilters()
                     .AsNoTracking()
                     .FirstOrDefaultAsync(u => (u.Email != null && u.Email.ToLower() == lower) || u.MobileNumber == trimmed || u.MobileNumber == lower);
             }

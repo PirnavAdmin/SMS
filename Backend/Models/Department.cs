@@ -3,7 +3,9 @@ namespace SMS.Api.Models;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using Finbuckle.MultiTenant.EntityFrameworkCore;
 
+[MultiTenant]
 public class Department
 {
     [Key]

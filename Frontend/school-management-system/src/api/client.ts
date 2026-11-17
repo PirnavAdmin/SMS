@@ -1,3 +1,5 @@
+import { getSubdomain } from '../utils/subdomain';
+
 let activeBranchHeader = '';
 let activeAcademicYearHeader = '';
 
@@ -55,6 +57,10 @@ export const apiClient = async <T = any>(endpoint: string, options: RequestInit 
     headers.set('Content-Type', 'application/json');
   }
   headers.set('ngrok-skip-browser-warning', 'true');
+  const tenantIdentifier = getSubdomain();
+  if (tenantIdentifier && !headers.has('X-Tenant-ID')) {
+    headers.set('X-Tenant-ID', tenantIdentifier);
+  }
   if (userRole) {
     headers.set('X-User-Role', userRole);
   }

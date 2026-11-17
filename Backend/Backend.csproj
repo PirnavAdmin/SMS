@@ -52,6 +52,12 @@
 		<PackageReference Include="BCrypt.Net-Next"
 						  Version="4.0.3" />
 
+		<!-- Multi-Tenancy (Finbuckle) -->
+		<PackageReference Include="Finbuckle.MultiTenant.AspNetCore"
+						  Version="8.0.0" />
+		<PackageReference Include="Finbuckle.MultiTenant.EntityFrameworkCore"
+						  Version="8.0.0" />
+
 	</ItemGroup>
 
 	<Target Name="UnblockGeneratedAssemblies" AfterTargets="Build" Condition="'$(OS)' == 'Windows_NT'">

@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using Finbuckle.MultiTenant.EntityFrameworkCore;
 
 namespace SMS.Api.Models;
 
+[MultiTenant]
 public class School
 {
     [Key]

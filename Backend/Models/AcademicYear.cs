@@ -1,9 +1,11 @@
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Finbuckle.MultiTenant.EntityFrameworkCore;
 
 namespace SMS.Api.Models;
 
+[MultiTenant]
 [Table("academic_years")]
 public class AcademicYear
 {

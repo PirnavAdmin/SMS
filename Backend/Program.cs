@@ -34,18 +34,36 @@ builder.Services.AddCors(options =>
         policy.AllowAnyOrigin()
               .AllowAnyHeader()
               .AllowAnyMethod()
-              .WithExposedHeaders("Content-Disposition", "X-Branch-Id", "X-Academic-Year-Id", "X-User-Role");
+              .WithExposedHeaders("Content-Disposition", "X-Branch-Id", "X-Academic-Year-Id", "X-User-Role", "X-Tenant-ID");
     });
 });
 
 // =========================================================
-// 1. DATABASE CONNECTION
+// 1. DATABASE CONNECTION & MULTI-TENANCY CONFIGURATION
 // =========================================================
 
 var connectionString =
     builder.Configuration.GetConnectionString("DefaultConnection")
     ?? throw new InvalidOperationException(
         "Connection string 'DefaultConnection' not found.");
+
+// Tenant Store Database Context
+builder.Services.AddDbContext<TenantStoreDbContext>(options =>
+    options.UseMySql(
+        connectionString,
+        new MySqlServerVersion(new Version(8, 0, 30)),
+        mysqlOptions => mysqlOptions
+            .EnableRetryOnFailure(
+                maxRetryCount: 5,
+                maxRetryDelay: TimeSpan.FromSeconds(10),
+                errorNumbersToAdd: null)
+            .UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery)));
+
+// Finbuckle Multi-Tenant Configuration
+builder.Services.AddMultiTenant<AppTenantInfo>()
+    .WithHostStrategy("__tenant__.*")
+    .WithHeaderStrategy("X-Tenant-ID")
+    .WithEFCoreStore<TenantStoreDbContext, AppTenantInfo>();
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseMySql(
@@ -317,6 +335,11 @@ app.UseForwardedHeaders(new ForwardedHeadersOptions
 });
 
 app.UseCors();
+
+// Multi-Tenancy Resolution and Inactive Tenant Blocking
+app.UseMultiTenant();
+app.UseMiddleware<TenantActiveValidationMiddleware>();
+
 app.UseMiddleware<ExceptionMiddleware>();
 
 // Enable Static Files (for uploads, branding logos, and documents)
@@ -409,6 +432,33 @@ using (var scope = app.Services.CreateScope())
 
         if (isDbReachable)
         {
+            // Ensure Tenant Store and Default Tenant are Created
+            try
+            {
+                var tenantStore = services.GetRequiredService<TenantStoreDbContext>();
+                tenantStore.Database.EnsureCreated();
+                if (!tenantStore.AppTenants.Any())
+                {
+                    tenantStore.AppTenants.Add(new AppTenantInfo
+                    {
+                        Id = "tenant-default",
+                        Identifier = "default",
+                        Name = "Pirnav Educational Institutions",
+                        CompanyName = "Pirnav Educational Institutions",
+                        PrimaryColor = "#0284c7",
+                        LogoUrl = "/pirnav-school-logo.png",
+                        IsActive = true,
+                        CreatedAt = DateTime.UtcNow
+                    });
+                    tenantStore.SaveChanges();
+                }
+            }
+            catch (Exception ex)
+            {
+                var logger = services.GetRequiredService<ILogger<Program>>();
+                logger.LogWarning($"[TenantStore Setup] Warning during tenant initialization: {ex.Message}");
+            }
+
             // Ensure EF Core Database and Schema are Created
             try { context.Database.EnsureCreated(); } catch { }
 

@@ -388,3 +388,75 @@ export const savePackagesApi = async (packages: PackagePlan[]): Promise<PackageP
     return packages;
   }
 };
+
+// =========================================================
+// CLIENT COMPANY / MULTI-TENANT MANAGEMENT APIS
+// =========================================================
+
+export interface CompanyItem {
+  id: string;
+  identifier: string;
+  companyName: string;
+  primaryColor: string;
+  logoUrl: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt?: string;
+  usersCount?: number;
+}
+
+export interface CreateCompanyPayload {
+  identifier: string;
+  companyName: string;
+  primaryColor?: string;
+  logoUrl?: string;
+  isActive?: boolean;
+  adminEmail?: string;
+  adminPassword?: string;
+  adminFullName?: string;
+  adminMobile?: string;
+}
+
+export const fetchCompaniesApi = async (search?: string, isActive?: boolean): Promise<CompanyItem[]> => {
+  const params = new URLSearchParams();
+  if (search) params.append('search', search);
+  if (isActive !== undefined) params.append('isActive', String(isActive));
+  const query = params.toString() ? `?${params.toString()}` : '';
+
+  return apiClient<CompanyItem[]>(`/api/superadmin/companies${query}`, {
+    method: 'GET'
+  });
+};
+
+export const fetchCompanyByIdApi = async (id: string): Promise<CompanyItem> => {
+  return apiClient<CompanyItem>(`/api/superadmin/companies/${id}`, {
+    method: 'GET'
+  });
+};
+
+export const createCompanyApi = async (payload: CreateCompanyPayload): Promise<CompanyItem> => {
+  return apiClient<CompanyItem>('/api/superadmin/companies', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+};
+
+export const updateCompanyApi = async (id: string, payload: Partial<CreateCompanyPayload>): Promise<CompanyItem> => {
+  return apiClient<CompanyItem>(`/api/superadmin/companies/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload)
+  });
+};
+
+export const toggleCompanyStatusApi = async (id: string, isActive: boolean): Promise<CompanyItem> => {
+  return apiClient<CompanyItem>(`/api/superadmin/companies/${id}/toggle-status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ isActive })
+  });
+};
+
+export const deleteCompanyApi = async (id: string): Promise<void> => {
+  return apiClient<void>(`/api/superadmin/companies/${id}`, {
+    method: 'DELETE'
+  });
+};

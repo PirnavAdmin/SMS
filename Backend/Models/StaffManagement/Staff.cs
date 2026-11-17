@@ -4,8 +4,10 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Finbuckle.MultiTenant.EntityFrameworkCore;
 using SMS.Api.Models.AcademicManagement;
 
+[MultiTenant]
 [Table("staff")]
 public class Staff
 {

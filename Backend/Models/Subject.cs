@@ -1,10 +1,11 @@
 using SMS.Api.Models.AcademicManagement;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using Finbuckle.MultiTenant.EntityFrameworkCore;
 
 namespace SMS.Api.Models;
 
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-
+[MultiTenant]
 public class Subject
 {
     [Key]

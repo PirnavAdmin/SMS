@@ -1,10 +1,23 @@
 import { apiClient } from './client';
 
 export const loginApi = async (emailOrPhone: string, password?: string, portal?: string) => {
-  return apiClient('/api/auth/login', {
-    method: 'POST',
-    body: JSON.stringify({ emailOrPhone, password, portal })
-  });
+  const isSuperAdminPortal = portal === 'Super Admin' || portal === 'SuperAdmin';
+  const endpoint = isSuperAdminPortal ? '/api/superadmin/login' : '/api/auth/login';
+  try {
+    return await apiClient(endpoint, {
+      method: 'POST',
+      body: JSON.stringify({ emailOrPhone, password, portal })
+    });
+  } catch (err) {
+    if (isSuperAdminPortal) {
+      // Fallback to unified auth login
+      return await apiClient('/api/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ emailOrPhone, password, portal })
+      });
+    }
+    throw err;
+  }
 };
 
 export const sendOtpApi = async (emailOrPhone: string) => {

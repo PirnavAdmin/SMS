@@ -1,10 +1,12 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Collections.Generic;
+using Finbuckle.MultiTenant.EntityFrameworkCore;
 using SMS.Api.Models.AcademicManagement;
 
 namespace SMS.Api.Models;
 
+[MultiTenant]
 [Table("students")]
 public class Student
 {

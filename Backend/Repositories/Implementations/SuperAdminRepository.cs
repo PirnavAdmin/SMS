@@ -23,6 +23,7 @@ public class SuperAdminRepository : ISuperAdminRepository
     public async Task<List<School>> GetSchoolsAsync(string? search)
     {
         var query = _context.Schools
+            .IgnoreQueryFilters()
             .Include(s => s.Users)
             .AsQueryable();
 
@@ -38,6 +39,7 @@ public class SuperAdminRepository : ISuperAdminRepository
     public async Task<School?> GetSchoolByIdAsync(int schoolId)
     {
         return await _context.Schools
+            .IgnoreQueryFilters()
             .Include(s => s.Users)
             .FirstOrDefaultAsync(s => s.SchoolId == schoolId);
     }
@@ -45,6 +47,7 @@ public class SuperAdminRepository : ISuperAdminRepository
     public async Task<School?> GetSchoolByCodeAsync(string schoolCode)
     {
         return await _context.Schools
+            .IgnoreQueryFilters()
             .Include(s => s.Users)
             .FirstOrDefaultAsync(s => s.SchoolCode == schoolCode);
     }
@@ -64,6 +67,7 @@ public class SuperAdminRepository : ISuperAdminRepository
     public async Task<List<Admin>> GetAdminsAsync(string? search)
     {
         var query = _context.Admins
+            .IgnoreQueryFilters()
             .Include(a => a.School)
             .Include(a => a.Roles)
             .AsQueryable();
@@ -80,6 +84,7 @@ public class SuperAdminRepository : ISuperAdminRepository
     public async Task<Admin?> GetAdminByIdAsync(int adminId)
     {
         return await _context.Admins
+            .IgnoreQueryFilters()
             .Include(a => a.School)
             .Include(a => a.Roles)
             .FirstOrDefaultAsync(a => a.AdminId == adminId);
@@ -99,9 +104,9 @@ public class SuperAdminRepository : ISuperAdminRepository
     {
         if (excludeAdminId.HasValue)
         {
-            return await _context.Admins.AnyAsync(a => a.Email == email && a.AdminId != excludeAdminId.Value);
+            return await _context.Admins.IgnoreQueryFilters().AnyAsync(a => a.Email == email && a.AdminId != excludeAdminId.Value);
         }
-        return await _context.Admins.AnyAsync(a => a.Email == email);
+        return await _context.Admins.IgnoreQueryFilters().AnyAsync(a => a.Email == email);
     }
 
     // --- Super Admin Account Management ---
@@ -109,6 +114,7 @@ public class SuperAdminRepository : ISuperAdminRepository
     public async Task<int> GetSuperAdminCountAsync()
     {
         return await _context.Users
+            .IgnoreQueryFilters()
             .Include(u => u.Roles)
             .CountAsync(u => u.Role == "SuperAdmin" || u.Role == "Super Admin" || u.Roles.Any(r => r.RoleName == "SuperAdmin" || r.RoleName == "Super Admin"));
     }
@@ -117,7 +123,7 @@ public class SuperAdminRepository : ISuperAdminRepository
     {
         var cleanEmail = email.Trim().ToLower();
         var cleanMobile = mobileNumber.Trim();
-        return await _context.Users.AnyAsync(u => (u.Email != null && u.Email.ToLower() == cleanEmail) || u.MobileNumber == cleanMobile);
+        return await _context.Users.IgnoreQueryFilters().AnyAsync(u => (u.Email != null && u.Email.ToLower() == cleanEmail) || u.MobileNumber == cleanMobile);
     }
 
     public async Task AddUserAsync(User user)
@@ -131,7 +137,7 @@ public class SuperAdminRepository : ISuperAdminRepository
     {
         if (roleName == "Admin")
         {
-            var adminQuery = _context.Admins.AsQueryable();
+            var adminQuery = _context.Admins.IgnoreQueryFilters().AsQueryable();
             if (schoolId.HasValue)
             {
                 adminQuery = adminQuery.Where(a => a.SchoolId == schoolId.Value);
@@ -139,7 +145,7 @@ public class SuperAdminRepository : ISuperAdminRepository
             return await adminQuery.CountAsync();
         }
 
-        var query = _context.Users.AsQueryable();
+        var query = _context.Users.IgnoreQueryFilters().AsQueryable();
 
         if (schoolId.HasValue)
         {
@@ -152,8 +158,8 @@ public class SuperAdminRepository : ISuperAdminRepository
 
     public async Task<int> GetTotalUsersCountAsync(int? schoolId = null)
     {
-        var usersQuery = _context.Users.AsQueryable();
-        var adminsQuery = _context.Admins.AsQueryable();
+        var usersQuery = _context.Users.IgnoreQueryFilters().AsQueryable();
+        var adminsQuery = _context.Admins.IgnoreQueryFilters().AsQueryable();
 
         if (schoolId.HasValue)
         {
@@ -166,7 +172,7 @@ public class SuperAdminRepository : ISuperAdminRepository
 
     public async Task<List<KeyValuePair<string, int>>> GetSchoolGrowthMonthlyAsync()
     {
-        var schools = await _context.Schools.AsNoTracking().ToListAsync();
+        var schools = await _context.Schools.IgnoreQueryFilters().AsNoTracking().ToListAsync();
         
         // Group by month and year in memory to avoid translation failures
         return schools
@@ -179,7 +185,7 @@ public class SuperAdminRepository : ISuperAdminRepository
 
     public async Task<List<AuditLog>> GetAuditLogsAsync(int? schoolId = null, int limit = 100)
     {
-        var query = _context.AuditLogs.AsQueryable();
+        var query = _context.AuditLogs.IgnoreQueryFilters().AsQueryable();
 
         if (schoolId.HasValue)
         {
@@ -201,7 +207,7 @@ public class SuperAdminRepository : ISuperAdminRepository
 
     public async Task<List<SystemNotification>> GetNotificationsAsync(int? schoolId = null)
     {
-        var query = _context.SystemNotifications.AsQueryable();
+        var query = _context.SystemNotifications.IgnoreQueryFilters().AsQueryable();
 
         if (schoolId.HasValue)
         {

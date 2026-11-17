@@ -92,8 +92,8 @@ export const CustomerLoginModal: React.FC<CustomerLoginModalProps> = ({
   if (!isOpen || !school) return null;
 
   const loginPortalUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}/#login`
-    : `https://${school.schoolCode}.sms.portal`;
+    ? `${window.location.origin}/?tenant=${encodeURIComponent(school.schoolCode.toLowerCase())}`
+    : `https://${school.schoolCode.toLowerCase()}.sms.portal`;
 
   const handleGeneratePassword = (target: 'create' | 'reset') => {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%';

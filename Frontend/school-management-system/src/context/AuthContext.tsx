@@ -472,8 +472,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // If user attempted login via specific portal (e.g. Administrator Portal)
       if (chosenRole) {
         const targetRole = normalizeUserRole(chosenRole);
-        if (targetRole === 'Admin') {
-          if (!normalizedRoles.includes('Admin')) {
+        if (targetRole === 'Super Admin') {
+          if (!normalizedRoles.includes('Super Admin')) {
+            throw new Error('This account does not have Super Administrator privileges. Please sign in via the appropriate portal.');
+          }
+        } else if (targetRole === 'Admin') {
+          if (!normalizedRoles.includes('Admin') && !normalizedRoles.includes('Super Admin')) {
             throw new Error('This account does not have Administrator privileges. Please sign in via the appropriate portal.');
           }
         } else if (targetRole === 'Hostel Warden') {

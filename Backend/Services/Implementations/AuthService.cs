@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
+using Finbuckle.MultiTenant;
 using SMS.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using SMS.Api.Dtos.Auth;
@@ -24,17 +25,20 @@ namespace SMS.Api.Services.Implementations
         private readonly IAdminRepository _adminRepository;
         private readonly IConfiguration _config;
         private readonly AppDbContext _dbContext;
+        private readonly IMultiTenantContextAccessor<AppTenantInfo>? _tenantAccessor;
 
         public AuthService(
             IUserRepository userRepository,
             IAdminRepository adminRepository,
             IConfiguration config,
-            AppDbContext dbContext)
+            AppDbContext dbContext,
+            IMultiTenantContextAccessor<AppTenantInfo>? tenantAccessor = null)
         {
             _userRepository = userRepository;
             _adminRepository = adminRepository;
             _config = config;
             _dbContext = dbContext;
+            _tenantAccessor = tenantAccessor;
         }
 
         public async Task<AuthResponseDto> RegisterAsync(RegisterRequestDto dto)
@@ -96,6 +100,13 @@ namespace SMS.Api.Services.Implementations
             if (dto == null || string.IsNullOrWhiteSpace(dto.EmailOrPhone) || string.IsNullOrWhiteSpace(dto.Password))
             {
                 throw new AppException("Email/Mobile Number and Password are required.", HttpStatusCode.BadRequest);
+            }
+
+            // --- Multi-Tenant Security & Active Check ---
+            var currentTenant = _tenantAccessor?.MultiTenantContext?.TenantInfo;
+            if (currentTenant != null && !currentTenant.IsActive)
+            {
+                throw new AppException($"Client company '{currentTenant.CompanyName}' is currently deactivated. Please contact the platform Super Administrator.", HttpStatusCode.Forbidden);
             }
 
             var identifier = dto.EmailOrPhone.Trim();
@@ -672,9 +683,53 @@ namespace SMS.Api.Services.Implementations
                 return null;
             }
 
+            async Task<AuthResponseDto?> TrySuperAdminAsync()
+            {
+                var user = await _dbContext.Users
+                    .IgnoreQueryFilters()
+                    .Include(u => u.Roles)
+                    .FirstOrDefaultAsync(u =>
+                        (u.Email != null && u.Email.ToLower() == lower) ||
+                        u.MobileNumber == identifier ||
+                        (digitsOnly.Length >= 10 && u.MobileNumber != null && u.MobileNumber.EndsWith(digitsOnly))
+                    );
+
+                if (user != null)
+                {
+                    bool isSuperAdmin = user.Role == "SuperAdmin" || user.Role == "Super Admin" ||
+                                        user.Roles.Any(r => r.RoleName == "SuperAdmin" || r.RoleName == "Super Admin");
+
+                    if (isSuperAdmin && VerifyPassword(user.PasswordHash, dto.Password))
+                    {
+                        var saRoles = user.Roles.Select(r => r.RoleName).ToList();
+                        if (!saRoles.Contains("SuperAdmin")) saRoles.Add("SuperAdmin");
+                        if (!saRoles.Contains("Super Admin")) saRoles.Add("Super Admin");
+
+                        var token = GenerateJwtToken(user, saRoles);
+                        return new AuthResponseDto(
+                            user.UserId,
+                            user.FullName,
+                            token,
+                            saRoles,
+                            user.Email,
+                            user.MobileNumber,
+                            user.Avatar,
+                            string.Empty
+                        );
+                    }
+                }
+                return null;
+            }
+
             AuthResponseDto? result = null;
 
-            if (string.Equals(portal, "Admin", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(portal, "SuperAdmin", StringComparison.OrdinalIgnoreCase) || string.Equals(portal, "Super Admin", StringComparison.OrdinalIgnoreCase))
+            {
+                result = await TrySuperAdminAsync();
+                if (result == null)
+                    throw new AppException("Invalid email/mobile number or password.", HttpStatusCode.Unauthorized);
+            }
+            else if (string.Equals(portal, "Admin", StringComparison.OrdinalIgnoreCase))
             {
                 result = await TryAdminAsync();
                 if (result == null)
@@ -724,6 +779,12 @@ namespace SMS.Api.Services.Implementations
             }
 
             // Fallback for generic login (when no portal was specified)
+            if (result == null)
+            {
+                // 0. Check if user is a root Super Admin across all tenants
+                result = await TrySuperAdminAsync();
+            }
+
             if (result == null)
             {
                 // 1. Direct check in Users table by immutable email/mobile
@@ -937,6 +998,18 @@ namespace SMS.Api.Services.Implementations
             if (user.SchoolId.HasValue)
                 claims.Add(new Claim("schoolId", user.SchoolId.Value.ToString()));
 
+            var currentTenant = _tenantAccessor?.MultiTenantContext?.TenantInfo;
+            var effectiveTenantId = user.TenantId ?? currentTenant?.Id;
+            if (!string.IsNullOrEmpty(effectiveTenantId))
+            {
+                claims.Add(new Claim("TenantId", effectiveTenantId));
+                claims.Add(new Claim("tenant", effectiveTenantId));
+            }
+            if (currentTenant != null && !string.IsNullOrEmpty(currentTenant.Identifier))
+            {
+                claims.Add(new Claim("tenant_slug", currentTenant.Identifier));
+            }
+
             if (staffId.HasValue && staffId.Value > 0)
             {
                 claims.Add(new Claim("StaffId", staffId.Value.ToString()));
@@ -986,6 +1059,18 @@ namespace SMS.Api.Services.Implementations
 
             if (admin.SchoolId.HasValue)
                 claims.Add(new Claim("schoolId", admin.SchoolId.Value.ToString()));
+
+            var currentTenant = _tenantAccessor?.MultiTenantContext?.TenantInfo;
+            var effectiveTenantId = admin.TenantId ?? currentTenant?.Id;
+            if (!string.IsNullOrEmpty(effectiveTenantId))
+            {
+                claims.Add(new Claim("TenantId", effectiveTenantId));
+                claims.Add(new Claim("tenant", effectiveTenantId));
+            }
+            if (currentTenant != null && !string.IsNullOrEmpty(currentTenant.Identifier))
+            {
+                claims.Add(new Claim("tenant_slug", currentTenant.Identifier));
+            }
 
             foreach (var role in roles)
             {

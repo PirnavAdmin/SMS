@@ -1,3 +1,5 @@
+using Finbuckle.MultiTenant;
+using Finbuckle.MultiTenant.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using SMS.Api.Models;
 using SMS.Api.Models.AcademicManagement;
@@ -5,9 +7,15 @@ using SMS.Api.Models.Examination;
 
 namespace SMS.Api.Data
 {
-    public class AppDbContext : DbContext
+    public class AppDbContext : MultiTenantDbContext
     {
-        public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
+        public AppDbContext(IMultiTenantContextAccessor multiTenantContextAccessor, DbContextOptions<AppDbContext> options)
+            : base(multiTenantContextAccessor, options)
+        {
+        }
+
+        public AppDbContext(DbContextOptions<AppDbContext> options)
+            : base(options)
         {
         }
 

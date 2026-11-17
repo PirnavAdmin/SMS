@@ -10,12 +10,14 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
+using SMS.Api.Data;
 using SMS.Api.Dtos;
 using SMS.Api.Dtos.Auth;
 using SMS.Api.Exceptions;
 using SMS.Api.Models;
 using SMS.Api.Repositories.Interfaces;
 using SMS.Api.Services.Interfaces;
+using Microsoft.EntityFrameworkCore;
 
 namespace SMS.Api.Services.Implementations;
 
@@ -24,15 +26,18 @@ public class SuperAdminService : ISuperAdminService
     private readonly ISuperAdminRepository _saRepository;
     private readonly IUserRepository _userRepository;
     private readonly IConfiguration _config;
+    private readonly TenantStoreDbContext? _tenantStore;
 
     public SuperAdminService(
         ISuperAdminRepository saRepository,
         IUserRepository userRepository,
-        IConfiguration config)
+        IConfiguration config,
+        TenantStoreDbContext? tenantStore = null)
     {
         _saRepository = saRepository;
         _userRepository = userRepository;
         _config = config;
+        _tenantStore = tenantStore;
     }
 
     // --- Authentication & Super Admin Account Management ---
@@ -285,6 +290,27 @@ public class SuperAdminService : ISuperAdminService
         await _saRepository.AddSchoolAsync(school);
         await _saRepository.SaveChangesAsync();
 
+        if (_tenantStore != null)
+        {
+            try
+            {
+                var cleanSlug = dto.SchoolCode.Trim().ToLower();
+                var tenant = new AppTenantInfo
+                {
+                    Id = Guid.NewGuid().ToString("N"),
+                    Identifier = cleanSlug,
+                    Name = school.SchoolName,
+                    CompanyName = school.SchoolName,
+                    PrimaryColor = "#0284c7",
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow
+                };
+                await _tenantStore.AppTenants.AddAsync(tenant);
+                await _tenantStore.SaveChangesAsync();
+            }
+            catch { }
+        }
+
         var adminUser = await _userRepository.GetByIdAsync(requestedByUserId);
         await LogActivityAsync(requestedByUserId, adminUser?.FullName ?? "SuperAdmin", "SuperAdmin", "Create School", $"Created school: {school.SchoolName} ({school.SchoolCode})");
 
@@ -329,6 +355,28 @@ public class SuperAdminService : ISuperAdminService
         await _saRepository.AddSchoolAsync(school);
         await _saRepository.SaveChangesAsync();
 
+        string? tenantId = null;
+        if (_tenantStore != null)
+        {
+            try
+            {
+                tenantId = Guid.NewGuid().ToString("N");
+                var tenant = new AppTenantInfo
+                {
+                    Id = tenantId,
+                    Identifier = cleanCode,
+                    Name = school.SchoolName,
+                    CompanyName = school.SchoolName,
+                    PrimaryColor = "#0284c7",
+                    IsActive = school.Status == "Active",
+                    CreatedAt = DateTime.UtcNow
+                };
+                await _tenantStore.AppTenants.AddAsync(tenant);
+                await _tenantStore.SaveChangesAsync();
+            }
+            catch { }
+        }
+
         // 2. Create School Admin Entity
         var adminRole = await _saRepository.GetRoleByNameAsync("Admin")
             ?? throw new AppException("Role 'Admin' not configured in DB.", HttpStatusCode.InternalServerError);
@@ -345,6 +393,7 @@ public class SuperAdminService : ISuperAdminService
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
             Role = "Admin",
             SchoolId = school.SchoolId,
+            TenantId = tenantId,
             IsEmailVerified = true,
             IsMobileVerified = true,
             CreatedAt = DateTime.UtcNow
@@ -444,6 +493,21 @@ public class SuperAdminService : ISuperAdminService
         _saRepository.DeleteSchool(school);
         await _saRepository.SaveChangesAsync();
 
+        if (_tenantStore != null)
+        {
+            try
+            {
+                var sCode = school.SchoolCode.Trim().ToLower();
+                var tenant = await _tenantStore.AppTenants.FirstOrDefaultAsync(t => t.Identifier.ToLower() == sCode || t.Name == school.SchoolName);
+                if (tenant != null)
+                {
+                    _tenantStore.AppTenants.Remove(tenant);
+                    await _tenantStore.SaveChangesAsync();
+                }
+            }
+            catch { }
+        }
+
         var adminUser = await _userRepository.GetByIdAsync(requestedByUserId);
         await LogActivityAsync(requestedByUserId, adminUser?.FullName ?? "SuperAdmin", "SuperAdmin", "Delete School", $"Deleted school: {school.SchoolName}");
     }
@@ -457,6 +521,22 @@ public class SuperAdminService : ISuperAdminService
         school.UpdatedAt = DateTime.UtcNow;
 
         await _saRepository.SaveChangesAsync();
+
+        if (_tenantStore != null)
+        {
+            try
+            {
+                var sCode = school.SchoolCode.Trim().ToLower();
+                var tenant = await _tenantStore.AppTenants.FirstOrDefaultAsync(t => t.Identifier.ToLower() == sCode || t.Name == school.SchoolName);
+                if (tenant != null)
+                {
+                    tenant.IsActive = (status == "Active");
+                    tenant.UpdatedAt = DateTime.UtcNow;
+                    await _tenantStore.SaveChangesAsync();
+                }
+            }
+            catch { }
+        }
 
         var adminUser = await _userRepository.GetByIdAsync(requestedByUserId);
         await LogActivityAsync(requestedByUserId, adminUser?.FullName ?? "SuperAdmin", "SuperAdmin", "Toggle School Status", $"Toggled school: {school.SchoolName} to {status}");
@@ -520,6 +600,29 @@ public class SuperAdminService : ISuperAdminService
         var adminRole = await _saRepository.GetRoleByNameAsync("Admin")
             ?? throw new AppException("Role 'Admin' not configured in DB.", HttpStatusCode.InternalServerError);
 
+        string? tenantId = null;
+        if (_tenantStore != null)
+        {
+            var sCode = school.SchoolCode.Trim().ToLower();
+            var tenant = await _tenantStore.AppTenants.FirstOrDefaultAsync(t => t.Identifier.ToLower() == sCode || t.Name == school.SchoolName);
+            if (tenant == null)
+            {
+                tenant = new AppTenantInfo
+                {
+                    Id = Guid.NewGuid().ToString("N"),
+                    Identifier = sCode,
+                    Name = school.SchoolName,
+                    CompanyName = school.SchoolName,
+                    PrimaryColor = "#0284c7",
+                    IsActive = school.Status == "Active",
+                    CreatedAt = DateTime.UtcNow
+                };
+                await _tenantStore.AppTenants.AddAsync(tenant);
+                await _tenantStore.SaveChangesAsync();
+            }
+            tenantId = tenant.Id;
+        }
+
         var admin = new Admin
         {
             FullName = dto.FullName.Trim(),
@@ -528,6 +631,7 @@ public class SuperAdminService : ISuperAdminService
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
             Role = "Admin",
             SchoolId = school.SchoolId,
+            TenantId = tenantId,
             IsEmailVerified = true,
             IsMobileVerified = true,
             CreatedAt = DateTime.UtcNow

@@ -1,9 +1,11 @@
 using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Finbuckle.MultiTenant.EntityFrameworkCore;
 
 namespace SMS.Api.Models;
 
+[MultiTenant]
 [Table("admissions")]
 public class Admission
 {

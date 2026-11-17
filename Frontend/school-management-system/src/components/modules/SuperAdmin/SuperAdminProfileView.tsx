@@ -35,12 +35,12 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 
   const [profileForm, setProfileForm] = useState({
-    name: user?.name || 'Gokul Vasantha',
-    email: user?.email || 'superadmin@gmail.com',
-    phone: user?.phone || '9876543210',
+    name: user?.name || '',
+    email: user?.email || '',
+    phone: user?.phone || '',
     avatar: user?.avatar || '',
     designation: 'Master SaaS Administrator / Platform Owner',
-    organization: 'Pirnav Educational Systems',
+    organization: 'Multi-Tenant SaaS Portal',
     timezone: '(GMT+05:30) Asia/Kolkata (IST)',
     language: 'English',
   });
@@ -75,7 +75,7 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
     const loadProfileData = async () => {
       try {
         const [profileRes, schools, pkgs] = await Promise.all([
-          fetchUserProfileApi(user?.email || 'superadmin@gmail.com').catch(() => null),
+          user?.email ? fetchUserProfileApi(user.email).catch(() => null) : Promise.resolve(null),
           fetchSchoolsApi().catch(() => []),
           fetchPackagesApi().catch(() => []),
         ]);

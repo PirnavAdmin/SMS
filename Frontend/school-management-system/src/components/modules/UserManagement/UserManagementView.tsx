@@ -330,7 +330,7 @@ export const UserManagementView: React.FC = () => {
                   <input
                     type="email"
                     required
-                    placeholder="superadmin@pirnavschools.com"
+                    placeholder="superadmin@example.com"
                     value={saForm.email}
                     onChange={(e) => setSaForm({ ...saForm, email: e.target.value })}
                     className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"

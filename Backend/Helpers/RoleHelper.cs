@@ -3,6 +3,7 @@ namespace SMS.Api.Helpers;
 public static class RoleHelper
 {
     public const string SuperAdmin = "SuperAdmin";
+    public const string CompanyAdmin = "CompanyAdmin";
     public const string Admin = "Admin";
     public const string Principal = "Principal";
     public const string Teacher = "Teacher";
@@ -24,6 +25,9 @@ public static class RoleHelper
 
         if (raw.Contains("superadmin") || raw.Contains("super admin") || raw.Contains("system owner"))
             return SuperAdmin;
+
+        if (raw.Contains("companyadmin") || raw.Contains("company admin") || raw.Contains("client admin") || raw.Contains("tenant admin"))
+            return CompanyAdmin;
 
         if (raw.Contains("admin") || raw.Contains("administrator"))
             return Admin;

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { installGlobalInputValidation } from "./utils/validation";
 import { hasModuleAccess } from "./utils/rbac";
+import { TenantProvider, useTenant } from "./context/TenantContext";
 import { ThemeProvider } from "./context/ThemeContext";
 import { ToastProvider } from "./context/ToastContext";
 import { AuthProvider, useAuth } from "./context/AuthContext";
@@ -929,21 +930,23 @@ export function App() {
 
   return (
     <ErrorBoundary>
-      <ThemeProvider>
-        <ToastProvider>
-          <AuthProvider>
-            <HostelProvider>
-              <ExaminationProvider>
-                <HRProvider>
-                  <DataProvider>
-                    <MainLayout />
-                  </DataProvider>
-                </HRProvider>
-              </ExaminationProvider>
-            </HostelProvider>
-          </AuthProvider>
-        </ToastProvider>
-      </ThemeProvider>
+      <TenantProvider>
+        <ThemeProvider>
+          <ToastProvider>
+            <AuthProvider>
+              <HostelProvider>
+                <ExaminationProvider>
+                  <HRProvider>
+                    <DataProvider>
+                      <MainLayout />
+                    </DataProvider>
+                  </HRProvider>
+                </ExaminationProvider>
+              </HostelProvider>
+            </AuthProvider>
+          </ToastProvider>
+        </ThemeProvider>
+      </TenantProvider>
     </ErrorBoundary>
   );
 }

@@ -197,7 +197,16 @@ export const SuperAdminDomainsView: React.FC = () => {
                         <span>{school.schoolName}</span>
                       </td>
                       <td className="p-4 font-mono text-slate-600 dark:text-slate-400">
-                        https://{school.schoolCode}.sms.portal
+                        <a
+                          href={`/?tenant=${encodeURIComponent(school.schoolCode.toLowerCase())}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="hover:text-amber-500 hover:underline inline-flex items-center gap-1.5"
+                          title="Open Company Portal"
+                        >
+                          <Globe className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <span>https://{school.schoolCode.toLowerCase()}.sms.portal</span>
+                        </a>
                       </td>
                       <td className="p-4">
                         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 border border-emerald-500/20">

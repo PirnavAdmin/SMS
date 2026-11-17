@@ -2,10 +2,13 @@ namespace SMS.Api.Models;
 
 using System;
 using System.Collections.Generic;
+using Finbuckle.MultiTenant.EntityFrameworkCore;
 
+[MultiTenant]
 public class User
 {
     public int UserId { get; set; }
+    public string? TenantId { get; set; }
     public string FullName { get; set; } = string.Empty;
     public string? Email { get; set; }
     public string MobileNumber { get; set; } = string.Empty;

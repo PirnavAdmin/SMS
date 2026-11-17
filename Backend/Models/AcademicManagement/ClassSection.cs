@@ -1,10 +1,12 @@
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Finbuckle.MultiTenant.EntityFrameworkCore;
 using SMS.Api.Models;
 
 namespace SMS.Api.Models.AcademicManagement
 {
+	[MultiTenant]
 	public class ClassSection
 	{
 		[Key]
