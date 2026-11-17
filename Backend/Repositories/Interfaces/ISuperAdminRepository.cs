@@ -38,6 +38,10 @@ public interface ISuperAdminRepository
     Task<List<SystemNotification>> GetNotificationsAsync(int? schoolId = null);
     Task AddNotificationAsync(SystemNotification notification);
 
+    // Platform Company Profile & Branding
+    Task<PlatformCompanyProfile> GetCompanyProfileAsync();
+    Task<PlatformCompanyProfile> UpdateCompanyProfileAsync(PlatformCompanyProfile profile);
+
     // Save Changes
     Task SaveChangesAsync();
 }

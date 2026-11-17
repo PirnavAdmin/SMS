@@ -300,5 +300,27 @@ namespace SMS.Api.Controllers
 
             return NoContent();
         }
+
+        // =========================================================
+        // 7. PLATFORM / SUPERADMIN COMPANY PROFILE ALIAS
+        // =========================================================
+        [HttpGet("~/api/superadmin/companies/profile")]
+        [AllowAnonymous]
+        public async Task<ActionResult<PlatformCompanyProfileDto>> GetCompanyProfileAlias([FromServices] SMS.Api.Services.Interfaces.ISuperAdminService saService)
+        {
+            var profile = await saService.GetCompanyProfileAsync();
+            return Ok(profile);
+        }
+
+        [HttpPut("~/api/superadmin/companies/profile")]
+        [HttpPost("~/api/superadmin/companies/profile")]
+        public async Task<ActionResult<PlatformCompanyProfileDto>> UpdateCompanyProfileAlias(
+            [FromBody] PlatformCompanyProfileDto dto,
+            [FromServices] SMS.Api.Services.Interfaces.ISuperAdminService saService)
+        {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+            var updated = await saService.UpdateCompanyProfileAsync(dto, null);
+            return Ok(updated);
+        }
     }
 }

@@ -287,3 +287,16 @@ public class PackagePlanDto
     public string Status { get; set; } = "Active";
     public List<string> Features { get; set; } = new();
 }
+
+public class PlatformCompanyProfileDto
+{
+    public int Id { get; set; } = 1;
+    public string CompanyName { get; set; } = "Main School";
+    public string Tagline { get; set; } = "Multi-Tenant Educational Cloud Infrastructure";
+    public string LogoUrl { get; set; } = string.Empty;
+    public string SupportEmail { get; set; } = string.Empty;
+    public string SupportPhone { get; set; } = string.Empty;
+    public string WebsiteUrl { get; set; } = string.Empty;
+    public string PrimaryColor { get; set; } = "#0284c7";
+    public DateTime? UpdatedAt { get; set; }
+}

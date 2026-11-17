@@ -976,4 +976,64 @@ public class SuperAdminService : ISuperAdminService
 
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
+
+    // --- Platform Company Profile & Branding ---
+
+    public async Task<PlatformCompanyProfileDto> GetCompanyProfileAsync()
+    {
+        var profile = await _saRepository.GetCompanyProfileAsync();
+        return new PlatformCompanyProfileDto
+        {
+            Id = profile.Id,
+            CompanyName = profile.CompanyName,
+            Tagline = profile.Tagline,
+            LogoUrl = profile.LogoUrl,
+            SupportEmail = profile.SupportEmail,
+            SupportPhone = profile.SupportPhone,
+            WebsiteUrl = profile.WebsiteUrl,
+            PrimaryColor = profile.PrimaryColor,
+            UpdatedAt = profile.UpdatedAt
+        };
+    }
+
+    public async Task<PlatformCompanyProfileDto> UpdateCompanyProfileAsync(PlatformCompanyProfileDto dto, int? requestedByUserId = null)
+    {
+        var model = new PlatformCompanyProfile
+        {
+            Id = dto.Id > 0 ? dto.Id : 1,
+            CompanyName = string.IsNullOrWhiteSpace(dto.CompanyName) ? "Main School" : dto.CompanyName.Trim(),
+            Tagline = dto.Tagline?.Trim() ?? string.Empty,
+            LogoUrl = dto.LogoUrl?.Trim() ?? string.Empty,
+            SupportEmail = dto.SupportEmail?.Trim() ?? string.Empty,
+            SupportPhone = dto.SupportPhone?.Trim() ?? string.Empty,
+            WebsiteUrl = dto.WebsiteUrl?.Trim() ?? string.Empty,
+            PrimaryColor = string.IsNullOrWhiteSpace(dto.PrimaryColor) ? "#0284c7" : dto.PrimaryColor.Trim(),
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        var updated = await _saRepository.UpdateCompanyProfileAsync(model);
+
+        if (requestedByUserId.HasValue && requestedByUserId.Value > 0)
+        {
+            try
+            {
+                var adminUser = await _userRepository.GetByIdAsync(requestedByUserId.Value);
+                await LogActivityAsync(requestedByUserId.Value, adminUser?.FullName ?? "SuperAdmin", "SuperAdmin", "Update Company Profile", $"Updated platform company branding: {updated.CompanyName}");
+            }
+            catch { }
+        }
+
+        return new PlatformCompanyProfileDto
+        {
+            Id = updated.Id,
+            CompanyName = updated.CompanyName,
+            Tagline = updated.Tagline,
+            LogoUrl = updated.LogoUrl,
+            SupportEmail = updated.SupportEmail,
+            SupportPhone = updated.SupportPhone,
+            WebsiteUrl = updated.WebsiteUrl,
+            PrimaryColor = updated.PrimaryColor,
+            UpdatedAt = updated.UpdatedAt
+        };
+    }
 }

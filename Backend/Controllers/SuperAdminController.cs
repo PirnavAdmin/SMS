@@ -306,6 +306,29 @@ public class SuperAdminController : ControllerBase
     }
 
     // =========================================================
+    // 6. PLATFORM COMPANY PROFILE & BRANDING
+    // =========================================================
+
+    [HttpGet("company-profile")]
+    [AllowAnonymous]
+    public async Task<ActionResult<PlatformCompanyProfileDto>> GetCompanyProfile()
+    {
+        var profile = await _saService.GetCompanyProfileAsync();
+        return Ok(profile);
+    }
+
+    [HttpPost("company-profile")]
+    [HttpPut("company-profile")]
+    [Authorize(Roles = "SuperAdmin,Super Admin")]
+    public async Task<ActionResult<PlatformCompanyProfileDto>> UpdateCompanyProfile([FromBody] PlatformCompanyProfileDto dto)
+    {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+        var userId = GetCurrentUserId();
+        var updated = await _saService.UpdateCompanyProfileAsync(dto, userId);
+        return Ok(updated);
+    }
+
+    // =========================================================
     // HELPER METHODS
     // =========================================================
 

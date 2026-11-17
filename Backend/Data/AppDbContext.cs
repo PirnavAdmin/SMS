@@ -39,6 +39,7 @@ namespace SMS.Api.Data
         public DbSet<Admin> Admins { get; set; } = null!;
         public DbSet<School> Schools { get; set; } = null!;
         public DbSet<SchoolSettings> SchoolSettings { get; set; } = null!;
+        public DbSet<PlatformCompanyProfile> PlatformCompanyProfiles { get; set; } = null!;
         public DbSet<AutomatedIdFormat> AutomatedIdFormats { get; set; } = null!;
         public DbSet<AuditLog> AuditLogs { get; set; } = null!;
         public DbSet<SystemNotification> SystemNotifications { get; set; } = null!;
@@ -265,6 +266,17 @@ namespace SMS.Api.Data
             ConfigureEmployeeAssessmentCandidate(modelBuilder);
             ConfigureParentStudentMapping(modelBuilder);
             ConfigureSchoolSettings(modelBuilder);
+            ConfigurePlatformCompanyProfile(modelBuilder);
+        }
+
+        private static void ConfigurePlatformCompanyProfile(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<PlatformCompanyProfile>(entity =>
+            {
+                entity.ToTable("platform_company_profile");
+                entity.HasKey(x => x.Id);
+                entity.Property(x => x.Id).ValueGeneratedOnAdd();
+            });
         }
 
         private static void ConfigureSchoolSettings(ModelBuilder modelBuilder)

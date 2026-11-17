@@ -43,4 +43,8 @@ public interface ISuperAdminService
     // Audit & Monitoring
     Task<List<AuditLogResponseDto>> GetAuditLogsAsync(int? schoolId = null, int limit = 100);
     Task<List<SystemNotificationResponseDto>> GetNotificationsAsync(int? schoolId = null);
+
+    // Platform Company Profile & Branding
+    Task<PlatformCompanyProfileDto> GetCompanyProfileAsync();
+    Task<PlatformCompanyProfileDto> UpdateCompanyProfileAsync(PlatformCompanyProfileDto dto, int? requestedByUserId = null);
 }

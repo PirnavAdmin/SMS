@@ -483,6 +483,25 @@ using (var scope = app.Services.CreateScope())
             // Ensure EF Core Database and Schema are Created
             try { context.Database.EnsureCreated(); } catch { }
 
+            try
+            {
+                context.Database.ExecuteSqlRaw(@"
+                    CREATE TABLE IF NOT EXISTS `platform_company_profile` (
+                        `Id` int NOT NULL AUTO_INCREMENT,
+                        `CompanyName` varchar(200) NOT NULL,
+                        `Tagline` varchar(300) NULL,
+                        `LogoUrl` longtext NULL,
+                        `SupportEmail` varchar(150) NULL,
+                        `SupportPhone` varchar(50) NULL,
+                        `WebsiteUrl` varchar(250) NULL,
+                        `PrimaryColor` varchar(30) NULL DEFAULT '#0284c7',
+                        `UpdatedAt` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+                        PRIMARY KEY (`Id`)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+                ");
+            }
+            catch { }
+
             // Dynamic Database Table Renaming & Schema Upgrades
             try
             {
