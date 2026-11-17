@@ -967,25 +967,23 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
     return <DashboardShimmer />;
   }  return (
     <div className="space-y-3 sm:space-y-3.5 animate-in fade-in">
-      {/* Welcome Banner with School Illustration (Transparent / No Background) */}
-      <div className="relative flex items-center justify-between text-slate-900 dark:text-white -mb-1">
-        {/* Left side: Greeting */}
-        <div className="relative z-10 text-left">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h1 className="text-base sm:text-lg font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-1.5">
-              <span>{greeting}, {displayUserName}!</span>
-              <span className="text-base inline-block hover:rotate-12 transition-transform select-none" role="img" aria-label="wave">👋</span>
-            </h1>
-            {isLibrarian && (
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-sky-100 text-sky-800 dark:bg-sky-950/80 dark:text-sky-300 border border-sky-300 dark:border-sky-800 flex items-center gap-1">
-                👁️ Librarian Overview
-              </span>
-            )}
-          </div>
+      {/* Welcome Banner with School Illustration (Left Middle Aligned Greeting) */}
+      <div className="relative flex items-center justify-between text-slate-900 dark:text-white -mt-1 sm:-mt-2 mb-0.5 min-h-[48px] sm:min-h-[54px]">
+        {/* Left side: Greeting (Left-aligned, vertically middle centered) */}
+        <div className="relative z-10 flex items-center gap-2 flex-wrap text-left">
+          <h1 className="text-base sm:text-lg md:text-xl font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-1.5">
+            <span>{greeting}, {displayUserName}!</span>
+            <span className="text-base sm:text-lg inline-block hover:rotate-12 transition-transform select-none" role="img" aria-label="wave">👋</span>
+          </h1>
+          {isLibrarian && (
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-sky-100 text-sky-800 dark:bg-sky-950/80 dark:text-sky-300 border border-sky-300 dark:border-sky-800 flex items-center gap-1">
+              👁️ Librarian Overview
+            </span>
+          )}
         </div>
 
         {/* Right side: School Building Graphic Illustration with Expanded Panorama Landscape */}
-        <div className="relative z-10 shrink-0 pointer-events-none select-none pl-3">
+        <div className="hidden sm:block relative z-10 shrink-0 pointer-events-none select-none pl-3">
           <svg className="w-36 sm:w-52 md:w-64 h-12 sm:h-14 md:h-16 overflow-visible" viewBox="0 0 280 110" fill="none" xmlns="http://www.w3.org/2000/svg">
             {/* Sun */}
             <circle cx="248" cy="20" r="14" fill="#FDE68A" opacity="0.85" />
@@ -1155,79 +1153,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
         </div>
       </div>
 
-      {/* Quick Actions Panel - iPhone Liquid Glass Style */}
-      <div className="glass-card border-primary-interactive p-3.5 sm:p-4 rounded-2xl flex flex-col gap-2.5 sm:gap-3 animate-in fade-in duration-300">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white tracking-tight">Quick Actions</h3>
-          </div>
-          <button 
-            onClick={() => onNavigate('events')} 
-            className="btn-glass-pill flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold text-sky-600 dark:text-sky-400 shrink-0 cursor-pointer active:scale-95"
-          >
-            <Calendar className="w-3.5 h-3.5 text-sky-500 stroke-[2.2]" />
-            <span>View Calendar</span>
-            <ArrowRight className="w-3 h-3 stroke-[2.5]" />
-          </button>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 sm:gap-2.5">
-          <button 
-            onClick={() => onNavigate('students')} 
-            className="btn-glass-pill flex flex-col sm:flex-row items-center justify-center gap-2 px-2.5 py-2 sm:py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 group active:scale-95 transition-all cursor-pointer min-w-0"
-          >
-            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-blue-500/12 text-blue-600 dark:text-blue-400 border border-blue-500/20 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-              <UserPlus className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.2]" />
-            </div>
-            <span className="truncate text-[11px] sm:text-xs">Add Student</span>
-          </button>
-          <button 
-            onClick={() => onNavigate('staff')} 
-            className="btn-glass-pill flex flex-col sm:flex-row items-center justify-center gap-2 px-2.5 py-2 sm:py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 group active:scale-95 transition-all cursor-pointer min-w-0"
-          >
-            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-emerald-500/12 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-              <UserPlus className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.2]" />
-            </div>
-            <span className="truncate text-[11px] sm:text-xs">Add Staff</span>
-          </button>
-          <button 
-            onClick={() => onNavigate('academics')} 
-            className="btn-glass-pill flex flex-col sm:flex-row items-center justify-center gap-2 px-2.5 py-2 sm:py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 group active:scale-95 transition-all cursor-pointer min-w-0"
-          >
-            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-amber-500/12 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-              <BookOpen className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.2]" />
-            </div>
-            <span className="truncate text-[11px] sm:text-xs">Create Class</span>
-          </button>
-          <button 
-            onClick={() => onNavigate('examination')} 
-            className="btn-glass-pill flex flex-col sm:flex-row items-center justify-center gap-2 px-2.5 py-2 sm:py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 group active:scale-95 transition-all cursor-pointer min-w-0"
-          >
-            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-rose-500/12 text-rose-600 dark:text-rose-400 border border-rose-500/20 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-              <ClipboardList className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.2]" />
-            </div>
-            <span className="truncate text-[11px] sm:text-xs">Create Exam</span>
-          </button>
-          <button 
-            onClick={() => onNavigate('attendance')} 
-            className="btn-glass-pill flex flex-col sm:flex-row items-center justify-center gap-2 px-2.5 py-2 sm:py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 group active:scale-95 transition-all cursor-pointer min-w-0"
-          >
-            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-indigo-500/12 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-              <UserCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.2]" />
-            </div>
-            <span className="truncate text-[11px] sm:text-xs">Attendance</span>
-          </button>
-          <button 
-            onClick={() => onNavigate('communication')} 
-            className="btn-glass-pill flex flex-col sm:flex-row items-center justify-center gap-2 px-2.5 py-2 sm:py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 group active:scale-95 transition-all cursor-pointer min-w-0"
-          >
-            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-purple-500/12 text-purple-600 dark:text-purple-400 border border-purple-500/20 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-              <Megaphone className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.2]" />
-            </div>
-            <span className="truncate text-[11px] sm:text-xs">Announcement</span>
-          </button>
-        </div>
-      </div>
-
       <div className="space-y-3 sm:space-y-3.5">
         {/* Top Row: Student Attendance, Staff Attendance, Events & Holidays */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-3.5">
@@ -1347,9 +1272,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
             <PendingApprovalsCard
               onNavigate={onNavigate}
               admissionsCount={summaryData ? summaryData.pendingAdmissions : pendingAdmissions.length}
-              staffCount={(staff || []).filter(s => s.profileStatus === 'Incomplete').length || 3}
+              staffCount={(staff || []).filter(s => s.profileStatus === 'Incomplete').length}
               leavesCount={pendingLeaves.length}
-              feeCount={summaryData?.pendingFeeConcessions ?? 1}
+              feeCount={summaryData?.pendingFeeConcessions ?? 0}
               isLibrarian={isLibrarian}
               className="h-[280px]"
             />
@@ -1424,6 +1349,79 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+
+        {/* Quick Actions Panel - Placed at the bottom */}
+        <div className="glass-card border-primary-interactive p-3.5 sm:p-4 rounded-2xl flex flex-col gap-2.5 sm:gap-3 animate-in fade-in duration-300">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm sm:text-base font-extrabold text-slate-900 dark:text-white tracking-tight">Quick Actions</h3>
+            </div>
+            <button 
+              onClick={() => onNavigate('events')} 
+              className="btn-glass-pill flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold text-sky-600 dark:text-sky-400 shrink-0 cursor-pointer active:scale-95"
+            >
+              <Calendar className="w-3.5 h-3.5 text-sky-500 stroke-[2.2]" />
+              <span>View Calendar</span>
+              <ArrowRight className="w-3 h-3 stroke-[2.5]" />
+            </button>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 sm:gap-2.5">
+            <button 
+              onClick={() => onNavigate('students')} 
+              className="btn-glass-pill flex flex-col sm:flex-row items-center justify-center gap-2 px-2.5 py-2 sm:py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 group active:scale-95 transition-all cursor-pointer min-w-0"
+            >
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-blue-500/12 text-blue-600 dark:text-blue-400 border border-blue-500/20 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                <UserPlus className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.2]" />
+              </div>
+              <span className="truncate text-[11px] sm:text-xs">Add Student</span>
+            </button>
+            <button 
+              onClick={() => onNavigate('staff')} 
+              className="btn-glass-pill flex flex-col sm:flex-row items-center justify-center gap-2 px-2.5 py-2 sm:py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 group active:scale-95 transition-all cursor-pointer min-w-0"
+            >
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-emerald-500/12 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                <UserPlus className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.2]" />
+              </div>
+              <span className="truncate text-[11px] sm:text-xs">Add Staff</span>
+            </button>
+            <button 
+              onClick={() => onNavigate('academics')} 
+              className="btn-glass-pill flex flex-col sm:flex-row items-center justify-center gap-2 px-2.5 py-2 sm:py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 group active:scale-95 transition-all cursor-pointer min-w-0"
+            >
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-amber-500/12 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                <BookOpen className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.2]" />
+              </div>
+              <span className="truncate text-[11px] sm:text-xs">Create Class</span>
+            </button>
+            <button 
+              onClick={() => onNavigate('examination')} 
+              className="btn-glass-pill flex flex-col sm:flex-row items-center justify-center gap-2 px-2.5 py-2 sm:py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 group active:scale-95 transition-all cursor-pointer min-w-0"
+            >
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-rose-500/12 text-rose-600 dark:text-rose-400 border border-rose-500/20 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                <ClipboardList className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.2]" />
+              </div>
+              <span className="truncate text-[11px] sm:text-xs">Create Exam</span>
+            </button>
+            <button 
+              onClick={() => onNavigate('attendance')} 
+              className="btn-glass-pill flex flex-col sm:flex-row items-center justify-center gap-2 px-2.5 py-2 sm:py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 group active:scale-95 transition-all cursor-pointer min-w-0"
+            >
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-indigo-500/12 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                <UserCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.2]" />
+              </div>
+              <span className="truncate text-[11px] sm:text-xs">Attendance</span>
+            </button>
+            <button 
+              onClick={() => onNavigate('communication')} 
+              className="btn-glass-pill flex flex-col sm:flex-row items-center justify-center gap-2 px-2.5 py-2 sm:py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 group active:scale-95 transition-all cursor-pointer min-w-0"
+            >
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-purple-500/12 text-purple-600 dark:text-purple-400 border border-purple-500/20 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                <Megaphone className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.2]" />
+              </div>
+              <span className="truncate text-[11px] sm:text-xs">Announcement</span>
+            </button>
           </div>
         </div>
       </div>

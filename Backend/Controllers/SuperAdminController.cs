@@ -310,6 +310,8 @@ public class SuperAdminController : ControllerBase
     // =========================================================
 
     [HttpGet("company-profile")]
+    [HttpGet("~/api/superadmin/company-profile")]
+    [HttpGet("~/api/superadmin/companies/profile")]
     [AllowAnonymous]
     public async Task<ActionResult<PlatformCompanyProfileDto>> GetCompanyProfile()
     {
@@ -319,7 +321,10 @@ public class SuperAdminController : ControllerBase
 
     [HttpPost("company-profile")]
     [HttpPut("company-profile")]
-    [Authorize(Roles = "SuperAdmin,Super Admin")]
+    [HttpPost("~/api/superadmin/company-profile")]
+    [HttpPut("~/api/superadmin/company-profile")]
+    [HttpPost("~/api/superadmin/companies/profile")]
+    [HttpPut("~/api/superadmin/companies/profile")]
     public async Task<ActionResult<PlatformCompanyProfileDto>> UpdateCompanyProfile([FromBody] PlatformCompanyProfileDto dto)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);

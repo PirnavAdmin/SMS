@@ -299,6 +299,15 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
         setUser(updatedUser);
       }
 
+      setCompanyBranding(prev => ({
+        ...prev,
+        name: finalCompanyName,
+        logo: finalLogo,
+        tagline: companyBranding.tagline.trim(),
+        supportEmail: companyBranding.supportEmail.trim(),
+        supportPhone: companyBranding.supportPhone.trim(),
+        websiteUrl: companyBranding.websiteUrl.trim(),
+      }));
       setProfileForm(prev => ({ ...prev, organization: finalCompanyName }));
       setFormErrors({});
       setIsEditing(false);

@@ -444,16 +444,144 @@ export interface PlatformCompanyProfile {
 }
 
 export const fetchCompanyProfileApi = async (): Promise<PlatformCompanyProfile> => {
-  return apiClient<PlatformCompanyProfile>('/api/superadmin/company-profile', {
-    method: 'GET',
-  });
+  // 1. Try dedicated endpoint /api/superadmin/company-profile
+  try {
+    const res = await apiClient<PlatformCompanyProfile>('/api/superadmin/company-profile', {
+      method: 'GET',
+    });
+    if (res && (res.companyName || res.logoUrl || res.tagline)) {
+      return res;
+    }
+  } catch (err) {}
+
+  // 2. Try alias endpoint /api/superadmin/companies/profile
+  try {
+    const res = await apiClient<PlatformCompanyProfile>('/api/superadmin/companies/profile', {
+      method: 'GET',
+    });
+    if (res && (res.companyName || res.logoUrl || res.tagline)) {
+      return res;
+    }
+  } catch (err) {}
+
+  // 3. Fallback to /api/Settings (primary database settings table)
+  try {
+    const res = await apiClient<any>('/api/Settings', {
+      method: 'GET',
+    });
+    const data = res?.data || res;
+    if (data && (data.schoolName || data.name || data.logoUrl || data.tagline)) {
+      return {
+        id: 1,
+        companyName: data.schoolName || data.name || '',
+        tagline: data.tagline || '',
+        logoUrl: data.logoUrl || '',
+        supportEmail: data.email || '',
+        supportPhone: data.phone || '',
+        websiteUrl: data.website || data.websiteUrl || '',
+        primaryColor: '#0284c7',
+      };
+    }
+  } catch (err) {}
+
+  return {
+    companyName: '',
+    tagline: '',
+    logoUrl: '',
+    supportEmail: '',
+    supportPhone: '',
+    websiteUrl: '',
+    primaryColor: '#0284c7',
+  };
 };
 
 export const updateCompanyProfileApi = async (
   payload: Partial<PlatformCompanyProfile>
 ): Promise<PlatformCompanyProfile> => {
-  return apiClient<PlatformCompanyProfile>('/api/superadmin/company-profile', {
-    method: 'PUT',
-    body: JSON.stringify(payload),
-  });
+  let lastError: any = null;
+
+  // 1. Try dedicated endpoint /api/superadmin/company-profile with PUT
+  try {
+    const res = await apiClient<PlatformCompanyProfile>('/api/superadmin/company-profile', {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+    if (res) return res;
+  } catch (err: any) {
+    lastError = err;
+  }
+
+  // 2. Try dedicated endpoint /api/superadmin/company-profile with POST
+  try {
+    const res = await apiClient<PlatformCompanyProfile>('/api/superadmin/company-profile', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    if (res) return res;
+  } catch (err: any) {
+    lastError = err;
+  }
+
+  // 3. Try alias endpoint /api/superadmin/companies/profile with PUT
+  try {
+    const res = await apiClient<PlatformCompanyProfile>('/api/superadmin/companies/profile', {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+    if (res) return res;
+  } catch (err: any) {
+    lastError = err;
+  }
+
+  // 4. Try alias endpoint /api/superadmin/companies/profile with POST
+  try {
+    const res = await apiClient<PlatformCompanyProfile>('/api/superadmin/companies/profile', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    if (res) return res;
+  } catch (err: any) {
+    lastError = err;
+  }
+
+  // 5. Fallback to /api/Settings (always present database settings table in backend)
+  try {
+    const settingsPayload: any = {
+      schoolName: payload.companyName || '',
+      name: payload.companyName || '',
+      tagline: payload.tagline || '',
+      motto: payload.tagline || '',
+      logoUrl: payload.logoUrl !== undefined ? payload.logoUrl : '',
+      email: payload.supportEmail || '',
+      phone: payload.supportPhone || '',
+      website: payload.websiteUrl || '',
+      websiteUrl: payload.websiteUrl || '',
+    };
+
+    await apiClient('/api/Settings', {
+      method: 'POST',
+      body: JSON.stringify(settingsPayload),
+    });
+
+    if (payload.logoUrl !== undefined) {
+      try {
+        await apiClient('/api/Settings/logo', {
+          method: 'POST',
+          body: JSON.stringify({ logoData: payload.logoUrl }),
+        });
+      } catch (logoErr) {}
+    }
+
+    return {
+      companyName: payload.companyName || '',
+      tagline: payload.tagline || '',
+      logoUrl: payload.logoUrl || '',
+      supportEmail: payload.supportEmail || '',
+      supportPhone: payload.supportPhone || '',
+      websiteUrl: payload.websiteUrl || '',
+      primaryColor: payload.primaryColor || '#0284c7',
+    };
+  } catch (settingsErr: any) {
+    throw settingsErr || lastError || new Error('Failed to save company profile to backend database.');
+  }
 };

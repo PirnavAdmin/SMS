@@ -69,9 +69,12 @@ export const getLocalUserProfile = (userKey?: string): UserProfileData | null =>
   return null;
 };
 
-// Save user-scoped profile to local storage
+// Save user-scoped profile to local storage (Super Admin excluded per strict no-localStorage mandate)
 export const saveLocalUserProfile = (profileData: Partial<UserProfileData>, userKey?: string): void => {
   const key = getActiveUserKey(userKey || profileData.email);
+  if (profileData.role === 'Super Admin' || key.includes('superadmin')) {
+    return;
+  }
   try {
     const existing = getLocalUserProfile(key) || {
       name: '',

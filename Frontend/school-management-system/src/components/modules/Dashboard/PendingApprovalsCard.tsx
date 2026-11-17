@@ -25,10 +25,10 @@ export const PendingApprovalsCard: React.FC<PendingApprovalsCardProps> = ({
   const total = admissionsCount + staffCount + leavesCount + feeCount;
 
   // Percentage calculations
-  const admissionsPct = total > 0 ? Math.round((admissionsCount / total) * 100) : 25;
-  const staffPct = total > 0 ? Math.round((staffCount / total) * 100) : 25;
-  const leavesPct = total > 0 ? Math.round((leavesCount / total) * 100) : 25;
-  const feePct = total > 0 ? Math.max(0, 100 - admissionsPct - staffPct - leavesPct) : 25;
+  const admissionsPct = total > 0 ? Math.round((admissionsCount / total) * 100) : 0;
+  const staffPct = total > 0 ? Math.round((staffCount / total) * 100) : 0;
+  const leavesPct = total > 0 ? Math.round((leavesCount / total) * 100) : 0;
+  const feePct = total > 0 ? Math.max(0, 100 - admissionsPct - staffPct - leavesPct) : 0;
 
   const formatCount = (count: number): string => {
     return count < 10 && count >= 0 ? `0${count}` : `${count}`;
@@ -107,24 +107,28 @@ export const PendingApprovalsCard: React.FC<PendingApprovalsCardProps> = ({
 
       {/* 2. Top Multi-color Segmented Progress Bar */}
       <div className="w-full h-3 rounded-full overflow-hidden flex bg-slate-100 dark:bg-slate-800 my-1 shadow-inner p-0.5 gap-0.5">
-        {approvalItems.map((item, idx) => {
-          const isHovered = hoveredIndex === idx;
-          const segmentWidth = total > 0 ? (item.count > 0 ? Math.max(item.pct, 4) : 0) : 25;
-          if (segmentWidth === 0) return null;
+        {total === 0 ? (
+          <div className="w-full h-full rounded-full bg-slate-200/50 dark:bg-slate-700/50" title="No pending approvals" />
+        ) : (
+          approvalItems.map((item, idx) => {
+            const isHovered = hoveredIndex === idx;
+            const segmentWidth = item.count > 0 ? Math.max(item.pct, 4) : 0;
+            if (segmentWidth === 0) return null;
 
-          return (
-            <div
-              key={item.key}
-              style={{ width: `${segmentWidth}%` }}
-              onMouseEnter={() => setHoveredIndex(idx)}
-              onMouseLeave={() => setHoveredIndex(null)}
-              className={`${item.bgClass} h-full first:rounded-l-full last:rounded-r-full transition-all duration-300 cursor-pointer ${
-                isHovered ? 'brightness-125 scale-y-110 shadow-xs' : ''
-              }`}
-              title={`${item.label}: ${item.count} (${item.pct}%)`}
-            />
-          );
-        })}
+            return (
+              <div
+                key={item.key}
+                style={{ width: `${segmentWidth}%` }}
+                onMouseEnter={() => setHoveredIndex(idx)}
+                onMouseLeave={() => setHoveredIndex(null)}
+                className={`${item.bgClass} h-full first:rounded-l-full last:rounded-r-full transition-all duration-300 cursor-pointer ${
+                  isHovered ? 'brightness-125 scale-y-110 shadow-xs' : ''
+                }`}
+                title={`${item.label}: ${item.count} (${item.pct}%)`}
+              />
+            );
+          })
+        )}
       </div>
 
       {/* 3. 2x2 Metric Grid with cross-dividers */}
