@@ -34,7 +34,8 @@ export interface DetectedTenantInfo {
  */
 export const detectTenant = (): DetectedTenantInfo => {
   if (typeof window === 'undefined') {
-    return { identifier: null, source: 'none' };
+    // Default to primary school tenant when accessing via raw IP, localhost, or unmapped domain
+  return { identifier: 'default', source: 'none' };
   }
 
   // 1. Query parameter override (e.g. http://localhost:5173/?tenant=alpha)
@@ -80,7 +81,8 @@ export const detectTenant = (): DetectedTenantInfo => {
     return { identifier: stored.trim().toLowerCase(), source: 'storage' };
   }
 
-  return { identifier: null, source: 'none' };
+  // Default to primary school tenant when accessing via raw IP, localhost, or unmapped domain
+  return { identifier: 'default', source: 'none' };
 };
 
 /**

@@ -6852,6 +6852,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const loadReleasedExamResultsFromDb = useCallback(async () => {
+    if (!isAuthenticated || !token) return;
     try {
       const res: any = await fetchReportCardsApi();
       const cards = res?.data || res;
