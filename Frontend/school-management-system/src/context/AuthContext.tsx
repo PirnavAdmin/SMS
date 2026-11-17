@@ -282,18 +282,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       try {
         const ayRes: any = await fetchAcademicYearsApi();
-        if (ayRes?.success && Array.isArray(ayRes.data) && ayRes.data.length > 0) {
+        const ayList = (ayRes?.success && Array.isArray(ayRes.data)) ? ayRes.data : (Array.isArray(ayRes) ? ayRes : []);
+        if (ayList.length > 0) {
           const storedYear = localStorage.getItem('selected_academic_year');
-          const active = ayRes.data.find((a: any) => a.isCurrentAcademicYear || a.status === 'Active') || ayRes.data[0];
+          const active = ayList.find((a: any) => a.isCurrentAcademicYear || a.status === 'Active') || ayList[0];
           const val = active?.academicYear || active?.year;
-          if (storedYear && ayRes.data.some((a: any) => (a.academicYear === storedYear || a.year === storedYear))) {
+          if (storedYear && ayList.some((a: any) => (a.academicYear === storedYear || a.year === storedYear))) {
             setSelectedAcademicYearState(storedYear);
           } else if (val) {
             setSelectedAcademicYearState(val);
             localStorage.setItem('selected_academic_year', val);
           }
+        } else {
+          setSelectedAcademicYearState('');
+          localStorage.removeItem('selected_academic_year');
         }
-      } catch {}
+      } catch {
+        setSelectedAcademicYearState('');
+        localStorage.removeItem('selected_academic_year');
+      }
     };
 
     handleSync();

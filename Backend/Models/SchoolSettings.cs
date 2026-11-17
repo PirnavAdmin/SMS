@@ -10,7 +10,8 @@ namespace SMS.Api.Models
     public class SchoolSettings
     {
         [Key]
-        public int Id { get; set; } = 1;
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        public int Id { get; set; }
 
         [MaxLength(250)]
         public string SchoolName { get; set; } = "Pirnav Educational Institutions";

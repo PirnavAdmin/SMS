@@ -336,6 +336,8 @@ export const Header: React.FC<HeaderProps> = ({
       if (current) {
         setSelectedAcademicYear(current.academicYear);
       }
+    } else if (ayOptions.length === 0 && selectedAcademicYear) {
+      setSelectedAcademicYear('');
     }
   }, [ayOptions, selectedAcademicYear, setSelectedAcademicYear]);
 
@@ -689,7 +691,7 @@ export const Header: React.FC<HeaderProps> = ({
                   </div>
                   <span className="text-slate-500 dark:text-slate-400 font-medium whitespace-nowrap hidden lg:inline">Academic Year:</span>
                   <span className="font-bold text-slate-900 dark:text-white whitespace-nowrap max-w-[75px] md:max-w-none truncate">
-                    {formatAYDisplay(selectedAcademicYear) || (ayOptions.length > 0 ? formatAYDisplay(ayOptions[0].academicYear) : "Select AY")}
+                    {ayOptions.length > 0 ? (formatAYDisplay(selectedAcademicYear) || formatAYDisplay(ayOptions[0].academicYear)) : "Select Academic Year"}
                   </span>
                   <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0 stroke-[2.2]" />
                 </button>
@@ -975,7 +977,7 @@ export const Header: React.FC<HeaderProps> = ({
                     <Calendar className="w-3.5 h-3.5 stroke-[2.2]" />
                   </div>
                   <span className="truncate font-bold text-slate-900 dark:text-white text-[11px]">
-                    {formatAYDisplay(selectedAcademicYear) || (ayOptions.length > 0 ? formatAYDisplay(ayOptions[0].academicYear) : "AY")}
+                    {ayOptions.length > 0 ? (formatAYDisplay(selectedAcademicYear) || formatAYDisplay(ayOptions[0].academicYear)) : "Select Academic Year"}
                   </span>
                 </div>
                 <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0 stroke-[2.2]" />

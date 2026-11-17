@@ -461,11 +461,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
       late = todayStudentAttendanceSummary.late;
       halfDay = todayStudentAttendanceSummary.halfDay;
     }
-    const total = present + absent + late + halfDay || (summaryData?.totalStudents || students.length || 1);
-    const presentPct = Math.round((present / total) * 100);
-    const latePct = Math.round((late / total) * 100);
-    const halfDayPct = Math.round((halfDay / total) * 100);
-    const absentPct = Math.max(0, 100 - presentPct - latePct - halfDayPct);
+    const rawTotal = present + absent + late + halfDay || (summaryData?.totalStudents ?? students.length ?? 0);
+    const total = rawTotal > 0 ? rawTotal : 0;
+    const presentPct = total > 0 ? Math.round((present / total) * 100) : 0;
+    const latePct = total > 0 ? Math.round((late / total) * 100) : 0;
+    const halfDayPct = total > 0 ? Math.round((halfDay / total) * 100) : 0;
+    const absentPct = total > 0 ? Math.max(0, 100 - presentPct - latePct - halfDayPct) : 0;
 
     return { 
       present, absent, late, halfDay, total, 
@@ -558,11 +559,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
       }
     });
 
-    const total = teachingStaff.length || 1;
-    const presentPct = Math.round((present / total) * 100);
-    const latePct = Math.round((late / total) * 100);
-    const halfDayPct = Math.round((halfDay / total) * 100);
-    const absentPct = Math.max(0, 100 - presentPct - latePct - halfDayPct);
+    const total = teachingStaff.length > 0 ? teachingStaff.length : 0;
+    const presentPct = total > 0 ? Math.round((present / total) * 100) : 0;
+    const latePct = total > 0 ? Math.round((late / total) * 100) : 0;
+    const halfDayPct = total > 0 ? Math.round((halfDay / total) * 100) : 0;
+    const absentPct = total > 0 ? Math.max(0, 100 - presentPct - latePct - halfDayPct) : 0;
 
     return { 
       present, absent, late, halfDay, total, 
@@ -636,11 +637,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
       }
     });
 
-    const total = nonTeachingStaff.length || 1;
-    const presentPct = Math.round((present / total) * 100);
-    const latePct = Math.round((late / total) * 100);
-    const halfDayPct = Math.round((halfDay / total) * 100);
-    const absentPct = Math.max(0, 100 - presentPct - latePct - halfDayPct);
+    const total = nonTeachingStaff.length > 0 ? nonTeachingStaff.length : 0;
+    const presentPct = total > 0 ? Math.round((present / total) * 100) : 0;
+    const latePct = total > 0 ? Math.round((late / total) * 100) : 0;
+    const halfDayPct = total > 0 ? Math.round((halfDay / total) * 100) : 0;
+    const absentPct = total > 0 ? Math.max(0, 100 - presentPct - latePct - halfDayPct) : 0;
 
     return { 
       present, absent, late, halfDay, total, 

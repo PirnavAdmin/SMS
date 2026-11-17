@@ -25,17 +25,34 @@ namespace SMS.Api.Repositories.Implementations.Settings
             var settings = await _context.SchoolSettings.FirstOrDefaultAsync();
             if (settings == null)
             {
+                var tenantIdentifier = _context.TenantInfo?.Identifier;
+                var tenantName = _context.TenantInfo?.Name ?? (_context.TenantInfo as AppTenantInfo)?.CompanyName;
+
+                School? school = null;
+                if (!string.IsNullOrEmpty(tenantIdentifier))
+                {
+                    school = await _context.Schools
+                        .IgnoreQueryFilters()
+                        .FirstOrDefaultAsync(s => s.SchoolCode.ToLower() == tenantIdentifier.ToLower());
+                }
+
+                if (school == null && !string.IsNullOrEmpty(tenantName))
+                {
+                    school = await _context.Schools
+                        .IgnoreQueryFilters()
+                        .FirstOrDefaultAsync(s => s.SchoolName.ToLower() == tenantName.ToLower());
+                }
+
                 settings = new SchoolSettings
                 {
-                    Id = 1,
-                    SchoolName = "Pirnav Educational Institutions",
-                    Tagline = "Empowering Minds, Shaping Tomorrow",
-                    Address = "Jain Sadguru Images Capital Park502B, Capital Pk Rd, VIP Hills, Madhapur, HITEC City, Hyderabad, Telangana 500081",
-                    Phone = "+91 9123456789",
-                    Email = "contact@pirnavschools.edu",
-                    Website = "https://pirnavschools.edu",
-                    PrincipalName = "Dr. Eleanor Vance",
-                    LogoUrl = "/pirnav-school-logo.png",
+                    SchoolName = school?.SchoolName ?? tenantName ?? "School Management System",
+                    Tagline = school != null ? $"{school.SchoolName} - Empowering Education" : "Empowering Minds, Shaping Tomorrow",
+                    Address = school?.Address ?? "School Campus Address",
+                    Phone = school?.Phone ?? "+91 0000000000",
+                    Email = school?.Email ?? "admin@school.internal",
+                    Website = school?.Website ?? "",
+                    PrincipalName = school?.PrincipalName ?? "Principal",
+                    LogoUrl = "",
                     LogoFormat = "PNG",
                     CampusesJson = "[]",
                     CertificateTemplatesJson = "[]",

@@ -264,6 +264,17 @@ namespace SMS.Api.Data
             ConfigureFacultyTrainingParticipation(modelBuilder);
             ConfigureEmployeeAssessmentCandidate(modelBuilder);
             ConfigureParentStudentMapping(modelBuilder);
+            ConfigureSchoolSettings(modelBuilder);
+        }
+
+        private static void ConfigureSchoolSettings(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<SchoolSettings>(entity =>
+            {
+                entity.ToTable("SchoolSettings");
+                entity.HasKey(x => x.Id);
+                entity.Property(x => x.Id).ValueGeneratedOnAdd();
+            });
         }
 
         private static void ConfigureParentStudentMapping(ModelBuilder modelBuilder)
@@ -829,12 +840,12 @@ namespace SMS.Api.Data
         // Admission Application Configuration
         // =====================================================
 
-        private static void ConfigureAdmissionApplication(ModelBuilder modelBuilder)
+        private void ConfigureAdmissionApplication(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<AdmissionApplication>(entity =>
             {
                 entity.ToTable("admission_applications");
-                entity.HasQueryFilter(x => !x.IsDeleted);
+                entity.HasQueryFilter(x => !x.IsDeleted && (TenantInfo == null || EF.Property<string>(x, "TenantId") == TenantInfo.Id));
                 entity.HasOne(x => x.AppliedClass)
                     .WithMany(classGrade =>
                         classGrade.AdmissionApplications)
@@ -1420,7 +1431,7 @@ namespace SMS.Api.Data
                 entity.HasKey(x => x.Id);
             });
         }
-        private static void ConfigureAcademicYear(ModelBuilder modelBuilder)
+        private void ConfigureAcademicYear(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<AcademicYear>(entity =>
             {
@@ -1464,11 +1475,11 @@ namespace SMS.Api.Data
                 entity.HasIndex(x => x.AcademicYearName)
                     .IsUnique();
 
-                entity.HasQueryFilter(x => !x.IsDeleted);
+                entity.HasQueryFilter(x => !x.IsDeleted && (TenantInfo == null || EF.Property<string>(x, "TenantId") == TenantInfo.Id));
             });
         }
 
-        private static void ConfigureStudent(ModelBuilder modelBuilder)
+        private void ConfigureStudent(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<Student>(entity =>
             {
@@ -1619,7 +1630,7 @@ namespace SMS.Api.Data
                     .HasForeignKey(x => x.SectionId)
                     .OnDelete(DeleteBehavior.Restrict);
 
-                entity.HasQueryFilter(x => !x.IsDeleted);
+                entity.HasQueryFilter(x => !x.IsDeleted && (TenantInfo == null || EF.Property<string>(x, "TenantId") == TenantInfo.Id));
             });
         }
         private static void ConfigureStudentAttendanceSession(ModelBuilder modelBuilder)
