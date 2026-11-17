@@ -89,10 +89,41 @@ public class SchoolService : ISchoolService
 		if (string.IsNullOrWhiteSpace(dto.DepartmentName))
 			throw new InvalidOperationException("Department name is required.");
 
+		var deptName = dto.DepartmentName.Trim();
+		var deptCode = !string.IsNullOrWhiteSpace(dto.DepartmentCode)
+			? dto.DepartmentCode.Trim()
+			: $"DEPT-{deptName.Substring(0, Math.Min(4, deptName.Length)).ToUpper()}";
+
+		// 1. Check if department with exact code or name already exists
+		var existingByCode = await _schoolRepository.GetDepartmentByIdOrCodeAsync(deptCode);
+		if (existingByCode != null)
+		{
+			if (string.Equals(existingByCode.DepartmentName, deptName, StringComparison.OrdinalIgnoreCase))
+			{
+				return MapToDepartmentDto(existingByCode);
+			}
+
+			// Same code but different name -> auto-generate unique suffix
+			int counter = 2;
+			var uniqueCode = $"{deptCode}-{counter}";
+			while (await _schoolRepository.GetDepartmentByIdOrCodeAsync(uniqueCode) != null)
+			{
+				counter++;
+				uniqueCode = $"{deptCode}-{counter}";
+			}
+			deptCode = uniqueCode;
+		}
+
+		var existingByName = await _schoolRepository.GetDepartmentByIdOrCodeAsync(deptName);
+		if (existingByName != null)
+		{
+			return MapToDepartmentDto(existingByName);
+		}
+
 		var dept = new Department
 		{
-			DepartmentName = dto.DepartmentName.Trim(),
-			DepartmentCode = dto.DepartmentCode?.Trim(),
+			DepartmentName = deptName,
+			DepartmentCode = deptCode,
 			Description = dto.Description?.Trim(),
 			Status = string.IsNullOrWhiteSpace(dto.Status) ? "Active" : dto.Status.Trim(),
 			HeadOfDepartment = dto.HeadOfDepartment?.Trim(),
@@ -100,9 +131,23 @@ public class SchoolService : ISchoolService
 			CreatedDate = System.DateTime.UtcNow
 		};
 
-		await _schoolRepository.AddDepartmentAsync(dept);
-		await _schoolRepository.SaveChangesAsync();
-		return MapToDepartmentDto(dept);
+		try
+		{
+			await _schoolRepository.AddDepartmentAsync(dept);
+			await _schoolRepository.SaveChangesAsync();
+			return MapToDepartmentDto(dept);
+		}
+		catch (Microsoft.EntityFrameworkCore.DbUpdateException)
+		{
+			// In case of a concurrent race condition, recover gracefully with existing record
+			var fallback = await _schoolRepository.GetDepartmentByIdOrCodeAsync(deptCode)
+				?? await _schoolRepository.GetDepartmentByIdOrCodeAsync(deptName);
+			if (fallback != null)
+			{
+				return MapToDepartmentDto(fallback);
+			}
+			throw;
+		}
 	}
 
 	public async Task<DepartmentDto> UpdateDepartmentAsync(int id, CreateDepartmentDto dto)

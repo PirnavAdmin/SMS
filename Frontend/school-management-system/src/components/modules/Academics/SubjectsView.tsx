@@ -556,19 +556,6 @@ export const SubjectsView: React.FC = () => {
         status: deptFormData.status
       });
 
-      try {
-        await createDepartmentApi({
-          departmentName: name,
-          departmentCode: deptFormData.departmentCode.trim() || `DEPT-${name.substring(0, 3).toUpperCase()}`,
-          description: deptFormData.description.trim(),
-          category: deptFormData.category,
-          status: deptFormData.status
-        });
-        await loadDepartments();
-      } catch (err) {
-        // Error handling
-      }
-
       // Auto select newly created department in subject form if open
       if (isFormOpen) {
         setFormData(prev => ({ ...prev, department: created.departmentName }));

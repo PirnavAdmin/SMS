@@ -999,7 +999,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     setTempDiscountId("");
     setSelectedInstallments([]);
     setCustomCollectionAmounts({});
-    setPaymentMode("");
+    setPaymentMode("Cash");
     const freshLedger = getStudentFeeLedger(st.id, st, currentYear);
     updateCalculation(st.id, calculateStudentPayableFee(st.id), freshLedger);
   };
@@ -1038,12 +1038,68 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
 
           const sKey = String(parsed.studentId || parsed.admissionNo || '').trim().toLowerCase();
           const sName = String(parsed.studentName || '').trim().toLowerCase();
-          const matched = allEnrolledStudents.find((s) => {
+          let matched = allEnrolledStudents.find((s) => {
             const sid = String(s.id || '').trim().toLowerCase();
             const adm = String(s.admissionNo || '').trim().toLowerCase();
             const name = `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase();
             return (sKey && (sid === sKey || adm === sKey)) || (sName && (name === sName || name.includes(sName)));
           });
+
+          if (!matched) {
+            // Search admissions list regardless of status
+            const matchedAdm = (admissions || []).find((a) => {
+              if (!a) return false;
+              const aId = String(a.id || '').trim().toLowerCase();
+              const aApp = String(a.applicationNo || (a as any).applicationId || '').trim().toLowerCase();
+              const aReg = String(a.registrationNo || (a as any).registrationNumber || '').trim().toLowerCase();
+              const aAdm = String((a as any).admissionNo || (a as any).admissionNumber || '').trim().toLowerCase();
+              const aName = (a.applicantName || a.studentName || `${a.firstName || ''} ${a.lastName || ''}`).trim().toLowerCase();
+              return (sKey && (aId === sKey || aApp === sKey || aReg === sKey || aAdm === sKey)) || (sName && (aName === sName || aName.includes(sName)));
+            });
+
+            if (matchedAdm) {
+              const fullName = (matchedAdm.applicantName || matchedAdm.studentName || `${matchedAdm.firstName || ''} ${matchedAdm.lastName || ''}`).trim();
+              const nameParts = fullName.split(' ');
+              matched = {
+                id: String(matchedAdm.id || matchedAdm.applicationNo || parsed.studentId),
+                studentId: String(matchedAdm.registrationNo || matchedAdm.applicationNo || matchedAdm.id || parsed.studentId),
+                admissionNo: String((matchedAdm as any).admissionNo || matchedAdm.registrationNo || matchedAdm.applicationNo || parsed.admissionNo || parsed.studentId),
+                firstName: matchedAdm.firstName || nameParts[0] || 'Student',
+                lastName: matchedAdm.lastName || nameParts.slice(1).join(' ') || '',
+                className: matchedAdm.appliedClass || parsed.className || 'Nursery',
+                section: matchedAdm.section || 'A',
+                studentType: 'Hosteller',
+                residentialStatus: 'Residential',
+                hostelSharing: parsed.hostelSharing || matchedAdm.hostelSharing || 'Single',
+                hostelAc: parsed.hostelAc || matchedAdm.hostelAc || 'Non-AC',
+                status: 'Active',
+                dueFee: Number(parsed.amount) || 5000,
+                paidFee: 0,
+                totalFee: Number(parsed.amount) || 5000,
+              } as any;
+            } else if (parsed.studentName || parsed.studentId) {
+              const nameParts = String(parsed.studentName || 'Student').trim().split(' ');
+              matched = {
+                id: String(parsed.studentId || `ADM-${Date.now()}`),
+                studentId: String(parsed.studentId || `ADM-${Date.now()}`),
+                admissionNo: String(parsed.admissionNo || parsed.studentId || `ADM-${Date.now()}`),
+                firstName: nameParts[0] || 'Student',
+                lastName: nameParts.slice(1).join(' ') || '',
+                className: parsed.className || 'Nursery',
+                section: 'A',
+                studentType: 'Hosteller',
+                residentialStatus: 'Residential',
+                hostelSharing: parsed.hostelSharing || 'Single',
+                hostelAc: parsed.hostelAc || 'Non-AC',
+                status: 'Active',
+                dueFee: Number(parsed.amount) || 5000,
+                paidFee: 0,
+                totalFee: Number(parsed.amount) || 5000,
+                isApplicant: true,
+              } as any;
+            }
+          }
+
           if (matched) {
             const isHostelTarget =
               parsed.feeHead === "Hostel Security Deposit" ||
@@ -1063,6 +1119,10 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
               : matched;
 
             handleSelectStudent(studentWithResidential as any);
+
+            // Pre-select payment mode and ensure collection view is open
+            setPaymentMode("Cash");
+            setActiveTab("collection");
 
             // Only update student if status is not already Residential to avoid infinite update loops
             if (
@@ -1431,7 +1491,12 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
           (selectedStudent.admissionNo && (String(a.admissionNo) === String(selectedStudent.admissionNo) || String(a.applicationNo) === String(selectedStudent.admissionNo) || String(a.registrationNo) === String(selectedStudent.admissionNo)))
         );
         if (targetAdm && updateAdmission) {
-          updateAdmission(targetAdm.id, { hostelSecurityDepositPaid: true } as any);
+          updateAdmission(targetAdm.id, {
+            hostelSecurityDepositPaid: true,
+            securityDepositAmount: numericAmount,
+            securityDepositReceiptNo: receiptNumber,
+            paidFee: (targetAdm.paidFee || 0) + numericAmount,
+          } as any);
         }
 
         if (selectedStudent.id && updateStudent) {
@@ -1439,8 +1504,20 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
             hostelSecurityDepositPaid: true,
             studentType: "Hosteller",
             residentialStatus: "Residential",
+            paidFee: (selectedStudent.paidFee || 0) + numericAmount,
           } as any);
         }
+
+        try {
+          sessionStorage.setItem("last_paid_admission", JSON.stringify({
+            studentId: selectedStudent.id,
+            admissionNo: selectedStudent.admissionNo || selectedStudent.id,
+            studentName: `${selectedStudent.firstName} ${selectedStudent.lastName}`.trim(),
+            amountPaid: numericAmount,
+            receiptNo: receiptNumber,
+            date: new Date().toISOString(),
+          }));
+        } catch (e) {}
 
         setSelectedStudent((prev: any) => (prev ? { ...prev, hostelSecurityDepositPaid: true, studentType: "Hosteller", residentialStatus: "Residential" } : prev));
         sessionStorage.removeItem("edu_fee_pay_target");

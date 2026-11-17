@@ -375,6 +375,28 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     }
   }, [initialFormOpen]);
 
+  // Handle return from Fee Collection after successful payment
+  useEffect(() => {
+    try {
+      const stored = sessionStorage.getItem("last_paid_admission");
+      if (stored) {
+        sessionStorage.removeItem("last_paid_admission");
+        const parsed = JSON.parse(stored);
+        if (parsed.studentName || parsed.admissionNo) {
+          setFilterStatus("All");
+          setQuery(parsed.studentName || parsed.admissionNo);
+          setCurrentPage(1);
+          setIsFormView(false);
+          addToast(
+            "success",
+            "Payment Recorded",
+            `Received payment of ${formatCurrency(parsed.amountPaid)} (Receipt #${parsed.receiptNo}) for ${parsed.studentName}.`
+          );
+        }
+      }
+    } catch (e) {}
+  }, []);
+
   const handleCloseForm = () => {
     setIsFormView(false);
     setEditingApp(null);
@@ -1249,6 +1271,23 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       matched = eligibleConfigs[0];
     }
 
+    if (!matched && userSharing) {
+      // Fallback default config for chosen sharing if no explicit config found in Fee Setup
+      const isAcChosen = userAc === "ac" || (userAc.includes("ac") && !userAc.includes("non"));
+      const defaultHostelFee = isAcChosen ? 45000 : 35000;
+      matched = {
+        id: "default-fhc",
+        hostelName: "Campus Residence Block A",
+        roomTypeName: userSharing,
+        sharingType: userSharing,
+        acType: isAcChosen ? "AC" : "Non-AC",
+        feePlan: "Annual",
+        hostelFee: defaultHostelFee,
+        securityDeposit: 5000,
+        status: "Active",
+      } as any;
+    }
+
     return matched || null;
   }, [
     isResidentialStudent,
@@ -1260,6 +1299,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     formData.hostelAc,
     formData.acType,
     formData.hostelAcPreference,
+    formData.facilityPreference,
     formData.branch,
     formData.academicYear,
     selectedBranch,
@@ -1295,7 +1335,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     if (anyConfigWithDeposit) {
       return Number(anyConfigWithDeposit.securityDeposit);
     }
-    return 0;
+    return 5000;
   }, [
     isResidentialStudent,
     applicableHostelFeeConfig,
@@ -1345,13 +1385,13 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     );
   };
 
-  const handlePaySecurityDepositRedirect = () => {
+  const handlePaySecurityDepositRedirect = async () => {
     if (applicableSecurityDeposit <= 0) return;
     const applicantFullName =
       `${formData.firstName || ""} ${formData.lastName || ""}`.trim() ||
       formData.studentName ||
       "Student";
-    const studentIdentifier =
+    let studentIdentifier =
       formData.admissionNo ||
       formData.registrationNo ||
       formData.applicationNo ||
@@ -1361,20 +1401,19 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       studentId: studentIdentifier,
       admissionNo: studentIdentifier,
       studentName: applicantFullName,
-      className: formData.appliedClass || formData.className,
+      className: formData.appliedClass || formData.className || "Nursery",
       studentType: "Residential",
       residentialStatus: "Residential",
-      hostelSharing: formData.roomSharing || (formData as any).hostelSharing || formData.sharingType || "",
-      hostelAc: formData.facilityPreference || (formData as any).hostelAc || formData.acType || "",
+      hostelSharing: formData.roomSharing || (formData as any).hostelSharing || formData.sharingType || "Single",
+      hostelAc: formData.facilityPreference || (formData as any).hostelAc || formData.acType || "Non-AC",
       hostelBlock: formData.hostelBlock || "",
       feeHead: "Hostel Security Deposit",
       feeCategory: "Hostel Fee",
       amount: applicableSecurityDeposit,
       source: "admission_security_deposit",
     };
-    sessionStorage.setItem("edu_fee_pay_target", JSON.stringify(targetPayload));
 
-    // Update active admission with Residential and preferences
+    // Update active admission with Residential and preferences, or save draft if new
     if (editingApp && updateAdmission) {
       updateAdmission(editingApp.id, {
         studentType: "Residential",
@@ -1382,7 +1421,35 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
         hostelSharing: targetPayload.hostelSharing,
         hostelAc: targetPayload.hostelAc,
       } as any);
+    } else if (addAdmission) {
+      try {
+        const created: any = await addAdmission({
+          applicantName: applicantFullName,
+          studentName: applicantFullName,
+          appliedClass: formData.appliedClass || "Nursery",
+          studentType: "Residential",
+          residentialStatus: "Residential",
+          hostelSharing: targetPayload.hostelSharing,
+          hostelAc: targetPayload.hostelAc,
+          status: "Applied",
+          gender: formData.gender || "Male",
+          dob: formData.dob || "2020-01-01",
+          phone: formData.phone || formData.fatherPhone || "9876543210",
+          parentName: formData.parentName || formData.fatherName || "Parent",
+          admissionDate: formData.admissionDate || new Date().toISOString().split("T")[0],
+          branch: formData.branch || selectedBranch || "Main Campus",
+        } as any, { silent: true });
+        if (created) {
+          studentIdentifier = String(created.id || created.applicationNo || studentIdentifier);
+          targetPayload.studentId = studentIdentifier;
+          targetPayload.admissionNo = String(created.admissionNo || created.registrationNo || studentIdentifier);
+        }
+      } catch (err) {
+        console.warn("Could not pre-save draft admission", err);
+      }
     }
+
+    sessionStorage.setItem("edu_fee_pay_target", JSON.stringify(targetPayload));
 
     if (onNavigate) {
       onNavigate("fees");
@@ -1818,8 +1885,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       const isEnrolledA = stA === "enrolled" || stA === "admitted" || stA === "active";
       const isEnrolledB = stB === "enrolled" || stB === "admitted" || stB === "active";
 
-      // 1. Un-enrolled applications display FIRST
-      if (isEnrolledA !== isEnrolledB) {
+      // 1. Un-enrolled applications display FIRST (unless search query is active)
+      if (isEnrolledA !== isEnrolledB && !query) {
         return isEnrolledA ? 1 : -1;
       }
 
@@ -4809,9 +4876,60 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                           ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300"
                           : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300"
                       }`}>
-                        {applicableSecurityDeposit <= 0 ? "No Deposit Configured" : formData.hostelSecurityDepositPaid ? "✓ Deposit Paid" : "Payment Pending (Pay via Right Panel)"}
+                        {applicableSecurityDeposit <= 0 ? "No Deposit Configured" : formData.hostelSecurityDepositPaid ? `✓ Deposit Paid (${formData.securityDepositReceiptNo || "VERIFIED"})` : "Payment Pending"}
                       </span>
                     </div>
+
+                    {!formData.hostelSecurityDepositPaid && applicableSecurityDeposit > 0 && (
+                      <div className="p-3 bg-amber-50/80 dark:bg-amber-950/40 rounded-xl border border-amber-200 dark:border-amber-900/60 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-xs text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
+                            <CreditCard className="w-4 h-4 text-amber-600" />
+                            Direct Payment of Security Deposit ({formatCurrency(applicableSecurityDeposit)})
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                              Payment Mode
+                            </label>
+                            <select
+                              value={depositPaymentMode}
+                              onChange={(e) => setDepositPaymentMode(e.target.value)}
+                              className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-800 dark:text-slate-200 outline-none"
+                            >
+                              <option value="Cash">Cash</option>
+                              <option value="UPI">UPI</option>
+                              <option value="Card">Card</option>
+                              <option value="Net Banking">Net Banking</option>
+                              <option value="Cheque">Cheque</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                              Transaction / Ref ID (Optional)
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="e.g. UPI-12345"
+                              value={depositTxnId}
+                              onChange={(e) => setDepositTxnId(e.target.value)}
+                              className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-200 outline-none"
+                            />
+                          </div>
+                          <div className="flex items-end">
+                            <button
+                              type="button"
+                              onClick={handleConfirmSecurityDepositPayment}
+                              className="w-full py-1.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs shadow transition-all flex items-center justify-center gap-1 cursor-pointer"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              Record & Confirm Payment
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
                 {/* Financial Benefits Section */}
@@ -5468,6 +5586,20 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                       <span className="font-bold text-slate-700 dark:text-slate-300 block">
                         {formatStudentType(app.studentType)}
                       </span>
+                      {app.hostelSecurityDepositPaid ? (
+                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold block mt-0.5">
+                          ✓ Deposit Paid ({formatCurrency(app.securityDepositAmount || (app as any).paidFee || 5000)})
+                        </span>
+                      ) : (app.studentType === "Residential" || (app as any).studentType === "Hosteller") ? (
+                        <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium block mt-0.5">
+                          Deposit Pending
+                        </span>
+                      ) : null}
+                      {Number((app as any).paidFee || 0) > 0 && !app.hostelSecurityDepositPaid && (
+                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold block mt-0.5">
+                          Fee Paid: {formatCurrency(Number((app as any).paidFee))}
+                        </span>
+                      )}
                     </td>
                     <td className="py-3 px-4">
                       <p className="text-slate-800 dark:text-slate-200">

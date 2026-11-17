@@ -3281,6 +3281,42 @@ using (var scope = app.Services.CreateScope())
                     `UpdatedAt` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+                -- Ensure default standard hostel configurations exist if table is empty
+                INSERT INTO `hostel_fee_configs` 
+                (`HostelId`, `HostelName`, `RoomTypeId`, `RoomTypeName`, `RoomNo`, `AcType`, `SharingType`, `AcademicYear`, `Branch`, `FeePlan`, `HostelFee`, `SecurityDeposit`, `EffectiveFrom`, `Status`)
+                SELECT 'HST-1', 'Campus Residence Block A', 'RT-1', 'Single Sharing', 'All Rooms', 'Non-AC', 'Single', '2026-2027', 'All', 'Annual', 35000.00, 5000.00, '2026-06-01', 'Active'
+                FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `hostel_fee_configs` WHERE `SharingType` = 'Single' AND `AcType` = 'Non-AC');
+
+                INSERT INTO `hostel_fee_configs` 
+                (`HostelId`, `HostelName`, `RoomTypeId`, `RoomTypeName`, `RoomNo`, `AcType`, `SharingType`, `AcademicYear`, `Branch`, `FeePlan`, `HostelFee`, `SecurityDeposit`, `EffectiveFrom`, `Status`)
+                SELECT 'HST-1', 'Campus Residence Block A', 'RT-1', 'Single Sharing (AC)', 'All Rooms', 'AC', 'Single', '2026-2027', 'All', 'Annual', 45000.00, 5000.00, '2026-06-01', 'Active'
+                FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `hostel_fee_configs` WHERE `SharingType` = 'Single' AND `AcType` = 'AC');
+
+                INSERT INTO `hostel_fee_configs` 
+                (`HostelId`, `HostelName`, `RoomTypeId`, `RoomTypeName`, `RoomNo`, `AcType`, `SharingType`, `AcademicYear`, `Branch`, `FeePlan`, `HostelFee`, `SecurityDeposit`, `EffectiveFrom`, `Status`)
+                SELECT 'HST-1', 'Campus Residence Block A', 'RT-2', 'Two Sharing', 'All Rooms', 'Non-AC', 'Two Sharing', '2026-2027', 'All', 'Annual', 30000.00, 5000.00, '2026-06-01', 'Active'
+                FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `hostel_fee_configs` WHERE `SharingType` = 'Two Sharing' AND `AcType` = 'Non-AC');
+
+                INSERT INTO `hostel_fee_configs` 
+                (`HostelId`, `HostelName`, `RoomTypeId`, `RoomTypeName`, `RoomNo`, `AcType`, `SharingType`, `AcademicYear`, `Branch`, `FeePlan`, `HostelFee`, `SecurityDeposit`, `EffectiveFrom`, `Status`)
+                SELECT 'HST-1', 'Campus Residence Block A', 'RT-2', 'Two Sharing (AC)', 'All Rooms', 'AC', 'Two Sharing', '2026-2027', 'All', 'Annual', 40000.00, 5000.00, '2026-06-01', 'Active'
+                FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `hostel_fee_configs` WHERE `SharingType` = 'Two Sharing' AND `AcType` = 'AC');
+
+                INSERT INTO `hostel_fee_configs` 
+                (`HostelId`, `HostelName`, `RoomTypeId`, `RoomTypeName`, `RoomNo`, `AcType`, `SharingType`, `AcademicYear`, `Branch`, `FeePlan`, `HostelFee`, `SecurityDeposit`, `EffectiveFrom`, `Status`)
+                SELECT 'HST-1', 'Campus Residence Block A', 'RT-3', 'Three Sharing', 'All Rooms', 'Non-AC', 'Three Sharing', '2026-2027', 'All', 'Annual', 25000.00, 5000.00, '2026-06-01', 'Active'
+                FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `hostel_fee_configs` WHERE `SharingType` = 'Three Sharing' AND `AcType` = 'Non-AC');
+
+                INSERT INTO `hostel_fee_configs` 
+                (`HostelId`, `HostelName`, `RoomTypeId`, `RoomTypeName`, `RoomNo`, `AcType`, `SharingType`, `AcademicYear`, `Branch`, `FeePlan`, `HostelFee`, `SecurityDeposit`, `EffectiveFrom`, `Status`)
+                SELECT 'HST-1', 'Campus Residence Block A', 'RT-4', 'Four Sharing', 'All Rooms', 'Non-AC', 'Four Sharing', '2026-2027', 'All', 'Annual', 20000.00, 5000.00, '2026-06-01', 'Active'
+                FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `hostel_fee_configs` WHERE `SharingType` = 'Four Sharing' AND `AcType` = 'Non-AC');
+
+                INSERT INTO `hostel_fee_configs` 
+                (`HostelId`, `HostelName`, `RoomTypeId`, `RoomTypeName`, `RoomNo`, `AcType`, `SharingType`, `AcademicYear`, `Branch`, `FeePlan`, `HostelFee`, `SecurityDeposit`, `EffectiveFrom`, `Status`)
+                SELECT 'HST-1', 'Campus Residence Block A', 'RT-5', 'Dormitory', 'All Rooms', 'Non-AC', 'Dormitory', '2026-2027', 'All', 'Annual', 18000.00, 5000.00, '2026-06-01', 'Active'
+                FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM `hostel_fee_configs` WHERE `SharingType` = 'Dormitory');
+
                 CREATE TABLE IF NOT EXISTS `financialaccounts` (
                     `Id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
                     `Name` VARCHAR(255) NOT NULL DEFAULT '',
