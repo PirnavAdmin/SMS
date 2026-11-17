@@ -2766,6 +2766,7 @@ export const SettingsView: React.FC = () => {
                   setProfileForm((prev) => ({ ...prev, logoUrl: newLogoUrl }));
                   updateSchoolProfile({ logoUrl: newLogoUrl });
                   try {
+                    localStorage.setItem("tenant_school_logo", newLogoUrl);
                     localStorage.setItem("school_logo", newLogoUrl);
                     localStorage.setItem("logoUrl", newLogoUrl);
                     localStorage.setItem("schoolLogo", newLogoUrl);

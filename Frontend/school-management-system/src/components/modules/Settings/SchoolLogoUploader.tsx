@@ -255,6 +255,7 @@ export const SchoolLogoUploader: React.FC<SchoolLogoUploaderProps> = ({
           });
 
           try {
+            localStorage.setItem("tenant_school_logo", finalUrl);
             localStorage.setItem("school_logo", finalUrl);
             localStorage.setItem("logoUrl", finalUrl);
             localStorage.setItem("schoolLogo", finalUrl);

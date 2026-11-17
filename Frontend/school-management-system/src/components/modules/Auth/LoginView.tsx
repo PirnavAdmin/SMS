@@ -35,27 +35,45 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
     return localStorage.getItem('school_name') || 'Campus Portal';
   });
 
-  // Dynamic School Logo state
+  // Dynamic Logo resolution with strict SuperAdmin vs Tenant isolation
+  const isSuperAdminLogin = initialRole === 'Super Admin';
+  const getSuperAdminLogo = () => localStorage.getItem('superadmin_logo') || localStorage.getItem('platform_logo') || '';
+  const getTenantLogo = () => {
+    const saLogo = getSuperAdminLogo();
+    const storedSchoolLogo = localStorage.getItem('tenant_school_logo') || localStorage.getItem('school_logo') || '';
+    if (storedSchoolLogo && storedSchoolLogo !== saLogo) {
+      return storedSchoolLogo;
+    }
+    return '';
+  };
+
   const [dynamicLogo, setDynamicLogo] = useState<string>(() => {
-    return localStorage.getItem('school_logo') || localStorage.getItem('logoUrl') || '';
+    if (isSuperAdminLogin) {
+      return getSuperAdminLogo() || pirnavLogo;
+    }
+    return tenant?.logoUrl || getTenantLogo() || pirnavLogo;
   });
 
-  const effectiveLogo = tenant?.logoUrl || dynamicLogo || pirnavLogo;
-  const effectiveName = tenant?.companyName || (initialRole === 'Super Admin' ? (localStorage.getItem('company_name') || 'Super Admin Portal') : schoolName);
+  const effectiveLogo = isSuperAdminLogin
+    ? (getSuperAdminLogo() || pirnavLogo)
+    : (tenant?.logoUrl || dynamicLogo || pirnavLogo);
+
+  const effectiveName = isSuperAdminLogin
+    ? (localStorage.getItem('superadmin_company_name') || localStorage.getItem('company_name') || 'Super Admin Portal')
+    : (tenant?.companyName || schoolName);
 
   useEffect(() => {
     const updateLogo = () => {
-      const savedLogo =
-        localStorage.getItem('school_logo') ||
-        localStorage.getItem('logoUrl') ||
-        localStorage.getItem('schoolLogo') ||
-        '';
-      if (savedLogo) {
-        setDynamicLogo(savedLogo);
-      }
-      const savedName = localStorage.getItem('school_name');
-      if (savedName) {
-        setSchoolName(savedName);
+      if (initialRole === 'Super Admin') {
+        const saLogo = getSuperAdminLogo();
+        setDynamicLogo(saLogo || pirnavLogo);
+      } else {
+        const tLogo = tenant?.logoUrl || getTenantLogo() || pirnavLogo;
+        setDynamicLogo(tLogo);
+        const savedName = localStorage.getItem('school_name');
+        if (savedName) {
+          setSchoolName(savedName);
+        }
       }
     };
 
@@ -68,7 +86,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
       window.removeEventListener('school_profile_updated', updateLogo);
       window.removeEventListener('storage', updateLogo);
     };
-  }, []);
+  }, [initialRole, tenant?.logoUrl]);
 
   const [rememberMe, setRememberMe] = useState<boolean>(() => {
     try {

@@ -116,33 +116,47 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const selectedBranch = authCtx.selectedBranch;
   const selectedAcademicYear = authCtx.selectedAcademicYear;
   const safeRole = (role || user?.role || '').toLowerCase();
+  const isSuperAdmin = safeRole.includes("super admin") || safeRole.includes("superadmin");
   const dataCtx = useData() || {};
   const schoolProfile = dataCtx.schoolProfile;
   const admissions = Array.isArray(dataCtx.admissions) ? dataCtx.admissions : [];
   const students = Array.isArray(dataCtx.students) ? dataCtx.students : [];
   const studentHostels = Array.isArray(dataCtx.studentHostels) ? dataCtx.studentHostels : [];
   const studentTransports = Array.isArray(dataCtx.studentTransports) ? dataCtx.studentTransports : [];
-  const [currentLogoUrl, setCurrentLogoUrl] = useState<string>(() => {
-    return (
-      schoolProfile?.logoUrl ||
-      localStorage.getItem("school_logo") ||
-      localStorage.getItem("logoUrl") ||
-      localStorage.getItem("schoolLogo") ||
-      ""
-    );
-  });
+  const resolveActiveLogo = () => {
+    const saLogo =
+      localStorage.getItem("superadmin_logo") ||
+      localStorage.getItem("platform_logo") ||
+      "";
+    if (isSuperAdmin) {
+      return saLogo || "/pirnav-school-logo.png";
+    }
+    // For School Admin, Teacher, Student, Parent, Staff:
+    // Strictly return the school/tenant logo, NEVER the superadmin platform logo!
+    const tenantUploadedLogo =
+      localStorage.getItem("tenant_school_logo") ||
+      (localStorage.getItem("school_logo") && localStorage.getItem("school_logo") !== saLogo
+        ? localStorage.getItem("school_logo")
+        : "") ||
+      (localStorage.getItem("logoUrl") && localStorage.getItem("logoUrl") !== saLogo
+        ? localStorage.getItem("logoUrl")
+        : "");
+
+    const profileLogo =
+      schoolProfile?.logoUrl && schoolProfile.logoUrl !== saLogo
+        ? schoolProfile.logoUrl
+        : "";
+
+    return profileLogo || tenantUploadedLogo || "/pirnav-school-logo.png";
+  };
+
+  const [currentLogoUrl, setCurrentLogoUrl] = useState<string>(() => resolveActiveLogo());
   const [logoLoadError, setLogoLoadError] = useState(false);
   const [logoMeta, setLogoMeta] = useState<{ width: number; height: number; ratio: number } | null>(null);
 
   React.useEffect(() => {
     const updateLogo = () => {
-      const activeLogo =
-        schoolProfile?.logoUrl ||
-        localStorage.getItem("school_logo") ||
-        localStorage.getItem("logoUrl") ||
-        localStorage.getItem("schoolLogo") ||
-        "";
-      setCurrentLogoUrl(activeLogo);
+      setCurrentLogoUrl(resolveActiveLogo());
       setLogoLoadError(false);
     };
 
@@ -154,7 +168,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       window.removeEventListener("school_profile_updated", updateLogo);
       window.removeEventListener("storage", updateLogo);
     };
-  }, [schoolProfile?.logoUrl]);
+  }, [isSuperAdmin, schoolProfile?.logoUrl]);
 
   const handleSidebarLogoLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
     const img = e.currentTarget;
@@ -831,8 +845,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     "transport-student-transport-reports",
     "transport-maintenance-reports",
   ];
-
-  const isSuperAdmin = safeRole.includes("super admin") || safeRole.includes("superadmin");
 
   const menuGroups: { title: string; isFinanceSection?: boolean; items: { id: string; label: string; icon: any; badge?: string }[] }[] = (isSuperAdmin
     ? [

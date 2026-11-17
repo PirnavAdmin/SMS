@@ -1574,20 +1574,40 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       }
       keysToRemove.forEach((k) => localStorage.removeItem(k));
+
+      // Multi-tenant logo cleanup: if school_logo was contaminated by superadmin_logo, reset it
+      const saLogo = localStorage.getItem("superadmin_logo") || localStorage.getItem("platform_logo");
+      if (saLogo && localStorage.getItem("school_logo") === saLogo) {
+        const tenantSaved = localStorage.getItem("tenant_school_logo");
+        if (tenantSaved) {
+          localStorage.setItem("school_logo", tenantSaved);
+        } else {
+          localStorage.removeItem("school_logo");
+        }
+      }
     } catch {}
   }, []);
 
   const [schoolProfile, setSchoolProfile] = useState<SchoolProfile>(() => {
     const profile = getStored("profile", initialSchoolProfile);
+    const saLogo = localStorage.getItem("superadmin_logo") || localStorage.getItem("platform_logo") || "";
+    const storedTenantLogo = localStorage.getItem("tenant_school_logo");
     const storedLogo =
-      localStorage.getItem("school_logo") ??
-      localStorage.getItem("logoUrl") ??
-      localStorage.getItem("schoolLogo");
+      storedTenantLogo ??
+      (localStorage.getItem("school_logo") && localStorage.getItem("school_logo") !== saLogo
+        ? localStorage.getItem("school_logo")
+        : null) ??
+      (localStorage.getItem("logoUrl") && localStorage.getItem("logoUrl") !== saLogo
+        ? localStorage.getItem("logoUrl")
+        : null) ??
+      (localStorage.getItem("schoolLogo") && localStorage.getItem("schoolLogo") !== saLogo
+        ? localStorage.getItem("schoolLogo")
+        : null);
     const base = { ...profile };
     if (base.boardType === "CBSE" && !localStorage.getItem("edu_db_profile_board_saved")) {
       base.boardType = "";
     }
-    if (storedLogo !== null) {
+    if (storedLogo !== null && storedLogo !== undefined && storedLogo !== saLogo) {
       return { ...base, logoUrl: storedLogo };
     }
     return base;
@@ -6819,6 +6839,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         localStorage.setItem("edu_db_profile", JSON.stringify(next));
         localStorage.setItem("profile", JSON.stringify(next));
         const logoVal = next.logoUrl ?? "";
+        localStorage.setItem("tenant_school_logo", logoVal);
         localStorage.setItem("school_logo", logoVal);
         localStorage.setItem("logoUrl", logoVal);
         localStorage.setItem("schoolLogo", logoVal);
@@ -7021,6 +7042,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             localStorage.setItem("edu_db_profile", JSON.stringify(next));
             localStorage.setItem("profile", JSON.stringify(next));
             localStorage.setItem("school_name", next.name || "");
+            localStorage.setItem("tenant_school_logo", next.logoUrl || "");
             localStorage.setItem("school_logo", next.logoUrl || "");
             localStorage.setItem("logoUrl", next.logoUrl || "");
             localStorage.setItem("schoolLogo", next.logoUrl || "");
