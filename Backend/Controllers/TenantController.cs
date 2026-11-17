@@ -15,37 +15,53 @@ namespace SMS.Api.Controllers
     {
         private readonly IMultiTenantContextAccessor<AppTenantInfo> _tenantAccessor;
         private readonly TenantStoreDbContext _tenantStore;
+        private readonly AppDbContext _appDbContext;
 
         public TenantController(
             IMultiTenantContextAccessor<AppTenantInfo> tenantAccessor,
-            TenantStoreDbContext tenantStore)
+            TenantStoreDbContext tenantStore,
+            AppDbContext appDbContext)
         {
             _tenantAccessor = tenantAccessor;
             _tenantStore = tenantStore;
+            _appDbContext = appDbContext;
         }
 
         [HttpGet("current")]
         [HttpGet("info")]
-        public IActionResult GetCurrentTenant()
+        public async Task<IActionResult> GetCurrentTenant()
         {
             var tenant = _tenantAccessor.MultiTenantContext?.TenantInfo;
             if (tenant == null)
             {
-                return Ok(new
+                tenant = await _tenantStore.AppTenants.AsNoTracking().FirstOrDefaultAsync(t => t.Id == "tenant-default" || t.Identifier == "default");
+                if (tenant == null)
                 {
-                    isResolved = false,
-                    message = "No company tenant resolved from subdomain or X-Tenant-ID header."
-                });
+                    return Ok(new
+                    {
+                        isResolved = false,
+                        message = "No company tenant resolved from subdomain or X-Tenant-ID header."
+                    });
+                }
             }
+
+            // Always resolve effective school branding from SchoolSettings if configured
+            var schoolSettings = await _appDbContext.SchoolSettings.AsNoTracking().FirstOrDefaultAsync();
+            var effectiveName = !string.IsNullOrWhiteSpace(schoolSettings?.SchoolName)
+                ? schoolSettings.SchoolName
+                : (!string.IsNullOrWhiteSpace(tenant.CompanyName) ? tenant.CompanyName : "School Portal");
+            var effectiveLogo = !string.IsNullOrWhiteSpace(schoolSettings?.LogoUrl)
+                ? schoolSettings.LogoUrl
+                : (tenant.LogoUrl ?? string.Empty);
 
             return Ok(new
             {
                 isResolved = true,
                 id = tenant.Id,
                 identifier = tenant.Identifier,
-                companyName = tenant.CompanyName,
-                primaryColor = tenant.PrimaryColor,
-                logoUrl = tenant.LogoUrl,
+                companyName = effectiveName,
+                primaryColor = tenant.PrimaryColor ?? "#0284c7",
+                logoUrl = effectiveLogo,
                 isActive = tenant.IsActive
             });
         }
@@ -64,14 +80,23 @@ namespace SMS.Api.Controllers
                 });
             }
 
+            // Always resolve effective school branding from SchoolSettings if configured
+            var schoolSettings = await _appDbContext.SchoolSettings.AsNoTracking().FirstOrDefaultAsync();
+            var effectiveName = !string.IsNullOrWhiteSpace(schoolSettings?.SchoolName)
+                ? schoolSettings.SchoolName
+                : (!string.IsNullOrWhiteSpace(tenant.CompanyName) ? tenant.CompanyName : identifier);
+            var effectiveLogo = !string.IsNullOrWhiteSpace(schoolSettings?.LogoUrl)
+                ? schoolSettings.LogoUrl
+                : (tenant.LogoUrl ?? string.Empty);
+
             return Ok(new
             {
                 isResolved = true,
                 id = tenant.Id,
                 identifier = tenant.Identifier,
-                companyName = tenant.CompanyName,
-                primaryColor = tenant.PrimaryColor,
-                logoUrl = tenant.LogoUrl,
+                companyName = effectiveName,
+                primaryColor = tenant.PrimaryColor ?? "#0284c7",
+                logoUrl = effectiveLogo,
                 isActive = tenant.IsActive
             });
         }

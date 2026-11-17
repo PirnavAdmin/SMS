@@ -35,7 +35,7 @@ const ALLOWED_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp', 'svg'];
 const ALLOWED_MIME_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'];
 const MAX_FILE_SIZE_MB = 3;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
-const DEFAULT_FALLBACK_LOGO = '/pirnav-school-logo.png';
+const DEFAULT_FALLBACK_LOGO = '';
 
 export const SchoolLogoUploader: React.FC<SchoolLogoUploaderProps> = ({
   value,
@@ -321,14 +321,14 @@ export const SchoolLogoUploader: React.FC<SchoolLogoUploaderProps> = ({
   };
 
   const handleResetDefault = async () => {
-    onChange(defaultLogo);
-    setUrlInput(defaultLogo);
-    analyzeImage(defaultLogo);
+    onChange('');
+    setUrlInput('');
+    setMeta(null);
     try {
-      await uploadSchoolLogoApi(defaultLogo, 'PNG');
-      localStorage.setItem("school_logo", defaultLogo);
-      localStorage.setItem("logoUrl", defaultLogo);
-      localStorage.setItem("schoolLogo", defaultLogo);
+      await uploadSchoolLogoApi('', 'PNG');
+      localStorage.setItem("school_logo", "");
+      localStorage.setItem("logoUrl", "");
+      localStorage.setItem("schoolLogo", "");
       window.dispatchEvent(new Event("school_profile_updated"));
     } catch (err) {}
   };

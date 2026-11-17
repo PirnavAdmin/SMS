@@ -167,7 +167,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
     const profileLogo = schoolProfile?.logoUrl || "";
 
-    return profileLogo || tenantUploadedLogo || "/pirnav-school-logo.png";
+    return profileLogo || tenantUploadedLogo || "";
   };
 
   const [currentLogoUrl, setCurrentLogoUrl] = useState<string>(() => resolveActiveLogo());

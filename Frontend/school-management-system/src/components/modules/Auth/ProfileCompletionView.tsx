@@ -248,8 +248,8 @@ function buildProfileForm(staff: Staff | undefined | null, category: EmployeeCat
     ? staff.experienceRecords.map(item => ({
         id: item.id || `EXP-${Date.now()}-${Math.random()}`,
         totalExperience: item.totalExperience || '8 Years',
-        previousSchool: item.previousSchool || 'Pirnav Educational Academy',
-        organization: item.organization || 'Pirnav Schools Group',
+        previousSchool: item.previousSchool || '',
+        organization: item.organization || '',
         designation: item.designation || (user?.role || 'Senior Administrator'),
         joiningDate: item.joiningDate || '2018-06-01',
         relievingDate: item.relievingDate || '2026-05-31',
@@ -264,8 +264,8 @@ function buildProfileForm(staff: Staff | undefined | null, category: EmployeeCat
     : [{
         id: `EXP-DEFAULT-${Date.now()}`,
         totalExperience: '8 Years',
-        previousSchool: 'Pirnav Educational Academy',
-        organization: 'Pirnav Schools Group',
+        previousSchool: '',
+        organization: '',
         designation: user?.role || 'Senior Administrator',
         joiningDate: '2018-06-01',
         relievingDate: '2026-05-31',

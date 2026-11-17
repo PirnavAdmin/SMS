@@ -19,7 +19,8 @@ import { useToast } from '../../../context/ToastContext';
 import { fetchSchoolSettingsApi } from '../../../api/settings';
 import { getSuperAdminSetupStatusApi, setupInitialSuperAdminApi, fetchCompanyProfileApi } from '../../../api/superadmin';
 import { useTenant } from '../../../context/TenantContext';
-import pirnavLogo from '../../../assets/pirnav-school-logo.png';
+import { applySchoolBranding } from '../../../utils/brandingUtils';
+import { resolveMediaUrl } from '../../../utils/mediaUtils';
 
 interface LoginViewProps {
   onBack?: () => void;
@@ -32,7 +33,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
   const { tenant } = useTenant();
 
   const [schoolName, setSchoolName] = useState<string>(() => {
-    return localStorage.getItem('school_name') || 'Campus Portal';
+    return localStorage.getItem('school_name') || '';
   });
 
   // Dynamic Logo resolution with strict SuperAdmin vs Tenant isolation
@@ -63,22 +64,55 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
     if (isSuperAdminLogin) {
       return '';
     }
-    return tenant?.logoUrl || getTenantLogo() || pirnavLogo;
+    const localLogo = getTenantLogo();
+    if (localLogo) return localLogo;
+    const tLogo = tenant?.logoUrl || '';
+    return !tLogo.includes('pirnav') ? tLogo : '';
   });
 
+  // Prioritize configured School Branding over generic multi-tenant defaults
   const effectiveLogo = isSuperAdminLogin
     ? superAdminBranding.logoUrl
-    : (tenant?.logoUrl || dynamicLogo || pirnavLogo);
+    : (dynamicLogo || (tenant?.logoUrl && !tenant.logoUrl.includes('pirnav') ? tenant.logoUrl : '') || '');
 
   const effectiveName = isSuperAdminLogin
     ? (superAdminBranding.companyName || 'Super Admin Portal')
-    : (tenant?.companyName || schoolName);
+    : (schoolName || (tenant?.companyName && !tenant.companyName.includes('Pirnav') ? tenant.companyName : '') || 'Campus Portal');
 
   useEffect(() => {
+    let isMounted = true;
+
+    const loadBranding = async () => {
+      if (initialRole !== 'Super Admin') {
+        try {
+          const res: any = await fetchSchoolSettingsApi();
+          const data = res?.data || res;
+          if (data && isMounted) {
+            const sName = data.schoolName || data.name;
+            const sLogo = data.logoUrl || '';
+            if (sName) {
+              setSchoolName(sName);
+              applySchoolBranding(sName, sLogo);
+            }
+            if (sLogo !== undefined) {
+              setDynamicLogo(sLogo);
+            }
+          }
+        } catch {
+          const savedName = localStorage.getItem('school_name');
+          const savedLogo = getTenantLogo();
+          if (savedName && isMounted) setSchoolName(savedName);
+          if (savedLogo && isMounted) setDynamicLogo(savedLogo);
+        }
+      }
+    };
+
+    loadBranding();
+
     const updateLogo = () => {
       if (initialRole !== 'Super Admin') {
-        const tLogo = tenant?.logoUrl || getTenantLogo() || pirnavLogo;
-        setDynamicLogo(tLogo);
+        const savedLogo = getTenantLogo();
+        setDynamicLogo(savedLogo);
         const savedName = localStorage.getItem('school_name');
         if (savedName) {
           setSchoolName(savedName);
@@ -86,16 +120,17 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
       }
     };
 
-    updateLogo();
-
+    window.addEventListener('school_branding_updated', updateLogo);
     window.addEventListener('school_profile_updated', updateLogo);
     window.addEventListener('storage', updateLogo);
 
     return () => {
+      isMounted = false;
+      window.removeEventListener('school_branding_updated', updateLogo);
       window.removeEventListener('school_profile_updated', updateLogo);
       window.removeEventListener('storage', updateLogo);
     };
-  }, [initialRole, tenant?.logoUrl]);
+  }, [initialRole, tenant?.logoUrl, tenant?.companyName]);
 
   const [rememberMe, setRememberMe] = useState<boolean>(() => {
     try {
@@ -540,17 +575,14 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
                 {effectiveLogo ? (
                   <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-white dark:bg-slate-950 p-2 shadow-lg ring-3 ring-sky-500/20 shrink-0 flex items-center justify-center overflow-hidden transition-transform hover:scale-105 duration-300">
                     <img
-                      src={effectiveLogo}
+                      src={resolveMediaUrl(effectiveLogo)}
                       alt={effectiveName || 'Company Logo'}
                       className="w-full h-full object-contain"
-                      onError={(e) => {
+                      onError={() => {
                         if (isSuperAdminLogin) {
                           setSuperAdminBranding(prev => ({ ...prev, logoUrl: '' }));
                         } else {
-                          const img = e.target as HTMLImageElement;
-                          if (img.src !== pirnavLogo) {
-                            img.src = pirnavLogo;
-                          }
+                          setDynamicLogo('');
                         }
                       }}
                     />

@@ -396,7 +396,7 @@ export const PrintableReportCard: React.FC<PrintableReportCardProps> = ({
         {/* Center School Details */}
         <div className="flex-1 text-center font-sans space-y-1">
           <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 dark:text-white uppercase leading-none">
-            {schoolProfile?.name || 'Pirnav Educational Institution'}
+            {schoolProfile?.name || (typeof localStorage !== 'undefined' ? localStorage.getItem('school_name') : '') || 'School Management System'}
           </h1>
           {schoolProfile?.address && (
             <p className="text-[11px] text-slate-600 dark:text-slate-300 font-bold max-w-xl mx-auto leading-tight">

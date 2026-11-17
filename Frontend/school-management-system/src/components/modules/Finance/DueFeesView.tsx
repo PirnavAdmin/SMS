@@ -525,7 +525,7 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({
     }
     const catTitle = selectedFeeHead !== "All" ? `Category: ${selectedFeeHead}` : "All Fee Categories";
     const logoUrl = resolveMediaUrl(schoolProfile?.logoUrl);
-    const schoolName = schoolProfile?.name || "Pirnav Educational Institutions";
+    const schoolName = schoolProfile?.name || (typeof localStorage !== 'undefined' ? localStorage.getItem('school_name') : '') || "School Management System";
     const tagline = schoolProfile?.tagline || "Empowering Minds, Shaping Tomorrow";
     const address = schoolProfile?.address || "Jain Sadguru Images Capital Park 502B, Madhapur, Hyderabad";
     const phone = schoolProfile?.phone || "+91 9123456789";

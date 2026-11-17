@@ -38,7 +38,8 @@ import {
 import { fetchSchoolSettingsApi } from '../../../api/settings';
 import { fetchNotificationsApi } from '../../../api/communication';
 import { useTheme } from '../../../context/ThemeContext';
-import pirnavLogo from '../../../assets/pirnav-school-logo.png';
+import { applySchoolBranding } from '../../../utils/brandingUtils';
+import { resolveMediaUrl } from '../../../utils/mediaUtils';
 
 interface LandingViewProps {
   onLoginClick: (role?: string) => void;
@@ -77,13 +78,13 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
   // Dynamic School Info State loaded from API / localStorage with no hardcoded fallback text or logos
   const [schoolInfo, setSchoolInfo] = useState<DynamicSchoolInfo>(() => {
     return {
-      name: localStorage.getItem('school_name') || 'Pirnav School',
-      logoUrl: localStorage.getItem('school_logo') || localStorage.getItem('logoUrl') || '',
+      name: localStorage.getItem('school_name') || '',
+      logoUrl: localStorage.getItem('tenant_school_logo') || localStorage.getItem('school_logo') || localStorage.getItem('logoUrl') || '',
       address: localStorage.getItem('school_address') || '',
-      email: localStorage.getItem('school_email') || 'contact@pirnavschool.edu.in',
-      phone: localStorage.getItem('school_phone') || '+91 98765 43210',
-      website: localStorage.getItem('school_website') || 'www.pirnavschool.edu.in',
-      tagline: localStorage.getItem('school_tagline') || 'Nurturing character, academic excellence, and ethical leadership in every student.',
+      email: localStorage.getItem('school_email') || '',
+      phone: localStorage.getItem('school_phone') || '',
+      website: localStorage.getItem('school_website') || '',
+      tagline: localStorage.getItem('school_tagline') || 'Empowering Minds, Shaping Tomorrow',
       affiliation: localStorage.getItem('school_affiliation') || 'CBSE Affiliated',
     };
   });
@@ -113,16 +114,64 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
     },
   ]);
 
-  // Fetch dynamic school profile settings and notices on mount
+  // Fetch dynamic school profile settings and notices on mount directly from database API
   useEffect(() => {
     let isMounted = true;
 
-    const loadSchoolSettings = () => {
+    const loadSchoolSettings = async () => {
+      try {
+        const res: any = await fetchSchoolSettingsApi();
+        const data = res?.data || res;
+        if (data && isMounted) {
+          const sName = data.schoolName || data.name || '';
+          const sLogo = data.logoUrl || '';
+          const sAddress = data.address || '';
+          const sEmail = data.email || '';
+          const sPhone = data.phone || '';
+          const sWebsite = data.website || '';
+          const sTagline = data.tagline || 'Empowering Minds, Shaping Tomorrow';
+          const sAffiliation = data.boardType ? `${data.boardType} Affiliated` : 'CBSE Affiliated';
+
+          setSchoolInfo({
+            name: sName,
+            logoUrl: sLogo,
+            address: sAddress,
+            email: sEmail,
+            phone: sPhone,
+            website: sWebsite,
+            tagline: sTagline,
+            affiliation: sAffiliation
+          });
+
+          if (sName) {
+            applySchoolBranding(sName, sLogo);
+          }
+        }
+      } catch (err) {
+        // Fallback to local storage cache if network is slow
+        const savedName = localStorage.getItem('school_name');
+        const savedLogo = localStorage.getItem('tenant_school_logo') || localStorage.getItem('school_logo') || localStorage.getItem('logoUrl') || '';
+        const savedAddr = localStorage.getItem('school_address');
+
+        if (isMounted && (savedName || savedLogo || savedAddr)) {
+          setSchoolInfo(prev => ({
+            ...prev,
+            name: savedName || prev.name,
+            logoUrl: savedLogo || prev.logoUrl,
+            address: savedAddr || prev.address
+          }));
+        }
+      }
+    };
+
+    loadSchoolSettings();
+
+    const handleBrandingUpdate = () => {
       const savedName = localStorage.getItem('school_name');
-      const savedLogo = localStorage.getItem('school_logo') || localStorage.getItem('logoUrl');
+      const savedLogo = localStorage.getItem('tenant_school_logo') || localStorage.getItem('school_logo') || '';
       const savedAddr = localStorage.getItem('school_address');
 
-      if (savedName || savedLogo || savedAddr) {
+      if (isMounted && (savedName || savedLogo || savedAddr)) {
         setSchoolInfo(prev => ({
           ...prev,
           name: savedName || prev.name,
@@ -132,15 +181,15 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
       }
     };
 
-    loadSchoolSettings();
-
-    window.addEventListener('school_profile_updated', loadSchoolSettings);
-    window.addEventListener('storage', loadSchoolSettings);
+    window.addEventListener('school_branding_updated', handleBrandingUpdate);
+    window.addEventListener('school_profile_updated', handleBrandingUpdate);
+    window.addEventListener('storage', handleBrandingUpdate);
 
     return () => {
       isMounted = false;
-      window.removeEventListener('school_profile_updated', loadSchoolSettings);
-      window.removeEventListener('storage', loadSchoolSettings);
+      window.removeEventListener('school_branding_updated', handleBrandingUpdate);
+      window.removeEventListener('school_profile_updated', handleBrandingUpdate);
+      window.removeEventListener('storage', handleBrandingUpdate);
     };
   }, []);
 
@@ -329,7 +378,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
     {
       name: 'Dr. Rajesh Verma',
       role: 'Parent of Class 10 Student',
-      comment: 'The real-time bus tracking and online fee portal give us total peace of mind. Pirnav Institution provides both academic rigor and safety.',
+      comment: 'The real-time bus tracking and online fee portal give us total peace of mind. The institution provides both academic rigor and safety.',
       rating: 5,
       avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop'
     },
@@ -343,7 +392,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
     {
       name: 'Ananya Sharma',
       role: 'Alumni (Batch of 2025)',
-      comment: 'The STEM robotics lab and digital library resources at Pirnav gave me the ideal foundation for my engineering university studies.',
+      comment: 'The STEM robotics lab and digital library resources here gave me the ideal foundation for my engineering university studies.',
       rating: 5,
       avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?q=80&w=200&auto=format&fit=crop'
     }
@@ -368,7 +417,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
             <div className="w-8 h-8 sm:w-10 sm:h-10 shrink-0 flex items-center justify-center transition-transform group-hover:scale-105">
               {schoolInfo.logoUrl ? (
                 <img
-                  src={schoolInfo.logoUrl}
+                  src={resolveMediaUrl(schoolInfo.logoUrl)}
                   alt={schoolInfo.name}
                   className="w-full h-full object-contain"
                   onError={(e) => {
@@ -382,7 +431,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
             
             <div className="min-w-0">
               <span className="font-extrabold text-sm sm:text-base lg:text-lg tracking-tight text-white flex items-center gap-1.5 truncate">
-                {schoolInfo.name}
+                {schoolInfo.name || 'Educational Institutions'}
               </span>
             </div>
           </div>
@@ -1084,7 +1133,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
                   Nurturing Character & Academic Excellence
                 </h2>
                 <p className="text-slate-700 dark:text-slate-300 text-xs sm:text-sm leading-relaxed font-medium">
-                  At {schoolInfo.name || 'Pirnav School'}, our mission extends beyond textbook learning. We foster critical thinking, athletic resilience, ethical leadership, and technological literacy in every student.
+                  At {schoolInfo.name || 'our Institution'}, our mission extends beyond textbook learning. We foster critical thinking, athletic resilience, ethical leadership, and technological literacy in every student.
                 </p>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
@@ -1167,8 +1216,8 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
               <div className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 flex items-center justify-center">
                 {schoolInfo.logoUrl ? (
                   <img
-                    src={schoolInfo.logoUrl}
-                    alt={schoolInfo.name || 'Pirnav School Logo'}
+                    src={resolveMediaUrl(schoolInfo.logoUrl)}
+                    alt={schoolInfo.name || 'School Logo'}
                     className="w-full h-full object-contain"
                     onError={(e) => {
                       (e.target as HTMLImageElement).style.display = 'none';
@@ -1179,12 +1228,12 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
                 )}
               </div>
               <span className="font-extrabold text-sm sm:text-base text-white tracking-tight">
-                {schoolInfo.name || 'Pirnav School'}
+                {schoolInfo.name || 'Educational Institutions'}
               </span>
             </div>
 
             <p className="text-slate-400 text-xs leading-relaxed max-w-sm">
-              {schoolInfo.tagline || 'Nurturing character, academic excellence, and ethical leadership in every student.'}
+              {schoolInfo.tagline || 'Empowering Minds, Shaping Tomorrow'}
             </p>
 
             {/* Dynamic Address & Contact */}
@@ -1294,7 +1343,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
 
         {/* Dynamic Copyright Footer */}
         <div className="max-w-7xl mx-auto mt-5 pt-3 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between text-slate-400 text-xs gap-2">
-          <p>© {new Date().getFullYear()} {schoolInfo.name || 'Pirnav School'}. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} {schoolInfo.name || 'Educational Institutions'}. All rights reserved.</p>
           <div className="flex items-center gap-4 text-slate-400">
             <span className="hover:text-slate-300 cursor-pointer">Privacy Policy</span>
             <span className="hover:text-slate-300 cursor-pointer">Terms of Service</span>

@@ -47,6 +47,8 @@ import {
 import { useData, formatAcademicYear, matchesAcademicYear } from "../../../context/DataContext";
 import { useAuth } from "../../../context/AuthContext";
 import { useToast } from "../../../context/ToastContext";
+import { useTenant } from "../../../context/TenantContext";
+import { applySchoolBranding } from "../../../utils/brandingUtils";
 import { ConfirmModal } from "../../common/ConfirmModal";
 import { Pagination } from "../../common/Pagination";
 import { ValidatedSearchInput } from "../../common/ValidatedSearchInput";
@@ -63,6 +65,7 @@ import { validateFullName, validateEmail, validate10DigitPhone, validatePhoneNum
 import { SchoolLogoUploader } from "./SchoolLogoUploader";
 import { CertificateSettingsTab } from "./CertificateSettingsTab";
 import {
+  updateSchoolSettingsApi,
   updateCampusesApi,
   updateCertificateTemplatesApi,
   fetchBranchesApi,
@@ -225,13 +228,18 @@ export const SettingsView: React.FC = () => {
   } = useData();
   const { user, setUser, role, changePassword } = useAuth();
   const { addToast } = useToast();
+  const { refreshTenant } = useTenant();
 
   const isAdminOrSuperAdmin = role === "Admin" || role === "Super Admin";
 
+  const [isEditingSchoolProfile, setIsEditingSchoolProfile] = useState(false);
+  const [isSavingSchoolProfile, setIsSavingSchoolProfile] = useState(false);
   const [profileForm, setProfileForm] = useState(schoolProfile);
   useEffect(() => {
-    setProfileForm(schoolProfile);
-  }, [schoolProfile]);
+    if (!isEditingSchoolProfile) {
+      setProfileForm(schoolProfile);
+    }
+  }, [schoolProfile, isEditingSchoolProfile]);
   const [activeTab, setActiveTabState] = useState<
     | "my-profile"
     | "profile"
@@ -677,7 +685,7 @@ export const SettingsView: React.FC = () => {
   }, [user?.email]);
 
   useEffect(() => {
-    if (user) {
+    if (user && !isEditingProfile) {
       const cleanEmail = getCleanUserEmail(user.email);
       setMyProfileForm((prev) => {
         const hasUploaded = prev.avatar && prev.avatar.startsWith("data:image/");
@@ -692,7 +700,7 @@ export const SettingsView: React.FC = () => {
         };
       });
     }
-  }, [user, role]);
+  }, [user, role, isEditingProfile]);
 
   const avatarFileInputRef = useRef<HTMLInputElement>(null);
   const pendingAvatarFileRef = useRef<File | null>(null);
@@ -1049,15 +1057,14 @@ export const SettingsView: React.FC = () => {
   const [deletingCampus, setDeletingCampus] = useState<CampusItem | null>(null);
   const [campusErrors, setCampusErrors] = useState<{ name?: string; code?: string; address?: string; phone?: string; email?: string; status?: string }>({});
   const [schoolProfileErrors, setSchoolProfileErrors] = useState<{ name?: string; email?: string; principalName?: string; boardType?: string }>({});
-  const [isEditingSchoolProfile, setIsEditingSchoolProfile] = useState(false);
-  const [isSavingSchoolProfile, setIsSavingSchoolProfile] = useState(false);
-
   const handleToggleEditSchoolProfile = () => {
     if (isEditingSchoolProfile) {
       setProfileForm(schoolProfile);
       setSchoolProfileErrors({});
       setIsEditingSchoolProfile(false);
     } else {
+      setProfileForm({ ...schoolProfile });
+      setSchoolProfileErrors({});
       setIsEditingSchoolProfile(true);
     }
   };
@@ -1202,16 +1209,41 @@ export const SettingsView: React.FC = () => {
 
     setIsSavingSchoolProfile(true);
     try {
-      await new Promise((r) => setTimeout(r, 600));
+      // 1. Persist directly to backend database
+      await updateSchoolSettingsApi({
+        schoolName: profileForm.name.trim(),
+        tagline: profileForm.tagline?.trim(),
+        address: profileForm.address?.trim(),
+        phone: profileForm.phone?.trim(),
+        email: profileForm.email?.trim(),
+        website: profileForm.website?.trim(),
+        principalName: profileForm.principalName?.trim(),
+        boardType: profileForm.boardType?.trim(),
+        logoUrl: profileForm.logoUrl || "",
+      });
+
+      // 2. Update React application context state
       updateSchoolProfile(profileForm);
+
+      // 3. Dynamically update browser tab title, favicon, and global branding
+      applySchoolBranding(profileForm.name, profileForm.logoUrl);
+
+      // 4. Update tenant cache & storage
       try {
         localStorage.setItem("edu_db_profile", JSON.stringify(profileForm));
         localStorage.setItem("profile", JSON.stringify(profileForm));
+        localStorage.setItem("school_name", profileForm.name.trim());
         const logoVal = profileForm.logoUrl ?? "";
+        localStorage.setItem("tenant_school_logo", logoVal);
         localStorage.setItem("school_logo", logoVal);
         localStorage.setItem("logoUrl", logoVal);
         localStorage.setItem("schoolLogo", logoVal);
       } catch (err) {}
+
+      if (refreshTenant) {
+        await refreshTenant();
+      }
+
       window.dispatchEvent(new Event("school_profile_updated"));
       addToast(
         "success",
@@ -1220,7 +1252,8 @@ export const SettingsView: React.FC = () => {
       );
       setIsEditingSchoolProfile(false);
     } catch (err: any) {
-      addToast("error", "Save Failed", "Failed to save school profile.");
+      console.error("Failed to save school profile to database:", err);
+      addToast("error", "Save Failed", err?.message || "Failed to save school profile to database.");
     } finally {
       setIsSavingSchoolProfile(false);
     }
@@ -2369,11 +2402,11 @@ export const SettingsView: React.FC = () => {
                     required
                     disabled={!isEditingSchoolProfile}
                     maxLength={80}
-                    placeholder="e.g. Pirnav Educational Institutions"
+                    placeholder="e.g. First School or City Public School"
                     value={profileForm.name}
                     onChange={(e) => {
                       const val = e.target.value;
-                      setProfileForm({ ...profileForm, name: val });
+                      setProfileForm((prev) => ({ ...prev, name: val }));
                       const res = validateFullName(val, true);
                       setSchoolProfileErrors((prev) => ({ ...prev, name: val ? res.error : undefined }));
                     }}
@@ -2409,7 +2442,7 @@ export const SettingsView: React.FC = () => {
                     placeholder="e.g. Empowering Minds, Shaping Tomorrow"
                     value={profileForm.tagline}
                     onChange={(e) =>
-                      setProfileForm({ ...profileForm, tagline: e.target.value })
+                      setProfileForm((prev) => ({ ...prev, tagline: e.target.value }))
                     }
                     className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm font-semibold transition ${
                       !isEditingSchoolProfile
@@ -2437,7 +2470,7 @@ export const SettingsView: React.FC = () => {
                     placeholder="Full street address..."
                     value={profileForm.address}
                     onChange={(e) =>
-                      setProfileForm({ ...profileForm, address: e.target.value })
+                      setProfileForm((prev) => ({ ...prev, address: e.target.value }))
                     }
                     className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm font-semibold transition ${
                       !isEditingSchoolProfile
@@ -2465,7 +2498,7 @@ export const SettingsView: React.FC = () => {
                     placeholder="10-digit mobile number"
                     value={profileForm.phone}
                     onChange={(e) =>
-                      setProfileForm({ ...profileForm, phone: sanitizePhoneInput(e.target.value) })
+                      setProfileForm((prev) => ({ ...prev, phone: sanitizePhoneInput(e.target.value) }))
                     }
                     className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm font-semibold transition ${
                       !isEditingSchoolProfile
@@ -2490,11 +2523,11 @@ export const SettingsView: React.FC = () => {
                     required
                     disabled={!isEditingSchoolProfile}
                     maxLength={60}
-                    placeholder="contact@pirnavschools.com"
+                    placeholder="e.g. contact@school.edu"
                     value={profileForm.email}
                     onChange={(e) => {
                       const sanitized = sanitizeEmailInput(e.target.value);
-                      setProfileForm({ ...profileForm, email: sanitized });
+                      setProfileForm((prev) => ({ ...prev, email: sanitized }));
                       const res = validateEmail(sanitized, true);
                       setSchoolProfileErrors((prev) => ({ ...prev, email: sanitized ? res.error : undefined }));
                     }}
@@ -2531,10 +2564,10 @@ export const SettingsView: React.FC = () => {
                     type="url"
                     disabled={!isEditingSchoolProfile}
                     maxLength={100}
-                    placeholder="https://pirnavschools.edu"
+                    placeholder="e.g. https://school.edu"
                     value={profileForm.website}
                     onChange={(e) =>
-                      setProfileForm({ ...profileForm, website: e.target.value })
+                      setProfileForm((prev) => ({ ...prev, website: e.target.value }))
                     }
                     className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm font-semibold transition ${
                       !isEditingSchoolProfile
@@ -2563,10 +2596,10 @@ export const SettingsView: React.FC = () => {
                     value={profileForm.principalName}
                     onChange={(e) => {
                       const val = e.target.value;
-                      setProfileForm({
-                        ...profileForm,
+                      setProfileForm((prev) => ({
+                        ...prev,
                         principalName: val,
-                      });
+                      }));
                       const res = validateFullName(val, true);
                       setSchoolProfileErrors((prev) => ({ ...prev, principalName: val ? res.error : undefined }));
                     }}
@@ -2603,7 +2636,7 @@ export const SettingsView: React.FC = () => {
                     value={profileForm.boardType || ""}
                     onChange={(e) => {
                       const val = e.target.value;
-                      setProfileForm({ ...profileForm, boardType: val });
+                      setProfileForm((prev) => ({ ...prev, boardType: val }));
                       if (val) {
                         setSchoolProfileErrors((prev) => ({ ...prev, boardType: undefined }));
                       }
@@ -2641,10 +2674,10 @@ export const SettingsView: React.FC = () => {
                     disabled={!isEditingSchoolProfile}
                     value={time12To24(profileForm.staffCheckInTime || "08:30 AM")}
                     onChange={(e) =>
-                      setProfileForm({
-                        ...profileForm,
+                      setProfileForm((prev) => ({
+                        ...prev,
                         staffCheckInTime: e.target.value ? time24To12(e.target.value) : "08:30 AM",
-                      })
+                      }))
                     }
                     className={`w-full px-3 py-2 rounded-xl border font-mono font-bold text-slate-900 dark:text-white outline-none transition ${
                       !isEditingSchoolProfile
@@ -2664,10 +2697,10 @@ export const SettingsView: React.FC = () => {
                     disabled={!isEditingSchoolProfile}
                     value={time12To24(profileForm.staffCheckOutTime || "05:00 PM")}
                     onChange={(e) =>
-                      setProfileForm({
-                        ...profileForm,
+                      setProfileForm((prev) => ({
+                        ...prev,
                         staffCheckOutTime: e.target.value ? time24To12(e.target.value) : "05:00 PM",
-                      })
+                      }))
                     }
                     className={`w-full px-3 py-2 rounded-xl border font-mono font-bold text-slate-900 dark:text-white outline-none transition ${
                       !isEditingSchoolProfile
@@ -2689,10 +2722,10 @@ export const SettingsView: React.FC = () => {
                     disabled={!isEditingSchoolProfile}
                     value={time12To24(profileForm.schoolStartTime || "08:30 AM")}
                     onChange={(e) =>
-                      setProfileForm({
-                        ...profileForm,
+                      setProfileForm((prev) => ({
+                        ...prev,
                         schoolStartTime: e.target.value ? time24To12(e.target.value) : "08:30 AM",
-                      })
+                      }))
                     }
                     className={`w-full px-3 py-2 rounded-xl border font-mono font-bold text-slate-900 dark:text-white outline-none transition ${
                       !isEditingSchoolProfile
@@ -2712,10 +2745,10 @@ export const SettingsView: React.FC = () => {
                     disabled={!isEditingSchoolProfile}
                     value={time12To24(profileForm.schoolEndTime || "03:30 PM")}
                     onChange={(e) =>
-                      setProfileForm({
-                        ...profileForm,
+                      setProfileForm((prev) => ({
+                        ...prev,
                         schoolEndTime: e.target.value ? time24To12(e.target.value) : "03:30 PM",
-                      })
+                      }))
                     }
                     className={`w-full px-3 py-2 rounded-xl border font-mono font-bold text-slate-900 dark:text-white outline-none transition ${
                       !isEditingSchoolProfile
@@ -2733,10 +2766,10 @@ export const SettingsView: React.FC = () => {
                     disabled={!isEditingSchoolProfile}
                     value={profileForm.staffGracePeriodMinutes ?? ""}
                     onChange={(e) =>
-                      setProfileForm({
-                        ...profileForm,
+                      setProfileForm((prev) => ({
+                        ...prev,
                         staffGracePeriodMinutes: e.target.value ? parseInt(e.target.value, 10) : ("" as any),
-                      })
+                      }))
                     }
                     className={`w-full px-3 py-2 rounded-xl border font-bold transition ${
                       !isEditingSchoolProfile
@@ -2761,14 +2794,6 @@ export const SettingsView: React.FC = () => {
                 value={profileForm.logoUrl || ""}
                 onChange={(newLogoUrl) => {
                   setProfileForm((prev) => ({ ...prev, logoUrl: newLogoUrl }));
-                  updateSchoolProfile({ logoUrl: newLogoUrl });
-                  try {
-                    localStorage.setItem("tenant_school_logo", newLogoUrl);
-                    localStorage.setItem("school_logo", newLogoUrl);
-                    localStorage.setItem("logoUrl", newLogoUrl);
-                    localStorage.setItem("schoolLogo", newLogoUrl);
-                  } catch (e) {}
-                  window.dispatchEvent(new Event("school_profile_updated"));
                 }}
               />
             </div>

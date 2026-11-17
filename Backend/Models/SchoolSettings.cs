@@ -14,24 +14,24 @@ namespace SMS.Api.Models
         public int Id { get; set; }
 
         [MaxLength(250)]
-        public string SchoolName { get; set; } = "Pirnav Educational Institutions";
+        public string SchoolName { get; set; } = string.Empty;
 
         [MaxLength(250)]
-        public string Tagline { get; set; } = "Empowering Minds, Shaping Tomorrow";
+        public string Tagline { get; set; } = string.Empty;
 
-        public string Address { get; set; } = "Jain Sadguru Images Capital Park502B, Capital Pk Rd, VIP Hills, Madhapur, HITEC City, Hyderabad, Telangana 500081";
+        public string Address { get; set; } = string.Empty;
 
         [MaxLength(50)]
-        public string Phone { get; set; } = "+91 9123456789";
+        public string Phone { get; set; } = string.Empty;
 
         [MaxLength(100)]
-        public string Email { get; set; } = "contact@pirnavschools.edu";
+        public string Email { get; set; } = string.Empty;
 
         [MaxLength(150)]
-        public string Website { get; set; } = "https://pirnavschools.edu";
+        public string Website { get; set; } = string.Empty;
 
         [MaxLength(150)]
-        public string PrincipalName { get; set; } = "Dr. Eleanor Vance";
+        public string PrincipalName { get; set; } = string.Empty;
 
         public string LogoUrl { get; set; } = string.Empty;
 

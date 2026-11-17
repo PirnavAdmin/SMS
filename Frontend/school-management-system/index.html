@@ -4,8 +4,23 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover" />
-    <meta name="description" content="Pirnav Admin Portal - Enterprise School Management System with RBAC, Student & Staff HR, Admissions, Fee Ledgers, Attendance, Timetables, and Analytics." />
-    <title>Pirnav School</title>
+    <meta name="description" content="Enterprise School Management System with RBAC, Student & Staff HR, Admissions, Fee Ledgers, Attendance, Timetables, and Analytics." />
+    <title>School Management System | SMS Portal</title>
+    <script>
+      (function() {
+        try {
+          var savedName = localStorage.getItem('school_name');
+          if (savedName && savedName.trim()) {
+            document.title = savedName.trim() + ' | SMS Portal';
+          }
+          var savedLogo = localStorage.getItem('tenant_school_logo') || localStorage.getItem('school_logo');
+          if (savedLogo && savedLogo.trim()) {
+            var link = document.querySelector("link[rel*='icon']");
+            if (link) link.href = savedLogo.trim();
+          }
+        } catch(e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

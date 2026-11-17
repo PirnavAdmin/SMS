@@ -14,10 +14,12 @@ namespace SMS.Api.Repositories.Implementations.Settings
     public class SettingsRepository : ISettingsRepository
     {
         private readonly AppDbContext _context;
+        private readonly TenantStoreDbContext _tenantStore;
 
-        public SettingsRepository(AppDbContext context)
+        public SettingsRepository(AppDbContext context, TenantStoreDbContext tenantStore)
         {
             _context = context;
+            _tenantStore = tenantStore;
         }
 
         private async Task<SchoolSettings> GetOrCreateSettingsInternalAsync()
@@ -89,6 +91,38 @@ namespace SMS.Api.Repositories.Implementations.Settings
 
             existing.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
+
+            // Synchronize tenant store and schools record
+            try
+            {
+                var tenantId = _context.TenantInfo?.Id ?? "tenant-default";
+                var tenantIdent = _context.TenantInfo?.Identifier ?? "default";
+                var tenant = await _tenantStore.AppTenants.FirstOrDefaultAsync(t => t.Id == tenantId || t.Identifier == tenantIdent);
+                if (tenant != null)
+                {
+                    if (!string.IsNullOrWhiteSpace(settings.SchoolName)) tenant.CompanyName = settings.SchoolName;
+                    if (settings.LogoUrl != null) tenant.LogoUrl = settings.LogoUrl;
+                    await _tenantStore.SaveChangesAsync();
+                }
+
+                var school = await _context.Schools.IgnoreQueryFilters().FirstOrDefaultAsync(s => s.SchoolCode == tenantIdent || s.SchoolCode == tenantId);
+                if (school != null)
+                {
+                    if (!string.IsNullOrWhiteSpace(settings.SchoolName)) school.SchoolName = settings.SchoolName;
+                    if (settings.LogoUrl != null) school.LogoUrl = settings.LogoUrl;
+                    if (settings.Address != null) school.Address = settings.Address;
+                    if (settings.Phone != null) school.Phone = settings.Phone;
+                    if (settings.Email != null) school.Email = settings.Email;
+                    if (settings.Website != null) school.Website = settings.Website;
+                    if (settings.PrincipalName != null) school.PrincipalName = settings.PrincipalName;
+                    await _context.SaveChangesAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine($"[SettingsRepository] Tenant/School sync note: {ex.Message}");
+            }
+
             return existing;
         }
 
@@ -102,6 +136,30 @@ namespace SMS.Api.Repositories.Implementations.Settings
             }
             existing.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
+
+            try
+            {
+                var tenantId = _context.TenantInfo?.Id ?? "tenant-default";
+                var tenantIdent = _context.TenantInfo?.Identifier ?? "default";
+                var tenant = await _tenantStore.AppTenants.FirstOrDefaultAsync(t => t.Id == tenantId || t.Identifier == tenantIdent);
+                if (tenant != null)
+                {
+                    tenant.LogoUrl = logoUrl;
+                    await _tenantStore.SaveChangesAsync();
+                }
+
+                var school = await _context.Schools.IgnoreQueryFilters().FirstOrDefaultAsync(s => s.SchoolCode == tenantIdent || s.SchoolCode == tenantId);
+                if (school != null)
+                {
+                    school.LogoUrl = logoUrl;
+                    await _context.SaveChangesAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine($"[SettingsRepository] Logo sync note: {ex.Message}");
+            }
+
             return existing.LogoUrl;
         }
 
