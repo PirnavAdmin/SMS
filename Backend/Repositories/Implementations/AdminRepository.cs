@@ -50,6 +50,7 @@ public class AdminRepository : IAdminRepository
     public async Task<Admin?> GetByIdAsync(int adminId)
     {
         return await _context.Admins
+            .IgnoreQueryFilters()
             .AsNoTracking()
             .Include(a => a.Roles)
             .FirstOrDefaultAsync(a => a.AdminId == adminId);
@@ -57,7 +58,7 @@ public class AdminRepository : IAdminRepository
 
     public async Task UpdatePasswordAsync(int adminId, string newPasswordHash)
     {
-        var admin = await _context.Admins.FindAsync(adminId);
+        var admin = await _context.Admins.IgnoreQueryFilters().FirstOrDefaultAsync(a => a.AdminId == adminId);
         if (admin != null)
         {
             admin.PasswordHash = newPasswordHash;

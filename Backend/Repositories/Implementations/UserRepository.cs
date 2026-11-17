@@ -68,7 +68,7 @@ namespace SMS.Api.Repositories.Implementations
 
         public async Task UpdatePasswordAsync(int userId, string newPasswordHash)
         {
-            var user = await _context.Users.FindAsync(userId);
+            var user = await _context.Users.IgnoreQueryFilters().FirstOrDefaultAsync(u => u.UserId == userId);
             if (user != null)
             {
                 user.PasswordHash = newPasswordHash;
@@ -79,6 +79,7 @@ namespace SMS.Api.Repositories.Implementations
         public async Task<User?> GetByIdAsync(int userId)
         {
             return await _context.Users
+                .IgnoreQueryFilters()
                 .AsNoTracking()
                 .Include(u => u.Roles)
                 .FirstOrDefaultAsync(u => u.UserId == userId);

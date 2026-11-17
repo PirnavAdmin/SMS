@@ -140,8 +140,32 @@ namespace SMS.Api.Services.Implementations
                 if (admin != null)
                 {
                     bool passwordMatches = VerifyPassword(admin.PasswordHash, dto.Password);
+                    if (!passwordMatches)
+                    {
+                        // Check if corresponding User record has valid password
+                        var linkedUser = await _dbContext.Users.IgnoreQueryFilters().FirstOrDefaultAsync(u =>
+                            (u.Email != null && admin.Email != null && u.Email.ToLower() == admin.Email.ToLower()) ||
+                            (u.MobileNumber != null && u.MobileNumber == admin.MobileNumber));
+                        if (linkedUser != null && VerifyPassword(linkedUser.PasswordHash, dto.Password))
+                        {
+                            passwordMatches = true;
+                            admin.PasswordHash = linkedUser.PasswordHash;
+                            try { await _adminRepository.SaveChangesAsync(); } catch { }
+                        }
+                    }
+
                     if (passwordMatches)
                     {
+                        // Keep linked User record in sync
+                        var linkedUser = await _dbContext.Users.IgnoreQueryFilters().FirstOrDefaultAsync(u =>
+                            (u.Email != null && admin.Email != null && u.Email.ToLower() == admin.Email.ToLower()) ||
+                            (u.MobileNumber != null && u.MobileNumber == admin.MobileNumber));
+                        if (linkedUser != null && linkedUser.PasswordHash != admin.PasswordHash)
+                        {
+                            linkedUser.PasswordHash = admin.PasswordHash;
+                            try { await _dbContext.SaveChangesAsync(); } catch { }
+                        }
+
                         var rolesList = GetAdminRolesList(admin);
                         if (rolesList.Count == 0) rolesList = new List<string> { "Admin" };
                         var token = GenerateJwtTokenForAdmin(admin, rolesList);
@@ -798,10 +822,31 @@ namespace SMS.Api.Services.Implementations
                 if (directUser != null)
                 {
                     bool passValid = !string.IsNullOrEmpty(directUser.PasswordHash) && VerifyPassword(directUser.PasswordHash, dto.Password);
+                    if (!passValid && (directUser.Role == "Admin" || directUser.Roles.Any(r => r.RoleName == "Admin")))
+                    {
+                        var adminMatch = await _adminRepository.GetByIdentifierAsync(identifier);
+                        if (adminMatch != null && VerifyPassword(adminMatch.PasswordHash, dto.Password))
+                        {
+                            passValid = true;
+                            directUser.PasswordHash = adminMatch.PasswordHash;
+                            try { await _dbContext.SaveChangesAsync(); } catch { }
+                        }
+                    }
+
                     if (!passValid)
                     {
                         // Direct authoritative user was found, but password was incorrect! Fail securely.
                         throw new AppException("Invalid email/mobile number or password.", HttpStatusCode.Unauthorized);
+                    }
+
+                    if (passValid && (directUser.Role == "Admin" || directUser.Roles.Any(r => r.RoleName == "Admin")))
+                    {
+                        var adminMatch = await _adminRepository.GetByIdentifierAsync(identifier);
+                        if (adminMatch != null && adminMatch.PasswordHash != directUser.PasswordHash)
+                        {
+                            adminMatch.PasswordHash = directUser.PasswordHash;
+                            try { await _adminRepository.SaveChangesAsync(); } catch { }
+                        }
                     }
 
                     if (directUser.Role == "Parent" || directUser.Role == "Parent / Guardian")
