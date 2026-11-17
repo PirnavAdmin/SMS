@@ -32,6 +32,7 @@ import {
   Route,
   Bed,
   Receipt,
+  ReceiptIndianRupee,
   RotateCcw,
   FileSpreadsheet,
   SlidersHorizontal,
@@ -842,10 +843,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
             { id: "superadmin-schools", label: "Schools", icon: Building2 },
             { id: "superadmin-subscriptions", label: "Subscriptions", icon: CreditCard },
             { id: "superadmin-domains", label: "Domain", icon: Globe },
-            { id: "superadmin-transactions", label: "Purchase Transaction", icon: Receipt },
+            { id: "superadmin-transactions", label: "Purchase Transaction", icon: ReceiptIndianRupee },
             { id: "superadmin-metrics", label: "Tenant Usage Metrics", icon: Activity },
             { id: "superadmin-tickets", label: "Tenant Support Tickets", icon: LifeBuoy },
             { id: "superadmin-audit", label: "Audit Logs", icon: ShieldAlert },
+            { id: "superadmin-profile", label: "Company Profile & Branding", icon: Settings },
           ],
         },
       ]
@@ -2132,7 +2134,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   (item.id === "superadmin-transactions" && (activeModule === "superadmin-transactions" || activeModule === "purchase-transaction")) ||
                   (item.id === "superadmin-metrics" && (activeModule === "superadmin-metrics" || activeModule === "tenant-metrics")) ||
                   (item.id === "superadmin-tickets" && (activeModule === "superadmin-tickets" || activeModule === "tenant-tickets")) ||
-                  (item.id === "superadmin-audit" && activeModule === "superadmin-audit");
+                  (item.id === "superadmin-audit" && activeModule === "superadmin-audit") ||
+                  (item.id === "superadmin-profile" && (activeModule === "superadmin-profile" || activeModule === "profile" || activeModule === "my-profile" || activeModule === "settings"));
 
                 return (
                   <button

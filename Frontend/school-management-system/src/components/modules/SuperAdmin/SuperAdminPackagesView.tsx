@@ -49,13 +49,13 @@ export const SuperAdminPackagesView: React.FC = () => {
     tagline: '',
     monthlyPrice: 0,
     yearlyPrice: 0,
-    currency: 'USD',
+    currency: 'INR',
     maxStudents: 0,
     maxStaff: 0,
     maxBranches: 0,
     storageGb: 0,
     isPopular: false,
-    status: 'Active',
+    status: '' as any,
     features: []
   });
 
@@ -98,13 +98,13 @@ export const SuperAdminPackagesView: React.FC = () => {
       tagline: '',
       monthlyPrice: 0,
       yearlyPrice: 0,
-      currency: 'USD',
+      currency: 'INR',
       maxStudents: 0,
       maxStaff: 0,
       maxBranches: 0,
       storageGb: 0,
       isPopular: false,
-      status: 'Active',
+      status: '' as any,
       features: [
         'Student Admissions & Directory',
         'Daily Attendance & Leave Tracking',
@@ -154,13 +154,17 @@ export const SuperAdminPackagesView: React.FC = () => {
   const handleCalculateYearlyDiscount = () => {
     const discounted = Math.round(formData.monthlyPrice * 12 * 0.8);
     setFormData(prev => ({ ...prev, yearlyPrice: discounted }));
-    addToast('info', '20% Discount Applied', `Yearly price calculated as $${discounted}.`);
+    addToast('info', '20% Discount Applied', `Yearly price calculated as ₹${discounted}.`);
   };
 
   const handleSavePlan = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim()) {
       addToast('error', 'Validation Error', 'Package name is required.');
+      return;
+    }
+    if (!formData.status) {
+      addToast('error', 'Validation Error', 'Please select a package status.');
       return;
     }
 
@@ -296,7 +300,7 @@ export const SuperAdminPackagesView: React.FC = () => {
                   <div className="my-5 pb-5 border-b border-slate-100 dark:border-slate-800">
                     <div className="flex items-baseline gap-1">
                       <span className="text-3xl font-black text-slate-900 dark:text-white">
-                        ${price}
+                        ₹{price}
                       </span>
                       <span className="text-xs font-semibold text-slate-400">/{billingCycle.toLowerCase()}</span>
                     </div>
@@ -406,7 +410,7 @@ export const SuperAdminPackagesView: React.FC = () => {
                 {/* Monthly Price */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Monthly Price ($) <span className="text-rose-500">*</span>
+                    Monthly Price (₹) <span className="text-rose-500">*</span>
                   </label>
                   <input
                     type="number"
@@ -423,7 +427,7 @@ export const SuperAdminPackagesView: React.FC = () => {
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
-                      Yearly Price ($) <span className="text-rose-500">*</span>
+                      Yearly Price (₹) <span className="text-rose-500">*</span>
                     </label>
                     <button
                       type="button"
@@ -518,12 +522,13 @@ export const SuperAdminPackagesView: React.FC = () => {
                 </label>
 
                 <div className="flex items-center gap-2">
-                  <span className="font-semibold text-slate-700 dark:text-slate-300">Status:</span>
+                  <span className="font-semibold text-slate-700 dark:text-slate-300">Status: <span className="text-rose-500">*</span></span>
                   <select
                     value={formData.status}
                     onChange={e => setFormData({ ...formData, status: e.target.value as any })}
-                    className="px-2.5 py-1 text-xs bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg outline-none"
+                    className="px-2.5 py-1 text-xs bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500"
                   >
+                    <option value="">Select Status</option>
                     <option value="Active">Active</option>
                     <option value="Inactive">Inactive / Suspended</option>
                   </select>

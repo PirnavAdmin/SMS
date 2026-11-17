@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-  Building2, Users, CreditCard, DollarSign, ArrowUpRight, TrendingUp,
+  Building2, Users, CreditCard, IndianRupee, ArrowUpRight, TrendingUp,
   Clock, ShieldCheck, Plus, Sparkles, RefreshCw, CheckCircle2,
   AlertCircle, Send, Globe, Layers, ArrowRight, Calendar, AlertTriangle
 } from 'lucide-react';
@@ -344,10 +344,10 @@ export const SuperAdminDashboardView: React.FC<SuperAdminDashboardViewProps> = (
           <div className="flex items-start justify-between">
             <div className="space-y-1">
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold text-amber-700 bg-amber-50 dark:text-amber-300 dark:bg-amber-950/60">
-                MRR
+                <IndianRupee className="w-3 h-3" /> Live MRR
               </span>
               <h2 className="text-2xl font-black text-slate-900 dark:text-white pt-1">
-                ${totalRevenue.toLocaleString()}
+                ₹{totalRevenue.toLocaleString()}
               </h2>
               <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">Total Earnings</p>
             </div>
@@ -412,7 +412,7 @@ export const SuperAdminDashboardView: React.FC<SuperAdminDashboardViewProps> = (
           </div>
 
           <div className="text-lg font-black text-slate-900 dark:text-white mb-2">
-            ${totalRevenue.toLocaleString()}
+            ₹{totalRevenue.toLocaleString()}
           </div>
 
           {/* Monthly Bars Jan to Dec */}
@@ -543,7 +543,7 @@ export const SuperAdminDashboardView: React.FC<SuperAdminDashboardViewProps> = (
                     </div>
                   </div>
                   <div className="text-right">
-                    <span className="text-xs font-black text-emerald-600">+${tx.amount}</span>
+                    <span className="text-xs font-black text-emerald-600">+₹{tx.amount.toLocaleString()}</span>
                     <p className="text-[10px] text-slate-400">{tx.planName}</p>
                   </div>
                 </div>
@@ -572,16 +572,11 @@ export const SuperAdminDashboardView: React.FC<SuperAdminDashboardViewProps> = (
             ) : (
               schools.slice(0, 5).map(sc => (
                 <div key={sc.schoolId} className="py-2.5 flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-full bg-slate-900 text-white font-bold flex items-center justify-center text-xs">
-                      {sc.schoolName.charAt(0)}
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-slate-900 dark:text-white truncate max-w-[140px]">{sc.schoolName}</p>
-                      <p className="text-[10px] text-slate-400">
-                        {sc.planName ? `${sc.planName} (${sc.planType || 'Monthly'})` : 'No Plan Assigned'}
-                      </p>
-                    </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate max-w-[180px]">{sc.schoolName}</p>
+                    <p className="text-[10px] text-slate-400">
+                      {sc.planName ? `${sc.planName} (${sc.planType || 'Monthly'})` : 'No Plan Assigned'}
+                    </p>
                   </div>
                   <div className="text-right">
                     <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300">

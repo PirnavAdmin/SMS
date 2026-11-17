@@ -41,7 +41,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
   });
 
   const effectiveLogo = tenant?.logoUrl || dynamicLogo || pirnavLogo;
-  const effectiveName = tenant?.companyName || (initialRole === 'Super Admin' ? 'Super Admin Portal' : schoolName);
+  const effectiveName = tenant?.companyName || (initialRole === 'Super Admin' ? (localStorage.getItem('company_name') || 'Super Admin Portal') : schoolName);
 
   useEffect(() => {
     const updateLogo = () => {
@@ -234,7 +234,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
   const handlePasswordChange = (value: string) => {
     setPassword(value);
     if (error) setError('');
-    if (rememberMe) {
+    if (rememberMe && initialRole !== 'Super Admin') {
       try {
         localStorage.setItem('remember_me_password', value);
       } catch {}
@@ -244,9 +244,14 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
   // Validation helpers
   const getIdentifierError = () => {
     if (!identifier.trim()) {
-      return (identifierTouched || loginSubmitted) ? 'Email, mobile or Student ID is required' : '';
+      return (identifierTouched || loginSubmitted)
+        ? (initialRole === 'Super Admin' ? 'Super Admin email or username is required' : 'Email, mobile or Student ID is required')
+        : '';
     }
     const clean = identifier.trim();
+    if (initialRole === 'Super Admin') {
+      return '';
+    }
     if (clean.includes('@')) {
       const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailPattern.test(clean) && (identifierTouched || loginSubmitted)) {
@@ -282,7 +287,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
       return;
     }
 
-    if (rememberMe) {
+    if (rememberMe && initialRole !== 'Super Admin') {
       localStorage.setItem('remember_me', 'true');
       localStorage.setItem('remember_me_identifier', identifier.trim());
       localStorage.setItem('remember_me_password', password);
@@ -559,15 +564,15 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
                 <form onSubmit={handleLoginSubmit} noValidate className="space-y-3">
                   
                   {initialRole === 'Super Admin' && (
-                    <div className="flex items-center justify-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 text-xs font-semibold mb-2">
-                      <ShieldCheck className="w-3.5 h-3.5 text-amber-500" /> Super Administrator Portal
+                    <div className="flex items-center justify-center gap-1.5 px-3 py-1 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-700 dark:text-sky-400 text-xs font-semibold mb-2">
+                      <ShieldCheck className="w-3.5 h-3.5 text-sky-500" /> Super Administrator Portal
                     </div>
                   )}
 
                   {/* Email / Phone Field */}
                   <div className="space-y-1 text-left">
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                      Email, Mobile Number or Student ID <span className="text-rose-500 ml-0.5">*</span>
+                      {initialRole === 'Super Admin' ? 'Email or Username' : 'Email, Mobile Number or Student ID'} <span className="text-rose-500 ml-0.5">*</span>
                     </label>
                     <div className="relative group">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-sky-500 transition-colors">
@@ -578,7 +583,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
                         value={identifier}
                         onChange={e => handleIdentifierChange(e.target.value)}
                         onBlur={() => setIdentifierTouched(true)}
-                        placeholder="Enter email, phone, or Student ID"
+                        placeholder={initialRole === 'Super Admin' ? 'Enter email or username' : 'Enter email, phone, or Student ID'}
                         className={`w-full pl-9 pr-3.5 py-2.5 rounded-xl bg-slate-50/70 dark:bg-slate-950/80 border text-slate-900 dark:text-white text-xs sm:text-sm placeholder-slate-400 focus:outline-none focus:ring-3 transition-all font-medium ${
                           identifierError
                             ? 'border-rose-500 focus:ring-rose-500/20 focus:border-rose-500 bg-rose-50/20'
@@ -678,7 +683,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
                     </button>
                   </div>
 
-                  {isSetupRequired && (
+                  {isSetupRequired && typeof window !== 'undefined' && window.location.hash.includes('setup') && (
                     <div className="pt-2 text-center border-t border-slate-100 dark:border-slate-800">
                       <button
                         type="button"

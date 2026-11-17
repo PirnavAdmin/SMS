@@ -835,6 +835,9 @@ const MainLayout: React.FC = () => {
           <UserManagementView />
         );
       case "settings":
+        if (isSuperAdmin) {
+          return <SuperAdminProfileView onNavigate={(mod) => setActiveModule(mod)} />;
+        }
         return !hasModuleAccess(role || userRole, "settings") ? (
           <DashboardView onNavigate={(mod) => setActiveModule(mod)} />
         ) : (
