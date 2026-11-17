@@ -212,10 +212,10 @@ public class FinanceService : IFinanceService
 
         var res = await _repo.CreateFeeHeadAsync(model);
         dto.Id = res.Id;
-        dto.Code = meta.code;
+        dto.Code = meta.code ?? resolvedCode;
         dto.DefaultAmount = effectiveAmount;
         dto.Amount = effectiveAmount;
-        dto.AcademicYear = meta.academicYear;
+        dto.AcademicYear = meta.academicYear ?? string.Empty;
         return dto;
     }
 
@@ -281,10 +281,10 @@ public class FinanceService : IFinanceService
 
         await _repo.UpdateFeeHeadAsync(model);
         dto.Id = id;
-        dto.Code = meta.code;
+        dto.Code = meta.code ?? resolvedCode;
         dto.DefaultAmount = effectiveAmount;
         dto.Amount = effectiveAmount;
-        dto.AcademicYear = meta.academicYear;
+        dto.AcademicYear = meta.academicYear ?? string.Empty;
         return dto;
     }
 

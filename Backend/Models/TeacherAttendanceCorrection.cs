@@ -4,6 +4,7 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 [Table("teacher_attendance_corrections")]
+[MultiTenant]
 public class TeacherAttendanceCorrection
 {
     [Key]

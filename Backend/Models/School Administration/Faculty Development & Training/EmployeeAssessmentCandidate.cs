@@ -5,6 +5,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace SMS.Api.Models
 {
     [Table("employee_assessment_candidates")]
+    [MultiTenant]
     public class EmployeeAssessmentCandidate
     {
         [Key]

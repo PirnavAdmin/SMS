@@ -436,10 +436,27 @@ using (var scope = app.Services.CreateScope())
             try
             {
                 var tenantStore = services.GetRequiredService<TenantStoreDbContext>();
-                tenantStore.Database.EnsureCreated();
-                if (!tenantStore.AppTenants.Any())
+                tenantStore.Database.ExecuteSqlRaw(@"
+                    CREATE TABLE IF NOT EXISTS `app_tenants` (
+                        `Id` varchar(64) NOT NULL,
+                        `Identifier` varchar(64) NOT NULL,
+                        `Name` varchar(200) NULL,
+                        `ConnectionString` longtext NULL,
+                        `CompanyName` varchar(200) NOT NULL,
+                        `PrimaryColor` varchar(30) NULL DEFAULT '#0284c7',
+                        `LogoUrl` varchar(500) NULL DEFAULT '',
+                        `IsActive` tinyint(1) NOT NULL DEFAULT 1,
+                        `CreatedAt` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+                        `UpdatedAt` datetime(6) NULL,
+                        PRIMARY KEY (`Id`),
+                        UNIQUE KEY `IX_app_tenants_Identifier` (`Identifier`)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+                ");
+
+                var defaultTenant = tenantStore.AppTenants.FirstOrDefault(t => t.Id == "tenant-default" || t.Identifier == "default");
+                if (defaultTenant == null)
                 {
-                    tenantStore.AppTenants.Add(new AppTenantInfo
+                    defaultTenant = new AppTenantInfo
                     {
                         Id = "tenant-default",
                         Identifier = "default",
@@ -449,8 +466,20 @@ using (var scope = app.Services.CreateScope())
                         LogoUrl = "/pirnav-school-logo.png",
                         IsActive = true,
                         CreatedAt = DateTime.UtcNow
-                    });
+                    };
+                    tenantStore.AppTenants.Add(defaultTenant);
                     tenantStore.SaveChanges();
+                }
+
+                // Initialize MultiTenantContext for startup so background/seeding queries don't throw NullReferenceException
+                var tenantSetter = services.GetService<IMultiTenantContextSetter>();
+                if (tenantSetter != null)
+                {
+                    var mtContext = new MultiTenantContext<AppTenantInfo>
+                    {
+                        TenantInfo = defaultTenant
+                    };
+                    tenantSetter.MultiTenantContext = mtContext;
                 }
             }
             catch (Exception ex)
@@ -469,6 +498,47 @@ using (var scope = app.Services.CreateScope())
                 var dbName = dbConnection.Database;
                 var wasOpen = dbConnection.State == System.Data.ConnectionState.Open;
                 if (!wasOpen) dbConnection.Open();
+
+                // Upgrade all multi-tenant tables to add TenantId column and default to tenant-default
+                var multiTenantTables = new[]
+                {
+                    "users", "admins", "schools", "schoolsettings", "branches", "departments",
+                    "subjects", "staff", "students", "admissions", "admission_applications",
+                    "academic_years", "classes", "class_sections", "homeworks",
+                    "class_subject_mappings", "teacher_assignments", "teacher_subject_assignments",
+                    "timetable_headers", "timetable_slots", "employee_assessment_candidates",
+                    "employee_salary_assignments", "faculty_training_participations",
+                    "leave_applications", "staff_attendances", "staff_documents",
+                    "staff_experiences", "staff_qualifications", "teacher_attendance_corrections",
+                    "teacher_substitutions", "homework_submissions"
+                };
+
+                foreach (var tbl in multiTenantTables)
+                {
+                    try
+                    {
+                        using var cmd = dbConnection.CreateCommand();
+                        cmd.CommandText = $"SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = '{dbName}' AND TABLE_NAME = '{tbl}';";
+                        var tExists = System.Convert.ToInt32(cmd.ExecuteScalar());
+                        if (tExists > 0)
+                        {
+                            cmd.CommandText = $"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '{dbName}' AND TABLE_NAME = '{tbl}' AND COLUMN_NAME = 'TenantId';";
+                            var cExists = System.Convert.ToInt32(cmd.ExecuteScalar());
+                            if (cExists == 0)
+                            {
+                                cmd.CommandText = $"ALTER TABLE `{tbl}` ADD COLUMN `TenantId` varchar(64) NULL;";
+                                cmd.ExecuteNonQuery();
+                                cmd.CommandText = $"UPDATE `{tbl}` SET `TenantId` = 'tenant-default' WHERE `TenantId` IS NULL;";
+                                cmd.ExecuteNonQuery();
+                                System.Console.WriteLine($"[Database Schema Upgrade] Added column `TenantId` to `{tbl}`.");
+                            }
+                        }
+                    }
+                    catch (System.Exception ex)
+                    {
+                        System.Console.WriteLine($"[Database Schema Upgrade Warning] Could not ensure TenantId on `{tbl}`: {ex.Message}");
+                    }
+                }
 
             var tablesToRename = new System.Collections.Generic.Dictionary<string, string>
             {
@@ -2246,7 +2316,7 @@ using (var scope = app.Services.CreateScope())
         // Standardize any legacy user roles in users table
         try
         {
-            var allUsers = await context.Users.ToListAsync();
+            var allUsers = await context.Users.IgnoreQueryFilters().ToListAsync();
             foreach (var u in allUsers)
             {
                 var normRole = SMS.Api.Helpers.RoleHelper.NormalizeRoleName(u.Role);
@@ -2274,7 +2344,7 @@ using (var scope = app.Services.CreateScope())
         const string adminEmail = "admin@pirnavschools.com";
         const string adminMobile = "9876543210";
 
-        var existingAdmin = await context.Admins.FirstOrDefaultAsync(
+        var existingAdmin = await context.Admins.IgnoreQueryFilters().FirstOrDefaultAsync(
             a => (a.Email != null && a.Email.ToLower() == adminEmail) ||
                  a.MobileNumber == adminMobile);
 
@@ -2284,6 +2354,7 @@ using (var scope = app.Services.CreateScope())
 
         var adminUser =
             await context.Users
+                .IgnoreQueryFilters()
                 .Include(x => x.Roles)
                 .FirstOrDefaultAsync(
                     x => (x.Email != null && x.Email.ToLower() == adminEmail) ||
@@ -2293,6 +2364,7 @@ using (var scope = app.Services.CreateScope())
         {
             adminUser = new User
             {
+                TenantId = "tenant-default",
                 FullName = existingAdmin?.FullName ?? "Dr. Eleanor Vance",
                 Email = adminEmail,
                 MobileNumber = adminMobile,
@@ -2327,6 +2399,10 @@ using (var scope = app.Services.CreateScope())
             adminUser.Role = "Admin";
             adminUser.IsEmailVerified = true;
             adminUser.IsMobileVerified = true;
+            if (string.IsNullOrWhiteSpace(adminUser.TenantId))
+            {
+                adminUser.TenantId = "tenant-default";
+            }
 
             if (adminRole != null && adminUser.Roles.All(x => x.RoleName != "Admin"))
             {
@@ -2373,18 +2449,19 @@ using (var scope = app.Services.CreateScope())
 
             if (tablesReady)
             {
-                var defaultBranch = await context.Branches.OrderBy(b => b.BranchId).FirstOrDefaultAsync();
-                var defaultAcademicYear = await context.AcademicYears.OrderBy(y => y.AcademicYearId).FirstOrDefaultAsync();
+                var defaultBranch = await context.Branches.IgnoreQueryFilters().OrderBy(b => b.BranchId).FirstOrDefaultAsync();
+                var defaultAcademicYear = await context.AcademicYears.IgnoreQueryFilters().OrderBy(y => y.AcademicYearId).FirstOrDefaultAsync();
 
                 if (defaultBranch != null && defaultAcademicYear != null)
                 {
                     // 1. Sync all applications from admission_applications to admissions table
                     var allApps = await context.AdmissionApplications
+                        .IgnoreQueryFilters()
                         .OrderBy(a => a.Id)
                         .ToListAsync();
 
-                    var branches = await context.Branches.ToListAsync();
-                    var allClasses = await context.Classes.ToListAsync();
+                    var branches = await context.Branches.IgnoreQueryFilters().ToListAsync();
+                    var allClasses = await context.Classes.IgnoreQueryFilters().ToListAsync();
 
                     // Find max existing ADM number from students and applications
                     var existingAdmNumbers = await context.Students
@@ -2426,6 +2503,7 @@ using (var scope = app.Services.CreateScope())
                             : (admApp.RegistrationNo ?? "");
 
                         var existingAdmission = await context.Admissions
+                            .IgnoreQueryFilters()
                             .FirstOrDefaultAsync(a => a.ApplicationNo == admApp.RegistrationNo || 
                                 (!string.IsNullOrEmpty(admApp.AdmissionNo) && a.ApplicationNo == admApp.AdmissionNo));
 
@@ -2495,6 +2573,7 @@ using (var scope = app.Services.CreateScope())
 
                     // 2. Sync from admissions to students table with IgnoreQueryFilters
                     var activeAdmissions = await context.Admissions
+                        .IgnoreQueryFilters()
                         .Where(a => !a.IsDeleted && (a.Status == "Enrolled" || a.Status == "Active"))
                         .ToListAsync();
 
@@ -2507,12 +2586,14 @@ using (var scope = app.Services.CreateScope())
                         if (!string.IsNullOrEmpty(admission.SectionLetter))
                         {
                             sectionObj = await context.ClassSections
+                                .IgnoreQueryFilters()
                                 .FirstOrDefaultAsync(s => s.ClassId == admission.ClassId && s.SectionName.ToLower() == admission.SectionLetter.ToLower());
                         }
 
                         if (sectionObj == null)
                         {
                             sectionObj = await context.ClassSections
+                                .IgnoreQueryFilters()
                                 .FirstOrDefaultAsync(s => s.ClassId == admission.ClassId);
                         }
                         if (sectionObj == null) continue;
@@ -2560,6 +2641,7 @@ using (var scope = app.Services.CreateScope())
 
                     // 3. Deactivate students whose applications are Deleted or Rejected
                     var nonEnrolledApps = await context.AdmissionApplications
+                        .IgnoreQueryFilters()
                         .Where(a => a.IsDeleted || a.Status == "Deleted" || a.Status == "Rejected" || a.Status == "Pending")
                         .ToListAsync();
 
@@ -2580,11 +2662,13 @@ using (var scope = app.Services.CreateScope())
                     {
                         // Ensure all enrolled applications and student records share the canonical dynamic Student ID
                         var enrolledAppsToSync = await context.AdmissionApplications
+                            .IgnoreQueryFilters()
                             .Where(a => !a.IsDeleted && (a.Status == "Enrolled" || a.Status == "Admitted") && !string.IsNullOrWhiteSpace(a.RegistrationNo) && !a.RegistrationNo.StartsWith("REG-"))
                             .ToListAsync();
                         foreach (var appItem in enrolledAppsToSync)
                         {
                             var matchedStudent = await context.Students
+                                .IgnoreQueryFilters()
                                 .FirstOrDefaultAsync(s => s.AdmissionNumber == appItem.AdmissionNo || 
                                                           (s.FatherMobile == appItem.FatherContact && s.StudentName == $"{appItem.FirstName} {appItem.LastName}".Trim()));
                             if (matchedStudent != null && matchedStudent.RollNumber != appItem.RegistrationNo)
@@ -2600,6 +2684,7 @@ using (var scope = app.Services.CreateScope())
                                 : System.Text.RegularExpressions.Regex.Replace(idVal, @"(?<=[A-Za-z0-9])none(?=[0-9])", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
                         var appsWithNone = await context.AdmissionApplications
+                            .IgnoreQueryFilters()
                             .Where(a => (a.AdmissionNo != null && a.AdmissionNo.Contains("none")) || (a.RegistrationNo != null && a.RegistrationNo.Contains("none")))
                             .ToListAsync();
                         foreach (var a in appsWithNone)
@@ -2609,6 +2694,7 @@ using (var scope = app.Services.CreateScope())
                         }
 
                         var admWithNone = await context.Admissions
+                            .IgnoreQueryFilters()
                             .Where(a => (a.ApplicationNo != null && a.ApplicationNo.Contains("none")) || (a.RollNo != null && a.RollNo.Contains("none")))
                             .ToListAsync();
                         foreach (var a in admWithNone)
@@ -2618,6 +2704,7 @@ using (var scope = app.Services.CreateScope())
                         }
 
                         var studentsWithNone = await context.Students
+                            .IgnoreQueryFilters()
                             .Where(s => (s.AdmissionNumber != null && s.AdmissionNumber.Contains("none")) || (s.RollNumber != null && s.RollNumber.Contains("none")))
                             .ToListAsync();
                         foreach (var s in studentsWithNone)
@@ -2627,6 +2714,7 @@ using (var scope = app.Services.CreateScope())
                         }
 
                         var staffWithNone = await context.Staff
+                            .IgnoreQueryFilters()
                             .Where(s => s.EmployeeId != null && s.EmployeeId.Contains("none"))
                             .ToListAsync();
                         foreach (var s in staffWithNone)
@@ -2646,6 +2734,7 @@ using (var scope = app.Services.CreateScope())
                     {
                         var settingsService = services.GetService<SMS.Api.Services.Interfaces.Settings.ISettingsService>();
                         var enrolledWithReg = await context.AdmissionApplications
+                            .IgnoreQueryFilters()
                             .Where(a => !a.IsDeleted && (a.Status == "Enrolled" || a.Status == "Admitted") && a.RegistrationNo != null && a.RegistrationNo.StartsWith("REG-"))
                             .ToListAsync();
 
@@ -2667,6 +2756,7 @@ using (var scope = app.Services.CreateScope())
                             }
 
                             var matchedStudent = await context.Students
+                                .IgnoreQueryFilters()
                                 .FirstOrDefaultAsync(s => s.AdmissionNumber == appItem.AdmissionNo || 
                                                           s.RollNumber == appItem.RegistrationNo ||
                                                           (s.FatherMobile == appItem.FatherContact && s.StudentName == $"{appItem.FirstName} {appItem.LastName}".Trim()));
@@ -2681,9 +2771,9 @@ using (var scope = app.Services.CreateScope())
                                 }
                             }
 
-                            var studentRole = await context.Roles.FirstOrDefaultAsync(r => r.RoleName == "Student");
+                            var studentRole = await context.Roles.IgnoreQueryFilters().FirstOrDefaultAsync(r => r.RoleName == "Student");
                             var sName = matchedStudent?.StudentName ?? $"{appItem.FirstName} {appItem.LastName}".Trim();
-                            var existingU = await context.Users.Include(u => u.Roles).FirstOrDefaultAsync(u =>
+                            var existingU = await context.Users.IgnoreQueryFilters().Include(u => u.Roles).FirstOrDefaultAsync(u =>
                                 u.Role == "Student" && (
                                     u.MobileNumber == newStudentId ||
                                     (u.Email != null && u.Email.ToLower().StartsWith(newStudentId.ToLower() + "@")) ||
@@ -2702,6 +2792,7 @@ using (var scope = app.Services.CreateScope())
                             {
                                 var newU = new User
                                 {
+                                    TenantId = "tenant-default",
                                     FullName = sName,
                                     Email = $"{newStudentId.ToLowerInvariant()}@school.internal",
                                     MobileNumber = newStudentId,
@@ -2717,6 +2808,7 @@ using (var scope = app.Services.CreateScope())
                         }
 
                         var nonEnrolledWithReg = await context.AdmissionApplications
+                            .IgnoreQueryFilters()
                             .Where(a => a.RegistrationNo != null && a.RegistrationNo.StartsWith("REG-") && a.Status != "Enrolled" && a.Status != "Admitted")
                             .ToListAsync();
                         foreach (var nonApp in nonEnrolledWithReg)
@@ -2726,11 +2818,13 @@ using (var scope = app.Services.CreateScope())
 
                         // Ensure all enrolled applications and student records share the canonical dynamic Student ID
                         var enrolledAppsToSync = await context.AdmissionApplications
+                            .IgnoreQueryFilters()
                             .Where(a => !a.IsDeleted && (a.Status == "Enrolled" || a.Status == "Admitted") && !string.IsNullOrWhiteSpace(a.RegistrationNo) && !a.RegistrationNo.StartsWith("REG-"))
                             .ToListAsync();
                         foreach (var appItem in enrolledAppsToSync)
                         {
                             var matchedStudent = await context.Students
+                                .IgnoreQueryFilters()
                                 .FirstOrDefaultAsync(s => s.AdmissionNumber == appItem.AdmissionNo || 
                                                           (s.FatherMobile == appItem.FatherContact && s.StudentName == $"{appItem.FirstName} {appItem.LastName}".Trim()));
                             if (matchedStudent != null && matchedStudent.RollNumber != appItem.RegistrationNo)
@@ -2746,6 +2840,7 @@ using (var scope = app.Services.CreateScope())
                                 : System.Text.RegularExpressions.Regex.Replace(idVal, @"(?<=[A-Za-z0-9])none(?=[0-9])", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
 
                         var appsWithNone = await context.AdmissionApplications
+                            .IgnoreQueryFilters()
                             .Where(a => (a.AdmissionNo != null && a.AdmissionNo.Contains("none")) || (a.RegistrationNo != null && a.RegistrationNo.Contains("none")))
                             .ToListAsync();
                         foreach (var a in appsWithNone)
@@ -2755,6 +2850,7 @@ using (var scope = app.Services.CreateScope())
                         }
 
                         var admWithNone = await context.Admissions
+                            .IgnoreQueryFilters()
                             .Where(a => (a.ApplicationNo != null && a.ApplicationNo.Contains("none")) || (a.RollNo != null && a.RollNo.Contains("none")))
                             .ToListAsync();
                         foreach (var a in admWithNone)
@@ -2764,6 +2860,7 @@ using (var scope = app.Services.CreateScope())
                         }
 
                         var studentsWithNone = await context.Students
+                            .IgnoreQueryFilters()
                             .Where(s => (s.AdmissionNumber != null && s.AdmissionNumber.Contains("none")) || (s.RollNumber != null && s.RollNumber.Contains("none")))
                             .ToListAsync();
                         foreach (var s in studentsWithNone)
@@ -2773,6 +2870,7 @@ using (var scope = app.Services.CreateScope())
                         }
 
                         var staffWithNone = await context.Staff
+                            .IgnoreQueryFilters()
                             .Where(s => s.EmployeeId != null && s.EmployeeId.Contains("none"))
                             .ToListAsync();
                         foreach (var s in staffWithNone)
@@ -2805,7 +2903,7 @@ using (var scope = app.Services.CreateScope())
         // --- BACKFILL: Sync existing staff into users table for login ---
         try
         {
-            var existingStaff = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync(context.Staff);
+            var existingStaff = await context.Staff.IgnoreQueryFilters().ToListAsync();
             foreach (var stf in existingStaff)
             {
                 var isTeach = (stf.EmployeeCategory ?? "").ToLower().Contains("teach");
@@ -2813,7 +2911,7 @@ using (var scope = app.Services.CreateScope())
                 var name = $"{stf.FirstName} {stf.LastName}".Trim();
                 var phone = !string.IsNullOrWhiteSpace(stf.Phone) ? stf.Phone.Trim() : (!string.IsNullOrWhiteSpace(stf.AlternateMobile) ? stf.AlternateMobile.Trim() : $"STF{stf.StaffId}");
 
-                var userExists = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.AnyAsync(context.Users, u =>
+                var userExists = await context.Users.IgnoreQueryFilters().AnyAsync(u =>
                     (!string.IsNullOrWhiteSpace(stf.Email) && u.Email != null && u.Email.ToLower() == stf.Email.ToLower()) ||
                     (!string.IsNullOrWhiteSpace(phone) && u.MobileNumber == phone));
 
@@ -2822,6 +2920,7 @@ using (var scope = app.Services.CreateScope())
                     var dynamicStaffPass = SMS.Api.Helpers.PasswordHelper.GenerateDynamicPassword();
                     context.Users.Add(new User
                     {
+                        TenantId = "tenant-default",
                         FullName = name,
                         Email = stf.Email,
                         MobileNumber = phone,
@@ -2859,6 +2958,7 @@ using (var scope = app.Services.CreateScope())
             await context.Database.ExecuteSqlRawAsync(createPhysicalTableSql);
 
             var activeAssignments = await context.TeacherAssignments
+                .IgnoreQueryFilters()
                 .AsNoTracking()
                 .Include(ta => ta.ClassGrade)
                 .Include(ta => ta.Subject)

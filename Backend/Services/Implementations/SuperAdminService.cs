@@ -498,7 +498,7 @@ public class SuperAdminService : ISuperAdminService
             try
             {
                 var sCode = school.SchoolCode.Trim().ToLower();
-                var tenant = await _tenantStore.AppTenants.FirstOrDefaultAsync(t => t.Identifier.ToLower() == sCode || t.Name == school.SchoolName);
+                var tenant = await _tenantStore.AppTenants.FirstOrDefaultAsync(t => (t.Identifier != null && t.Identifier.ToLower() == sCode) || t.Name == school.SchoolName);
                 if (tenant != null)
                 {
                     _tenantStore.AppTenants.Remove(tenant);
@@ -527,7 +527,7 @@ public class SuperAdminService : ISuperAdminService
             try
             {
                 var sCode = school.SchoolCode.Trim().ToLower();
-                var tenant = await _tenantStore.AppTenants.FirstOrDefaultAsync(t => t.Identifier.ToLower() == sCode || t.Name == school.SchoolName);
+                var tenant = await _tenantStore.AppTenants.FirstOrDefaultAsync(t => (t.Identifier != null && t.Identifier.ToLower() == sCode) || t.Name == school.SchoolName);
                 if (tenant != null)
                 {
                     tenant.IsActive = (status == "Active");
@@ -604,7 +604,7 @@ public class SuperAdminService : ISuperAdminService
         if (_tenantStore != null)
         {
             var sCode = school.SchoolCode.Trim().ToLower();
-            var tenant = await _tenantStore.AppTenants.FirstOrDefaultAsync(t => t.Identifier.ToLower() == sCode || t.Name == school.SchoolName);
+            var tenant = await _tenantStore.AppTenants.FirstOrDefaultAsync(t => (t.Identifier != null && t.Identifier.ToLower() == sCode) || t.Name == school.SchoolName);
             if (tenant == null)
             {
                 tenant = new AppTenantInfo

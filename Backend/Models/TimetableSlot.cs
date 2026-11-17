@@ -4,6 +4,7 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 [Table("timetable_slots")]
+[MultiTenant]
 public class TimetableSlot
 {
     [Key]

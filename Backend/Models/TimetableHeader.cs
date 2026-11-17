@@ -8,6 +8,7 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 [Table("timetable_headers")]
+[MultiTenant]
 public class TimetableHeader
 {
     [Key]

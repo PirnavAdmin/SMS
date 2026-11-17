@@ -5,6 +5,7 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 [Table("staff_documents")]
+[MultiTenant]
 public class StaffDocument
 {
     [Key]

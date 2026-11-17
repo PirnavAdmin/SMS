@@ -54,7 +54,7 @@ namespace SMS.Api.Controllers
         public async Task<IActionResult> GetTenantByIdentifier(string identifier)
         {
             var clean = identifier.Trim().ToLowerInvariant();
-            var tenant = await _tenantStore.AppTenants.AsNoTracking().FirstOrDefaultAsync(t => t.Identifier.ToLower() == clean || t.Id == clean);
+            var tenant = await _tenantStore.AppTenants.AsNoTracking().FirstOrDefaultAsync(t => (t.Identifier != null && t.Identifier.ToLower() == clean) || t.Id == clean);
             if (tenant == null)
             {
                 return NotFound(new

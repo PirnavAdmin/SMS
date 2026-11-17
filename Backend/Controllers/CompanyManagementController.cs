@@ -37,7 +37,7 @@ namespace SMS.Api.Controllers
             if (!string.IsNullOrWhiteSpace(search))
             {
                 var term = search.Trim().ToLower();
-                query = query.Where(t => t.CompanyName.ToLower().Contains(term) || t.Identifier.ToLower().Contains(term));
+                query = query.Where(t => t.CompanyName.ToLower().Contains(term) || (t.Identifier != null && t.Identifier.ToLower().Contains(term)));
             }
 
             if (isActive.HasValue)
@@ -57,15 +57,15 @@ namespace SMS.Api.Controllers
 
             var result = tenants.Select(t => new CompanyResponseDto
             {
-                Id = t.Id,
-                Identifier = t.Identifier,
+                Id = t.Id ?? string.Empty,
+                Identifier = t.Identifier ?? string.Empty,
                 CompanyName = t.CompanyName,
                 PrimaryColor = t.PrimaryColor,
                 LogoUrl = t.LogoUrl,
                 IsActive = t.IsActive,
                 CreatedAt = t.CreatedAt,
                 UpdatedAt = t.UpdatedAt,
-                UsersCount = userCounts.TryGetValue(t.Id, out var count) ? count : 0
+                UsersCount = (t.Id != null && userCounts.TryGetValue(t.Id, out var count)) ? count : 0
             }).ToList();
 
             return Ok(result);
@@ -89,8 +89,8 @@ namespace SMS.Api.Controllers
 
             return Ok(new CompanyResponseDto
             {
-                Id = tenant.Id,
-                Identifier = tenant.Identifier,
+                Id = tenant.Id ?? string.Empty,
+                Identifier = tenant.Identifier ?? string.Empty,
                 CompanyName = tenant.CompanyName,
                 PrimaryColor = tenant.PrimaryColor,
                 LogoUrl = tenant.LogoUrl,
@@ -112,7 +112,7 @@ namespace SMS.Api.Controllers
             var cleanIdentifier = dto.Identifier.Trim().ToLowerInvariant();
 
             // Validate uniqueness of identifier
-            bool exists = await _tenantStore.AppTenants.AnyAsync(t => t.Identifier.ToLower() == cleanIdentifier);
+            bool exists = await _tenantStore.AppTenants.AnyAsync(t => t.Identifier != null && t.Identifier.ToLower() == cleanIdentifier);
             if (exists)
             {
                 return Conflict(new { message = $"A company with identifier/subdomain '{cleanIdentifier}' already exists." });
@@ -226,7 +226,7 @@ namespace SMS.Api.Controllers
             if (!string.IsNullOrWhiteSpace(dto.Identifier) && !string.Equals(tenant.Identifier, dto.Identifier.Trim().ToLowerInvariant(), StringComparison.OrdinalIgnoreCase))
             {
                 var newIdent = dto.Identifier.Trim().ToLowerInvariant();
-                bool exists = await _tenantStore.AppTenants.AnyAsync(t => t.Id != id && t.Identifier.ToLower() == newIdent);
+                bool exists = await _tenantStore.AppTenants.AnyAsync(t => t.Id != id && t.Identifier != null && t.Identifier.ToLower() == newIdent);
                 if (exists) return Conflict(new { message = $"Identifier '{newIdent}' is already in use by another company." });
                 tenant.Identifier = newIdent;
             }
@@ -242,8 +242,8 @@ namespace SMS.Api.Controllers
 
             return Ok(new CompanyResponseDto
             {
-                Id = tenant.Id,
-                Identifier = tenant.Identifier,
+                Id = tenant.Id ?? string.Empty,
+                Identifier = tenant.Identifier ?? string.Empty,
                 CompanyName = tenant.CompanyName,
                 PrimaryColor = tenant.PrimaryColor,
                 LogoUrl = tenant.LogoUrl,
@@ -272,8 +272,8 @@ namespace SMS.Api.Controllers
 
             return Ok(new CompanyResponseDto
             {
-                Id = tenant.Id,
-                Identifier = tenant.Identifier,
+                Id = tenant.Id ?? string.Empty,
+                Identifier = tenant.Identifier ?? string.Empty,
                 CompanyName = tenant.CompanyName,
                 PrimaryColor = tenant.PrimaryColor,
                 LogoUrl = tenant.LogoUrl,

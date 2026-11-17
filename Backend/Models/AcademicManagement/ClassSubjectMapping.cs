@@ -6,6 +6,7 @@ using SMS.Api.Models;
 namespace SMS.Api.Models.AcademicManagement
 {
     [Table("class_subject_mappings")]
+    [MultiTenant]
     public class ClassSubjectMapping
     {
         [Key]

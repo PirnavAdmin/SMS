@@ -9,13 +9,21 @@ namespace SMS.Api.Data
 {
     public class AppDbContext : MultiTenantDbContext
     {
+        public static readonly AppTenantInfo FallbackTenant = new AppTenantInfo
+        {
+            Id = "tenant-default",
+            Identifier = "default",
+            Name = "Pirnav Educational Institutions",
+            CompanyName = "Pirnav Educational Institutions"
+        };
+
         public AppDbContext(IMultiTenantContextAccessor multiTenantContextAccessor, DbContextOptions<AppDbContext> options)
-            : base(multiTenantContextAccessor, options)
+            : base(multiTenantContextAccessor.MultiTenantContext?.TenantInfo ?? FallbackTenant, options)
         {
         }
 
         public AppDbContext(DbContextOptions<AppDbContext> options)
-            : base((ITenantInfo?)null, options)
+            : base((ITenantInfo?)FallbackTenant, options)
         {
         }
 

@@ -6,6 +6,7 @@ using SMS.Api.Models;
 namespace SMS.Api.Models.AcademicManagement
 {
     [Table("teacher_assignments")]
+    [MultiTenant]
     public class TeacherAssignment
     {
         [Key]
