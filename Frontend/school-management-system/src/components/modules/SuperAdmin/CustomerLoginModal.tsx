@@ -215,7 +215,7 @@ Admin Name      : ${admin?.fullName || createForm.fullName}
 Login ID / Email: ${admin?.email || createForm.email}
 Mobile Number   : ${admin?.mobileNumber || createForm.mobileNumber || 'N/A'}
 Role Assigned   : School Administrator (Full Management Access)
-Temporary Pass  : ${activePassword || '•••••••• (Configured by Super Admin)'}
+Temporary Pass  : ${activePassword || '•••••••• (Click [Reset Password] to reveal or set a known password)'}
 
 LOGIN INSTRUCTIONS FOR THE CUSTOMER:
 1. Open the Portal Login URL: ${loginPortalUrl}
@@ -322,17 +322,40 @@ LOGIN INSTRUCTIONS FOR THE CUSTOMER:
                   </div>
                 </div>
 
-                {activePassword && (
+                {activePassword ? (
                   <div className="mt-2 p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 flex items-center justify-between">
                     <div>
                       <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300 block">
-                        New Password Created
+                        New Password Set & Ready
                       </span>
                       <span className="text-sm font-mono font-black text-emerald-900 dark:text-emerald-100">
                         {activePassword}
                       </span>
                     </div>
                     <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">Ready to share</span>
+                  </div>
+                ) : (
+                  <div className="mt-2 p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-amber-800 dark:text-amber-300 block">
+                        Password Saved Securely
+                      </span>
+                      <span className="text-[11px] text-amber-900 dark:text-amber-200">
+                        Password was encrypted upon creation. Click <strong>Reset Password</strong> to set a temporary password for handover.
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const quickPass = 'Admin@12345';
+                        setResetPassword(quickPass);
+                        setConfirmResetPassword(quickPass);
+                        setMode('reset');
+                      }}
+                      className="px-2.5 py-1 text-[11px] font-bold text-amber-900 dark:text-amber-100 bg-amber-200 dark:bg-amber-800 rounded-lg hover:bg-amber-300 transition-colors shrink-0 ml-2"
+                    >
+                      Reset Password
+                    </button>
                   </div>
                 )}
               </div>
