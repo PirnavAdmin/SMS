@@ -15,7 +15,7 @@ namespace SMS.Api.Data
         }
 
         public AppDbContext(DbContextOptions<AppDbContext> options)
-            : base(options)
+            : base((ITenantInfo?)null, options)
         {
         }
 

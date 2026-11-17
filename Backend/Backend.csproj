@@ -9,6 +9,11 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+		<Using Include="Finbuckle.MultiTenant" />
+		<Using Include="Finbuckle.MultiTenant.Abstractions" />
+	</ItemGroup>
+
+	<ItemGroup>
 
 		<!-- Swagger / OpenAPI -->
 		<PackageReference Include="Swashbuckle.AspNetCore"

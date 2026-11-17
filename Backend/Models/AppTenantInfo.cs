@@ -10,11 +10,11 @@ namespace SMS.Api.Models
     {
         [Key]
         [MaxLength(64)]
-        public string Id { get; set; } = Guid.NewGuid().ToString("N");
+        public string? Id { get; set; } = Guid.NewGuid().ToString("N");
 
         [Required]
         [MaxLength(64)]
-        public string Identifier { get; set; } = string.Empty;
+        public string? Identifier { get; set; } = string.Empty;
 
         [MaxLength(200)]
         public string? Name { get; set; }
