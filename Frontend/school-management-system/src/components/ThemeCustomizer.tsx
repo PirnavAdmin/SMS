@@ -308,37 +308,37 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ className = ''
   };
 
   return (
-    <div className={`p-6 sm:p-7 space-y-5 select-none ${className}`}>
+    <div className={`p-4 sm:p-5 space-y-2.5 sm:space-y-3 select-none ${className}`}>
       {/* Header */}
-      <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
-        <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between pb-2.5 border-b border-slate-100 dark:border-slate-800">
+        <div className="flex items-center gap-2.5">
           <div
-            className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 shadow-2xs transition-colors"
+            className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 shadow-2xs transition-colors"
             style={{
               backgroundColor: `color-mix(in srgb, ${selectedPrimary} 15%, transparent)`,
               color: selectedPrimary,
             }}
           >
-            <Palette className="w-5 h-5" />
+            <Palette className="w-4 h-4" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="font-extrabold text-base text-slate-900 dark:text-white">
+              <h3 className="font-extrabold text-sm text-slate-900 dark:text-white leading-tight">
                 Theme & Colors
               </h3>
               {isAdmin ? (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-                  <Shield className="w-3 h-3" />
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                  <Shield className="w-2.5 h-2.5" />
                   Admin Studio
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
-                  <User className="w-3 h-3" />
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                  <User className="w-2.5 h-2.5" />
                   Personal Screen
                 </span>
               )}
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight">
               {isAdmin
                 ? 'Configure school-wide default theme or personalize your own screen'
                 : 'Personalize your workspace colors (applies to your screen only)'}
@@ -350,49 +350,38 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ className = ''
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
             title="Close"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         )}
       </div>
 
       {/* Target Scope Banner / Selector */}
       {isAdmin ? (
-        <div className="p-3.5 rounded-2xl border border-sky-200 dark:border-sky-900/60 bg-sky-50/60 dark:bg-sky-950/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
-              <Globe className="w-4 h-4" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-extrabold text-xs text-slate-900 dark:text-white">
-                  Target Scope:
-                </span>
-                <span
-                  className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                    applyScope === 'school'
-                      ? 'bg-sky-500 text-white shadow-2xs'
-                      : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200'
-                  }`}
-                >
-                  {applyScope === 'school' ? 'School Default (All Users)' : 'My Screen Only'}
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                {applyScope === 'school'
-                  ? 'Displays to all students, teachers, parents & staff by default.'
-                  : 'Applies within your screen only. Other users will not see this change.'}
-              </p>
+        <div className="px-3 py-1.5 rounded-xl border border-sky-200 dark:border-sky-900/60 bg-sky-50/60 dark:bg-sky-950/30 flex items-center justify-between gap-2 shadow-2xs">
+          <div className="flex items-center gap-2 min-w-0">
+            <Globe className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400 shrink-0" />
+            <div className="flex items-center gap-1.5 truncate text-[11px]">
+              <span className="font-extrabold text-slate-900 dark:text-white">Scope:</span>
+              <span
+                className={`px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                  applyScope === 'school'
+                    ? 'bg-sky-500 text-white'
+                    : 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200'
+                }`}
+              >
+                {applyScope === 'school' ? 'School Default (All Users)' : 'My Screen Only'}
+              </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-1 p-1 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shrink-0">
+          <div className="flex items-center gap-1 p-0.5 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 shrink-0">
             <button
               type="button"
               onClick={() => setApplyScope('school')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
                 applyScope === 'school'
                   ? 'bg-sky-500 text-white shadow-xs'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -403,7 +392,7 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ className = ''
             <button
               type="button"
               onClick={() => setApplyScope('personal')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
                 applyScope === 'personal'
                   ? 'bg-sky-500 text-white shadow-xs'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -414,64 +403,57 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ className = ''
           </div>
         </div>
       ) : (
-        <div className="p-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/30 flex items-center gap-2.5 shadow-2xs">
-          <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-            <User className="w-4 h-4" />
+        <div className="px-3 py-1.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/30 flex items-center justify-between gap-2 shadow-2xs">
+          <div className="flex items-center gap-2">
+            <User className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <span className="font-bold text-[11px] text-slate-800 dark:text-slate-200">
+              Personal Screen Theme
+            </span>
           </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-xs text-slate-800 dark:text-slate-200">
-                Personal Screen Theme
-              </span>
-              {isUserOverride ? (
-                <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                  Customized
-                </span>
-              ) : (
-                <span className="px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-slate-200/70 dark:bg-slate-700 text-slate-600 dark:text-slate-400">
-                  Using School Default
-                </span>
-              )}
-            </div>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-              Theme changes apply strictly within your screen. The school default set by administrators remains unchanged.
-            </p>
-          </div>
+          {isUserOverride ? (
+            <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+              Customized
+            </span>
+          ) : (
+            <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-slate-200/70 dark:bg-slate-700 text-slate-600 dark:text-slate-400">
+              Using School Default
+            </span>
+          )}
         </div>
       )}
 
       {/* Mode Switcher Tabs */}
-      <div className="flex p-1 bg-slate-100 dark:bg-slate-800/80 rounded-2xl w-full max-w-sm mx-auto">
+      <div className="flex p-0.5 bg-slate-100 dark:bg-slate-800/80 rounded-xl w-60 mx-auto">
         <button
           type="button"
           onClick={() => setActiveTab('presets')}
-          className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+          className={`flex-1 py-1 px-2.5 rounded-lg text-[11px] font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
             activeTab === 'presets'
               ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
               : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
           }`}
         >
-          <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+          <Sparkles className="w-3 h-3 text-amber-500" />
           <span>Curated Presets</span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveTab('custom')}
-          className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+          className={`flex-1 py-1 px-2.5 rounded-lg text-[11px] font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
             activeTab === 'custom'
               ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs'
               : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
           }`}
         >
-          <Sliders className="w-3.5 h-3.5 text-sky-500" />
+          <Sliders className="w-3 h-3 text-sky-500" />
           <span>Custom Pickers</span>
         </button>
       </div>
 
       {/* Tab 1: Curated Presets View */}
       {activeTab === 'presets' && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
           {PRESET_THEMES.map((preset) => {
             const isSelected =
               selectedPrimary?.toLowerCase() === preset.primary.toLowerCase() &&
@@ -482,29 +464,29 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ className = ''
                 key={preset.id}
                 type="button"
                 onClick={() => handleSelectPreset(preset.primary, preset.secondary)}
-                className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer relative group ${
+                className={`p-2 sm:p-2.5 rounded-xl border text-left transition-all cursor-pointer relative group ${
                   isSelected
                     ? 'border-sky-500 ring-2 ring-sky-500/25 bg-sky-50/40 dark:bg-sky-950/30 shadow-xs'
                     : 'border-slate-200 dark:border-slate-800 hover:border-sky-300 dark:hover:border-slate-700 bg-white dark:bg-slate-900'
                 }`}
               >
                 {/* Dual Color Swatch */}
-                <div className="h-6 rounded-lg flex overflow-hidden shadow-2xs border border-black/10 mb-2.5">
+                <div className="h-4 rounded-md flex overflow-hidden shadow-2xs border border-black/10 mb-1.5">
                   <div className="w-1/2 h-full" style={{ backgroundColor: preset.primary }} />
                   <div className="w-1/2 h-full" style={{ backgroundColor: preset.secondary }} />
                 </div>
 
-                <div className="flex items-center justify-between">
-                  <p className="font-extrabold text-xs text-slate-900 dark:text-white truncate">
+                <div className="flex items-center justify-between gap-1">
+                  <p className="font-extrabold text-[11px] text-slate-900 dark:text-white truncate">
                     {preset.name}
                   </p>
                   {isSelected && (
-                    <span className="w-4 h-4 rounded-full bg-sky-500 text-white flex items-center justify-center shrink-0">
-                      <Check className="w-2.5 h-2.5" />
+                    <span className="w-3.5 h-3.5 rounded-full bg-sky-500 text-white flex items-center justify-center shrink-0">
+                      <Check className="w-2 h-2" />
                     </span>
                   )}
                 </div>
-                <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                <p className="text-[9px] text-slate-400 truncate mt-0.5">
                   {preset.description}
                 </p>
               </button>
@@ -515,24 +497,23 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ className = ''
 
       {/* Tab 2: Custom Color Pickers View */}
       {activeTab === 'custom' && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {/* Primary Picker Card */}
-          <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800 space-y-4">
+          <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800 space-y-2">
             <div className="flex items-center justify-between">
-              <span className="font-bold text-xs text-slate-900 dark:text-white flex items-center gap-2">
+              <span className="font-bold text-[11px] text-slate-900 dark:text-white flex items-center gap-1.5">
                 <span
-                  className="w-3.5 h-3.5 rounded-full border border-black/10 shadow-2xs inline-block transition-colors"
+                  className="w-3 h-3 rounded-full border border-black/10 shadow-2xs inline-block"
                   style={{ backgroundColor: selectedPrimary }}
                 />
                 Primary Color
               </span>
-              <span className="text-[11px] font-mono font-bold text-slate-500 dark:text-slate-400">
+              <span className="text-[10px] font-mono font-bold text-slate-500 dark:text-slate-400">
                 {selectedPrimary}
               </span>
             </div>
 
-            {/* Color Canvas & Hue Slider */}
-            <div className="w-full">
+            <div className="w-full h-24 overflow-hidden rounded-lg [&_.react-colorful]:!w-full [&_.react-colorful]:!h-24">
               <HexColorPicker
                 color={selectedPrimary}
                 onChange={handlePrimaryChange}
@@ -540,13 +521,13 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ className = ''
             </div>
 
             {/* Quick Swatches */}
-            <div className="flex items-center gap-2 justify-between pt-1">
+            <div className="flex items-center gap-1.5 justify-between">
               {PRIMARY_SWATCHES.map((hex) => (
                 <button
                   key={hex}
                   type="button"
                   onClick={() => handlePrimaryChange(hex)}
-                  className={`w-6 h-6 rounded-full border border-black/10 transition-transform cursor-pointer hover:scale-115 ${
+                  className={`w-5 h-5 rounded-full border border-black/10 transition-transform cursor-pointer hover:scale-115 ${
                     selectedPrimary.toLowerCase() === hex.toLowerCase() ? 'ring-2 ring-sky-500 scale-110' : ''
                   }`}
                   style={{ backgroundColor: hex }}
@@ -556,7 +537,7 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ className = ''
             </div>
 
             {/* Hex Input & Eyedropper */}
-            <div className="flex items-center gap-2.5 pt-1">
+            <div className="flex items-center gap-2">
               <div className="relative group shrink-0" title="Native color picker">
                 <input
                   type="color"
@@ -565,10 +546,10 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ className = ''
                   className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
                 />
                 <div
-                  className="w-8 h-8 rounded-xl border border-slate-200 dark:border-slate-700 shadow-2xs flex items-center justify-center cursor-pointer transition-transform hover:scale-105 active:scale-95"
+                  className="w-7 h-7 rounded-lg border border-slate-200 dark:border-slate-700 shadow-2xs flex items-center justify-center cursor-pointer transition-transform hover:scale-105 active:scale-95"
                   style={{ backgroundColor: selectedPrimary }}
                 >
-                  <Pipette className="w-3.5 h-3.5 text-white mix-blend-difference opacity-90" />
+                  <Pipette className="w-3 h-3 text-white mix-blend-difference opacity-90" />
                 </div>
               </div>
 
@@ -577,29 +558,28 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ className = ''
                   color={selectedPrimary}
                   onChange={handlePrimaryChange}
                   prefixed
-                  className="w-full h-8 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-mono text-xs font-bold focus:outline-hidden uppercase"
+                  className="w-full h-7 px-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-mono text-[11px] font-bold focus:outline-hidden uppercase"
                 />
               </div>
             </div>
           </div>
 
           {/* Secondary Picker Card */}
-          <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800 space-y-4">
+          <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800 space-y-2">
             <div className="flex items-center justify-between">
-              <span className="font-bold text-xs text-slate-900 dark:text-white flex items-center gap-2">
+              <span className="font-bold text-[11px] text-slate-900 dark:text-white flex items-center gap-1.5">
                 <span
-                  className="w-3.5 h-3.5 rounded-full border border-black/10 shadow-2xs inline-block transition-colors"
+                  className="w-3 h-3 rounded-full border border-black/10 shadow-2xs inline-block"
                   style={{ backgroundColor: selectedSecondary }}
                 />
                 Secondary Accent
               </span>
-              <span className="text-[11px] font-mono font-bold text-slate-500 dark:text-slate-400">
+              <span className="text-[10px] font-mono font-bold text-slate-500 dark:text-slate-400">
                 {selectedSecondary}
               </span>
             </div>
 
-            {/* Color Canvas & Hue Slider */}
-            <div className="w-full">
+            <div className="w-full h-24 overflow-hidden rounded-lg [&_.react-colorful]:!w-full [&_.react-colorful]:!h-24">
               <HexColorPicker
                 color={selectedSecondary}
                 onChange={handleSecondaryChange}
@@ -607,13 +587,13 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ className = ''
             </div>
 
             {/* Quick Swatches */}
-            <div className="flex items-center gap-2 justify-between pt-1">
+            <div className="flex items-center gap-1.5 justify-between">
               {SECONDARY_SWATCHES.map((hex) => (
                 <button
                   key={hex}
                   type="button"
                   onClick={() => handleSecondaryChange(hex)}
-                  className={`w-6 h-6 rounded-full border border-black/10 transition-transform cursor-pointer hover:scale-115 ${
+                  className={`w-5 h-5 rounded-full border border-black/10 transition-transform cursor-pointer hover:scale-115 ${
                     selectedSecondary.toLowerCase() === hex.toLowerCase() ? 'ring-2 ring-amber-500 scale-110' : ''
                   }`}
                   style={{ backgroundColor: hex }}
@@ -623,7 +603,7 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ className = ''
             </div>
 
             {/* Hex Input & Eyedropper */}
-            <div className="flex items-center gap-2.5 pt-1">
+            <div className="flex items-center gap-2">
               <div className="relative group shrink-0" title="Native color picker">
                 <input
                   type="color"
@@ -632,10 +612,10 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ className = ''
                   className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
                 />
                 <div
-                  className="w-8 h-8 rounded-xl border border-slate-200 dark:border-slate-700 shadow-2xs flex items-center justify-center cursor-pointer transition-transform hover:scale-105 active:scale-95"
+                  className="w-7 h-7 rounded-lg border border-slate-200 dark:border-slate-700 shadow-2xs flex items-center justify-center cursor-pointer transition-transform hover:scale-105 active:scale-95"
                   style={{ backgroundColor: selectedSecondary }}
                 >
-                  <Pipette className="w-3.5 h-3.5 text-white mix-blend-difference opacity-90" />
+                  <Pipette className="w-3 h-3 text-white mix-blend-difference opacity-90" />
                 </div>
               </div>
 
@@ -644,7 +624,7 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ className = ''
                   color={selectedSecondary}
                   onChange={handleSecondaryChange}
                   prefixed
-                  className="w-full h-8 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-mono text-xs font-bold focus:outline-hidden uppercase"
+                  className="w-full h-7 px-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-mono text-[11px] font-bold focus:outline-hidden uppercase"
                 />
               </div>
             </div>
@@ -653,19 +633,19 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ className = ''
       )}
 
       {/* Live Preview Strip */}
-      <div className="p-3.5 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/30 flex items-center justify-between gap-3 flex-wrap shadow-2xs">
-        <div className="flex items-center gap-2.5 text-xs">
-          <span className="font-bold text-slate-500 dark:text-slate-400">Live Preview:</span>
+      <div className="px-3 py-1.5 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/30 flex items-center justify-between gap-2 shadow-2xs">
+        <div className="flex items-center gap-2 text-xs">
+          <span className="font-bold text-[11px] text-slate-500 dark:text-slate-400">Preview:</span>
           {/* Mock active navigation item */}
           <span
-            className="px-3 py-1 rounded-xl text-white font-bold text-xs shadow-2xs transition-colors"
+            className="px-2 py-0.5 rounded-md text-white font-bold text-[10px] shadow-2xs transition-colors"
             style={{ backgroundColor: selectedPrimary }}
           >
             Active Item
           </span>
           {/* Mock secondary accent badge */}
           <span
-            className="px-2.5 py-0.5 rounded-full font-bold text-[11px] border shadow-2xs transition-colors"
+            className="px-2 py-0.5 rounded-full font-bold text-[10px] border shadow-2xs transition-colors"
             style={{
               backgroundColor: `color-mix(in srgb, ${selectedSecondary} 15%, transparent)`,
               color: selectedSecondary,
@@ -676,20 +656,20 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ className = ''
           </span>
         </div>
 
-        <div className="text-[11px] font-mono font-bold text-slate-400">
+        <div className="text-[10px] font-mono font-bold text-slate-400">
           <span style={{ color: selectedPrimary }}>● {selectedPrimary}</span>
-          <span className="mx-2 text-slate-300 dark:text-slate-700">|</span>
+          <span className="mx-1.5 text-slate-300 dark:text-slate-700">|</span>
           <span style={{ color: selectedSecondary }}>● {selectedSecondary}</span>
         </div>
       </div>
 
       {/* Footer Controls */}
-      <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800">
+      <div className="flex items-center justify-between pt-2.5 border-t border-slate-100 dark:border-slate-800">
         <button
           type="button"
           onClick={handleReset}
           disabled={isResetDisabled || isSaving}
-          className={`px-3.5 py-1.5 rounded-2xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 ${
+          className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 ${
             isResetDisabled || isSaving
               ? 'text-slate-300 dark:text-slate-600 cursor-not-allowed opacity-50'
               : 'btn-glass-secondary text-slate-600 dark:text-slate-300'
@@ -700,13 +680,13 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ className = ''
           <span>{resetLabel}</span>
         </button>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2">
           {onClose && (
             <button
               type="button"
               onClick={onClose}
               disabled={isSaving}
-              className="px-4 py-2 rounded-2xl text-xs font-semibold btn-glass-secondary text-slate-600 dark:text-slate-300 cursor-pointer active:scale-95"
+              className="px-3.5 py-1.5 rounded-xl text-xs font-semibold btn-glass-secondary text-slate-600 dark:text-slate-300 cursor-pointer active:scale-95"
             >
               Cancel
             </button>
@@ -716,7 +696,7 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ className = ''
             type="button"
             onClick={handleApply}
             disabled={isSaving}
-            className={`px-6 py-2.5 rounded-2xl text-xs font-black text-white btn-glass-primary shadow-lg flex items-center gap-1.5 cursor-pointer active:scale-95 ${
+            className={`px-4 sm:px-5 py-2 rounded-xl text-xs font-black text-white btn-glass-primary shadow-md flex items-center gap-1.5 cursor-pointer active:scale-95 ${
               isSaving ? 'opacity-70 cursor-wait' : ''
             }`}
             style={{
@@ -724,9 +704,9 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ className = ''
             }}
           >
             {isSaving ? (
-              <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
             ) : (
-              <Check className="w-4 h-4" />
+              <Check className="w-3.5 h-3.5" />
             )}
             <span>{isSaving ? 'Syncing...' : applyLabel}</span>
           </button>

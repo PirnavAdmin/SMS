@@ -910,11 +910,11 @@ const MainLayout: React.FC = () => {
 
       {themeStudioOpen && typeof document !== "undefined" && createPortal(
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 md:p-8 bg-slate-950/50 backdrop-blur-md animate-in fade-in"
+          className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 bg-slate-950/50 backdrop-blur-md animate-in fade-in"
           onClick={() => setThemeStudioOpen(false)}
         >
           <div
-            className="glass-surface rounded-3xl max-w-2xl w-full shadow-2xl border border-white/60 dark:border-white/10 relative max-h-[90vh] overflow-y-auto my-auto"
+            className="glass-surface rounded-2xl sm:rounded-3xl max-w-xl w-full shadow-2xl border border-white/60 dark:border-white/10 relative my-auto overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             <ThemeCustomizer onClose={() => setThemeStudioOpen(false)} />

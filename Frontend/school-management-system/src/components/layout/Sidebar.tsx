@@ -1103,8 +1103,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Nav Menu */}
       <div
         ref={navRef}
-        className={`flex-1 overflow-y-auto py-4 space-y-6 no-scrollbar ${
-          effectiveCollapsed ? "px-0 w-full flex flex-col items-center" : "px-3"
+        className={`flex-1 overflow-y-auto py-4 space-y-6 sidebar-scrollbar ${
+          effectiveCollapsed ? "px-0 w-full flex flex-col items-center" : "pl-3 pr-1.5"
         }`}
       >
         {menuGroups.map((group, idx) => {
