@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Calendar, Users, Briefcase } from "lucide-react";
 import { useEaseProgress, AnimatedCounter } from "../../common/AnimatedCounter";
+import { useTheme } from "../../../context/ThemeContext";
 
 export interface AttendanceStatusItem {
   key: "present" | "absent" | "late" | "halfDay";
@@ -306,7 +307,7 @@ export const SpeedometerAttendanceCard: React.FC<
                 <path
                   key={seg.key}
                   d={seg.animatedPath}
-                  fill={seg.color}
+                  fill={fillColor}
                   stroke="rgba(255,255,255,0.85)"
                   className="dark:stroke-slate-900 transition-all duration-200 cursor-pointer"
                   style={{
