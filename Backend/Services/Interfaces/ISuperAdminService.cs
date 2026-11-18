@@ -47,4 +47,5 @@ public interface ISuperAdminService
     // Platform Company Profile & Branding
     Task<PlatformCompanyProfileDto> GetCompanyProfileAsync();
     Task<PlatformCompanyProfileDto> UpdateCompanyProfileAsync(PlatformCompanyProfileDto dto, int? requestedByUserId = null);
+    Task<string> UploadCompanyLogoFileAsync(Microsoft.AspNetCore.Http.IFormFile file);
 }

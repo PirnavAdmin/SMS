@@ -336,6 +336,31 @@ public class SuperAdminController : ControllerBase
         return Ok(updated);
     }
 
+    [HttpPost("company-profile/logo/upload")]
+    [HttpPost("~/api/superadmin/company-profile/logo/upload")]
+    [Consumes("multipart/form-data")]
+    public async Task<IActionResult> UploadCompanyLogoFile([FromForm] UploadLogoFileRequest request)
+    {
+        var file = request?.File ?? (Request.HasFormContentType && Request.Form.Files.Count > 0 ? Request.Form.Files[0] : null);
+        if (file == null || file.Length == 0)
+            return BadRequest("No image file provided.");
+
+        try
+        {
+            var logoUrl = await _saService.UploadCompanyLogoFileAsync(file);
+            return Ok(new
+            {
+                success = true,
+                message = "Company logo uploaded and saved successfully.",
+                logoUrl = logoUrl
+            });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { success = false, message = ex.Message });
+        }
+    }
+
     // =========================================================
     // HELPER METHODS
     // =========================================================

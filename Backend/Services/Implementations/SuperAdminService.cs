@@ -1086,4 +1086,50 @@ public class SuperAdminService : ISuperAdminService
             UpdatedAt = updated.UpdatedAt
         };
     }
+
+    public async Task<string> UploadCompanyLogoFileAsync(Microsoft.AspNetCore.Http.IFormFile file)
+    {
+        if (file == null || file.Length == 0)
+            throw new ArgumentException("No file was uploaded.");
+
+        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+        var allowedExtensions = new[] { ".png", ".jpg", ".jpeg", ".webp", ".svg" };
+        if (Array.IndexOf(allowedExtensions, ext) < 0)
+        {
+            ext = ".png";
+        }
+
+        var fileName = $"company-logo-{DateTime.UtcNow.Ticks}{ext}";
+
+        var webRoot = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+        var uploadFolder = Path.Combine(webRoot, "uploads", "platform");
+        Directory.CreateDirectory(uploadFolder);
+        var filePath = Path.Combine(uploadFolder, fileName);
+
+        using (var stream = new FileStream(filePath, FileMode.Create))
+        {
+            await file.CopyToAsync(stream);
+        }
+
+        try
+        {
+            var frontendUploadFolder = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "..", "Frontend", "school-management-system", "public", "uploads", "platform"));
+            Directory.CreateDirectory(frontendUploadFolder);
+            var frontendFilePath = Path.Combine(frontendUploadFolder, fileName);
+            using (var stream = new FileStream(frontendFilePath, FileMode.Create))
+            {
+                await file.CopyToAsync(stream);
+            }
+        }
+        catch { }
+
+        var logoUrl = $"/uploads/platform/{fileName}";
+
+        var profile = await _saRepository.GetCompanyProfileAsync();
+        profile.LogoUrl = logoUrl;
+        profile.UpdatedAt = DateTime.UtcNow;
+        await _saRepository.UpdateCompanyProfileAsync(profile);
+
+        return logoUrl;
+    }
 }
