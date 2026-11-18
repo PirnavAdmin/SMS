@@ -179,7 +179,9 @@ public class SuperAdminController : ControllerBase
     }
 
     [HttpGet("packages")]
-    [Authorize(Roles = "SuperAdmin,Super Admin")]
+    [HttpGet("~/api/subscriptions/packages")]
+    [HttpGet("~/api/public/packages")]
+    [AllowAnonymous]
     public async Task<ActionResult<List<PackagePlanDto>>> GetPackages()
     {
         var packages = await _saService.GetPackagesAsync();
@@ -187,7 +189,8 @@ public class SuperAdminController : ControllerBase
     }
 
     [HttpPost("packages")]
-    [Authorize(Roles = "SuperAdmin,Super Admin")]
+    [HttpPost("~/api/subscriptions/packages")]
+    [Authorize(Roles = "SuperAdmin,Super Admin,Admin")]
     public async Task<ActionResult<List<PackagePlanDto>>> SavePackages([FromBody] List<PackagePlanDto> packages)
     {
         var result = await _saService.SavePackagesAsync(packages);

@@ -499,6 +499,27 @@ using (var scope = app.Services.CreateScope())
                         PRIMARY KEY (`Id`)
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
                 ");
+
+                context.Database.ExecuteSqlRaw(@"
+                    CREATE TABLE IF NOT EXISTS `subscription_packages` (
+                        `Id` varchar(100) NOT NULL,
+                        `Name` varchar(200) NOT NULL,
+                        `Tagline` varchar(500) NULL,
+                        `MonthlyPrice` decimal(18,2) NOT NULL DEFAULT 0.00,
+                        `YearlyPrice` decimal(18,2) NOT NULL DEFAULT 0.00,
+                        `Currency` varchar(20) NOT NULL DEFAULT 'INR',
+                        `MaxStudents` int NOT NULL DEFAULT 0,
+                        `MaxStaff` int NOT NULL DEFAULT 0,
+                        `MaxBranches` int NOT NULL DEFAULT 0,
+                        `StorageGb` int NOT NULL DEFAULT 0,
+                        `IsPopular` tinyint(1) NOT NULL DEFAULT 0,
+                        `Status` varchar(50) NOT NULL DEFAULT 'Active',
+                        `FeaturesJson` longtext NULL,
+                        `CreatedAt` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+                        `UpdatedAt` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+                        PRIMARY KEY (`Id`)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+                ");
             }
             catch { }
 

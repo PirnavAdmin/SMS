@@ -40,6 +40,7 @@ namespace SMS.Api.Data
         public DbSet<School> Schools { get; set; } = null!;
         public DbSet<SchoolSettings> SchoolSettings { get; set; } = null!;
         public DbSet<PlatformCompanyProfile> PlatformCompanyProfiles { get; set; } = null!;
+        public DbSet<SubscriptionPackage> SubscriptionPackages { get; set; } = null!;
         public DbSet<AutomatedIdFormat> AutomatedIdFormats { get; set; } = null!;
         public DbSet<AuditLog> AuditLogs { get; set; } = null!;
         public DbSet<SystemNotification> SystemNotifications { get; set; } = null!;
@@ -267,6 +268,18 @@ namespace SMS.Api.Data
             ConfigureParentStudentMapping(modelBuilder);
             ConfigureSchoolSettings(modelBuilder);
             ConfigurePlatformCompanyProfile(modelBuilder);
+            ConfigureSubscriptionPackage(modelBuilder);
+        }
+
+        private static void ConfigureSubscriptionPackage(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<SubscriptionPackage>(entity =>
+            {
+                entity.ToTable("subscription_packages");
+                entity.HasKey(x => x.Id);
+                entity.Property(x => x.MonthlyPrice).HasPrecision(18, 2);
+                entity.Property(x => x.YearlyPrice).HasPrecision(18, 2);
+            });
         }
 
         private static void ConfigurePlatformCompanyProfile(ModelBuilder modelBuilder)

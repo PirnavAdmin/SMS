@@ -453,30 +453,80 @@ public class SuperAdminService : ISuperAdminService
 
     public async Task<List<PackagePlanDto>> GetPackagesAsync()
     {
-        var filePath = Path.Combine(AppContext.BaseDirectory, "packages.json");
-        if (!File.Exists(filePath))
-        {
-            return new List<PackagePlanDto>();
-        }
-
         try
         {
-            var json = await File.ReadAllTextAsync(filePath);
-            return JsonSerializer.Deserialize<List<PackagePlanDto>>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
-                ?? new List<PackagePlanDto>();
+            var dbEntities = await _saRepository.GetSubscriptionPackagesAsync();
+            if (dbEntities != null && dbEntities.Count > 0)
+            {
+                return dbEntities.Select(MapEntityToDto).ToList();
+            }
         }
-        catch
-        {
-            return new List<PackagePlanDto>();
-        }
+        catch { }
+
+        return new List<PackagePlanDto>();
     }
 
     public async Task<List<PackagePlanDto>> SavePackagesAsync(List<PackagePlanDto> packages)
     {
-        var filePath = Path.Combine(AppContext.BaseDirectory, "packages.json");
-        var json = JsonSerializer.Serialize(packages, new JsonSerializerOptions { WriteIndented = true });
-        await File.WriteAllTextAsync(filePath, json);
-        return packages;
+        if (packages == null) packages = new List<PackagePlanDto>();
+
+        var entities = packages.Select(dto =>
+        {
+            var id = string.IsNullOrWhiteSpace(dto.Id) ? $"plan-{Guid.NewGuid():N}" : dto.Id.Trim();
+            var featJson = JsonSerializer.Serialize(dto.Features ?? new List<string>());
+
+            return new SubscriptionPackage
+            {
+                Id = id,
+                Name = dto.Name?.Trim() ?? string.Empty,
+                Tagline = dto.Tagline?.Trim() ?? string.Empty,
+                MonthlyPrice = dto.MonthlyPrice,
+                YearlyPrice = dto.YearlyPrice,
+                Currency = string.IsNullOrWhiteSpace(dto.Currency) ? "INR" : dto.Currency.Trim(),
+                MaxStudents = dto.MaxStudents,
+                MaxStaff = dto.MaxStaff,
+                MaxBranches = dto.MaxBranches,
+                StorageGb = dto.StorageGb,
+                IsPopular = dto.IsPopular,
+                Status = string.IsNullOrWhiteSpace(dto.Status) ? "Active" : dto.Status.Trim(),
+                FeaturesJson = featJson,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+        }).ToList();
+
+        var savedEntities = await _saRepository.SaveSubscriptionPackagesAsync(entities);
+        return savedEntities.Select(MapEntityToDto).ToList();
+    }
+
+    private static PackagePlanDto MapEntityToDto(SubscriptionPackage entity)
+    {
+        List<string> features;
+        try
+        {
+            features = JsonSerializer.Deserialize<List<string>>(entity.FeaturesJson ?? "[]") ?? new List<string>();
+        }
+        catch
+        {
+            features = new List<string>();
+        }
+
+        return new PackagePlanDto
+        {
+            Id = entity.Id,
+            Name = entity.Name,
+            Tagline = entity.Tagline,
+            MonthlyPrice = entity.MonthlyPrice,
+            YearlyPrice = entity.YearlyPrice,
+            Currency = entity.Currency,
+            MaxStudents = entity.MaxStudents,
+            MaxStaff = entity.MaxStaff,
+            MaxBranches = entity.MaxBranches,
+            StorageGb = entity.StorageGb,
+            IsPopular = entity.IsPopular,
+            Status = entity.Status,
+            Features = features
+        };
     }
 
     public async Task<SchoolResponseDto> UpdateSchoolAsync(int schoolId, SchoolUpdateDto dto, int requestedByUserId)

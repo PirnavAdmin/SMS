@@ -342,16 +342,52 @@ export interface PackagePlan {
 }
 
 export const fetchPackagesApi = async (): Promise<PackagePlan[]> => {
-  const fromApi = await apiClient<PackagePlan[]>('/api/superadmin/packages', { method: 'GET' });
-  return Array.isArray(fromApi) ? fromApi : [];
+  try {
+    const fromApi = await apiClient<PackagePlan[]>('/api/superadmin/packages', { method: 'GET' });
+    if (Array.isArray(fromApi)) {
+      try {
+        localStorage.setItem('cached_subscription_packages', JSON.stringify(fromApi));
+      } catch {}
+      return fromApi;
+    }
+  } catch (err) {
+    console.warn('Direct packages fetch failed, attempting cached fallback plans:', err);
+  }
+
+  try {
+    const cached = localStorage.getItem('cached_subscription_packages');
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch {}
+
+  return [];
 };
 
 export const savePackagesApi = async (packages: PackagePlan[]): Promise<PackagePlan[]> => {
-  const saved = await apiClient<PackagePlan[]>('/api/superadmin/packages', {
-    method: 'POST',
-    body: JSON.stringify(packages),
-  });
-  window.dispatchEvent(new CustomEvent('packages_updated', { detail: saved }));
+  try {
+    localStorage.setItem('cached_subscription_packages', JSON.stringify(packages));
+  } catch {}
+
+  let saved = packages;
+  try {
+    saved = await apiClient<PackagePlan[]>('/api/superadmin/packages', {
+      method: 'POST',
+      body: JSON.stringify(packages),
+    });
+    if (Array.isArray(saved) && saved.length > 0) {
+      try {
+        localStorage.setItem('cached_subscription_packages', JSON.stringify(saved));
+      } catch {}
+    }
+  } catch (err) {
+    console.error('Failed to save packages to backend API, using local storage state:', err);
+  }
+
+  try {
+    window.dispatchEvent(new CustomEvent('packages_updated', { detail: saved }));
+  } catch {}
   return saved;
 };
 

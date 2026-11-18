@@ -42,6 +42,10 @@ public interface ISuperAdminRepository
     Task<PlatformCompanyProfile> GetCompanyProfileAsync();
     Task<PlatformCompanyProfile> UpdateCompanyProfileAsync(PlatformCompanyProfile profile);
 
+    // Subscription Packages & SaaS Tiers
+    Task<List<SubscriptionPackage>> GetSubscriptionPackagesAsync();
+    Task<List<SubscriptionPackage>> SaveSubscriptionPackagesAsync(List<SubscriptionPackage> packages);
+
     // Save Changes
     Task SaveChangesAsync();
 }

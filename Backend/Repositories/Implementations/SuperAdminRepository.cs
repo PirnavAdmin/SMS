@@ -284,4 +284,57 @@ public class SuperAdminRepository : ISuperAdminRepository
         await _context.SaveChangesAsync();
         return existing;
     }
+
+    // --- Subscription Packages & SaaS Tiers ---
+
+    public async Task<List<SubscriptionPackage>> GetSubscriptionPackagesAsync()
+    {
+        var dbPackages = await _context.SubscriptionPackages.OrderBy(p => p.CreatedAt).ToListAsync();
+        return dbPackages ?? new List<SubscriptionPackage>();
+    }
+
+    public async Task<List<SubscriptionPackage>> SaveSubscriptionPackagesAsync(List<SubscriptionPackage> packages)
+    {
+        if (packages == null) packages = new List<SubscriptionPackage>();
+
+        var existing = await _context.SubscriptionPackages.ToListAsync();
+        var incomingIds = packages.Select(p => p.Id).ToHashSet();
+
+        // Remove packages no longer present in incoming list
+        var toRemove = existing.Where(e => !incomingIds.Contains(e.Id)).ToList();
+        if (toRemove.Count > 0)
+        {
+            _context.SubscriptionPackages.RemoveRange(toRemove);
+        }
+
+        foreach (var item in packages)
+        {
+            var match = existing.FirstOrDefault(e => e.Id == item.Id);
+            if (match == null)
+            {
+                item.CreatedAt = DateTime.UtcNow;
+                item.UpdatedAt = DateTime.UtcNow;
+                await _context.SubscriptionPackages.AddAsync(item);
+            }
+            else
+            {
+                match.Name = item.Name;
+                match.Tagline = item.Tagline;
+                match.MonthlyPrice = item.MonthlyPrice;
+                match.YearlyPrice = item.YearlyPrice;
+                match.Currency = item.Currency;
+                match.MaxStudents = item.MaxStudents;
+                match.MaxStaff = item.MaxStaff;
+                match.MaxBranches = item.MaxBranches;
+                match.StorageGb = item.StorageGb;
+                match.IsPopular = item.IsPopular;
+                match.Status = item.Status;
+                match.FeaturesJson = item.FeaturesJson;
+                match.UpdatedAt = DateTime.UtcNow;
+            }
+        }
+
+        await _context.SaveChangesAsync();
+        return await _context.SubscriptionPackages.OrderBy(p => p.CreatedAt).ToListAsync();
+    }
 }

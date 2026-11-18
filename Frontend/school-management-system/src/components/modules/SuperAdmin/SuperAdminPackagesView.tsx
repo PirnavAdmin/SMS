@@ -79,6 +79,14 @@ export const SuperAdminPackagesView: React.FC = () => {
 
   useEffect(() => {
     loadAll();
+
+    const handleUpdated = (e: any) => {
+      if (e?.detail && Array.isArray(e.detail) && e.detail.length > 0) {
+        setPlans(e.detail);
+      }
+    };
+    window.addEventListener('packages_updated', handleUpdated);
+    return () => window.removeEventListener('packages_updated', handleUpdated);
   }, []);
 
   // Compute live schools count for a plan
@@ -178,7 +186,14 @@ export const SuperAdminPackagesView: React.FC = () => {
     }
 
     setPlans(updatedList);
-    await savePackagesApi(updatedList);
+    try {
+      const saved = await savePackagesApi(updatedList);
+      if (Array.isArray(saved) && saved.length > 0) {
+        setPlans(saved);
+      }
+    } catch (err) {
+      console.error('Failed to save packages:', err);
+    }
     setIsModalOpen(false);
   };
 
@@ -186,7 +201,14 @@ export const SuperAdminPackagesView: React.FC = () => {
     if (!deletingPlan) return;
     const remaining = plans.filter(p => p.id !== deletingPlan.id);
     setPlans(remaining);
-    await savePackagesApi(remaining);
+    try {
+      const saved = await savePackagesApi(remaining);
+      if (Array.isArray(saved)) {
+        setPlans(saved);
+      }
+    } catch (err) {
+      console.error('Failed to delete package:', err);
+    }
     addToast('success', 'Package Removed', `${deletingPlan.name} has been deleted.`);
     setDeletingPlan(null);
   };
