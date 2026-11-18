@@ -34,6 +34,38 @@
     color-scheme: light;
   }
 
+  /* Global Interactive Pointer Cursor (Hand Symbol) across entire application */
+  button,
+  [role="button"],
+  [type="button"],
+  [type="submit"],
+  [type="reset"],
+  a,
+  summary,
+  select,
+  input[type="checkbox"],
+  input[type="radio"],
+  input[type="file"],
+  input[type="color"],
+  label[for],
+  .cursor-pointer,
+  button *,
+  [role="button"] *,
+  [type="button"] * {
+    cursor: pointer !important;
+  }
+
+  /* Disabled elements show not-allowed cursor */
+  button:disabled,
+  button:disabled *,
+  [disabled],
+  [disabled] *,
+  [aria-disabled="true"],
+  [aria-disabled="true"] *,
+  .cursor-not-allowed {
+    cursor: not-allowed !important;
+  }
+
   /* Date & Time picker native indicator visibility for dark theme */
   .dark input[type="time"]::-webkit-calendar-picker-indicator,
   .dark input[type="date"]::-webkit-calendar-picker-indicator,
