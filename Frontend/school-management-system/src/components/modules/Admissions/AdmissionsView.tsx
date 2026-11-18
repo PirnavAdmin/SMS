@@ -1372,6 +1372,67 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     return "";
   };
 
+  const checkAppDepositPaid = (app: AdmissionApplication): boolean => {
+    if (app.hostelSecurityDepositPaid || (app as any).securityDepositPaid) return true;
+    const targetId = String(app.id || "");
+    const targetAdm = String(app.applicationNo || app.admissionNo || (app as any).registrationNo || "").toLowerCase().trim();
+    const targetStuId = String(app.studentId || (app as any).rollNo || "").toLowerCase().trim();
+    const targetName = String(app.applicantName || "").toLowerCase().trim();
+
+    return (feePayments || []).some((p) => {
+      const pId = String(p.studentId || "").toLowerCase().trim();
+      const pAdm = String(p.admissionNo || "").toLowerCase().trim();
+      const pName = String(p.studentName || "").toLowerCase().trim();
+
+      const matchesId =
+        (pId && (pId === targetId || pId === targetAdm || pId === targetStuId)) ||
+        (pAdm && (pAdm === targetId || pAdm === targetAdm || pAdm === targetStuId)) ||
+        (targetName && pName && targetName === pName);
+
+      if (!matchesId) return false;
+
+      return (
+        String(p.feeHeadName || "").toLowerCase().includes("security deposit") ||
+        String(p.remarks || "").toLowerCase().includes("security deposit") ||
+        String(p.paidItemsJson || "").toLowerCase().includes("security deposit") ||
+        (p.paymentAllocation || []).some((a: any) => String(a.feeHeadName || "").toLowerCase().includes("security deposit"))
+      );
+    });
+  };
+
+  const getAppDepositAmount = (app: AdmissionApplication): number => {
+    if (Number(app.securityDepositAmount) > 0) return Number(app.securityDepositAmount);
+    const targetId = String(app.id || "");
+    const targetAdm = String(app.applicationNo || app.admissionNo || (app as any).registrationNo || "").toLowerCase().trim();
+    const targetStuId = String(app.studentId || (app as any).rollNo || "").toLowerCase().trim();
+    const targetName = String(app.applicantName || "").toLowerCase().trim();
+
+    const payment = (feePayments || []).find((p) => {
+      const pId = String(p.studentId || "").toLowerCase().trim();
+      const pAdm = String(p.admissionNo || "").toLowerCase().trim();
+      const pName = String(p.studentName || "").toLowerCase().trim();
+
+      const matchesId =
+        (pId && (pId === targetId || pId === targetAdm || pId === targetStuId)) ||
+        (pAdm && (pAdm === targetId || pAdm === targetAdm || pAdm === targetStuId)) ||
+        (targetName && pName && targetName === pName);
+
+      if (!matchesId) return false;
+
+      return (
+        String(p.feeHeadName || "").toLowerCase().includes("security deposit") ||
+        String(p.remarks || "").toLowerCase().includes("security deposit") ||
+        String(p.paidItemsJson || "").toLowerCase().includes("security deposit") ||
+        (p.paymentAllocation || []).some((a: any) => String(a.feeHeadName || "").toLowerCase().includes("security deposit"))
+      );
+    });
+
+    if (payment) {
+      return Number(payment.amountPaid || (payment as any).amount || 0);
+    }
+    return Number((app as any).paidFee || 0);
+  };
+
   const handleConfirmSecurityDepositPayment = () => {
     if (applicableSecurityDeposit <= 0) return;
     const genReceiptNo = `REC-SD-${Math.floor(100000 + Math.random() * 900000)}`;
@@ -5536,16 +5597,16 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                       <span className="font-bold text-slate-700 dark:text-slate-300 block">
                         {formatStudentType(app.studentType)}
                       </span>
-                      {app.hostelSecurityDepositPaid ? (
+                      {checkAppDepositPaid(app) ? (
                         <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold block mt-0.5">
-                          ✓ Deposit Paid ({formatCurrency(app.securityDepositAmount || (app as any).paidFee || 5000)})
+                          ✓ Deposit Paid ({formatCurrency(getAppDepositAmount(app))})
                         </span>
                       ) : (app.studentType === "Residential" || (app as any).studentType === "Hosteller") ? (
                         <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium block mt-0.5">
                           Deposit Pending
                         </span>
                       ) : null}
-                      {Number((app as any).paidFee || 0) > 0 && !app.hostelSecurityDepositPaid && (
+                      {Number((app as any).paidFee || 0) > 0 && !checkAppDepositPaid(app) && (
                         <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold block mt-0.5">
                           Fee Paid: {formatCurrency(Number((app as any).paidFee))}
                         </span>

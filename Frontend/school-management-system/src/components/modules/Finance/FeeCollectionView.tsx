@@ -1465,12 +1465,25 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
 
     if (isSecurityDepositCollected) {
       try {
+        const sFullName = `${selectedStudent.firstName || ""} ${selectedStudent.lastName || ""}`.trim().toLowerCase();
         const targetAdm = (admissions || []).find((a) =>
           String(a.id) === String(selectedStudent.id) ||
-          (selectedStudent.admissionNo && (String(a.admissionNo) === String(selectedStudent.admissionNo) || String(a.applicationNo) === String(selectedStudent.admissionNo) || String(a.registrationNo) === String(selectedStudent.admissionNo)))
+          (selectedStudent.admissionNo && (
+            String(a.admissionNo) === String(selectedStudent.admissionNo) ||
+            String(a.applicationNo) === String(selectedStudent.admissionNo) ||
+            String(a.registrationNo) === String(selectedStudent.admissionNo)
+          )) ||
+          ((selectedStudent as any).studentId && (
+            String(a.studentId) === String((selectedStudent as any).studentId) ||
+            String(a.registrationNo) === String((selectedStudent as any).studentId)
+          )) ||
+          (sFullName && (
+            `${a.applicantName || ""}`.trim().toLowerCase() === sFullName ||
+            `${(a as any).firstName || ""} ${(a as any).lastName || ""}`.trim().toLowerCase() === sFullName
+          ))
         );
         if (targetAdm && updateAdmission) {
-          updateAdmission(targetAdm.id, {
+          await updateAdmission(targetAdm.id, {
             hostelSecurityDepositPaid: true,
             securityDepositAmount: numericAmount,
             securityDepositReceiptNo: receiptNumber,

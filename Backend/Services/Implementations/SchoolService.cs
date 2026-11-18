@@ -999,6 +999,37 @@ public class SchoolService : ISchoolService
 			}
 		}
 
+		// Sync verified Hostel Security Deposit payments
+		var depositPayments = await _context.FeePayments.AsNoTracking()
+			.Where(p => (p.FeeHeadName != null && p.FeeHeadName.Contains("Security Deposit")) ||
+			            (p.Remarks != null && p.Remarks.Contains("Security Deposit")) ||
+			            (p.PaidItemsJson != null && p.PaidItemsJson.Contains("Security Deposit")))
+			.Select(p => new { p.StudentId, p.Amount, p.ReceiptNo })
+			.ToListAsync();
+
+		if (depositPayments.Any())
+		{
+			foreach (var r in result)
+			{
+				if (!r.HostelSecurityDepositPaid && string.Equals(r.StudentType, "Residential", StringComparison.OrdinalIgnoreCase))
+				{
+					var match = depositPayments.FirstOrDefault(p =>
+						p.StudentId == r.Id.ToString() ||
+						(r.Id > 100000 && p.StudentId == (r.Id - 100000).ToString()) ||
+						(!string.IsNullOrEmpty(r.AdmissionNo) && p.StudentId == r.AdmissionNo) ||
+						(!string.IsNullOrEmpty(r.RegistrationNo) && p.StudentId == r.RegistrationNo) ||
+						(!string.IsNullOrEmpty(r.StudentId) && p.StudentId == r.StudentId));
+
+					if (match != null)
+					{
+						r.HostelSecurityDepositPaid = true;
+						if (r.SecurityDepositAmount <= 0) r.SecurityDepositAmount = match.Amount;
+						if (string.IsNullOrEmpty(r.SecurityDepositReceiptNo)) r.SecurityDepositReceiptNo = match.ReceiptNo;
+					}
+				}
+			}
+		}
+
 		return result.OrderBy(r => string.Equals(r.Status, "Enrolled", StringComparison.OrdinalIgnoreCase) || string.Equals(r.Status, "Admitted", StringComparison.OrdinalIgnoreCase) || string.Equals(r.Status, "Active", StringComparison.OrdinalIgnoreCase) ? 1 : 0)
 					 .ThenBy(r => GetClassSortWeight(r.AppliedClassGrade))
 					 .ThenBy(r => r.StudentName)
@@ -1054,6 +1085,20 @@ public class SchoolService : ISchoolService
 				if (adm != null && !string.IsNullOrWhiteSpace(adm.SectionLetter))
 				{
 					resp.Section = adm.SectionLetter;
+				}
+			}
+			if (!resp.HostelSecurityDepositPaid && string.Equals(resp.StudentType, "Residential", StringComparison.OrdinalIgnoreCase))
+			{
+				var depPayment = await _context.FeePayments.AsNoTracking().FirstOrDefaultAsync(p =>
+					(p.StudentId == app.Id.ToString() || (!string.IsNullOrEmpty(app.AdmissionNo) && p.StudentId == app.AdmissionNo) || (!string.IsNullOrEmpty(app.RegistrationNo) && p.StudentId == app.RegistrationNo)) &&
+					((p.FeeHeadName != null && p.FeeHeadName.Contains("Security Deposit")) ||
+					 (p.Remarks != null && p.Remarks.Contains("Security Deposit")) ||
+					 (p.PaidItemsJson != null && p.PaidItemsJson.Contains("Security Deposit"))));
+				if (depPayment != null)
+				{
+					resp.HostelSecurityDepositPaid = true;
+					if (resp.SecurityDepositAmount <= 0) resp.SecurityDepositAmount = depPayment.Amount;
+					if (string.IsNullOrEmpty(resp.SecurityDepositReceiptNo)) resp.SecurityDepositReceiptNo = depPayment.ReceiptNo;
 				}
 			}
 			await PopulateParentOnboardingStatusAsync(resp);
@@ -1123,6 +1168,20 @@ public class SchoolService : ISchoolService
 				if (adm != null && !string.IsNullOrWhiteSpace(adm.SectionLetter))
 				{
 					resp.Section = adm.SectionLetter;
+				}
+			}
+			if (!resp.HostelSecurityDepositPaid && string.Equals(resp.StudentType, "Residential", StringComparison.OrdinalIgnoreCase))
+			{
+				var depPayment = await _context.FeePayments.AsNoTracking().FirstOrDefaultAsync(p =>
+					(p.StudentId == app.Id.ToString() || (!string.IsNullOrEmpty(app.AdmissionNo) && p.StudentId == app.AdmissionNo) || (!string.IsNullOrEmpty(app.RegistrationNo) && p.StudentId == app.RegistrationNo)) &&
+					((p.FeeHeadName != null && p.FeeHeadName.Contains("Security Deposit")) ||
+					 (p.Remarks != null && p.Remarks.Contains("Security Deposit")) ||
+					 (p.PaidItemsJson != null && p.PaidItemsJson.Contains("Security Deposit"))));
+				if (depPayment != null)
+				{
+					resp.HostelSecurityDepositPaid = true;
+					if (resp.SecurityDepositAmount <= 0) resp.SecurityDepositAmount = depPayment.Amount;
+					if (string.IsNullOrEmpty(resp.SecurityDepositReceiptNo)) resp.SecurityDepositReceiptNo = depPayment.ReceiptNo;
 				}
 			}
 			await PopulateParentOnboardingStatusAsync(resp);
