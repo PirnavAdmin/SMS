@@ -1223,7 +1223,7 @@ interface DataContextType {
   deleteMeeting: (id: string) => void;
 
   departments: Department[];
-  addDepartment: (dept: Omit<Department, "id">) => Department;
+  addDepartment: (dept: Omit<Department, "id">, createdId?: string) => Department;
   updateDepartment: (id: string, updates: Partial<Department>) => void;
   deleteDepartment: (id: string) => void;
 
@@ -22901,33 +22901,36 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     logActivity("Deleted Meeting", `Removed meeting record ID ${id}`);
   };
 
-  const addDepartment = (deptData: Omit<Department, "id">): Department => {
-    const id = "DEPT-" + Math.floor(100 + Math.random() * 900);
+  const addDepartment = (deptData: Omit<Department, "id">, createdId?: string): Department => {
+    const id = createdId || "DEPT-" + Math.floor(100 + Math.random() * 900);
     const newDept: Department = {
       ...deptData,
       id,
     };
 
-    createDepartmentApi({
-      departmentName: newDept.departmentName,
-      departmentCode: newDept.departmentCode || "",
-      description: newDept.description || "",
-      status: newDept.status,
-    })
-      .then((response: any) => {
-        if (response && response.success && response.data) {
-          setDepartments((prev) =>
-            prev.map((d) =>
-              d.id === newDept.id
-                ? { ...d, id: response.data.departmentId.toString() }
-                : d,
-            ),
-          );
-        }
+    if (!createdId) {
+      createDepartmentApi({
+        departmentName: newDept.departmentName,
+        departmentCode: newDept.departmentCode || "",
+        description: newDept.description || "",
+        category: newDept.category,
+        status: newDept.status,
       })
-      .catch((err) => console.error("Failed to create department", err));
+        .then((response: any) => {
+          if (response && response.success && response.data) {
+            setDepartments((prev) =>
+              prev.map((d) =>
+                d.id === newDept.id
+                  ? { ...d, id: response.data.departmentId.toString() }
+                  : d,
+              ),
+            );
+          }
+        })
+        .catch((err) => console.error("Failed to create department", err));
+    }
 
-    setDepartments((prev) => [newDept, ...prev]);
+    setDepartments((prev) => [newDept, ...prev.filter((d) => d.id !== id)]);
     logActivity(
       "Created Department",
       `Added department ${newDept.departmentName}`,

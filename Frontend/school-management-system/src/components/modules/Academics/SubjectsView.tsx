@@ -182,7 +182,7 @@ export const SubjectsView: React.FC = () => {
         setDepartments([]);
       }
     } catch (error) {
-      setDepartments([]);
+      console.error('Error fetching departments:', error);
       addToast('error', 'Error Fetching Departments', 'Failed to load departments from backend.');
     } finally {
       setLoading(false);
@@ -221,6 +221,13 @@ export const SubjectsView: React.FC = () => {
     loadDepartments();
     loadDesignations();
   }, []);
+
+  // Sync initial context departments if local departments state is empty
+  useEffect(() => {
+    if (contextDepartments && contextDepartments.length > 0 && departments.length === 0) {
+      setDepartments(contextDepartments);
+    }
+  }, [contextDepartments]);
 
   // Update local subjects list if context subjects change
   // Removed static context dependency per request
@@ -533,6 +540,21 @@ export const SubjectsView: React.FC = () => {
         }));
       }
 
+      // Immediately update local departments state so table updates instantly
+      setDepartments(prev => prev.map(d => {
+        if (d.id === editingDepartment.id) {
+          return {
+            ...d,
+            departmentName: name,
+            departmentCode: deptFormData.departmentCode.trim() || d.departmentCode,
+            description: deptFormData.description.trim(),
+            category: deptFormData.category as 'Teaching' | 'Non-Teaching',
+            status: deptFormData.status as 'Active' | 'Inactive'
+          };
+        }
+        return d;
+      }));
+
       try {
         await updateDepartmentApi(editingDepartment.id, {
           departmentName: name,
@@ -547,24 +569,66 @@ export const SubjectsView: React.FC = () => {
       }
 
       addToast('success', 'Department Updated', `Successfully updated department '${name}'.`);
+      setIsDeptModalOpen(false);
     } else {
-      const created = addDepartment({
-        departmentName: name,
-        departmentCode: deptFormData.departmentCode.trim() || `DEPT-${name.substring(0, 3).toUpperCase()}`,
-        description: deptFormData.description.trim(),
-        category: deptFormData.category,
-        status: deptFormData.status
-      });
+      const deptCode = deptFormData.departmentCode.trim() || `DEPT-${name.substring(0, 3).toUpperCase()}`;
+      const deptDescription = deptFormData.description.trim();
 
-      // Auto select newly created department in subject form if open
-      if (isFormOpen) {
-        setFormData(prev => ({ ...prev, department: created.departmentName }));
+      try {
+        setLoading(true);
+        const res = await createDepartmentApi({
+          departmentName: name,
+          departmentCode: deptCode,
+          description: deptDescription,
+          category: deptFormData.category,
+          status: deptFormData.status
+        });
+
+        if (res && res.success) {
+          const serverId = (res.data?.departmentId || res.data?.id || `DEPT-${Math.floor(100 + Math.random() * 900)}`).toString();
+
+          const newDeptItem: Department = {
+            id: serverId,
+            departmentName: name,
+            departmentCode: deptCode,
+            description: deptDescription,
+            category: deptFormData.category as 'Teaching' | 'Non-Teaching',
+            status: deptFormData.status as 'Active' | 'Inactive'
+          };
+
+          // 1. Immediately update DataContext with serverId (avoiding duplicate API calls)
+          addDepartment({
+            departmentName: name,
+            departmentCode: deptCode,
+            description: deptDescription,
+            category: deptFormData.category as 'Teaching' | 'Non-Teaching',
+            status: deptFormData.status as 'Active' | 'Inactive'
+          }, serverId);
+
+          // 2. Immediately update local departments state so the table and tab count update INSTANTLY!
+          setDepartments(prev => [newDeptItem, ...prev.filter(d => d.id !== serverId)]);
+          setDeptCurrentPage(1);
+
+          // 3. Reload from backend to synchronize fresh database records
+          await loadDepartments();
+
+          // Auto select newly created department in subject form if open
+          if (isFormOpen) {
+            setFormData(prev => ({ ...prev, department: name }));
+          }
+
+          addToast('success', 'Department Created', `Created department '${name}'.`);
+          setIsDeptModalOpen(false);
+        } else {
+          addToast('error', 'Creation Failed', res?.message || 'Could not create department.');
+        }
+      } catch (err: any) {
+        console.error('Error creating department:', err);
+        addToast('error', 'Error', err?.message || 'Failed to create department.');
+      } finally {
+        setLoading(false);
       }
-
-      addToast('success', 'Department Created', `Created department '${name}'.`);
     }
-
-    setIsDeptModalOpen(false);
   };
 
   // Delete Department Handler with Safeguard Validation
@@ -590,6 +654,8 @@ export const SubjectsView: React.FC = () => {
       const res = await deleteDepartmentApi(deletingDepartment.id);
       if (res && res.success) {
         deleteDepartment(deletingDepartment.id);
+        // Immediately update local departments state so row vanishes instantly
+        setDepartments(prev => prev.filter(d => d.id !== deletingDepartment.id));
         await loadDepartments();
         addToast('success', 'Department Deleted', `Removed department '${deletingDepartment.departmentName}'.`);
       } else {

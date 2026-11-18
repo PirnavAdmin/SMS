@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Building2, Users, TrendingUp } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
+import { AnimatedCounter } from '../../common/AnimatedCounter';
 
 interface EmployeesByDepartmentChartProps {
   onNavigate?: (module: string) => void;
@@ -172,7 +173,7 @@ export const EmployeesByDepartmentChart: React.FC<EmployeesByDepartmentChartProp
                         transform: isHovered ? 'scaleX(1.05) scaleY(1.2)' : 'scaleX(1) scaleY(1)',
                         transformOrigin: 'left center',
                         transitionProperty: 'width, transform, filter, box-shadow',
-                        transitionDuration: mounted ? '0.4s, 0.35s, 0.25s, 0.25s' : '0.8s, 0.8s, 0.8s, 0.8s',
+                        transitionDuration: mounted ? '0.4s, 0.35s, 0.25s, 0.25s' : '1.2s, 1.2s, 1.2s, 1.2s',
                         transitionTimingFunction: mounted
                           ? 'cubic-bezier(0.34, 1.56, 0.64, 1), cubic-bezier(0.34, 1.56, 0.64, 1), ease, ease'
                           : 'cubic-bezier(0.16, 1, 0.3, 1), cubic-bezier(0.16, 1, 0.3, 1), ease, ease',
@@ -199,15 +200,15 @@ export const EmployeesByDepartmentChart: React.FC<EmployeesByDepartmentChartProp
                       )}
                     </div>
 
-                    {/* Live Count indicator sliding in at the growing tip */}
+                    {/* Live Count indicator with smooth eased count-up */}
                     <span
-                      className={`ml-2 text-xs font-black transition-all duration-300 pointer-events-none whitespace-nowrap z-10 ${
+                      className={`ml-2 text-xs font-bold transition-all duration-300 pointer-events-none whitespace-nowrap z-10 tabular-nums ${
                         isHovered
-                          ? 'text-[var(--primary-color,#ea580c)] opacity-100 translate-x-1.5 scale-110'
-                          : 'opacity-0 -translate-x-1'
+                          ? 'text-[var(--primary-color,#ea580c)] font-black translate-x-1 scale-110'
+                          : 'text-slate-600 dark:text-slate-400'
                       }`}
                     >
-                      {dept.count}
+                      <AnimatedCounter value={dept.count} duration={1200} delay={idx * 65} />
                     </span>
                   </div>
                 </div>
@@ -238,7 +239,7 @@ export const EmployeesByDepartmentChart: React.FC<EmployeesByDepartmentChartProp
         <div className="flex items-center gap-1.5">
           <Users className="w-3.5 h-3.5 text-slate-400" />
           <span className="text-[11px]">
-            Total Staff Monitored: <strong className="text-slate-800 dark:text-white font-bold">{totalStaffCount}</strong>
+            Total Staff Monitored: <strong className="text-slate-800 dark:text-white font-bold"><AnimatedCounter value={totalStaffCount} duration={1400} /></strong>
           </span>
         </div>
       </div>

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Calendar, Users, Briefcase } from 'lucide-react';
+import { useEaseProgress, AnimatedCounter } from '../../common/AnimatedCounter';
 
 export interface AttendanceStatusItem {
   key: 'present' | 'absent' | 'late' | 'halfDay';
@@ -182,6 +183,27 @@ export const SpeedometerAttendanceCard: React.FC<SpeedometerAttendanceCardProps>
     };
   });
 
+  // Smooth sweep progress for the speedometer arc (0 to 1 over 1300ms with easeOutCubic)
+  const sweepProgress = useEaseProgress(1300, 0, `${total}-${present}-${absent}-${late}-${halfDay}`);
+  const currentSweepAngle = 180 - 180 * sweepProgress; // Sweeps from 180 deg (left) down to 0 deg (right)
+
+  // Compute animated paths for each segment based on current sweep angle
+  const animatedSegments = finalSegments.map((seg) => {
+    // If sweep hasn't reached the start of this segment yet
+    if (currentSweepAngle >= seg.startAngle - 0.2) {
+      return { ...seg, animatedPath: '' };
+    }
+    // If sweep is currently cutting through or has passed this segment
+    const drawEndAngle = Math.max(seg.endAngle, currentSweepAngle);
+    if (seg.startAngle - drawEndAngle < 0.2) {
+      return { ...seg, animatedPath: '' };
+    }
+    return {
+      ...seg,
+      animatedPath: describeArc(cx, cy, rIn, rOut, seg.startAngle, drawEndAngle)
+    };
+  }).filter((s) => Boolean(s.animatedPath));
+
   // Active hover data
   const hoveredItem = statusItems.find(s => s.key === hoveredKey);
 
@@ -246,13 +268,13 @@ export const SpeedometerAttendanceCard: React.FC<SpeedometerAttendanceCardProps>
               className="fill-slate-100 dark:fill-slate-800/60 transition-colors"
             />
 
-            {/* Dynamic Colored Arch Segments */}
-            {finalSegments.map((seg) => {
+            {/* Dynamic Colored Arch Segments with Smooth Eased Sweep */}
+            {animatedSegments.map((seg) => {
               const isHovered = hoveredKey === seg.key;
               return (
                 <path
                   key={seg.key}
-                  d={seg.path}
+                  d={seg.animatedPath}
                   fill={seg.color}
                   stroke="rgba(255,255,255,0.85)"
                   className="dark:stroke-slate-900 transition-all duration-200 cursor-pointer"
@@ -270,7 +292,7 @@ export const SpeedometerAttendanceCard: React.FC<SpeedometerAttendanceCardProps>
             })}
           </svg>
 
-          {/* Center cutout content */}
+          {/* Center cutout content with smooth count-up */}
           <div className="absolute inset-x-0 bottom-2.5 flex flex-col items-center justify-center pointer-events-none text-center">
             <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-400 tracking-tight transition-colors">
               {hoveredItem ? `${hoveredItem.label} Count` : 'Total Attendance'}
@@ -278,13 +300,13 @@ export const SpeedometerAttendanceCard: React.FC<SpeedometerAttendanceCardProps>
             <span className="text-2xl font-black text-slate-800 dark:text-white tracking-tight leading-none mt-0.5">
               {hoveredItem ? (
                 <>
-                  {hoveredItem.count}
+                  <AnimatedCounter value={hoveredItem.count} duration={800} />
                   <span className="text-xs font-bold text-slate-400 ml-1">
-                    ({hoveredItem.pct}%)
+                    (<AnimatedCounter value={hoveredItem.pct} duration={800} suffix="%" />)
                   </span>
                 </>
               ) : (
-                total
+                <AnimatedCounter value={total} duration={1300} />
               )}
             </span>
           </div>
@@ -330,10 +352,10 @@ export const SpeedometerAttendanceCard: React.FC<SpeedometerAttendanceCardProps>
                 </div>
                 <div className="flex items-center gap-1.5 tabular-nums">
                   <span className="font-extrabold text-slate-800 dark:text-slate-200 min-w-[36px] text-right">
-                    {item.pct}%
+                    <AnimatedCounter value={item.pct} duration={1300} suffix="%" />
                   </span>
                   <span className="text-[10px] font-semibold text-slate-400 min-w-[24px] text-right">
-                    ({item.count})
+                    (<AnimatedCounter value={item.count} duration={1300} />)
                   </span>
                 </div>
               </div>

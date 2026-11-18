@@ -22,6 +22,7 @@ import { DashboardShimmer } from '../../common/DashboardShimmer';
 import { EmployeesByDepartmentChart } from './EmployeesByDepartmentChart';
 import { SpeedometerAttendanceCard } from './SpeedometerAttendanceCard';
 import { PendingApprovalsCard } from './PendingApprovalsCard';
+import { AnimatedCounter } from '../../common/AnimatedCounter';
 
 interface DashboardViewProps {
   onNavigate: (module: string) => void;
@@ -1112,7 +1113,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
         <div onClick={() => onNavigate('students')} className="glass-card border-primary-interactive hover-tilt py-3 px-3.5 sm:px-4 rounded-2xl flex items-center justify-between cursor-pointer group">
           <div className="space-y-0.5 text-left">
             <span className="text-[10px] font-bold uppercase text-slate-400 dark:text-slate-400 tracking-wider">Total Students</span>
-            <p className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mt-0.5">{displayTotalStudents.toLocaleString()}</p>
+            <p className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mt-0.5">
+              <AnimatedCounter value={displayTotalStudents} duration={1400} />
+            </p>
           </div>
           <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-400 group-hover:bg-sky-600 group-hover:text-white transition-all duration-300 border border-sky-500/20 shadow-xs flex items-center justify-center shrink-0">
             <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.2]" />
@@ -1123,7 +1126,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
         <div onClick={() => onNavigate('staff')} className="glass-card border-primary-interactive hover-tilt py-3 px-3.5 sm:px-4 rounded-2xl flex items-center justify-between cursor-pointer group">
           <div className="space-y-0.5 text-left">
             <span className="text-[10px] font-bold uppercase text-slate-400 dark:text-slate-400 tracking-wider">Teaching Staff</span>
-            <p className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mt-0.5">{displayTeachingStaff.toLocaleString()}</p>
+            <p className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mt-0.5">
+              <AnimatedCounter value={displayTeachingStaff} duration={1400} />
+            </p>
           </div>
           <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 group-hover:bg-emerald-600 group-hover:text-white transition-all duration-300 border border-emerald-500/20 shadow-xs flex items-center justify-center shrink-0">
             <UserCheck className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.2]" />
@@ -1134,7 +1139,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
         <div onClick={() => onNavigate('staff-non-teaching')} className="glass-card border-primary-interactive hover-tilt py-3 px-3.5 sm:px-4 rounded-2xl flex items-center justify-between cursor-pointer group">
           <div className="space-y-0.5 text-left">
             <span className="text-[10px] font-bold uppercase text-slate-400 dark:text-slate-400 tracking-wider">Non-Teaching Staff</span>
-            <p className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mt-0.5">{displayNonTeachingStaff.toLocaleString()}</p>
+            <p className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mt-0.5">
+              <AnimatedCounter value={displayNonTeachingStaff} duration={1400} />
+            </p>
           </div>
           <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 group-hover:bg-rose-600 group-hover:text-white transition-all duration-300 border border-rose-500/20 shadow-xs flex items-center justify-center shrink-0">
             <Users className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.2]" />
@@ -1145,7 +1152,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
         <div onClick={() => onNavigate('academics')} className="glass-card border-primary-interactive hover-tilt py-3 px-3.5 sm:px-4 rounded-2xl flex items-center justify-between cursor-pointer group">
           <div className="space-y-0.5 text-left">
             <span className="text-[10px] font-bold uppercase text-slate-400 dark:text-slate-400 tracking-wider">Total Classes</span>
-            <p className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mt-0.5">{(summaryData ? summaryData.totalClasses : academicClasses.length).toLocaleString()}</p>
+            <p className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mt-0.5">
+              <AnimatedCounter value={summaryData ? summaryData.totalClasses : academicClasses.length} duration={1400} />
+            </p>
           </div>
           <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 group-hover:bg-amber-600 group-hover:text-white transition-all duration-300 border border-amber-500/20 shadow-xs flex items-center justify-center shrink-0">
             <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 stroke-[2.2]" />

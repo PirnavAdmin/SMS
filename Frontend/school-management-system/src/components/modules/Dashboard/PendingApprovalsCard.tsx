@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Bell, ArrowUpRight } from 'lucide-react';
+import { AnimatedCounter, useEaseProgress } from '../../common/AnimatedCounter';
 
 export interface PendingApprovalsCardProps {
   onNavigate: (module: string) => void;
@@ -23,6 +24,7 @@ export const PendingApprovalsCard: React.FC<PendingApprovalsCardProps> = ({
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
   const total = admissionsCount + staffCount + leavesCount + feeCount;
+  const animProgress = useEaseProgress(1300, 0, `${admissionsCount}-${staffCount}-${leavesCount}-${feeCount}`);
 
   // Percentage calculations
   const admissionsPct = total > 0 ? Math.round((admissionsCount / total) * 100) : 0;
@@ -118,7 +120,7 @@ export const PendingApprovalsCard: React.FC<PendingApprovalsCardProps> = ({
             return (
               <div
                 key={item.key}
-                style={{ width: `${segmentWidth}%` }}
+                style={{ width: `${segmentWidth * animProgress}%` }}
                 onMouseEnter={() => setHoveredIndex(idx)}
                 onMouseLeave={() => setHoveredIndex(null)}
                 className={`${item.bgClass} h-full first:rounded-l-full last:rounded-r-full transition-all duration-300 cursor-pointer ${
@@ -160,14 +162,14 @@ export const PendingApprovalsCard: React.FC<PendingApprovalsCardProps> = ({
                   </span>
                 </div>
                 <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 shrink-0">
-                  ({item.pct}%)
+                  (<AnimatedCounter value={item.pct} duration={1300} suffix="%" />)
                 </span>
               </div>
 
-              {/* Big bold count (04, 12, 112) */}
+              {/* Big bold count (04, 12, 112) with smooth eased count-up */}
               <div className="mt-1 flex items-baseline justify-between">
                 <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight leading-none tabular-nums group-hover:scale-105 transition-transform duration-200 origin-left">
-                  {formatCount(item.count)}
+                  <AnimatedCounter value={item.count} duration={1300} padZero />
                 </span>
                 <span className="text-[10px] font-bold text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
                   View &rarr;
