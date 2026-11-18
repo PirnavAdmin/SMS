@@ -1208,17 +1208,33 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     };
 
     const isClassMatch = (c: any) => {
-      return !studentClass || isClassInRange(studentClass, c.startClass, c.endClass, c.classRange, academicClasses);
+      if (!studentClass) return true;
+      const sLower = studentClass.trim().toLowerCase();
+      if (Array.isArray(c.applicableClasses) && c.applicableClasses.some((cl: string) => cl && cl.trim().toLowerCase() === sLower)) {
+        return true;
+      }
+      if (typeof c.applicableClasses === "string" && c.applicableClasses.toLowerCase().includes(sLower)) {
+        return true;
+      }
+      return isClassInRange(studentClass, c.startClass, c.endClass, c.classRange, academicClasses);
     };
 
-    if (!userSharing) {
-      return null;
+    // Filter configs that match the selected class AND chosen sharing tier
+    let eligibleConfigs = activeConfigs.filter(
+      (c) => isClassMatch(c) && (!userSharing || matchesSharing(c.sharingType || c.roomTypeName))
+    );
+
+    if (eligibleConfigs.length === 0 && userSharing) {
+      eligibleConfigs = activeConfigs.filter((c) => matchesSharing(c.sharingType || c.roomTypeName));
     }
 
-    // Strictly filter configs that match the selected class AND the chosen sharing tier
-    const eligibleConfigs = activeConfigs.filter(
-      (c) => isClassMatch(c) && matchesSharing(c.sharingType || c.roomTypeName)
-    );
+    if (eligibleConfigs.length === 0) {
+      eligibleConfigs = activeConfigs.filter((c) => isClassMatch(c));
+    }
+
+    if (eligibleConfigs.length === 0) {
+      eligibleConfigs = activeConfigs;
+    }
 
     if (eligibleConfigs.length === 0) {
       return null;
@@ -1271,23 +1287,6 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       matched = eligibleConfigs[0];
     }
 
-    if (!matched && userSharing) {
-      // Fallback default config for chosen sharing if no explicit config found in Fee Setup
-      const isAcChosen = userAc === "ac" || (userAc.includes("ac") && !userAc.includes("non"));
-      const defaultHostelFee = isAcChosen ? 45000 : 35000;
-      matched = {
-        id: "default-fhc",
-        hostelName: "Campus Residence Block A",
-        roomTypeName: userSharing,
-        sharingType: userSharing,
-        acType: isAcChosen ? "AC" : "Non-AC",
-        feePlan: "Annual",
-        hostelFee: defaultHostelFee,
-        securityDeposit: 5000,
-        status: "Active",
-      } as any;
-    }
-
     return matched || null;
   }, [
     isResidentialStudent,
@@ -1323,6 +1322,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     const classConfigWithDeposit = activeConfigs.find(
       (c) =>
         (!studentClass ||
+          (Array.isArray(c.applicableClasses) && c.applicableClasses.some((cl: string) => cl && cl.trim().toLowerCase() === studentClass)) ||
+          (typeof c.applicableClasses === "string" && c.applicableClasses.toLowerCase().includes(studentClass)) ||
           (c.startClass && c.startClass.trim().toLowerCase() === studentClass) ||
           (c.classRange && c.classRange.trim().toLowerCase().includes(studentClass)) ||
           isClassInRange(studentClass, c.startClass, c.endClass, c.classRange, academicClasses)) &&
@@ -1335,7 +1336,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     if (anyConfigWithDeposit) {
       return Number(anyConfigWithDeposit.securityDeposit);
     }
-    return 5000;
+    return 0;
   }, [
     isResidentialStudent,
     applicableHostelFeeConfig,
@@ -1348,13 +1349,18 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
   
   const getSharingFeeHint = (sharingVal: string) => {
     if (!isResidentialStudent) return "";
-    const studentClass = formData.appliedClass || formData.className || "";
+    const studentClass = (formData.appliedClass || formData.className || "").trim().toLowerCase();
     const activeConfigs = (financeHostelConfigs || []).filter(
       (c) => !c.status || c.status === "Active"
     );
     const cfg = activeConfigs.find(
       (c) =>
-        (!studentClass || isClassInRange(studentClass, c.startClass, c.endClass, c.classRange, academicClasses)) &&
+        (!studentClass ||
+          (Array.isArray(c.applicableClasses) && c.applicableClasses.some((cl: string) => cl && cl.trim().toLowerCase() === studentClass)) ||
+          (typeof c.applicableClasses === "string" && c.applicableClasses.toLowerCase().includes(studentClass)) ||
+          (c.startClass && c.startClass.trim().toLowerCase() === studentClass) ||
+          (c.classRange && c.classRange.trim().toLowerCase().includes(studentClass)) ||
+          isClassInRange(studentClass, c.startClass, c.endClass, c.classRange, academicClasses)) &&
         matchesSharingType(c.sharingType || c.roomTypeName, sharingVal)
     );
     if (cfg) {
@@ -4876,60 +4882,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                           ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300"
                           : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-300"
                       }`}>
-                        {applicableSecurityDeposit <= 0 ? "No Deposit Configured" : formData.hostelSecurityDepositPaid ? `✓ Deposit Paid (${formData.securityDepositReceiptNo || "VERIFIED"})` : "Payment Pending"}
+                        {applicableSecurityDeposit <= 0 ? "No Deposit Configured" : formData.hostelSecurityDepositPaid ? `✓ Deposit Paid (${formData.securityDepositReceiptNo || "VERIFIED"})` : "Payable via Fee Collection"}
                       </span>
                     </div>
-
-                    {!formData.hostelSecurityDepositPaid && applicableSecurityDeposit > 0 && (
-                      <div className="p-3 bg-amber-50/80 dark:bg-amber-950/40 rounded-xl border border-amber-200 dark:border-amber-900/60 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-xs text-amber-900 dark:text-amber-200 flex items-center gap-1.5">
-                            <CreditCard className="w-4 h-4 text-amber-600" />
-                            Direct Payment of Security Deposit ({formatCurrency(applicableSecurityDeposit)})
-                          </span>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
-                          <div>
-                            <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1">
-                              Payment Mode
-                            </label>
-                            <select
-                              value={depositPaymentMode}
-                              onChange={(e) => setDepositPaymentMode(e.target.value)}
-                              className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-800 dark:text-slate-200 outline-none"
-                            >
-                              <option value="Cash">Cash</option>
-                              <option value="UPI">UPI</option>
-                              <option value="Card">Card</option>
-                              <option value="Net Banking">Net Banking</option>
-                              <option value="Cheque">Cheque</option>
-                            </select>
-                          </div>
-                          <div>
-                            <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-1">
-                              Transaction / Ref ID (Optional)
-                            </label>
-                            <input
-                              type="text"
-                              placeholder="e.g. UPI-12345"
-                              value={depositTxnId}
-                              onChange={(e) => setDepositTxnId(e.target.value)}
-                              className="w-full px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-200 outline-none"
-                            />
-                          </div>
-                          <div className="flex items-end">
-                            <button
-                              type="button"
-                              onClick={handleConfirmSecurityDepositPayment}
-                              className="w-full py-1.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs shadow transition-all flex items-center justify-center gap-1 cursor-pointer"
-                            >
-                              <CheckCircle2 className="w-3.5 h-3.5" />
-                              Record & Confirm Payment
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 )}
                 {/* Financial Benefits Section */}
@@ -5345,14 +5300,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                             <p className="text-[11px] text-amber-700 dark:text-amber-300">
                               Hostel security deposit fee must be paid for the student to reflect in Hostel Management bed allocations.
                             </p>
-                            <button
-                              type="button"
-                              onClick={handlePaySecurityDepositRedirect}
-                              className="w-full py-2.5 px-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-extrabold rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer text-xs active:scale-95"
-                            >
-                              <CreditCard className="w-4 h-4" />
-                              Pay Hostel Security Deposit ({formatCurrency(applicableSecurityDeposit)})
-                            </button>
+                            <div className="p-2.5 rounded-xl bg-amber-100/70 dark:bg-amber-900/30 text-[11px] text-amber-900 dark:text-amber-200 font-semibold border border-amber-200/60 dark:border-amber-800/40">
+                              ℹ️ Payable via Fee Collection after saving admission form. Once paid, the student will automatically be available in Hostel Management for room & bed allocation.
+                            </div>
                           </div>
                         )}
                       </div>

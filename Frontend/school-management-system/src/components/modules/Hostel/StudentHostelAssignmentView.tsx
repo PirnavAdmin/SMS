@@ -410,6 +410,9 @@ export const StudentHostelAssignmentView: React.FC = () => {
         ),
       };
 
+      if (!isRes) return;
+      if (!studentObj.hostelSecurityDepositPaid) return;
+
       const primaryKey = sAdm || `id_${sId}` || `name_${sName}`;
       map.set(primaryKey, studentObj);
       if (sAdm) seenAdmNos.add(sAdm);
@@ -515,6 +518,9 @@ export const StudentHostelAssignmentView: React.FC = () => {
           hasDepPayment,
         ),
       };
+
+      if (!isRes) return;
+      if (!admissionObj.hostelSecurityDepositPaid) return;
 
       const key = aAdm || `id_${aId}` || `name_${aName}`;
       map.set(key, admissionObj);
@@ -1373,7 +1379,8 @@ export const StudentHostelAssignmentView: React.FC = () => {
         return matchesId && isDepHead;
       });
 
-      // Residential student is eligible for room & bed allocation
+      // Strict Gate: Only students who paid hostel security fee reflect in Hostel Management
+      if (!isDepositFlagPaid && !hasDepPayment) return false;
 
       // Check if already allocated
       const isAllocated =
