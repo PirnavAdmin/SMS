@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
-import { Calendar, Users, Briefcase } from 'lucide-react';
-import { useEaseProgress, AnimatedCounter } from '../../common/AnimatedCounter';
+import React, { useState } from "react";
+import { Calendar, Users, Briefcase } from "lucide-react";
+import { useEaseProgress, AnimatedCounter } from "../../common/AnimatedCounter";
 
 export interface AttendanceStatusItem {
-  key: 'present' | 'absent' | 'late' | 'halfDay';
+  key: "present" | "absent" | "late" | "halfDay";
   label: string;
   count: number;
   pct: number;
@@ -20,7 +20,7 @@ export interface AbsenteeProfile {
 interface SpeedometerAttendanceCardProps {
   title: string;
   subtitle?: string;
-  iconType?: 'students' | 'staff';
+  iconType?: "students" | "staff";
   headerRight?: React.ReactNode;
   stats: {
     present: number;
@@ -45,7 +45,7 @@ function describeArc(
   rIn: number,
   rOut: number,
   startAngle: number,
-  endAngle: number
+  endAngle: number,
 ): string {
   const rad1 = (startAngle * Math.PI) / 180;
   const rad2 = (endAngle * Math.PI) / 180;
@@ -67,20 +67,23 @@ function describeArc(
     `A ${rOut} ${rOut} 0 ${largeArc} 1 ${x2_out.toFixed(2)} ${y2_out.toFixed(2)}`,
     `L ${x2_in.toFixed(2)} ${y2_in.toFixed(2)}`,
     `A ${rIn} ${rIn} 0 ${largeArc} 0 ${x1_in.toFixed(2)} ${y1_in.toFixed(2)}`,
-    'Z'
-  ].join(' ');
+    "Z",
+  ].join(" ");
 }
 
-export const SpeedometerAttendanceCard: React.FC<SpeedometerAttendanceCardProps> = ({
+export const SpeedometerAttendanceCard: React.FC<
+  SpeedometerAttendanceCardProps
+> = ({
   title,
   subtitle,
-  iconType = 'students',
+  iconType = "students",
   headerRight,
   stats,
   absenteeList = [],
   onViewDetails,
-  className = ''
+  className = "",
 }) => {
+  const { isDarkMode } = useTheme();
   const [hoveredKey, setHoveredKey] = useState<string | null>(null);
 
   const total = stats.total || 0;
@@ -90,45 +93,52 @@ export const SpeedometerAttendanceCard: React.FC<SpeedometerAttendanceCardProps>
   const halfDay = (stats.halfDay ?? stats.permission) || 0;
 
   // Percentage calculations
-  const presentPct = total > 0 ? stats.presentPct ?? Math.round((present / total) * 100) : 0;
-  const absentPct = total > 0 ? stats.absentPct ?? Math.round((absent / total) * 100) : 0;
-  const latePct = total > 0 ? stats.latePct ?? Math.round((late / total) * 100) : 0;
-  const halfDayPct = total > 0 ? stats.halfDayPct ?? Math.max(0, 100 - presentPct - absentPct - latePct) : 0;
+  const presentPct =
+    total > 0 ? (stats.presentPct ?? Math.round((present / total) * 100)) : 0;
+  const absentPct =
+    total > 0 ? (stats.absentPct ?? Math.round((absent / total) * 100)) : 0;
+  const latePct =
+    total > 0 ? (stats.latePct ?? Math.round((late / total) * 100)) : 0;
+  const halfDayPct =
+    total > 0
+      ? (stats.halfDayPct ??
+        Math.max(0, 100 - presentPct - absentPct - latePct))
+      : 0;
 
   // Status configuration - Order: Present, Absent, Late, Half Day
   const statusItems: AttendanceStatusItem[] = [
     {
-      key: 'present',
-      label: 'Present',
+      key: "present",
+      label: "Present",
       count: present,
       pct: presentPct,
-      color: '#00c853',
-      darkColor: '#10b981'
+      color: "#00c853",
+      darkColor: "#10b981",
     },
     {
-      key: 'absent',
-      label: 'Absent',
+      key: "absent",
+      label: "Absent",
       count: absent,
       pct: absentPct,
-      color: '#e53935',
-      darkColor: '#ef4444'
+      color: "#e53935",
+      darkColor: "#ef4444",
     },
     {
-      key: 'late',
-      label: 'Late',
+      key: "late",
+      label: "Late",
       count: late,
       pct: latePct,
-      color: '#083344',
-      darkColor: '#14b8a6'
+      color: iconType === "staff" ? "#0284c7" : "#083344",
+      darkColor: "#38bdf8",
     },
     {
-      key: 'halfDay',
-      label: 'Half Day',
+      key: "halfDay",
+      label: "Half Day",
       count: halfDay,
       pct: halfDayPct,
-      color: '#fbbf24',
-      darkColor: '#f59e0b'
-    }
+      color: "#fbbf24",
+      darkColor: "#f59e0b",
+    },
   ];
 
   // SVG Arch Geometry
@@ -143,15 +153,18 @@ export const SpeedometerAttendanceCard: React.FC<SpeedometerAttendanceCardProps>
   // 3. Half Day
   // 4. Absent (finishes at right 0 deg)
   const gaugeSegmentsOrder: AttendanceStatusItem[] = [
-    statusItems.find(s => s.key === 'present')!,
-    statusItems.find(s => s.key === 'late')!,
-    statusItems.find(s => s.key === 'halfDay')!,
-    statusItems.find(s => s.key === 'absent')!
+    statusItems.find((s) => s.key === "present")!,
+    statusItems.find((s) => s.key === "late")!,
+    statusItems.find((s) => s.key === "halfDay")!,
+    statusItems.find((s) => s.key === "absent")!,
   ].filter(Boolean);
 
   // Compute segment angular spans
-  const activeGaugeSegments = gaugeSegmentsOrder.filter(s => s.count > 0);
-  const totalActiveCount = activeGaugeSegments.reduce((sum, s) => sum + s.count, 0);
+  const activeGaugeSegments = gaugeSegmentsOrder.filter((s) => s.count > 0);
+  const totalActiveCount = activeGaugeSegments.reduce(
+    (sum, s) => sum + s.count,
+    0,
+  );
 
   const gapDeg = activeGaugeSegments.length > 1 ? 3 : 0;
   const totalGaps = (activeGaugeSegments.length - 1) * gapDeg;
@@ -160,18 +173,20 @@ export const SpeedometerAttendanceCard: React.FC<SpeedometerAttendanceCardProps>
   let currentAngle = 180;
   const renderedSegments = activeGaugeSegments.map((item) => {
     // Ensure small values (e.g. 1% or 2%) have a visible min angle of 5 deg
-    const rawAngle = totalActiveCount > 0 ? (item.count / totalActiveCount) * availableDeg : 0;
+    const rawAngle =
+      totalActiveCount > 0 ? (item.count / totalActiveCount) * availableDeg : 0;
     const clampedAngle = Math.max(5, rawAngle);
     return {
       ...item,
-      desiredAngle: clampedAngle
+      desiredAngle: clampedAngle,
     };
   });
 
   // Re-scale if clamped sum exceeds availableDeg
   const sumAngles = renderedSegments.reduce((s, it) => s + it.desiredAngle, 0);
-  const finalSegments = renderedSegments.map(item => {
-    const finalAngle = sumAngles > 0 ? (item.desiredAngle / sumAngles) * availableDeg : 0;
+  const finalSegments = renderedSegments.map((item) => {
+    const finalAngle =
+      sumAngles > 0 ? (item.desiredAngle / sumAngles) * availableDeg : 0;
     const start = currentAngle;
     const end = currentAngle - finalAngle;
     currentAngle = end - gapDeg;
@@ -179,33 +194,46 @@ export const SpeedometerAttendanceCard: React.FC<SpeedometerAttendanceCardProps>
       ...item,
       startAngle: start,
       endAngle: end,
-      path: describeArc(cx, cy, rIn, rOut, start, end)
+      path: describeArc(cx, cy, rIn, rOut, start, end),
     };
   });
 
   // Smooth sweep progress for the speedometer arc (0 to 1 over 1300ms with easeOutCubic)
-  const sweepProgress = useEaseProgress(1300, 0, `${total}-${present}-${absent}-${late}-${halfDay}`);
+  const sweepProgress = useEaseProgress(
+    1300,
+    0,
+    `${total}-${present}-${absent}-${late}-${halfDay}`,
+  );
   const currentSweepAngle = 180 - 180 * sweepProgress; // Sweeps from 180 deg (left) down to 0 deg (right)
 
   // Compute animated paths for each segment based on current sweep angle
-  const animatedSegments = finalSegments.map((seg) => {
-    // If sweep hasn't reached the start of this segment yet
-    if (currentSweepAngle >= seg.startAngle - 0.2) {
-      return { ...seg, animatedPath: '' };
-    }
-    // If sweep is currently cutting through or has passed this segment
-    const drawEndAngle = Math.max(seg.endAngle, currentSweepAngle);
-    if (seg.startAngle - drawEndAngle < 0.2) {
-      return { ...seg, animatedPath: '' };
-    }
-    return {
-      ...seg,
-      animatedPath: describeArc(cx, cy, rIn, rOut, seg.startAngle, drawEndAngle)
-    };
-  }).filter((s) => Boolean(s.animatedPath));
+  const animatedSegments = finalSegments
+    .map((seg) => {
+      // If sweep hasn't reached the start of this segment yet
+      if (currentSweepAngle >= seg.startAngle - 0.2) {
+        return { ...seg, animatedPath: "" };
+      }
+      // If sweep is currently cutting through or has passed this segment
+      const drawEndAngle = Math.max(seg.endAngle, currentSweepAngle);
+      if (seg.startAngle - drawEndAngle < 0.2) {
+        return { ...seg, animatedPath: "" };
+      }
+      return {
+        ...seg,
+        animatedPath: describeArc(
+          cx,
+          cy,
+          rIn,
+          rOut,
+          seg.startAngle,
+          drawEndAngle,
+        ),
+      };
+    })
+    .filter((s) => Boolean(s.animatedPath));
 
   // Active hover data
-  const hoveredItem = statusItems.find(s => s.key === hoveredKey);
+  const hoveredItem = statusItems.find((s) => s.key === hoveredKey);
 
   return (
     <div
@@ -219,12 +247,12 @@ export const SpeedometerAttendanceCard: React.FC<SpeedometerAttendanceCardProps>
           <div className="flex items-center gap-2.5 min-w-0">
             <div
               className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border shadow-xs transition-transform duration-300 group-hover/card:scale-105 ${
-                iconType === 'students'
-                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
-                  : 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20'
+                iconType === "students"
+                  ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+                  : "bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20"
               }`}
             >
-              {iconType === 'students' ? (
+              {iconType === "students" ? (
                 <Users className="w-4 h-4 stroke-[2.3]" />
               ) : (
                 <Briefcase className="w-4 h-4 stroke-[2.3]" />
@@ -271,6 +299,9 @@ export const SpeedometerAttendanceCard: React.FC<SpeedometerAttendanceCardProps>
             {/* Dynamic Colored Arch Segments with Smooth Eased Sweep */}
             {animatedSegments.map((seg) => {
               const isHovered = hoveredKey === seg.key;
+              const fillColor = isDarkMode
+                ? seg.darkColor || seg.color
+                : seg.color;
               return (
                 <path
                   key={seg.key}
@@ -280,10 +311,12 @@ export const SpeedometerAttendanceCard: React.FC<SpeedometerAttendanceCardProps>
                   className="dark:stroke-slate-900 transition-all duration-200 cursor-pointer"
                   style={{
                     strokeWidth: 2,
-                    strokeLinejoin: 'round',
+                    strokeLinejoin: "round",
                     transformOrigin: `${cx}px ${cy}px`,
-                    transform: isHovered ? 'scale(1.04)' : 'scale(1)',
-                    filter: isHovered ? 'brightness(1.1) drop-shadow(0 2px 6px rgba(0,0,0,0.2))' : 'none'
+                    transform: isHovered ? "scale(1.04)" : "scale(1)",
+                    filter: isHovered
+                      ? "brightness(1.1) drop-shadow(0 2px 6px rgba(0,0,0,0.2))"
+                      : "none",
                   }}
                   onMouseEnter={() => setHoveredKey(seg.key)}
                   onMouseLeave={() => setHoveredKey(null)}
@@ -295,14 +328,20 @@ export const SpeedometerAttendanceCard: React.FC<SpeedometerAttendanceCardProps>
           {/* Center cutout content with smooth count-up */}
           <div className="absolute inset-x-0 bottom-2.5 flex flex-col items-center justify-center pointer-events-none text-center">
             <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-400 tracking-tight transition-colors">
-              {hoveredItem ? `${hoveredItem.label} Count` : 'Total Attendance'}
+              {hoveredItem ? `${hoveredItem.label} Count` : "Total Attendance"}
             </span>
             <span className="text-2xl font-black text-slate-800 dark:text-white tracking-tight leading-none mt-0.5">
               {hoveredItem ? (
                 <>
                   <AnimatedCounter value={hoveredItem.count} duration={800} />
                   <span className="text-xs font-bold text-slate-400 ml-1">
-                    (<AnimatedCounter value={hoveredItem.pct} duration={800} suffix="%" />)
+                    (
+                    <AnimatedCounter
+                      value={hoveredItem.pct}
+                      duration={800}
+                      suffix="%"
+                    />
+                    )
                   </span>
                 </>
               ) : (
@@ -328,23 +367,25 @@ export const SpeedometerAttendanceCard: React.FC<SpeedometerAttendanceCardProps>
                 onMouseLeave={() => setHoveredKey(null)}
                 className={`flex items-center justify-between text-xs py-0.5 px-1.5 rounded-lg transition-colors cursor-pointer ${
                   isHovered
-                    ? 'bg-slate-100/80 dark:bg-slate-800/80 font-bold'
-                    : 'hover:bg-slate-50 dark:hover:bg-slate-800/40'
+                    ? "bg-slate-100/80 dark:bg-slate-800/80 font-bold"
+                    : "hover:bg-slate-50 dark:hover:bg-slate-800/40"
                 }`}
               >
                 <div className="flex items-center gap-2">
                   <span
                     className="w-2.5 h-2.5 rounded-full shrink-0 shadow-2xs transition-transform duration-200"
                     style={{
-                      backgroundColor: item.color,
-                      transform: isHovered ? 'scale(1.25)' : 'scale(1)'
+                      backgroundColor: isDarkMode
+                        ? item.darkColor || item.color
+                        : item.color,
+                      transform: isHovered ? "scale(1.25)" : "scale(1)",
                     }}
                   />
                   <span
                     className={`font-semibold ${
                       isHovered
-                        ? 'text-slate-900 dark:text-white'
-                        : 'text-slate-600 dark:text-slate-300'
+                        ? "text-slate-900 dark:text-white"
+                        : "text-slate-600 dark:text-slate-300"
                     }`}
                   >
                     {item.label}
@@ -352,7 +393,11 @@ export const SpeedometerAttendanceCard: React.FC<SpeedometerAttendanceCardProps>
                 </div>
                 <div className="flex items-center gap-1.5 tabular-nums">
                   <span className="font-extrabold text-slate-800 dark:text-slate-200 min-w-[36px] text-right">
-                    <AnimatedCounter value={item.pct} duration={1300} suffix="%" />
+                    <AnimatedCounter
+                      value={item.pct}
+                      duration={1300}
+                      suffix="%"
+                    />
                   </span>
                   <span className="text-[10px] font-semibold text-slate-400 min-w-[24px] text-right">
                     (<AnimatedCounter value={item.count} duration={1300} />)

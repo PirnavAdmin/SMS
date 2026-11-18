@@ -835,8 +835,7 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5">
           {/* Search Query */}
-          <div className="space-y-1">
-            <label className="text-[10px] font-bold text-slate-500">Search Student</label>
+          <div>
             <ValidatedSearchInput
               value={query}
               onChange={setQuery}
@@ -848,11 +847,11 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({
           </div>
 
           {/* Academic Year */}
-          <div className="space-y-1">
-            <label className="text-[10px] font-bold text-slate-500">Academic Year</label>
+          <div>
             <select
               value={selectedAY}
               onChange={(e) => setSelectedAY(e.target.value)}
+              aria-label="Academic Year"
               className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-900 dark:text-white cursor-pointer"
             >
               {availableAcademicYears.map((ayStr) => (
@@ -864,11 +863,11 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({
           </div>
 
           {/* Class */}
-          <div className="space-y-1">
-            <label className="text-[10px] font-bold text-slate-500">Class Grade</label>
+          <div>
             <select
               value={selectedClass}
               onChange={(e) => setSelectedClass(e.target.value)}
+              aria-label="Class Grade"
               className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-900 dark:text-white cursor-pointer"
             >
               <option value="All">All Classes</option>
@@ -881,11 +880,11 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({
           </div>
 
           {/* Section */}
-          <div className="space-y-1">
-            <label className="text-[10px] font-bold text-slate-500">Section</label>
+          <div>
             <select
               value={selectedSection}
               onChange={(e) => setSelectedSection(e.target.value)}
+              aria-label="Section"
               className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-900 dark:text-white cursor-pointer"
             >
               <option value="All">All Sections</option>
@@ -898,11 +897,11 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({
           </div>
 
           {/* Fee Category / Head */}
-          <div className="space-y-1">
-            <label className="text-[10px] font-bold text-slate-500">Fee Category / Head</label>
+          <div>
             <select
               value={selectedFeeHead}
               onChange={(e) => setSelectedFeeHead(e.target.value)}
+              aria-label="Fee Category / Head"
               className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-900 dark:text-white cursor-pointer"
             >
               <option value="All">All Fee Categories</option>
@@ -915,11 +914,11 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({
           </div>
 
           {/* Timeline Filter */}
-          <div className="space-y-1">
-            <label className="text-[10px] font-bold text-slate-500">Dues Status Filter</label>
+          <div>
             <select
               value={timelineFilter}
               onChange={(e) => setTimelineFilter(e.target.value as any)}
+              aria-label="Dues Status Filter"
               className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-900 dark:text-white cursor-pointer"
             >
               <option value="All">All Statuses (Overdue & Upcoming)</option>
@@ -935,18 +934,18 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({
         <div className="overflow-x-auto">
           <table className="w-full text-center border-collapse text-xs">
             <thead>
-              <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800 text-[10px]">
-                <th className="py-3 px-3 text-center align-middle">Student ID</th>
-                <th className="py-3 px-3 text-center align-middle">Student Name</th>
-                <th className="py-3 px-3 text-center align-middle">Class & Section</th>
-                <th className="py-3 px-3 text-center align-middle">Student Type</th>
-                <th className="py-3 px-3 text-center align-middle">Earliest Due Date</th>
-                <th className="py-3 px-3 font-mono text-center align-middle">Total Fee</th>
-                <th className="py-3 px-3 font-mono text-center align-middle">Amount Paid</th>
-                <th className="py-3 px-3 font-mono text-center align-middle">Overdue to Date</th>
-                <th className="py-3 px-3 font-mono text-center align-middle">Total Outstanding</th>
-                <th className="py-3 px-3 text-center align-middle">Status</th>
-                <th className="py-3 px-3 text-center align-middle">Action</th>
+              <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800 text-[11px]">
+                <th className="py-3 px-3 text-center align-middle whitespace-nowrap">Student ID</th>
+                <th className="py-3 px-3 text-center align-middle whitespace-nowrap">Student Name</th>
+                <th className="py-3 px-3 text-center align-middle whitespace-nowrap min-w-[120px]">Class & Section</th>
+                <th className="py-3 px-3 text-center align-middle whitespace-nowrap">Student Type</th>
+                <th className="py-3 px-3 text-center align-middle whitespace-nowrap">Earliest Due Date</th>
+                <th className="py-3 px-3 text-center align-middle whitespace-nowrap">Total Fee</th>
+                <th className="py-3 px-3 text-center align-middle whitespace-nowrap">Amount Paid</th>
+                <th className="py-3 px-3 text-center align-middle whitespace-nowrap">Overdue to Date</th>
+                <th className="py-3 px-3 text-center align-middle whitespace-nowrap">Total Outstanding</th>
+                <th className="py-3 px-3 text-center align-middle whitespace-nowrap">Status</th>
+                <th className="py-3 px-3 text-center align-middle whitespace-nowrap w-28">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
@@ -998,7 +997,7 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({
                           </span>
                         </div>
                       </td>
-                      <td className="py-3 px-3 text-slate-800 dark:text-slate-200 font-bold text-center align-middle">
+                      <td className="py-3 px-3 text-slate-800 dark:text-slate-200 font-bold text-center align-middle whitespace-nowrap min-w-[120px]">
                         {displayClassStr}
                       </td>
                       <td className="py-3 px-3 text-center align-middle">
@@ -1046,7 +1045,7 @@ export const DueFeesView: React.FC<DueFeesViewProps> = ({
                           {item.isOverdue ? "OVERDUE" : "PENDING"}
                         </span>
                       </td>
-                      <td className="py-3 px-3 text-center align-middle">
+                      <td className="py-3 px-3 text-center align-middle whitespace-nowrap w-28">
                         <button
                           onClick={() => onCollectStudentFee?.(st)}
                           className="px-3 py-1 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow flex items-center justify-center gap-1 mx-auto cursor-pointer transition-all"

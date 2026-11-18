@@ -39,7 +39,11 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     const validTypes: ToastType[] = ['success', 'error', 'warning', 'info'];
 
-    if (validTypes.includes(arg1 as ToastType)) {
+    if (arg1 && typeof arg1 === 'object' && !Array.isArray(arg1)) {
+      type = validTypes.includes(arg1.type) ? arg1.type : 'info';
+      title = String(arg1.title || arg1.message || '');
+      message = arg1.description || (arg1.title ? arg1.message : undefined);
+    } else if (validTypes.includes(arg1 as ToastType)) {
       type = arg1 as ToastType;
       title = String(arg2 || '');
     } else if (validTypes.includes(arg2 as ToastType)) {

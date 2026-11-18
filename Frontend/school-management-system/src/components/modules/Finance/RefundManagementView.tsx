@@ -52,7 +52,7 @@ export const RefundManagementView: React.FC = () => {
   const [receiptSelectionMode, setReceiptSelectionMode] = useState<'select' | 'manual'>('select');
   const [receiptNo, setReceiptNo] = useState('');
   const [amount, setAmount] = useState<number>(0);
-  const [reason, setReason] = useState<string>('');
+  const [reason, setReason] = useState<string>('Scholarship Adjustment');
   const [refundMode, setRefundMode] = useState<string>('Bank Transfer');
   const [remarks, setRemarks] = useState('');
 
@@ -187,7 +187,7 @@ export const RefundManagementView: React.FC = () => {
       className: selectedStudent.className || '',
       section: selectedStudent.section || '',
       amount,
-      reason,
+      reason: reason.trim() || 'Scholarship Adjustment',
       approvedBy: 'Pending Admin Review',
       refundMode,
       refundDate: new Date().toISOString().split('T')[0],
@@ -203,6 +203,9 @@ export const RefundManagementView: React.FC = () => {
     setModalSearchStudent('');
     setModalClassFilter('All');
     setModalSectionFilter('All');
+    setReason('Scholarship Adjustment');
+    setAmount(0);
+    setRemarks('');
   };
 
   return (
@@ -374,15 +377,15 @@ export const RefundManagementView: React.FC = () => {
           <table className="w-full text-center border-collapse text-xs">
             <thead>
               <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-800">
-                <th className="py-3 px-3 text-center align-middle">Refund No</th>
-                <th className="py-3 px-3 text-center align-middle">Receipt Ref</th>
+                <th className="py-3 px-3 text-center align-middle whitespace-nowrap min-w-[130px]">Refund No</th>
+                <th className="py-3 px-3 text-center align-middle whitespace-nowrap min-w-[140px]">Receipt Ref</th>
                 <th className="py-3 px-3 text-center align-middle">Student Name</th>
                 <th className="py-3 px-3 text-center align-middle">Reason</th>
                 <th className="py-3 px-3 text-center align-middle">Mode</th>
                 <th className="py-3 px-3 text-center align-middle">Amount</th>
                 <th className="py-3 px-3 text-center align-middle">Approved By</th>
                 <th className="py-3 px-3 text-center align-middle">Status</th>
-                <th className="py-3 px-3 text-center align-middle">Approve / Reject</th>
+                <th className="py-3 px-3 text-center align-middle whitespace-nowrap min-w-[180px]">Approve / Reject</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
@@ -396,13 +399,13 @@ export const RefundManagementView: React.FC = () => {
               ) : (
                 paginatedRefunds.map(r => (
                   <tr key={r.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
-                    <td className="py-3 px-3 text-center align-middle font-mono font-bold text-slate-900 dark:text-white">
+                    <td className="py-3 px-3 text-center align-middle font-mono font-bold text-slate-900 dark:text-white whitespace-nowrap min-w-[130px]">
                       <span className="inline-flex items-center gap-1.5 justify-center">
                         <span className="w-1.5 h-1.5 rounded-full bg-[var(--primary-color)] inline-block" />
                         {r.refundNo}
                       </span>
                     </td>
-                    <td className="py-3 px-3 text-center align-middle font-mono text-slate-500">
+                    <td className="py-3 px-3 text-center align-middle font-mono text-slate-500 whitespace-nowrap min-w-[140px]">
                       <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 font-semibold text-[11px]">
                         {r.receiptNo || 'N/A'}
                       </span>
@@ -416,7 +419,7 @@ export const RefundManagementView: React.FC = () => {
                       )}
                     </td>
                     <td className="py-3 px-3 text-center align-middle font-semibold text-slate-700 dark:text-slate-300">
-                      {r.reason}
+                      {r.reason || r.remarks || 'Fee Adjustment'}
                     </td>
                     <td className="py-3 px-3 text-center align-middle text-slate-600 dark:text-slate-400 font-medium">
                       {r.refundMode}
@@ -432,7 +435,7 @@ export const RefundManagementView: React.FC = () => {
                         {r.status}
                       </Badge>
                     </td>
-                    <td className="py-3 px-3 text-center align-middle">
+                    <td className="py-3 px-3 text-center align-middle whitespace-nowrap min-w-[180px]">
                       {r.status === 'Pending' ? (
                         <div className="flex items-center justify-center gap-1.5">
                           <button

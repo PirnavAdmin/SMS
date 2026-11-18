@@ -620,7 +620,7 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <header
-      className={`fixed top-0 right-0 z-40 bg-brand-50/90 dark:bg-brand-950/90 backdrop-blur-2xl border-b border-brand-200/60 dark:border-brand-800/40 shadow-xs transition-all duration-300 left-0 ${
+      className={`fixed top-0 right-0 z-40 bg-brand-50/90 dark:bg-brand-950/90 backdrop-blur-2xl border-b border-brand-200/80 dark:border-white/10 dark:border-slate-800 shadow-xs transition-all duration-300 left-0 ${
         collapsed ? 'lg:left-20' : 'lg:left-56'
       }`}
     >

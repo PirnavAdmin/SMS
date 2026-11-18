@@ -12143,9 +12143,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     id: string,
     updates: Partial<FinancialCategory>,
   ) => {
-    setFinancialCategories((prev) =>
-      prev.map((c) => {
-        if (c.id === id) {
+    setFinancialCategories((prev) => {
+      const next = prev.map((c) => {
+        if (String(c.id) === String(id)) {
           const updated = { ...c, ...updates };
           const numId = parseInt(id, 10);
           if (!isNaN(numId)) {
@@ -12158,8 +12158,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           return updated;
         }
         return c;
-      }),
-    );
+      });
+      try {
+        localStorage.setItem("financial_categories", JSON.stringify(next));
+        localStorage.setItem("edu_db_financial_categories", JSON.stringify(next));
+      } catch (e) {}
+      return next;
+    });
   };
 
   const deleteFinancialAccount = async (id: string) => {
@@ -12317,14 +12322,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     if (!isNaN(numId)) {
       try {
         await FinanceAPI.deleteFinancialBudgetApi(numId);
-        addToast({
-          title: "Budget Deleted",
-          description: "Budget record has been removed.",
-          type: "success",
-        });
+        addToast('success', 'Budget Deleted', 'Budget allocation deleted successfully.');
       } catch (err) {
         console.warn("Backend delete budget fallback", err);
+        addToast('error', 'Error Deleting Budget', 'Unable to delete budget allocation. Please try again.');
       }
+    } else {
+      addToast('success', 'Budget Deleted', 'Budget allocation deleted successfully.');
     }
     return true;
   };

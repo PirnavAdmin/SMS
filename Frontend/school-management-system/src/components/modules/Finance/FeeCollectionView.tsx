@@ -878,16 +878,20 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     const adm = String(targetStudent?.admissionNo || '').toLowerCase().trim();
     const app = String((targetStudent as any)?.applicationNo || '').toLowerCase().trim();
     const reg = String((targetStudent as any)?.registrationNo || '').toLowerCase().trim();
+    const tname = targetStudent ? `${targetStudent.firstName || ''} ${targetStudent.lastName || ''}`.toLowerCase().trim() : '';
     const seen = new Set<string>();
     return feePayments.filter((p) => {
       if (targetStudent) {
         const pid = String(p.studentId || '').toLowerCase().trim();
         const padm = String((p as any).admissionNo || '').toLowerCase().trim();
+        const pname = String(p.studentName || '').toLowerCase().trim();
+        const matchName = tname && pname && (tname === pname || pname.includes(tname) || tname.includes(pname));
         const match =
-          (sid && (pid === sid || padm === sid)) ||
+          (sid && (pid === sid || padm === sid || pid.includes(sid) || sid.includes(pid))) ||
           (adm && (pid === adm || padm === adm)) ||
           (app && (pid === app || padm === app)) ||
-          (reg && (pid === reg || padm === reg));
+          (reg && (pid === reg || padm === reg)) ||
+          matchName;
         if (!match) return false;
       }
       const key = (p.receiptNo && String(p.receiptNo).trim())
@@ -999,7 +1003,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     setTempDiscountId("");
     setSelectedInstallments([]);
     setCustomCollectionAmounts({});
-    setPaymentMode("Cash");
+    setPaymentMode("");
     const freshLedger = getStudentFeeLedger(st.id, st, currentYear);
     updateCalculation(st.id, calculateStudentPayableFee(st.id), freshLedger);
   };
@@ -1120,8 +1124,8 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
 
             handleSelectStudent(studentWithResidential as any);
 
-            // Pre-select payment mode and ensure collection view is open
-            setPaymentMode("Cash");
+            // Open collection view without pre-selecting payment method
+            setPaymentMode("");
             setActiveTab("collection");
 
             // Only update student if status is not already Residential to avoid infinite update loops
@@ -1389,7 +1393,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
         activeMode === "Cheque"
           ? chequeNo
           : activeMode !== "Cash"
-            ? transactionId
+            ? (transactionId.trim() || `TXN-${Date.now().toString().slice(-8)}`)
             : undefined,
       chequeNo: activeMode === "Cheque" ? chequeNo : undefined,
       chequeDate: activeMode === "Cheque" ? chequeDate : undefined,
@@ -2848,9 +2852,9 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     paymentMode === "Bank Transfer" ||
     paymentMode === "Other"
   ) {
-    isModeFieldsValid = transactionId.trim().length > 0 && isReferenceNoFormatValid;
+    isModeFieldsValid = isReferenceNoFormatValid;
     if (!isModeFieldsValid)
-      validationMessage = "Transaction Ref / UTR No is required";
+      validationMessage = "Transaction Ref / UTR No format is invalid";
   } else if (paymentMode === "Cheque") {
     isModeFieldsValid =
       chequeNo.trim().length > 0 &&
@@ -3667,8 +3671,8 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                   <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-slate-500 font-bold uppercase text-[10px]">
                     <th className="py-3 px-3 text-center align-middle whitespace-nowrap">#</th>
                     <th className="py-3 px-3 text-center align-middle whitespace-nowrap">Fee Head</th>
-                    <th className="py-3 px-3 text-center align-middle whitespace-nowrap">Term</th>
-                    <th className="py-3 px-3 text-center align-middle whitespace-nowrap">Due Date</th>
+                    <th className="py-3 px-3 text-center align-middle whitespace-nowrap min-w-[110px]">Term</th>
+                    <th className="py-3 px-3 text-center align-middle whitespace-nowrap min-w-[110px]">Due Date</th>
                     <th className="py-3 px-3 text-center align-middle whitespace-nowrap">Original Amount</th>
                     <th className="py-3 px-3 text-center align-middle whitespace-nowrap">Discount</th>
                     <th className="py-3 px-3 text-center align-middle whitespace-nowrap">Paid Amount</th>
@@ -3712,7 +3716,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                         >
                           <td className="py-3 px-3 font-mono font-semibold text-slate-600 dark:text-slate-400 text-center align-middle">{index + 1}</td>
                           <td className="py-3 px-3 font-bold text-slate-900 dark:text-white text-center align-middle whitespace-nowrap">{inst.feeHeadName}</td>
-                          <td className="py-3 px-3 text-center align-middle whitespace-nowrap">
+                          <td className="py-3 px-3 text-center align-middle whitespace-nowrap min-w-[110px]">
                             <span className={`px-2 py-0.5 rounded text-[11px] font-semibold ${
                               inst.termName?.toLowerCase().includes("full") 
                                 ? "bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 font-bold" 
@@ -3721,7 +3725,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                               {inst.termName || "Full Annual Fee"}
                             </span>
                           </td>
-                          <td className="py-3 px-3 text-slate-500 font-mono text-center align-middle whitespace-nowrap">{formatDateForDisplay(inst.dueDate)}</td>
+                          <td className="py-3 px-3 text-slate-500 font-mono text-center align-middle whitespace-nowrap min-w-[110px]">{formatDateForDisplay(inst.dueDate)}</td>
                           <td className="py-3 px-3 font-mono font-semibold text-slate-800 dark:text-slate-200 text-center align-middle whitespace-nowrap">{formatCurrency(inst.amount)}</td>
                           <td className="py-3 px-3 font-mono text-emerald-600 font-semibold text-center align-middle whitespace-nowrap">₹ 0</td>
                           <td className="py-3 px-3 font-mono font-bold text-emerald-600 dark:text-emerald-400 text-center align-middle whitespace-nowrap">
@@ -3884,18 +3888,16 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                 </div>
                 <div className="mt-3 space-y-2.5">
                   <div>
-                    <label className="text-[10px] text-slate-500 dark:text-slate-400 font-bold block mb-1">
-                      Select Concession Scheme
-                    </label>
                     <select
                       value={selectedConcessionId}
                       onChange={(e) => {
                         setSelectedConcessionId(e.target.value);
                         if (!e.target.value) setDiscountAmountInput("0");
                       }}
+                      aria-label="Select Concession"
                       className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-xs bg-white dark:bg-slate-900 font-bold cursor-pointer"
                     >
-                      <option value="">No Concession Applied</option>
+                      <option value="">Select Concession</option>
                       {allConcessionOptions.map((c) => (
                         <option key={c.id} value={c.id}>
                           {c.name}
@@ -4196,20 +4198,28 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                     key={`${p.id || p.receiptNo || 'rec'}-${pIdx}`}
                     className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 flex items-center justify-between text-xs border border-slate-100 dark:border-slate-800"
                   >
-                    <div>
-                      <p className="font-mono font-bold text-slate-900 dark:text-white">
-                        {p.receiptNo || p.id}
+                    <div className="space-y-0.5 min-w-0 pr-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-slate-900 dark:text-white truncate">
+                          {p.studentName || (selectedStudent ? `${selectedStudent.firstName} ${selectedStudent.lastName}` : 'Student')}
+                        </span>
+                        <span className="px-1.5 py-0.2 rounded font-mono text-[10px] font-semibold bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                          {p.receiptNo || p.id}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium truncate">
+                        Head: <span className="font-semibold text-slate-700 dark:text-slate-300">{(p as any).feeHeadName || (p as any).headName || p.remarks || 'Tuition Fee'}</span>
                       </p>
-                      <p className="text-[10px] text-slate-400 mt-0.5">
-                        {formatDateForDisplay(p.paymentDate)} • {p.paymentMode}
+                      <p className="text-[10px] text-slate-400">
+                        {formatDateForDisplay(p.paymentDate)} • {p.paymentMode || 'Cash'}
                       </p>
                     </div>
-                    <div className="text-right">
+                    <div className="text-right shrink-0">
                       <p className="font-mono font-bold text-slate-900 dark:text-white">
                         {formatCurrency(p.amountPaid || (p as any).amount || 0)}
                       </p>
-                      <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
-                        Paid
+                      <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 inline-block mt-0.5">
+                        PAID
                       </span>
                     </div>
                   </div>

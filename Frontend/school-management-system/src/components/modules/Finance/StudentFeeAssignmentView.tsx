@@ -72,6 +72,16 @@ export const StudentFeeAssignmentView: React.FC = () => {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [previewInstallments, setPreviewInstallments] = useState<any[]>([]);
 
+  useEffect(() => {
+    if (isConfigModalOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [isConfigModalOpen]);
+
   const activeAY = selectedAcademicYear || 
     (academicYears.find((ay: any) => ay.isCurrent || ay.isCurrentAcademicYear || ay.status === 'Active')?.academicYear) || 
     (academicYears[0]?.academicYear) || 
@@ -346,11 +356,11 @@ export const StudentFeeAssignmentView: React.FC = () => {
       return {
         feeHeadId: item.feeHeadId,
         feeHeadName: item.feeHeadName,
-        category: item.category || (item.feeHeadName.includes('Tuition')
+        category: item.category || fh?.category || (item.feeHeadName?.includes('Tuition')
           ? 'Tuition Fee'
-          : item.feeHeadName.includes('Transport')
+          : item.feeHeadName?.includes('Transport')
           ? 'Transport Fee'
-          : 'Other Fee'),
+          : 'General'),
         billingType: isOneTimeOnly ? 'One-time' : (isFixedFullAmountHead ? 'One-time' : 'Monthly'),
         originalAmount: orig,
         assignedAmount: assigned,
@@ -624,16 +634,16 @@ export const StudentFeeAssignmentView: React.FC = () => {
       </div>
 
       {/* Filter & Bulk Control Bar */}
-      <div className="relative z-20 glass-card p-3.5 sm:p-4 rounded-2xl flex flex-col lg:flex-row lg:items-end justify-between gap-3.5 border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40">
-        <div className="flex flex-wrap items-end gap-3 w-full lg:w-auto text-xs">
+      <div className="relative z-20 glass-card p-3.5 sm:p-4 rounded-2xl flex flex-col lg:flex-row lg:items-center justify-between gap-3.5 border border-[var(--primary-color)]/30 dark:border-[var(--primary-color)]/40">
+        <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto text-xs">
           <div>
-            <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1 text-[11px]">Class Grade</label>
             <select
               value={selectedClass}
               onChange={(e) => {
                 setSelectedClass(e.target.value);
                 setSelectedSection('All');
               }}
+              aria-label="Class Grade"
               className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
             >
               <option value="All">All Classes</option>
@@ -646,10 +656,10 @@ export const StudentFeeAssignmentView: React.FC = () => {
           </div>
 
           <div>
-            <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1 text-[11px]">Section</label>
             <select
               value={selectedSection}
               onChange={(e) => setSelectedSection(e.target.value)}
+              aria-label="Section"
               className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold text-slate-900 dark:text-white outline-none cursor-pointer"
             >
               <option value="All">All Sections</option>
@@ -660,7 +670,6 @@ export const StudentFeeAssignmentView: React.FC = () => {
           </div>
 
           <div className="w-56 min-w-[200px]">
-            <label className="block font-semibold text-slate-500 dark:text-slate-400 mb-1 text-[11px]">Search Student</label>
             <ValidatedSearchInput
               value={query}
               onChange={setQuery}
@@ -706,12 +715,12 @@ export const StudentFeeAssignmentView: React.FC = () => {
                   </div>
                 </th>
                 <th className="py-3 px-3 text-center align-middle">Student Name</th>
-                <th className="py-3 px-3 text-center align-middle">Adm No</th>
+                <th className="py-3 px-3 text-center align-middle whitespace-nowrap min-w-[120px]">Adm No</th>
                 <th className="py-3 px-3 text-center align-middle">Class & Sec</th>
                 <th className="py-3 px-3 text-center align-middle">Category</th>
                 <th className="py-3 px-3 text-center align-middle">Fee Policy</th>
                 <th className="py-3 px-3 text-center align-middle">Assigned Fee Payable</th>
-                <th className="py-3 px-3 text-center align-middle">Configure / Assign</th>
+                <th className="py-3 px-3 text-center align-middle whitespace-nowrap min-w-[150px]">Configure / Assign</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
@@ -762,7 +771,7 @@ export const StudentFeeAssignmentView: React.FC = () => {
                       <td className="py-3 px-3 font-bold text-slate-900 dark:text-white text-center align-middle whitespace-nowrap">
                         {st.firstName} {st.lastName}
                       </td>
-                      <td className="py-3 px-3 font-mono text-slate-500 text-center align-middle">{st.admissionNo}</td>
+                      <td className="py-3 px-3 font-mono text-slate-500 text-center align-middle whitespace-nowrap min-w-[120px]">{st.admissionNo}</td>
                       <td className="py-3 px-3 text-slate-700 dark:text-slate-300 text-center align-middle">
                         {st.className}-{st.section}
                       </td>
@@ -785,7 +794,7 @@ export const StudentFeeAssignmentView: React.FC = () => {
 
                           if (validAssignment || activePolicy) {
                             return (
-                              <span className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-bold text-[11px]">
+                              <span className="inline-flex items-center justify-center whitespace-nowrap px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 font-bold text-[11px]">
                                 {isTermWise
                                   ? 'Term-wise'
                                   : (activePolicy === 'Custom' || activePolicy === 'Custom Amount' ? 'Full Annual Fee' : activePolicy || 'Full Annual Fee')}
@@ -793,7 +802,7 @@ export const StudentFeeAssignmentView: React.FC = () => {
                             );
                           }
                           return (
-                            <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300 font-bold text-[11px]">
+                            <span className="inline-flex items-center justify-center whitespace-nowrap px-2.5 py-1 rounded-lg bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300 font-bold text-[11px]">
                               Default Annual
                             </span>
                           );
@@ -1034,40 +1043,42 @@ export const StudentFeeAssignmentView: React.FC = () => {
                             <div
                               key={termKey}
                               onClick={() => handleToggleTerm(termKey)}
-                              className={`p-3 rounded-2xl border text-xs flex flex-col justify-between transition-all cursor-pointer select-none ${
+                              className={`p-3 rounded-2xl border text-xs flex flex-col justify-between transition-all cursor-pointer select-none min-h-[96px] ${
                                 isSelected
                                   ? 'border-emerald-500 bg-emerald-50/80 dark:bg-emerald-950/40 ring-2 ring-emerald-500/20 shadow-xs'
                                   : 'border-slate-200 bg-slate-100/70 dark:bg-slate-800/40 dark:border-slate-800 opacity-60 hover:opacity-100'
                               }`}
                             >
-                              <div className="flex items-center justify-between font-bold">
-                                <div className="flex items-center gap-2">
+                              <div className="flex items-center justify-between font-bold gap-1.5">
+                                <div className="flex items-center gap-2 min-w-0">
                                   <input
                                     type="checkbox"
                                     checked={isSelected}
                                     onChange={() => {}} // handled by parent onClick
-                                    className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                                    className="w-4 h-4 shrink-0 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer"
                                   />
-                                  <span className="text-slate-900 dark:text-white font-extrabold">{term.termName}</span>
+                                  <span className="text-slate-900 dark:text-white font-extrabold truncate">{term.termName}</span>
                                 </div>
                                 {isSelected ? (
-                                  <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200 text-[10px] font-black flex items-center gap-1">
+                                  <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200 text-[10px] font-black flex items-center gap-1 shrink-0 whitespace-nowrap">
                                     <Check className="w-3 h-3" /> Configured
                                   </span>
                                 ) : (
-                                  <span className="px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-400 text-[10px] font-semibold">
+                                  <span className="px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-400 text-[10px] font-semibold shrink-0 whitespace-nowrap">
                                     Excluded
                                   </span>
                                 )}
                               </div>
 
-                              <div className="mt-2 space-y-0.5 text-[10px] font-medium text-slate-600 dark:text-slate-400">
-                                <div>
-                                  <span className="text-slate-400">Period: </span>
-                                  <span className="font-mono">{formatDateForDisplay(term.startDate)}</span> to <span className="font-mono">{formatDateForDisplay(term.endDate)}</span>
+                              <div className="mt-2 space-y-1 text-[10px] font-medium text-slate-600 dark:text-slate-400">
+                                <div className="flex items-center gap-1 whitespace-nowrap overflow-hidden text-ellipsis">
+                                  <span className="text-slate-400 shrink-0">Period: </span>
+                                  <span className="font-mono">{formatDateForDisplay(term.startDate)}</span>
+                                  <span className="text-slate-400"> - </span>
+                                  <span className="font-mono">{formatDateForDisplay(term.endDate)}</span>
                                 </div>
-                                <div>
-                                  <span className="text-slate-400">Due Date: </span>
+                                <div className="flex items-center gap-1 whitespace-nowrap">
+                                  <span className="text-slate-400 shrink-0">Due Date: </span>
                                   <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{formatDateForDisplay(term.dueDate)}</span>
                                 </div>
                               </div>
@@ -1165,8 +1176,9 @@ export const StudentFeeAssignmentView: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => {
-                            const dfsObj = dynamicFeeStructures.find((d) => d.id === modalStructureId);
+                            const dfsObj = dynamicFeeStructures.find((d) => String(d.id) === String(modalStructureId));
                             buildModalBreakdown(dfsObj, modalPolicy, modalAdmissionDate);
+                            addToast('info', 'Recalculated', 'Fee amounts successfully recalculated based on configured terms & policy.');
                           }}
                           className="font-bold text-slate-500 hover:text-slate-700 flex items-center gap-1 cursor-pointer"
                         >
@@ -1216,15 +1228,20 @@ export const StudentFeeAssignmentView: React.FC = () => {
                                   />
                                 </td>
                                 <td className="p-3 font-bold text-slate-800 dark:text-slate-200">
-                                  <div className="flex items-center gap-2">
-                                    <span className={isSelected ? 'text-slate-900 dark:text-white font-extrabold' : 'line-through text-slate-400'}>
-                                      {item.feeHeadName}
-                                    </span>
-                                    {!isSelected && (
-                                      <span className="px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300 text-[9px] font-black uppercase">
-                                        Not Applied
+                                  <div className="flex flex-col">
+                                    <div className="flex items-center gap-2">
+                                      <span className={isSelected ? 'text-slate-900 dark:text-white font-extrabold' : 'line-through text-slate-400'}>
+                                        {item.feeHeadName}
                                       </span>
-                                    )}
+                                      {!isSelected && (
+                                        <span className="px-1.5 py-0.5 rounded bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300 text-[9px] font-black uppercase">
+                                          Not Applied
+                                        </span>
+                                      )}
+                                    </div>
+                                    <span className="text-[10px] text-slate-400 font-semibold">
+                                      Type: {item.category || 'General'}
+                                    </span>
                                   </div>
                                 </td>
                                 <td className="p-3">
@@ -1306,7 +1323,10 @@ export const StudentFeeAssignmentView: React.FC = () => {
                   </button>
                   <div className="flex items-center gap-3">
                     <button
-                      onClick={handleGenerateSchedulePreview}
+                      onClick={() => {
+                        handleGenerateSchedulePreview();
+                        addToast('info', 'Preview Refreshed', 'Installment schedule preview updated.');
+                      }}
                       className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold hover:bg-slate-200 transition-colors flex items-center gap-1.5 cursor-pointer"
                     >
                       <RefreshCw className="w-4 h-4" /> Refresh Preview
@@ -1330,9 +1350,9 @@ export const StudentFeeAssignmentView: React.FC = () => {
                   <div className="flex items-center gap-3">
                     <button
                       onClick={() => {
-                        const dfsObj = dynamicFeeStructures.find((d) => d.id === modalStructureId);
+                        const dfsObj = dynamicFeeStructures.find((d) => String(d.id) === String(modalStructureId));
                         buildModalBreakdown(dfsObj, modalPolicy, modalAdmissionDate);
-                        addToast('info', 'Recalculated', 'Recalculated fee head breakdown.');
+                        addToast('info', 'Recalculated', 'Fee amounts successfully recalculated based on configured terms & policy.');
                       }}
                       className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold hover:bg-slate-200 transition-colors flex items-center gap-1.5 cursor-pointer"
                     >

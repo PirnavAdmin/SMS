@@ -220,6 +220,8 @@ export const FeeHeadsView: React.FC = () => {
     uniformSize: ''
   });
 
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
   // Dynamic filter for pickup points based on selected route
   const availablePickupPoints = useMemo(() => {
     if (!formData.transportRouteId) return [];
@@ -318,11 +320,13 @@ const exportData = useMemo(() => {
       uniformItemName: '',
       uniformSize: ''
     });
+    setFieldErrors({});
     setIsModalOpen(true);
   };
 
   const handleOpenEdit = (h: FeeHead) => {
     setEditingHead(h);
+    setFieldErrors({});
     setFormData({
       ...h,
       mandatory: h.mandatory === true,
@@ -351,27 +355,29 @@ const exportData = useMemo(() => {
   const handleSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     try {
-      if (!formData.category) {
-        throw new Error('Please select a Category.');
-      }
-      if (!formData.paymentEligibility) {
-        throw new Error('Please select a Payment Eligibility Mode.');
-      }
+      const errors: Record<string, string> = {};
+
       if (!formData.name || !formData.name.trim()) {
-        throw new Error('Fee type name is required.');
+        errors.name = 'Fee type name is required.';
       }
       if (!formData.code || !formData.code.trim()) {
-        throw new Error('Fee type code is required.');
+        errors.code = 'Fee type code is required.';
+      }
+      if (!formData.category) {
+        errors.category = 'Please select a Category.';
+      }
+      if (!formData.paymentEligibility) {
+        errors.paymentEligibility = 'Please select a Payment Eligibility Mode.';
       }
       if (!formData.applicableClasses || formData.applicableClasses.length === 0) {
-        throw new Error('Please select at least one applicable class for this fee type.');
+        errors.applicableClasses = 'Please select at least one applicable class for this fee type.';
       }
       if (formData.paymentEligibility === 'Term-Wise Allowed' && (!formData.applicableTerms || formData.applicableTerms.length === 0)) {
-        throw new Error('Validation Error: Please select at least one applicable term for Term-Wise payment.');
+        errors.applicableTerms = 'Validation Error: Please select at least one applicable term for Term-Wise payment.';
       }
 
-      const cleanName = formData.name.trim().toLowerCase();
-      const cleanCode = formData.code.trim().toLowerCase();
+      const cleanName = (formData.name || '').trim().toLowerCase();
+      const cleanCode = (formData.code || '').trim().toLowerCase();
 
       const existingDuplicate = feeHeads.find(h => {
         if (editingHead && String(h.id) === String(editingHead.id)) return false;
@@ -382,11 +388,19 @@ const exportData = useMemo(() => {
 
       if (existingDuplicate) {
         if (existingDuplicate.code && existingDuplicate.code.trim().toLowerCase() === cleanCode) {
-          throw new Error(`Duplicate Validation Error: Fee type code "${formData.code}" already exists.`);
+          errors.code = `Duplicate Validation Error: Fee type code "${formData.code}" already exists.`;
         } else {
-          throw new Error(`Duplicate Validation Error: Fee type "${formData.name}" in category "${formData.category}" already exists.`);
+          errors.name = `Duplicate Validation Error: Fee type "${formData.name}" in category "${formData.category}" already exists.`;
         }
       }
+
+      if (Object.keys(errors).length > 0) {
+        setFieldErrors(errors);
+        addToast('error', 'Validation Error', Object.values(errors)[0]);
+        return;
+      }
+
+      setFieldErrors({});
 
       const cleanTax = (formData.taxPercentage as any) === '' || formData.taxPercentage === undefined || formData.taxPercentage === null ? 0 : Number(formData.taxPercentage);
       const cleanOrder = (formData.displayOrder as any) === '' || formData.displayOrder === undefined || formData.displayOrder === null ? feeHeads.length + 1 : Number(formData.displayOrder);
@@ -673,10 +687,21 @@ const exportData = useMemo(() => {
                     type="text"
                     required
                     value={formData.name || ''}
-                    onChange={e => setFormData({ ...formData, name: e.target.value })}
+                    onChange={e => {
+                      setFormData({ ...formData, name: e.target.value });
+                      if (fieldErrors.name) setFieldErrors(prev => ({ ...prev, name: '' }));
+                    }}
                     placeholder="Enter Fee Type Name"
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none"
+                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border outline-none ${
+                      fieldErrors.name ? 'border-rose-400 dark:border-rose-600 focus:ring-1 focus:ring-rose-500' : 'border-slate-200 dark:border-slate-700'
+                    }`}
                   />
+                  {fieldErrors.name && (
+                    <p className="text-[11px] font-semibold text-rose-500 mt-1 flex items-center gap-1">
+                      <AlertTriangle className="w-3 h-3 flex-shrink-0" />
+                      <span>{fieldErrors.name}</span>
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block font-semibold mb-1">Fee Code <span className="text-rose-500 font-bold ml-0.5">*</span></label>
@@ -684,10 +709,21 @@ const exportData = useMemo(() => {
                     type="text"
                     required
                     value={formData.code || ''}
-                    onChange={e => setFormData({ ...formData, code: e.target.value })}
+                    onChange={e => {
+                      setFormData({ ...formData, code: e.target.value });
+                      if (fieldErrors.code) setFieldErrors(prev => ({ ...prev, code: '' }));
+                    }}
                     placeholder="Enter Fee Code"
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono outline-none"
+                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono outline-none ${
+                      fieldErrors.code ? 'border-rose-400 dark:border-rose-600 focus:ring-1 focus:ring-rose-500' : 'border-slate-200 dark:border-slate-700'
+                    }`}
                   />
+                  {fieldErrors.code && (
+                    <p className="text-[11px] font-semibold text-rose-500 mt-1 flex items-center gap-1">
+                      <AlertTriangle className="w-3 h-3 flex-shrink-0" />
+                      <span>{fieldErrors.code}</span>
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="block font-semibold mb-1">Category <span className="text-rose-500 font-bold">*</span></label>
@@ -700,14 +736,23 @@ const exportData = useMemo(() => {
                         ...formData,
                         category: newCategory
                       });
+                      if (fieldErrors.category) setFieldErrors(prev => ({ ...prev, category: '' }));
                     }}
-                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none text-xs ${
+                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border outline-none text-xs ${
+                      fieldErrors.category ? 'border-rose-400 dark:border-rose-600' : 'border-slate-200 dark:border-slate-700'
+                    } ${
                       !formData.category ? 'text-slate-400 font-normal' : 'font-bold text-slate-900 dark:text-white'
                     }`}
                   >
                     <option value="" disabled hidden>Select Category</option>
                     {categoryOptions.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
+                  {fieldErrors.category && (
+                    <p className="text-[11px] font-semibold text-rose-500 mt-1 flex items-center gap-1">
+                      <AlertTriangle className="w-3 h-3 flex-shrink-0" />
+                      <span>{fieldErrors.category}</span>
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -903,8 +948,11 @@ const exportData = useMemo(() => {
                         frequency: val === 'One-Time Only' ? 'One Time' : 'Term-wise',
                         applicableTerms: val === 'One-Time Only' ? [] : (formData.applicableTerms && formData.applicableTerms.length > 0 ? formData.applicableTerms : [...availableAcademicTerms])
                       });
+                      if (fieldErrors.paymentEligibility) setFieldErrors(prev => ({ ...prev, paymentEligibility: '' }));
                     }}
-                    className={`w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 text-xs outline-none ${
+                    className={`w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border text-xs outline-none ${
+                      fieldErrors.paymentEligibility ? 'border-rose-400 dark:border-rose-600' : 'border-sky-300 dark:border-sky-700'
+                    } ${
                       !formData.paymentEligibility ? 'text-slate-400 font-normal' : 'font-bold text-slate-900 dark:text-white'
                     }`}
                   >
@@ -913,6 +961,12 @@ const exportData = useMemo(() => {
                     <option value="Term-Wise Allowed">Term-Wise Allowed Only (Installments derived from Academic Terms)</option>
                     <option value="Both One-Time and Term-Wise">Both One-Time and Term-Wise (Flexible Payment Mode)</option>
                   </select>
+                  {fieldErrors.paymentEligibility && (
+                    <p className="text-[11px] font-semibold text-rose-500 mt-1 flex items-center gap-1">
+                      <AlertTriangle className="w-3 h-3 flex-shrink-0" />
+                      <span>{fieldErrors.paymentEligibility}</span>
+                    </p>
+                  )}
                 </div>
 
                 {formData.paymentEligibility === 'One-Time Only' ? (
@@ -989,6 +1043,13 @@ const exportData = useMemo(() => {
                     {formData.paymentEligibility === 'Both One-Time and Term-Wise' && (
                       <p className="text-[11px] text-slate-500 dark:text-slate-400 italic pt-1">
                         Note: In Flexible Mode, student fee assignments can choose either Full Annual Fee (One-Time) or Term-Wise installments without generating duplicate charges.
+                      </p>
+                    )}
+
+                    {fieldErrors.applicableTerms && (
+                      <p className="text-[11px] font-semibold text-rose-500 mt-1 flex items-center gap-1">
+                        <AlertTriangle className="w-3 h-3 flex-shrink-0" />
+                        <span>{fieldErrors.applicableTerms}</span>
                       </p>
                     )}
                   </div>
@@ -1092,6 +1153,12 @@ const exportData = useMemo(() => {
                     );
                   })}
                 </div>
+                {fieldErrors.applicableClasses && (
+                  <p className="text-[11px] font-semibold text-rose-500 mt-1 flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3 flex-shrink-0" />
+                    <span>{fieldErrors.applicableClasses}</span>
+                  </p>
+                )}
               </div>
 
               {/* Applicable Sections Configuration */}
