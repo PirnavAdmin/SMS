@@ -63,6 +63,9 @@ namespace SMS.Api.Dtos
 
         [JsonPropertyName("idSequences")]
         public object? IdSequences { get; set; }
+
+        [JsonPropertyName("theme")]
+        public object? Theme { get; set; }
     }
 
     public class UploadLogoDto

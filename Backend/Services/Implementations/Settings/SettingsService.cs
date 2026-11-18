@@ -51,6 +51,12 @@ namespace SMS.Api.Services.Implementations.Settings
                 try { idSequences = JsonSerializer.Deserialize<object>(s.IdSequenceSettingsJson); } catch { }
             }
 
+            object? theme = null;
+            if (!string.IsNullOrWhiteSpace(s.ThemeSettingsJson))
+            {
+                try { theme = JsonSerializer.Deserialize<object>(s.ThemeSettingsJson); } catch { }
+            }
+
             return new SchoolSettingsDto
             {
                 SchoolName = s.SchoolName,
@@ -65,7 +71,8 @@ namespace SMS.Api.Services.Implementations.Settings
                 BoardType = s.BoardType,
                 Campuses = campuses,
                 CertificateTemplates = certificateTemplates,
-                IdSequences = idSequences
+                IdSequences = idSequences,
+                Theme = theme
             };
         }
 

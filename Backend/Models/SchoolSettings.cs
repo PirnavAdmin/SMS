@@ -51,6 +51,8 @@ namespace SMS.Api.Models
         [MaxLength(100)]
         public string? BoardType { get; set; } = null;
 
+        public string? ThemeSettingsJson { get; set; } = null;
+
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     }
 }

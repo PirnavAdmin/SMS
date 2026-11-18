@@ -736,6 +736,15 @@ using (var scope = app.Services.CreateScope())
                         System.Console.WriteLine("[Database Schema Upgrade] Added column `FinanceSettingsJson` to `SchoolSettings`.");
                     }
 
+                    cmd.CommandText = $"SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '{dbName}' AND TABLE_NAME = 'SchoolSettings' AND COLUMN_NAME = 'ThemeSettingsJson';";
+                    var themeSettingsExists = System.Convert.ToInt32(cmd.ExecuteScalar());
+                    if (themeSettingsExists == 0)
+                    {
+                        cmd.CommandText = "ALTER TABLE `SchoolSettings` ADD COLUMN `ThemeSettingsJson` longtext NULL;";
+                        cmd.ExecuteNonQuery();
+                        System.Console.WriteLine("[Database Schema Upgrade] Added column `ThemeSettingsJson` to `SchoolSettings`.");
+                    }
+
                     // Upgrade admins table to add Avatar column if not exists
                     try
                     {
@@ -834,6 +843,7 @@ using (var scope = app.Services.CreateScope())
                 `CampusesJson` longtext NULL,
                 `CertificateTemplatesJson` longtext NULL,
                 `IdSequenceSettingsJson` longtext NULL,
+                `ThemeSettingsJson` longtext NULL,
                 `UpdatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (`Id`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",

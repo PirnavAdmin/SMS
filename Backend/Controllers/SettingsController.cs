@@ -39,7 +39,8 @@ namespace SMS.Api.Controllers
                         address = settings?.Address ?? string.Empty,
                         phone = settings?.Phone ?? string.Empty,
                         email = settings?.Email ?? string.Empty,
-                        website = settings?.Website ?? string.Empty
+                        website = settings?.Website ?? string.Empty,
+                        theme = settings?.Theme
                     }
                 });
             }
