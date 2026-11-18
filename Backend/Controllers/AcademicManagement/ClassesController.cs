@@ -503,15 +503,62 @@ namespace SMS.Api.Controllers.AcademicManagement
                     return NotFound(new { success = false, message = "Class not found." });
                 }
 
-                // BUG-028 FIX: Check students, timetable headers, and teacher assignments before deleting
-                var hasStudents = await _context.Admissions.AnyAsync(s => s.ClassId == id && !s.IsDeleted) ||
-                                  await _context.Students.AnyAsync(s => s.ClassId == id && !s.IsDeleted);
-                if (hasStudents)
+                // Check for truly active students enrolled in this class
+                var hasActiveStudents = await _context.Students.AnyAsync(s => s.ClassId == id && !s.IsDeleted && (s.Status == "Active" || s.Status == "Enrolled" || s.Status == "Admitted"));
+                if (hasActiveStudents)
                     return BadRequest(new { success = false, message = "Cannot delete class. Active students are currently assigned to it." });
 
                 var hasTimetable = await _context.TimetableHeaders.AnyAsync(h => h.ClassId == id);
                 if (hasTimetable)
                     return BadRequest(new { success = false, message = "Cannot delete class. It has timetable records. Please delete the timetable first." });
+
+                // Unlink any non-enrolled admission applications pointing to this class
+                var relatedAdmissions = await _context.Admissions.Where(s => s.ClassId == id).ToListAsync();
+                foreach (var adm in relatedAdmissions)
+                {
+                    adm.ClassId = null;
+                    adm.SectionLetter = null;
+                }
+
+                var relatedApplications = await _context.AdmissionApplications.Where(a => a.AppliedClassId == id).ToListAsync();
+                foreach (var app in relatedApplications)
+                {
+                    app.AppliedClassId = null;
+                }
+
+                // Clean up teacher assignments and teacher subject assignments for this class
+                var teacherAssignments = await _context.TeacherAssignments.Where(ta => ta.ClassId == id).ToListAsync();
+                if (teacherAssignments.Any())
+                {
+                    _context.TeacherAssignments.RemoveRange(teacherAssignments);
+                }
+
+                var tsaRecords = await _context.TeacherSubjectAssignments.Where(tsa => tsa.ClassId == id).ToListAsync();
+                if (tsaRecords.Any())
+                {
+                    _context.TeacherSubjectAssignments.RemoveRange(tsaRecords);
+                }
+
+                // Clean up subject mappings
+                var subjectMappings = await _context.ClassSubjectMappings.Where(sm => sm.ClassId == id).ToListAsync();
+                if (subjectMappings.Any())
+                {
+                    _context.ClassSubjectMappings.RemoveRange(subjectMappings);
+                }
+
+                // Clean up sections
+                var sections = await _context.ClassSections.Where(sec => sec.ClassId == id).ToListAsync();
+                if (sections.Any())
+                {
+                    _context.ClassSections.RemoveRange(sections);
+                }
+
+                // Remove any soft-deleted or inactive student stubs tied to this class
+                var inactiveStudents = await _context.Students.Where(s => s.ClassId == id).ToListAsync();
+                if (inactiveStudents.Any())
+                {
+                    _context.Students.RemoveRange(inactiveStudents);
+                }
 
                 _context.Classes.Remove(classObj);
                 await _context.SaveChangesAsync();
@@ -519,9 +566,9 @@ namespace SMS.Api.Controllers.AcademicManagement
                 await LogAuditActionAsync("Delete Class", $"Deleted class grade '{classObj.ClassName}' (ID {id}).");
                 return Ok(new { success = true, message = "Class deleted successfully." });
             }
-            catch (DbUpdateException)
+            catch (DbUpdateException ex)
             {
-                return BadRequest(new { success = false, message = "Cannot delete class. It is currently referenced by other records (e.g., sections, timetables, or student records) in the database." });
+                return BadRequest(new { success = false, message = "Cannot delete class. It is currently referenced by other records (e.g., sections, timetables, or student records) in the database.", details = ex.InnerException?.Message });
             }
             catch (Exception ex)
             {
@@ -601,15 +648,31 @@ namespace SMS.Api.Controllers.AcademicManagement
                     return NotFound(new { success = false, message = "Section not found." });
                 }
 
-                // Check if students are allocated to this section
-                var hasStudents = await _context.Admissions
-                    .AnyAsync(s => s.ClassId == id && s.SectionLetter == section_letter && !s.IsDeleted) ||
-                                  await _context.Students
-                    .AnyAsync(s => s.SectionId == section.SectionId && !s.IsDeleted);
+                // Check if active students are allocated to this section
+                var hasStudents = await _context.Students
+                    .AnyAsync(s => s.SectionId == section.SectionId && !s.IsDeleted && (s.Status == "Active" || s.Status == "Enrolled" || s.Status == "Admitted"));
 
                 if (hasStudents)
                 {
                     return BadRequest(new { success = false, message = "Cannot delete section. Active students are currently allocated to it." });
+                }
+
+                // Unlink any non-enrolled admission applications referencing this section
+                var relatedAdmissions = await _context.Admissions
+                    .Where(s => s.ClassId == id && s.SectionLetter == section_letter)
+                    .ToListAsync();
+                foreach (var adm in relatedAdmissions)
+                {
+                    adm.SectionLetter = null;
+                }
+
+                // Remove inactive or deleted students referencing this section to prevent FK block
+                var inactiveStudents = await _context.Students
+                    .Where(s => s.SectionId == section.SectionId)
+                    .ToListAsync();
+                if (inactiveStudents.Any())
+                {
+                    _context.Students.RemoveRange(inactiveStudents);
                 }
 
                 _context.ClassSections.Remove(section);

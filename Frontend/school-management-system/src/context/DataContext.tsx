@@ -63,6 +63,7 @@ import {
 import { buildTermMonthMap } from "../utils/lateAdmission";
 import { generateTermsFromAcademicYear } from "../utils/academicYearTermUtils";
 import { notifyFinanceUpdated } from "../utils/financeEvents";
+import { applySchoolBranding } from "../utils/brandingUtils";
 import {
   normalizeStudentType,
   formatStudentType,
@@ -6843,6 +6844,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         console.warn("Failed to save school settings to backend API:", err);
       });
 
+      applySchoolBranding(next.name, next.logoUrl);
+
       return next;
     });
     try {
@@ -7030,7 +7033,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             localStorage.setItem("schoolLogo", next.logoUrl || "");
           } catch (e) {}
 
-          setSchoolProfile(next);
+          setSchoolProfile((prev) => {
+            const base = prev || currentProfile;
+            const isSame =
+              base.name === next.name &&
+              base.tagline === next.tagline &&
+              base.address === next.address &&
+              base.phone === next.phone &&
+              base.email === next.email &&
+              base.website === next.website &&
+              base.principalName === next.principalName &&
+              base.boardType === next.boardType &&
+              base.logoUrl === next.logoUrl;
+            if (isSame) return prev;
+            return next;
+          });
+          applySchoolBranding(next.name, next.logoUrl);
 
           // Sync Certificate Templates, Types, Issued Certificates & Alumni from DB
           const rawCertSettings = data.certificateTemplates;
@@ -7122,12 +7140,24 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               : parsed?.logoUrl !== undefined
                 ? parsed.logoUrl
                 : (base?.logoUrl ?? "");
-          return {
+          const next = {
             ...initialSchoolProfile,
             ...base,
             ...(parsed || {}),
             logoUrl: effectiveLogo,
           };
+          const isSame =
+            base.name === next.name &&
+            base.tagline === next.tagline &&
+            base.address === next.address &&
+            base.phone === next.phone &&
+            base.email === next.email &&
+            base.website === next.website &&
+            base.principalName === next.principalName &&
+            base.boardType === next.boardType &&
+            base.logoUrl === next.logoUrl;
+          if (isSame) return prev;
+          return next;
         });
       } catch (e) {}
     };
@@ -10500,7 +10530,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       };
 
       await createClassApi(payload);
-      await fetchAcademicClasses();
+      await fetchAcademicClasses(true);
       addToast(
         "success",
         "Class Created",
@@ -10596,7 +10626,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       };
 
       await updateClassApi(numericId, payload);
-      await fetchAcademicClasses();
+      await fetchAcademicClasses(true);
     } catch (err: any) {
       console.error("Error updating academic class:", err);
       addToast("error", "API Error", err.message || "Failed to update class.");
@@ -10608,7 +10638,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       const numericId = id.startsWith("CL-") ? id.replace("CL-", "") : id;
       await deleteClassApi(numericId);
-      await fetchAcademicClasses();
+      await fetchAcademicClasses(true);
     } catch (err: any) {
       console.error("Error deleting academic class:", err);
       addToast("error", "API Error", err.message || "Failed to delete class.");

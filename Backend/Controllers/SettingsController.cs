@@ -33,9 +33,9 @@ namespace SMS.Api.Controllers
                     success = true,
                     data = new
                     {
-                        schoolName = settings?.SchoolName ?? "Pirnav School",
+                        schoolName = !string.IsNullOrWhiteSpace(settings?.SchoolName) ? settings.SchoolName : "School Management System",
                         logoUrl = settings?.LogoUrl ?? string.Empty,
-                        tagline = settings?.Tagline ?? "Nurturing character, academic excellence, and ethical leadership in every student.",
+                        tagline = settings?.Tagline ?? string.Empty,
                         address = settings?.Address ?? string.Empty,
                         phone = settings?.Phone ?? string.Empty,
                         email = settings?.Email ?? string.Empty,

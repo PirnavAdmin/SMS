@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   GraduationCap,
   ArrowRight,
@@ -38,7 +38,8 @@ import {
 import { fetchSchoolSettingsApi } from '../../../api/settings';
 import { fetchNotificationsApi } from '../../../api/communication';
 import { useTheme } from '../../../context/ThemeContext';
-import pirnavLogo from '../../../assets/pirnav-school-logo.png';
+import { applySchoolBranding } from '../../../utils/brandingUtils';
+import { resolveMediaUrl } from '../../../utils/mediaUtils';
 
 interface LandingViewProps {
   onLoginClick: (role?: string) => void;
@@ -63,6 +64,98 @@ interface NoticeItem {
   desc: string;
 }
 
+interface StatCounterProps {
+  target: number;
+  decimals?: number;
+  suffix?: string;
+  autoIncrement?: boolean;
+}
+
+const StatCounter: React.FC<StatCounterProps> = ({
+  target,
+  decimals = 0,
+  suffix = '',
+  autoIncrement = false,
+}) => {
+  const [currentValue, setCurrentValue] = useState(0);
+  const [extraIncrement, setExtraIncrement] = useState(0);
+  const [hasStarted, setHasStarted] = useState(false);
+  const ref = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    if (!ref.current) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setHasStarted(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    observer.observe(ref.current);
+    const fallbackTimer = setTimeout(() => {
+      setHasStarted(true);
+    }, 300);
+
+    return () => {
+      observer.disconnect();
+      clearTimeout(fallbackTimer);
+    };
+  }, []);
+
+  // Smooth count-up animation on enter
+  useEffect(() => {
+    if (!hasStarted) return;
+
+    let startTime: number | null = null;
+    const duration = 2000;
+    let animationFrameId: number;
+
+    const step = (timestamp: number) => {
+      if (!startTime) startTime = timestamp;
+      const elapsed = timestamp - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      
+      const easeOut = 1 - Math.pow(1 - progress, 3);
+      const val = easeOut * target;
+      setCurrentValue(val);
+
+      if (progress < 1) {
+        animationFrameId = requestAnimationFrame(step);
+      } else {
+        setCurrentValue(target);
+      }
+    };
+
+    animationFrameId = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [hasStarted, target]);
+
+  // Periodic auto-increase simulation (number ticks up every 3.5 seconds)
+  useEffect(() => {
+    if (!hasStarted || !autoIncrement) return;
+
+    const interval = setInterval(() => {
+      setExtraIncrement((prev) => prev + 1);
+    }, 3500);
+
+    return () => clearInterval(interval);
+  }, [hasStarted, autoIncrement]);
+
+  const totalValue = currentValue + extraIncrement;
+  const displayValue = decimals > 0 
+    ? totalValue.toFixed(decimals) 
+    : Math.floor(totalValue).toLocaleString();
+
+  return (
+    <span ref={ref} className="tabular-nums">
+      {displayValue}{suffix}
+    </span>
+  );
+};
+
 export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
   const { isDarkMode, toggleDarkMode } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -77,13 +170,13 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
   // Dynamic School Info State loaded from API / localStorage with no hardcoded fallback text or logos
   const [schoolInfo, setSchoolInfo] = useState<DynamicSchoolInfo>(() => {
     return {
-      name: localStorage.getItem('school_name') || 'Pirnav School',
-      logoUrl: localStorage.getItem('school_logo') || localStorage.getItem('logoUrl') || '',
+      name: localStorage.getItem('school_name') || '',
+      logoUrl: localStorage.getItem('tenant_school_logo') || localStorage.getItem('school_logo') || localStorage.getItem('logoUrl') || '',
       address: localStorage.getItem('school_address') || '',
-      email: localStorage.getItem('school_email') || 'contact@pirnavschool.edu.in',
-      phone: localStorage.getItem('school_phone') || '+91 98765 43210',
-      website: localStorage.getItem('school_website') || 'www.pirnavschool.edu.in',
-      tagline: localStorage.getItem('school_tagline') || 'Nurturing character, academic excellence, and ethical leadership in every student.',
+      email: localStorage.getItem('school_email') || '',
+      phone: localStorage.getItem('school_phone') || '',
+      website: localStorage.getItem('school_website') || '',
+      tagline: localStorage.getItem('school_tagline') || 'Empowering Minds, Shaping Tomorrow',
       affiliation: localStorage.getItem('school_affiliation') || 'CBSE Affiliated',
     };
   });
@@ -113,16 +206,64 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
     },
   ]);
 
-  // Fetch dynamic school profile settings and notices on mount
+  // Fetch dynamic school profile settings and notices on mount directly from database API
   useEffect(() => {
     let isMounted = true;
 
-    const loadSchoolSettings = () => {
+    const loadSchoolSettings = async () => {
+      try {
+        const res: any = await fetchSchoolSettingsApi();
+        const data = res?.data || res;
+        if (data && isMounted) {
+          const sName = data.schoolName || data.name || '';
+          const sLogo = data.logoUrl || '';
+          const sAddress = data.address || '';
+          const sEmail = data.email || '';
+          const sPhone = data.phone || '';
+          const sWebsite = data.website || '';
+          const sTagline = data.tagline || 'Empowering Minds, Shaping Tomorrow';
+          const sAffiliation = data.boardType ? `${data.boardType} Affiliated` : 'CBSE Affiliated';
+
+          setSchoolInfo({
+            name: sName,
+            logoUrl: sLogo,
+            address: sAddress,
+            email: sEmail,
+            phone: sPhone,
+            website: sWebsite,
+            tagline: sTagline,
+            affiliation: sAffiliation
+          });
+
+          if (sName) {
+            applySchoolBranding(sName, sLogo);
+          }
+        }
+      } catch (err) {
+        // Fallback to local storage cache if network is slow
+        const savedName = localStorage.getItem('school_name');
+        const savedLogo = localStorage.getItem('tenant_school_logo') || localStorage.getItem('school_logo') || localStorage.getItem('logoUrl') || '';
+        const savedAddr = localStorage.getItem('school_address');
+
+        if (isMounted && (savedName || savedLogo || savedAddr)) {
+          setSchoolInfo(prev => ({
+            ...prev,
+            name: savedName || prev.name,
+            logoUrl: savedLogo || prev.logoUrl,
+            address: savedAddr || prev.address
+          }));
+        }
+      }
+    };
+
+    loadSchoolSettings();
+
+    const handleBrandingUpdate = () => {
       const savedName = localStorage.getItem('school_name');
-      const savedLogo = localStorage.getItem('school_logo') || localStorage.getItem('logoUrl');
+      const savedLogo = localStorage.getItem('tenant_school_logo') || localStorage.getItem('school_logo') || '';
       const savedAddr = localStorage.getItem('school_address');
 
-      if (savedName || savedLogo || savedAddr) {
+      if (isMounted && (savedName || savedLogo || savedAddr)) {
         setSchoolInfo(prev => ({
           ...prev,
           name: savedName || prev.name,
@@ -132,15 +273,15 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
       }
     };
 
-    loadSchoolSettings();
-
-    window.addEventListener('school_profile_updated', loadSchoolSettings);
-    window.addEventListener('storage', loadSchoolSettings);
+    window.addEventListener('school_branding_updated', handleBrandingUpdate);
+    window.addEventListener('school_profile_updated', handleBrandingUpdate);
+    window.addEventListener('storage', handleBrandingUpdate);
 
     return () => {
       isMounted = false;
-      window.removeEventListener('school_profile_updated', loadSchoolSettings);
-      window.removeEventListener('storage', loadSchoolSettings);
+      window.removeEventListener('school_branding_updated', handleBrandingUpdate);
+      window.removeEventListener('school_profile_updated', handleBrandingUpdate);
+      window.removeEventListener('storage', handleBrandingUpdate);
     };
   }, []);
 
@@ -206,10 +347,10 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
   ];
 
   const stats = [
-    { label: 'Active Students', value: '2,500+', icon: Users, desc: 'Enrolled across Pre-K to Grade 12' },
-    { label: 'Certified Faculty', value: '150+', icon: Award, desc: 'Dedicated educators & specialists' },
-    { label: 'Academic Excellence', value: '99.2%', icon: Sparkles, desc: 'Board examination pass rate' },
-    { label: 'Smart Campus ERP', value: '100%', icon: CheckCircle2, desc: 'Fully synchronized digital workflow' },
+    { label: 'Active Students', target: 2500, suffix: '+', icon: Users, desc: 'Enrolled across Pre-K to Grade 12', autoIncrement: false },
+    { label: 'Certified Faculty', target: 150, suffix: '+', icon: Award, desc: 'Dedicated educators & specialists', autoIncrement: false },
+    { label: 'Academic Excellence', target: 99.2, decimals: 1, suffix: '%', icon: Sparkles, desc: 'Board examination pass rate', autoIncrement: false },
+    { label: 'Smart Campus ERP', target: 100, suffix: '%', icon: CheckCircle2, desc: 'Fully synchronized digital workflow', autoIncrement: false },
   ];
 
   // School Photo Gallery Showcase Items
@@ -325,11 +466,184 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
     ? erpFeatures 
     : erpFeatures.filter(f => f.category === activeTab);
 
+  // 5-fold multiplied sets for seamless, continuous infinite auto-looping without boundaries
+  const displayRoles = [
+    ...portalRoles.map((r, i) => ({ ...r, uniqueKey: `pr0-${r.id}-${i}` })),
+    ...portalRoles.map((r, i) => ({ ...r, uniqueKey: `pr1-${r.id}-${i}` })),
+    ...portalRoles.map((r, i) => ({ ...r, uniqueKey: `pr2-${r.id}-${i}` })),
+    ...portalRoles.map((r, i) => ({ ...r, uniqueKey: `pr3-${r.id}-${i}` })),
+    ...portalRoles.map((r, i) => ({ ...r, uniqueKey: `pr4-${r.id}-${i}` })),
+  ];
+
+  const displayFeatures = [
+    ...filteredFeatures.map((f, i) => ({ ...f, uniqueKey: `mf0-${f.title}-${i}` })),
+    ...filteredFeatures.map((f, i) => ({ ...f, uniqueKey: `mf1-${f.title}-${i}` })),
+    ...filteredFeatures.map((f, i) => ({ ...f, uniqueKey: `mf2-${f.title}-${i}` })),
+    ...filteredFeatures.map((f, i) => ({ ...f, uniqueKey: `mf3-${f.title}-${i}` })),
+    ...filteredFeatures.map((f, i) => ({ ...f, uniqueKey: `mf4-${f.title}-${i}` })),
+  ];
+
+  // Carousel Refs & States for Portals
+  const portalScrollRef = useRef<HTMLDivElement>(null);
+  const [activePortalIndex, setActivePortalIndex] = useState(0);
+  const [isPortalHovered, setIsPortalHovered] = useState(false);
+
+  // Carousel Refs & States for Modules
+  const moduleScrollRef = useRef<HTMLDivElement>(null);
+  const [activeModuleIndex, setActiveModuleIndex] = useState(0);
+  const [isModuleHovered, setIsModuleHovered] = useState(false);
+
+  const checkPortalInfiniteBounds = () => {
+    if (!portalScrollRef.current) return;
+    const cardEl = portalScrollRef.current.firstElementChild as HTMLElement | null;
+    const cardWidth = cardEl ? cardEl.offsetWidth + 16 : 336;
+    const singleSetWidth = portalRoles.length * cardWidth;
+    const { scrollLeft } = portalScrollRef.current;
+
+    // Keep scroll position centered around Set 2 for seamless infinite auto-looping
+    if (scrollLeft >= singleSetWidth * 3) {
+      portalScrollRef.current.scrollLeft = scrollLeft - singleSetWidth;
+    } else if (scrollLeft < singleSetWidth * 1) {
+      portalScrollRef.current.scrollLeft = scrollLeft + singleSetWidth;
+    }
+  };
+
+  const checkModuleInfiniteBounds = () => {
+    if (!moduleScrollRef.current || filteredFeatures.length === 0) return;
+    const cardEl = moduleScrollRef.current.firstElementChild as HTMLElement | null;
+    const cardWidth = cardEl ? cardEl.offsetWidth + 16 : 310;
+    const singleSetWidth = filteredFeatures.length * cardWidth;
+    const { scrollLeft } = moduleScrollRef.current;
+
+    if (scrollLeft >= singleSetWidth * 3) {
+      moduleScrollRef.current.scrollLeft = scrollLeft - singleSetWidth;
+    } else if (scrollLeft < singleSetWidth * 1) {
+      moduleScrollRef.current.scrollLeft = scrollLeft + singleSetWidth;
+    }
+  };
+
+  const checkPortalScroll = () => {
+    if (!portalScrollRef.current) return;
+    const { scrollLeft } = portalScrollRef.current;
+    const cardEl = portalScrollRef.current.firstElementChild as HTMLElement | null;
+    const cardWidth = cardEl ? cardEl.offsetWidth + 16 : 336;
+    const rawIdx = Math.round(scrollLeft / cardWidth) % portalRoles.length;
+    setActivePortalIndex((rawIdx + portalRoles.length) % portalRoles.length);
+  };
+
+  const scrollToPortalIndex = (index: number) => {
+    if (!portalScrollRef.current) return;
+    const cardEl = portalScrollRef.current.firstElementChild as HTMLElement | null;
+    const cardWidth = cardEl ? cardEl.offsetWidth + 16 : 336;
+    const singleSetWidth = portalRoles.length * cardWidth;
+    const { scrollLeft } = portalScrollRef.current;
+    const currentBase = Math.floor(scrollLeft / singleSetWidth) * singleSetWidth;
+    portalScrollRef.current.scrollTo({ left: currentBase + index * cardWidth, behavior: 'smooth' });
+    setActivePortalIndex(index);
+  };
+
+  const checkModuleScroll = () => {
+    if (!moduleScrollRef.current || filteredFeatures.length === 0) return;
+    const { scrollLeft } = moduleScrollRef.current;
+    const cardEl = moduleScrollRef.current.firstElementChild as HTMLElement | null;
+    const cardWidth = cardEl ? cardEl.offsetWidth + 16 : 310;
+    const rawIdx = Math.round(scrollLeft / cardWidth) % filteredFeatures.length;
+    setActiveModuleIndex((rawIdx + filteredFeatures.length) % filteredFeatures.length);
+  };
+
+  const scrollToModuleIndex = (index: number) => {
+    if (!moduleScrollRef.current || filteredFeatures.length === 0) return;
+    const cardEl = moduleScrollRef.current.firstElementChild as HTMLElement | null;
+    const cardWidth = cardEl ? cardEl.offsetWidth + 16 : 310;
+    const singleSetWidth = filteredFeatures.length * cardWidth;
+    const { scrollLeft } = moduleScrollRef.current;
+    const currentBase = Math.floor(scrollLeft / singleSetWidth) * singleSetWidth;
+    moduleScrollRef.current.scrollTo({ left: currentBase + index * cardWidth, behavior: 'smooth' });
+    setActiveModuleIndex(index);
+  };
+
+  // Continuous auto-rotate Portals Carousel Timer (every 3 seconds)
+  useEffect(() => {
+    if (isPortalHovered) return;
+
+    const timer = setInterval(() => {
+      if (portalScrollRef.current) {
+        const cardEl = portalScrollRef.current.firstElementChild as HTMLElement | null;
+        const cardWidth = cardEl ? cardEl.offsetWidth + 16 : 336;
+        portalScrollRef.current.scrollBy({ left: cardWidth, behavior: 'smooth' });
+        setTimeout(() => {
+          checkPortalInfiniteBounds();
+        }, 450);
+      }
+    }, 3000);
+
+    return () => clearInterval(timer);
+  }, [isPortalHovered, portalRoles.length]);
+
+  // Continuous auto-rotate Modules Carousel Timer (every 3.5 seconds)
+  useEffect(() => {
+    if (isModuleHovered || filteredFeatures.length <= 1) return;
+
+    const timer = setInterval(() => {
+      if (moduleScrollRef.current) {
+        const cardEl = moduleScrollRef.current.firstElementChild as HTMLElement | null;
+        const cardWidth = cardEl ? cardEl.offsetWidth + 16 : 310;
+        moduleScrollRef.current.scrollBy({ left: cardWidth, behavior: 'smooth' });
+        setTimeout(() => {
+          checkModuleInfiniteBounds();
+        }, 450);
+      }
+    }, 3500);
+
+    return () => clearInterval(timer);
+  }, [isModuleHovered, filteredFeatures.length]);
+
+  // Auto-rotate Live Console Tabs (every 4.5 seconds)
+  useEffect(() => {
+    const tabs: Array<'admin' | 'teacher' | 'parent'> = ['admin', 'teacher', 'parent'];
+    const timer = setInterval(() => {
+      setHeroConsoleTab((prev) => {
+        const nextIdx = (tabs.indexOf(prev) + 1) % tabs.length;
+        return tabs[nextIdx];
+      });
+    }, 4500);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  // Initial positioning in Set 2 for continuous seamless auto-looping
+  useEffect(() => {
+    const initTimer = setTimeout(() => {
+      if (portalScrollRef.current) {
+        const cardEl = portalScrollRef.current.firstElementChild as HTMLElement | null;
+        const cardWidth = cardEl ? cardEl.offsetWidth + 16 : 336;
+        portalScrollRef.current.scrollLeft = portalRoles.length * 2 * cardWidth;
+      }
+      if (moduleScrollRef.current && filteredFeatures.length > 0) {
+        const cardEl = moduleScrollRef.current.firstElementChild as HTMLElement | null;
+        const cardWidth = cardEl ? cardEl.offsetWidth + 16 : 310;
+        moduleScrollRef.current.scrollLeft = filteredFeatures.length * 2 * cardWidth;
+      }
+    }, 60);
+
+    return () => clearTimeout(initTimer);
+  }, []);
+
+  // Reset module carousel to Set 2 when tab filter changes
+  useEffect(() => {
+    if (moduleScrollRef.current && filteredFeatures.length > 0) {
+      const cardEl = moduleScrollRef.current.firstElementChild as HTMLElement | null;
+      const cardWidth = cardEl ? cardEl.offsetWidth + 16 : 310;
+      moduleScrollRef.current.scrollLeft = filteredFeatures.length * 2 * cardWidth;
+      setActiveModuleIndex(0);
+    }
+  }, [activeTab]);
+
   const testimonials = [
     {
       name: 'Dr. Rajesh Verma',
       role: 'Parent of Class 10 Student',
-      comment: 'The real-time bus tracking and online fee portal give us total peace of mind. Pirnav Institution provides both academic rigor and safety.',
+      comment: 'The real-time bus tracking and online fee portal give us total peace of mind. The institution provides both academic rigor and safety.',
       rating: 5,
       avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop'
     },
@@ -343,7 +657,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
     {
       name: 'Ananya Sharma',
       role: 'Alumni (Batch of 2025)',
-      comment: 'The STEM robotics lab and digital library resources at Pirnav gave me the ideal foundation for my engineering university studies.',
+      comment: 'The STEM robotics lab and digital library resources here gave me the ideal foundation for my engineering university studies.',
       rating: 5,
       avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?q=80&w=200&auto=format&fit=crop'
     }
@@ -368,7 +682,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
             <div className="w-8 h-8 sm:w-10 sm:h-10 shrink-0 flex items-center justify-center transition-transform group-hover:scale-105">
               {schoolInfo.logoUrl ? (
                 <img
-                  src={schoolInfo.logoUrl}
+                  src={resolveMediaUrl(schoolInfo.logoUrl)}
                   alt={schoolInfo.name}
                   className="w-full h-full object-contain"
                   onError={(e) => {
@@ -382,7 +696,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
             
             <div className="min-w-0">
               <span className="font-extrabold text-sm sm:text-base lg:text-lg tracking-tight text-white flex items-center gap-1.5 truncate">
-                {schoolInfo.name}
+                {schoolInfo.name || 'Educational Institutions'}
               </span>
             </div>
           </div>
@@ -763,10 +1077,25 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
               const Icon = stat.icon;
               return (
                 <div key={i} className="p-4 sm:p-5 rounded-xl bg-white/80 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700 shadow-md transition-all hover:-translate-y-0.5 duration-300 backdrop-blur-md">
-                  <div className="w-8 h-8 rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center mb-2">
-                    <Icon className="w-4 h-4" />
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="w-8 h-8 rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center">
+                      <Icon className="w-4 h-4" />
+                    </div>
+                    {stat.autoIncrement && (
+                      <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 dark:bg-emerald-500/20 px-2 py-0.5 rounded-full border border-emerald-500/25">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        LIVE
+                      </span>
+                    )}
                   </div>
-                  <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">{stat.value}</div>
+                  <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                    <StatCounter
+                      target={stat.target}
+                      decimals={stat.decimals}
+                      suffix={stat.suffix}
+                      autoIncrement={stat.autoIncrement}
+                    />
+                  </div>
                   <div className="text-xs font-semibold text-slate-700 dark:text-slate-200 mt-0.5">{stat.label}</div>
                   <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 truncate">{stat.desc}</div>
                 </div>
@@ -854,7 +1183,14 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
         </section>
 
         {/* Portal Role Launcher Section */}
-        <section id="portals" className="py-6 sm:py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-slate-200/60 dark:border-slate-800/60">
+        <section
+          id="portals"
+          onMouseEnter={() => setIsPortalHovered(true)}
+          onMouseLeave={() => setIsPortalHovered(false)}
+          onTouchStart={() => setIsPortalHovered(true)}
+          onTouchEnd={() => setIsPortalHovered(false)}
+          className="py-6 sm:py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-slate-200/60 dark:border-slate-800/60"
+        >
           <div className="text-center max-w-3xl mx-auto mb-4 space-y-1.5">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-700 dark:text-violet-300 text-xs font-semibold backdrop-blur-md bg-white/60 dark:bg-slate-900/60">
               <Lock className="w-3.5 h-3.5" /> Sign In Portals
@@ -862,19 +1198,25 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
             <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
               Role-Based Access Portals
             </h2>
-            <p className="text-slate-700 dark:text-slate-300 text-xs sm:text-sm max-w-xl mx-auto font-medium">
+            <p className="text-slate-700 dark:text-slate-300 text-xs sm:text-sm font-medium">
               Select your portal role to log in directly to your personalized workspace.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
-            {portalRoles.map((role) => {
+          {/* Carousel Slider */}
+          <div
+            ref={portalScrollRef}
+            onScroll={checkPortalScroll}
+            className="flex items-stretch gap-4 overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory py-2.5 px-0.5"
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          >
+            {displayRoles.map((role) => {
               const Icon = role.icon;
               return (
                 <div
-                  key={role.id}
+                  key={role.uniqueKey}
                   onClick={() => onLoginClick(role.id)}
-                  className="group relative bg-white/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 hover:border-sky-500/50 rounded-2xl p-5 transition-all duration-300 hover:-translate-y-1 cursor-pointer flex flex-col justify-between shadow-md hover:shadow-xl backdrop-blur-md"
+                  className="w-[85vw] sm:w-[320px] md:w-[330px] lg:w-[340px] shrink-0 snap-start group relative bg-white/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 hover:border-sky-500/50 rounded-2xl p-5 transition-all duration-300 hover:-translate-y-1 cursor-pointer flex flex-col justify-between shadow-md hover:shadow-xl backdrop-blur-md select-none"
                 >
                   <div>
                     <div className="flex items-center justify-between mb-3">
@@ -889,7 +1231,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
                     <h3 className="text-base font-bold text-slate-900 dark:text-white group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors">
                       {role.title}
                     </h3>
-                    <p className="text-slate-600 dark:text-slate-400 text-xs leading-relaxed mt-1.5">
+                    <p className="text-slate-600 dark:text-slate-400 text-xs leading-relaxed mt-1.5 min-h-[36px]">
                       {role.description}
                     </p>
 
@@ -912,10 +1254,34 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
               );
             })}
           </div>
+
+          {/* Dot Indicators */}
+          <div className="flex items-center justify-center gap-1.5 mt-3.5">
+            {portalRoles.map((role, idx) => (
+              <button
+                key={role.id}
+                type="button"
+                onClick={() => scrollToPortalIndex(idx)}
+                className={`transition-all duration-300 rounded-full cursor-pointer ${
+                  activePortalIndex === idx
+                    ? 'w-6 h-2 bg-sky-500 dark:bg-sky-400'
+                    : 'w-2 h-2 bg-slate-300 dark:bg-slate-700 hover:bg-slate-400 dark:hover:bg-slate-600'
+                }`}
+                aria-label={`Go to portal ${idx + 1}`}
+              />
+            ))}
+          </div>
         </section>
 
         {/* ERP Modules Showcase */}
-        <section id="features" className="py-6 sm:py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-slate-200/60 dark:border-slate-800/60">
+        <section
+          id="features"
+          onMouseEnter={() => setIsModuleHovered(true)}
+          onMouseLeave={() => setIsModuleHovered(false)}
+          onTouchStart={() => setIsModuleHovered(true)}
+          onTouchEnd={() => setIsModuleHovered(false)}
+          className="py-6 sm:py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-slate-200/60 dark:border-slate-800/60"
+        >
           <div className="text-center max-w-3xl mx-auto mb-4 space-y-1.5">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-700 dark:text-sky-300 text-xs font-semibold backdrop-blur-md bg-white/60 dark:bg-slate-900/60">
               <Building2 className="w-3.5 h-3.5" /> Complete Ecosystem
@@ -939,7 +1305,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                   activeTab === tab.id
                     ? 'bg-sky-500 text-white shadow-md shadow-sky-500/25'
                     : 'bg-white/80 dark:bg-slate-900/80 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-slate-800 backdrop-blur-md'
@@ -950,24 +1316,50 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
             ))}
           </div>
 
-          {/* Feature Cards Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
-            {filteredFeatures.map((feat, i) => {
+          {/* Module Cards Carousel Track */}
+          <div
+            ref={moduleScrollRef}
+            onScroll={checkModuleScroll}
+            className="flex items-stretch gap-4 overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory py-2.5 px-0.5"
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          >
+            {displayFeatures.map((feat) => {
               const Icon = feat.icon;
               return (
                 <div
-                  key={i}
-                  className="p-5 rounded-2xl bg-white/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800/90 hover:border-slate-300 dark:hover:border-slate-700 transition-all hover:bg-white dark:hover:bg-slate-900 group shadow-md backdrop-blur-md"
+                  key={feat.uniqueKey}
+                  className="w-[85vw] sm:w-[280px] md:w-[290px] lg:w-[310px] shrink-0 snap-start p-5 rounded-2xl bg-white/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800/90 hover:border-slate-300 dark:hover:border-slate-700 transition-all hover:bg-white dark:hover:bg-slate-900 group shadow-md backdrop-blur-md flex flex-col justify-between select-none"
                 >
-                  <div className={`w-10 h-10 rounded-xl border ${feat.color} flex items-center justify-center mb-3 group-hover:scale-105 transition-transform`}>
-                    <Icon className="w-5 h-5" />
+                  <div>
+                    <div className={`w-10 h-10 rounded-xl border ${feat.color} flex items-center justify-center mb-3 group-hover:scale-105 transition-transform`}>
+                      <Icon className="w-5 h-5" />
+                    </div>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-1.5">{feat.title}</h3>
+                    <p className="text-slate-600 dark:text-slate-400 text-xs leading-relaxed">{feat.description}</p>
                   </div>
-                  <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-1">{feat.title}</h3>
-                  <p className="text-slate-600 dark:text-slate-400 text-xs leading-relaxed">{feat.description}</p>
                 </div>
               );
             })}
           </div>
+
+          {/* Dot Indicators */}
+          {filteredFeatures.length > 1 && (
+            <div className="flex items-center justify-center gap-1.5 mt-3.5">
+              {filteredFeatures.map((_, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => scrollToModuleIndex(idx)}
+                  className={`transition-all duration-300 rounded-full cursor-pointer ${
+                    activeModuleIndex === idx
+                      ? 'w-6 h-2 bg-sky-500 dark:bg-sky-400'
+                      : 'w-2 h-2 bg-slate-300 dark:bg-slate-700 hover:bg-slate-400 dark:hover:bg-slate-600'
+                  }`}
+                  aria-label={`Go to module ${idx + 1}`}
+                />
+              ))}
+            </div>
+          )}
         </section>
 
         {/* Dynamic Notice Board & Announcements */}
@@ -1084,7 +1476,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
                   Nurturing Character & Academic Excellence
                 </h2>
                 <p className="text-slate-700 dark:text-slate-300 text-xs sm:text-sm leading-relaxed font-medium">
-                  At {schoolInfo.name || 'Pirnav School'}, our mission extends beyond textbook learning. We foster critical thinking, athletic resilience, ethical leadership, and technological literacy in every student.
+                  At {schoolInfo.name || 'our Institution'}, our mission extends beyond textbook learning. We foster critical thinking, athletic resilience, ethical leadership, and technological literacy in every student.
                 </p>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
@@ -1167,8 +1559,8 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
               <div className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 flex items-center justify-center">
                 {schoolInfo.logoUrl ? (
                   <img
-                    src={schoolInfo.logoUrl}
-                    alt={schoolInfo.name || 'Pirnav School Logo'}
+                    src={resolveMediaUrl(schoolInfo.logoUrl)}
+                    alt={schoolInfo.name || 'School Logo'}
                     className="w-full h-full object-contain"
                     onError={(e) => {
                       (e.target as HTMLImageElement).style.display = 'none';
@@ -1179,12 +1571,12 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
                 )}
               </div>
               <span className="font-extrabold text-sm sm:text-base text-white tracking-tight">
-                {schoolInfo.name || 'Pirnav School'}
+                {schoolInfo.name || 'Educational Institutions'}
               </span>
             </div>
 
             <p className="text-slate-400 text-xs leading-relaxed max-w-sm">
-              {schoolInfo.tagline || 'Nurturing character, academic excellence, and ethical leadership in every student.'}
+              {schoolInfo.tagline || 'Empowering Minds, Shaping Tomorrow'}
             </p>
 
             {/* Dynamic Address & Contact */}
@@ -1294,7 +1686,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
 
         {/* Dynamic Copyright Footer */}
         <div className="max-w-7xl mx-auto mt-5 pt-3 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between text-slate-400 text-xs gap-2">
-          <p>© {new Date().getFullYear()} {schoolInfo.name || 'Pirnav School'}. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} {schoolInfo.name || 'Educational Institutions'}. All rights reserved.</p>
           <div className="flex items-center gap-4 text-slate-400">
             <span className="hover:text-slate-300 cursor-pointer">Privacy Policy</span>
             <span className="hover:text-slate-300 cursor-pointer">Terms of Service</span>

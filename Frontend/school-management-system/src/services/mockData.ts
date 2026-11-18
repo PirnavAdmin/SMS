@@ -18,15 +18,15 @@ import {
 } from '../types';
 
 export const initialSchoolProfile: SchoolProfile = {
-  name: "Pirnav Educational Institutions",
+  name: typeof localStorage !== 'undefined' ? (localStorage.getItem('school_name') || '') : '',
   tagline: "Empowering Minds, Shaping Tomorrow",
   address: "",
-  phone: "+91 9123456789",
-  email: "contact@pirnavschools.edu",
-  website: "https://pirnavschools.edu",
-  principalName: "Dr. Eleanor Vance",
+  phone: "",
+  email: "",
+  website: "",
+  principalName: "",
   academicYear: "",
-  logoUrl: "/pirnav-school-logo.png",
+  logoUrl: typeof localStorage !== 'undefined' ? (localStorage.getItem('tenant_school_logo') || localStorage.getItem('school_logo') || '') : '',
   staffCheckInTime: "08:30 AM",
   staffCheckOutTime: "05:00 PM",
   schoolStartTime: "08:30 AM",

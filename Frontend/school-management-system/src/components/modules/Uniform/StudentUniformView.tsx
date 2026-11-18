@@ -4222,7 +4222,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                     )}
                     <div>
                       <h1 className="text-lg font-black tracking-tight text-slate-900 uppercase leading-none">
-                        {schoolProfile?.name || schoolProfile?.schoolName || "Pirnav Educational Institutions"}
+                        {schoolProfile?.name || schoolProfile?.schoolName || (typeof localStorage !== 'undefined' ? localStorage.getItem('school_name') : '') || "School Management System"}
                       </h1>
                       <p className="text-[11px] text-sky-700 font-bold mt-1">
                         Uniform Store & Distribution Department
@@ -4443,7 +4443,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                     <p className="font-bold text-slate-800 uppercase tracking-wider text-[9px]">Terms & Conditions:</p>
                     <p className="text-[9px] text-slate-500">1. Receipt serves as official proof of uniform issuance.</p>
                     <p className="text-[9px] text-slate-500">2. Size exchange permitted within 7 days in unused condition.</p>
-                    <p className="text-[9px] text-slate-400 mt-1 font-mono">Issued by: Store Manager | {schoolProfile?.name || "Pirnav International Schools"}</p>
+                    <p className="text-[9px] text-slate-400 mt-1 font-mono">Issued by: Store Manager | {schoolProfile?.name || (typeof localStorage !== 'undefined' ? localStorage.getItem('school_name') : '') || "School Uniform Store"}</p>
                   </div>
                   <div className="flex justify-end gap-6 text-center">
                     <div>
@@ -4833,7 +4833,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                     )}
                     <div>
                       <h1 className="text-lg print:text-base font-black tracking-tight text-slate-900 uppercase leading-none">
-                        {schoolProfile?.name || schoolProfile?.schoolName || "Pirnav Educational Institutions"}
+                        {schoolProfile?.name || schoolProfile?.schoolName || (typeof localStorage !== 'undefined' ? localStorage.getItem('school_name') : '') || "School Management System"}
                       </h1>
                       <p className="text-[11px] print:text-[10px] text-emerald-800 font-bold mt-1 uppercase tracking-wider">
                         {hasAnyPaidRefund ? 'UNIFORM RETURN & REFUND VOUCHER' : 'UNIFORM RETURN VOUCHER (FEE CHARGE REMOVED)'}
@@ -4935,7 +4935,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                     <p className="font-bold text-slate-800 uppercase tracking-wider text-[9px]">Terms & Conditions:</p>
                     <p className="text-[9px] text-slate-500">1. Return voucher serves as official proof of item return.</p>
                     <p className="text-[9px] text-slate-500">2. Refund amount credited to student fee account or cash payout processed.</p>
-                    <p className="text-[9px] text-slate-400 mt-1 font-mono">Processed by: Store Officer | {schoolProfile?.name || "Pirnav International Schools"}</p>
+                    <p className="text-[9px] text-slate-400 mt-1 font-mono">Processed by: Store Officer | {schoolProfile?.name || (typeof localStorage !== 'undefined' ? localStorage.getItem('school_name') : '') || "School Uniform Store"}</p>
                   </div>
                   <div className="flex justify-end gap-6 text-center">
                     <div>
@@ -5017,7 +5017,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                     )}
                     <div>
                       <h1 className="text-lg font-black tracking-tight text-slate-900 uppercase leading-none">
-                        {schoolProfile?.name || schoolProfile?.schoolName || "Pirnav Educational Institutions"}
+                        {schoolProfile?.name || schoolProfile?.schoolName || (typeof localStorage !== 'undefined' ? localStorage.getItem('school_name') : '') || "School Management System"}
                       </h1>
                       <p className="text-[11px] text-sky-800 font-bold mt-1 uppercase tracking-wider">
                         OFFICIAL UNIFORM EXCHANGE VOUCHER
@@ -5098,7 +5098,7 @@ export const StudentUniformView: React.FC<StudentUniformViewProps> = ({ initialS
                     <p className="font-bold text-slate-800 uppercase tracking-wider text-[9px]">Terms & Conditions:</p>
                     <p className="text-[9px] text-slate-500">1. Exchange voucher serves as official proof of uniform size replacement.</p>
                     <p className="text-[9px] text-slate-500">2. Replaced item stock returned to inventory and new size issued.</p>
-                    <p className="text-[9px] text-slate-400 mt-1 font-mono">Processed by: Store Officer | {schoolProfile?.name || "Pirnav International Schools"}</p>
+                    <p className="text-[9px] text-slate-400 mt-1 font-mono">Processed by: Store Officer | {schoolProfile?.name || (typeof localStorage !== 'undefined' ? localStorage.getItem('school_name') : '') || "School Uniform Store"}</p>
                   </div>
                   <div className="flex justify-end gap-6 text-center">
                     <div>

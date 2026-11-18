@@ -25,12 +25,12 @@ export const SchoolPrintHeader: React.FC<SchoolPrintHeaderProps> = ({
   const { selectedAcademicYear } = useAuth();
 
   const logoUrl = resolveMediaUrl(schoolProfile?.logoUrl);
-  const schoolName = schoolProfile?.name || 'Pirnav Educational Institutions';
+  const schoolName = schoolProfile?.name || (typeof localStorage !== 'undefined' ? localStorage.getItem('school_name') : '') || 'School Management System';
   const tagline = schoolProfile?.tagline || 'Empowering Minds, Shaping Tomorrow';
   const address = schoolProfile?.address || '';
-  const phone = schoolProfile?.phone || '+91 9123456789';
-  const email = schoolProfile?.email || 'contact@pirnavschools.edu';
-  const website = schoolProfile?.website || 'https://pirnavschools.edu';
+  const phone = schoolProfile?.phone || '';
+  const email = schoolProfile?.email || '';
+  const website = schoolProfile?.website || '';
   
   // Resolve academic year with robust fallback hierarchy
   const activeAYRecord = (academicYears || []).find((a: any) => a.isCurrentAcademicYear || a.status === 'Active');

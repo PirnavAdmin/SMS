@@ -5,7 +5,7 @@ namespace SMS.Api.Dtos
     public class SchoolSettingsDto
     {
         [JsonPropertyName("schoolName")]
-        public string SchoolName { get; set; } = "Pirnav Educational Institutions";
+        public string SchoolName { get; set; } = string.Empty;
 
         [JsonPropertyName("name")]
         public string NameAlias
@@ -15,7 +15,7 @@ namespace SMS.Api.Dtos
         }
 
         [JsonPropertyName("tagline")]
-        public string Tagline { get; set; } = "Empowering Minds, Shaping Tomorrow";
+        public string Tagline { get; set; } = string.Empty;
 
         [JsonPropertyName("motto")]
         public string MottoAlias
@@ -25,16 +25,16 @@ namespace SMS.Api.Dtos
         }
 
         [JsonPropertyName("address")]
-        public string Address { get; set; } = "Jain Sadguru Images Capital Park502B, Capital Pk Rd, VIP Hills, Madhapur, HITEC City, Hyderabad, Telangana 500081";
+        public string Address { get; set; } = string.Empty;
 
         [JsonPropertyName("phone")]
-        public string Phone { get; set; } = "+91 9123456789";
+        public string Phone { get; set; } = string.Empty;
 
         [JsonPropertyName("email")]
-        public string Email { get; set; } = "contact@pirnavschools.edu";
+        public string Email { get; set; } = string.Empty;
 
         [JsonPropertyName("website")]
-        public string Website { get; set; } = "https://pirnavschools.edu";
+        public string Website { get; set; } = string.Empty;
 
         [JsonPropertyName("websiteUrl")]
         public string WebsiteUrlAlias
@@ -44,7 +44,7 @@ namespace SMS.Api.Dtos
         }
 
         [JsonPropertyName("principalName")]
-        public string PrincipalName { get; set; } = "Dr. Eleanor Vance";
+        public string PrincipalName { get; set; } = string.Empty;
 
         [JsonPropertyName("logoUrl")]
         public string LogoUrl { get; set; } = string.Empty;

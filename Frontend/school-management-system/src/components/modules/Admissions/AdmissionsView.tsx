@@ -6553,7 +6553,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                         </head>
                         <body>
                           <div class="header">
-                            <h1 class="school-title">${schoolProfile?.name || "Pirnav Educational Institutions"}</h1>
+                            <h1 class="school-title">${schoolProfile?.name || (typeof localStorage !== 'undefined' ? localStorage.getItem('school_name') : '') || "School Management System"}</h1>
                             <div class="school-tag">${schoolProfile?.tagline || "Empowering Minds, Shaping Tomorrow"}</div>
                             <div class="school-tag">${schoolProfile?.address || "742 Evergreen Terrace, NY"} • ${schoolProfile?.phone || "+1 (555) 019-2834"}</div>
                             <div class="doc-title">Official Student Academic Fee Summary Statement</div>

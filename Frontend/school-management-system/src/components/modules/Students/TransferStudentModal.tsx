@@ -29,7 +29,7 @@ export const TransferStudentModal: React.FC<TransferStudentModalProps> = ({
   const { addToast } = useToast();
   const activeAY = selectedAcademicYear || '';
 
-  const schoolName = schoolProfile?.name || "Pirnav Educational Institutions";
+  const schoolName = schoolProfile?.name || (typeof localStorage !== 'undefined' ? localStorage.getItem('school_name') : '') || "School Management System";
   const schoolAddress = schoolProfile?.address || "";
   const schoolLogo = schoolProfile?.logoUrl;
 

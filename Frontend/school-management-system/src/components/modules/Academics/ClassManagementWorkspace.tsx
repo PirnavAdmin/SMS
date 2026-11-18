@@ -1008,11 +1008,15 @@ export const ClassManagementWorkspace: React.FC<ClassManagementWorkspaceProps> =
     }
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!classToDelete) return;
-    deleteAcademicClass(classToDelete.id);
-    addToast('success', 'Class Removed', `Deleted class setup ${classToDelete.name}`);
-    setClassToDelete(null);
+    try {
+      await deleteAcademicClass(classToDelete.id);
+      addToast('success', 'Class Removed', `Deleted class setup ${classToDelete.name}`);
+      setClassToDelete(null);
+    } catch {
+      setClassToDelete(null);
+    }
   };
 
   // Archive Class

@@ -118,7 +118,7 @@ export const PrintableFeeReceipt: React.FC<PrintableFeeReceiptProps> = ({ paymen
     installmentLabel = payment.notes.toUpperCase();
   }
 
-  const schoolName = schoolProfile?.name || "Pirnav Educational Institutions";
+  const schoolName = schoolProfile?.name || (typeof localStorage !== 'undefined' ? localStorage.getItem('school_name') : '') || "School Management System";
   const schoolAddress = schoolProfile?.address || "Sri Sadguru Nilayam, Capital ParkRd28, Capital Pk Rd, VVIP Hills, Madhapur, HITEC City, Hyderabad, Telangana 500081";
   const schoolPhone = schoolProfile?.phone ? ` • Ph: ${schoolProfile.phone}` : "";
 

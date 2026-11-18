@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { getSubdomain, setActiveTenantIdentifier, clearActiveTenantIdentifier, detectTenant } from '../utils/subdomain';
 import { apiClient } from '../api/client';
 import { AlertTriangle, Building2, ShieldAlert } from 'lucide-react';
+import { applySchoolBranding } from '../utils/brandingUtils';
 
 export interface TenantInfo {
   id: string;
@@ -85,12 +86,22 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       });
 
       if (data && data.isResolved) {
+        const customSchoolName = localStorage.getItem('school_name');
+        const resolvedName = (customSchoolName && !customSchoolName.toLowerCase().includes('pirnav'))
+          ? customSchoolName
+          : (data.companyName && !data.companyName.toLowerCase().includes('pirnav') ? data.companyName : (customSchoolName || 'Campus Portal'));
+
+        const customLogo = localStorage.getItem('tenant_school_logo') || localStorage.getItem('school_logo');
+        const resolvedLogo = customLogo !== null && customLogo !== undefined
+          ? customLogo
+          : (data.logoUrl && !data.logoUrl.toLowerCase().includes('pirnav') ? data.logoUrl : '');
+
         const tenantData: TenantInfo = {
           id: data.id,
           identifier: data.identifier,
-          companyName: data.companyName || identifier,
+          companyName: resolvedName,
           primaryColor: data.primaryColor || '#0284c7',
-          logoUrl: data.logoUrl || '',
+          logoUrl: resolvedLogo,
           isActive: data.isActive !== false
         };
 
@@ -100,41 +111,29 @@ export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         // 1. Apply Dynamic CSS Primary Color
         applyTenantBranding(tenantData.primaryColor);
 
-        // 2. Set dynamic document title
-        if (typeof document !== 'undefined') {
-          document.title = `${tenantData.companyName} | SMS Portal`;
-        }
-
-        // 3. Update local caches and notify components
-        try {
-          if (tenantData.logoUrl) {
-            localStorage.setItem('school_logo', tenantData.logoUrl);
-            localStorage.setItem('logoUrl', tenantData.logoUrl);
-          }
-          if (tenantData.companyName) {
-            localStorage.setItem('school_name', tenantData.companyName);
-          }
-          window.dispatchEvent(new Event('school_profile_updated'));
-          window.dispatchEvent(new Event('storage'));
-        } catch {}
+        // 2. Set dynamic document title and favicon
+        applySchoolBranding(resolvedName, resolvedLogo);
       } else {
         setTenant(null);
         setIsResolved(false);
       }
     } catch (err: any) {
       console.warn('[TenantProvider] Could not load tenant info:', err?.message || err);
-      // Fallback: create client representation so UI continues smoothly
+      // Fallback: create client representation with cached school name
+      const cachedName = localStorage.getItem('school_name') || (identifier === 'default' ? 'Campus Portal' : identifier);
+      const cachedLogo = localStorage.getItem('tenant_school_logo') || localStorage.getItem('school_logo') || '';
       const fallbackTenant: TenantInfo = {
         id: identifier,
         identifier: identifier,
-        companyName: identifier.charAt(0).toUpperCase() + identifier.slice(1) + ' Institutions',
+        companyName: cachedName,
         primaryColor: '#0284c7',
-        logoUrl: '',
+        logoUrl: cachedLogo,
         isActive: true
       };
       setTenant(fallbackTenant);
       setIsResolved(true);
       applyTenantBranding(fallbackTenant.primaryColor);
+      applySchoolBranding(cachedName, cachedLogo);
     } finally {
       setIsLoading(false);
     }
