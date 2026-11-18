@@ -48,6 +48,8 @@ export const ValidatedSearchInput: React.FC<ValidatedSearchInputProps> = ({
         />
         <input
           type="text"
+          data-skip-global-validation="true"
+          data-search-input="true"
           value={value}
           onChange={handleChange}
           maxLength={maxLength}

@@ -7,6 +7,7 @@ import { useToast } from '../../../context/ToastContext';
 import { Badge } from '../../common/Badge';
 import { ExportButton } from '../../common/ExportButton';
 import { ConfirmModal } from '../../common/ConfirmModal';
+import { ValidatedSearchInput } from '../../common/ValidatedSearchInput';
 
 export const VehicleMaintenanceView: React.FC = () => {
   const { vehicleMaintenances = [], vehicleMasters = [], addVehicleMaintenance, deleteVehicleMaintenance } = useData() || {};
@@ -74,15 +75,13 @@ export const VehicleMaintenanceView: React.FC = () => {
       </div>
 
       {/* Filter */}
-      <div className="glass-card p-4 rounded-2xl flex items-center justify-between border border-slate-200/80 dark:border-slate-800">
-        <div className="relative w-full sm:w-72">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-          <input
-            type="text"
+      <div className="glass-card p-4 rounded-2xl flex items-start justify-between border border-slate-200/80 dark:border-slate-800">
+        <div className="w-full sm:w-72">
+          <ValidatedSearchInput
             placeholder="Search vehicle, service type, or vendor..."
             value={query}
-            onChange={e => setQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none"
+            onChange={val => setQuery(val)}
+            maxLength={30}
           />
         </div>
       </div>

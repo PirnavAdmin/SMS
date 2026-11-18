@@ -13,6 +13,7 @@ import { VehicleTripDetailsModal } from './VehicleTripDetailsModal';
 import { TransportScrollableTabs } from './TransportScrollableTabs';
 import { formatMorningTripTime, formatEveningTripTime } from './transportData';
 import { Pagination } from '../../common/Pagination';
+import { ValidatedSearchInput } from '../../common/ValidatedSearchInput';
 
 interface DriverTransportPortalViewProps {
   onNavigate?: (module: string) => void;
@@ -570,14 +571,12 @@ export const DriverTransportPortalView: React.FC<DriverTransportPortalViewProps>
         {activeTab === 'students' && (
           <div className="space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-2.5">
-              <div className="relative">
-                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="text"
+              <div className="w-56">
+                <ValidatedSearchInput
                   value={studentSearch}
-                  onChange={e => setStudentSearch(e.target.value)}
+                  onChange={val => setStudentSearch(val)}
                   placeholder="Search passenger..."
-                  className="pl-8 pr-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-sky-200 dark:border-sky-800 text-xs font-bold text-slate-900 dark:text-white outline-none w-52"
+                  maxLength={30}
                 />
               </div>
 

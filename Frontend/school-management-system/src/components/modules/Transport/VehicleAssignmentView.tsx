@@ -12,6 +12,7 @@ import { Badge } from '../../common/Badge';
 import { ExportButton } from '../../common/ExportButton';
 import { ConfirmModal } from '../../common/ConfirmModal';
 import { Pagination } from '../../common/Pagination';
+import { ValidatedSearchInput } from '../../common/ValidatedSearchInput';
 import { initialBusAttendants } from './BusAttendantMasterView';
 import { VehicleTripDetailsModal } from './VehicleTripDetailsModal';
 import {
@@ -961,18 +962,16 @@ export const VehicleAssignmentView: React.FC = () => {
         </button>
       </div>
 
-      <div className="glass-card p-3.5 rounded-2xl flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 w-full border border-slate-200/80 dark:border-slate-800">
-        <div className="relative flex-1 sm:max-w-xs">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-          <input
-            type="text"
+      <div className="glass-card p-3.5 rounded-2xl flex flex-col sm:flex-row items-stretch sm:items-start justify-between gap-3 w-full border border-slate-200/80 dark:border-slate-800">
+        <div className="flex-1 sm:max-w-xs">
+          <ValidatedSearchInput
             placeholder="Search by vehicle, driver, attendant, or route..."
             value={query}
-            onChange={e => {
-              setQuery(e.target.value);
+            onChange={val => {
+              setQuery(val);
               setCurrentPage(1);
             }}
-            className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-xs text-slate-900 dark:text-white outline-none focus:border-sky-500 transition-colors"
+            maxLength={30}
           />
         </div>
 
