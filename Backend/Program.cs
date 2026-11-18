@@ -491,6 +491,7 @@ using (var scope = app.Services.CreateScope())
                         `CompanyName` varchar(200) NOT NULL,
                         `Tagline` varchar(300) NULL,
                         `LogoUrl` longtext NULL,
+                        `Address` varchar(500) NULL,
                         `SupportEmail` varchar(150) NULL,
                         `SupportPhone` varchar(50) NULL,
                         `WebsiteUrl` varchar(250) NULL,
@@ -499,6 +500,15 @@ using (var scope = app.Services.CreateScope())
                         PRIMARY KEY (`Id`)
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
                 ");
+
+                try
+                {
+                    context.Database.ExecuteSqlRaw(@"
+                        ALTER TABLE `platform_company_profile` 
+                        ADD COLUMN `Address` varchar(500) NULL;
+                    ");
+                }
+                catch { }
 
                 context.Database.ExecuteSqlRaw(@"
                     CREATE TABLE IF NOT EXISTS `subscription_packages` (

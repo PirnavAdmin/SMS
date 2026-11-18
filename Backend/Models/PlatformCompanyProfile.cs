@@ -19,6 +19,9 @@ namespace SMS.Api.Models
 
         public string LogoUrl { get; set; } = string.Empty;
 
+        [MaxLength(500)]
+        public string Address { get; set; } = string.Empty;
+
         [MaxLength(150)]
         public string SupportEmail { get; set; } = string.Empty;
 

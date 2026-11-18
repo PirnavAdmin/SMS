@@ -248,6 +248,7 @@ public class SuperAdminRepository : ISuperAdminRepository
             CompanyName = string.Empty,
             Tagline = string.Empty,
             LogoUrl = string.Empty,
+            Address = string.Empty,
             SupportEmail = string.Empty,
             SupportPhone = string.Empty,
             WebsiteUrl = string.Empty,
@@ -275,6 +276,7 @@ public class SuperAdminRepository : ISuperAdminRepository
             existing.CompanyName = profile.CompanyName?.Trim() ?? string.Empty;
             existing.Tagline = profile.Tagline?.Trim() ?? string.Empty;
             existing.LogoUrl = profile.LogoUrl?.Trim() ?? string.Empty;
+            existing.Address = profile.Address?.Trim() ?? string.Empty;
             existing.SupportEmail = profile.SupportEmail?.Trim() ?? string.Empty;
             existing.SupportPhone = profile.SupportPhone?.Trim() ?? string.Empty;
             existing.WebsiteUrl = profile.WebsiteUrl?.Trim() ?? string.Empty;

@@ -294,6 +294,7 @@ public class PlatformCompanyProfileDto
     public string CompanyName { get; set; } = string.Empty;
     public string Tagline { get; set; } = string.Empty;
     public string LogoUrl { get; set; } = string.Empty;
+    public string Address { get; set; } = string.Empty;
     public string SupportEmail { get; set; } = string.Empty;
     public string SupportPhone { get; set; } = string.Empty;
     public string WebsiteUrl { get; set; } = string.Empty;
