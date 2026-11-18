@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   GraduationCap,
   ArrowRight,
@@ -29,14 +29,18 @@ import {
   Globe,
   Check,
   Star,
-  Eye,
-  Image as ImageIcon,
   CheckCircle,
   Sun,
-  Moon
+  Moon,
+  Zap,
+  Layers,
+  HardDrive,
+  Eye,
+  Image as ImageIcon
 } from 'lucide-react';
 import { fetchSchoolSettingsApi } from '../../../api/settings';
 import { fetchNotificationsApi } from '../../../api/communication';
+import { PackagePlan, fetchPackagesApi } from '../../../api/superadmin';
 import { useTheme } from '../../../context/ThemeContext';
 import { applySchoolBranding } from '../../../utils/brandingUtils';
 import { resolveMediaUrl } from '../../../utils/mediaUtils';
@@ -160,9 +164,81 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
   const { isDarkMode, toggleDarkMode } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'all' | 'academic' | 'management' | 'campus'>('all');
-  const [activeGalleryTab, setActiveGalleryTab] = useState<'all' | 'classrooms' | 'labs' | 'sports' | 'library'>('all');
-  const [selectedPhoto, setSelectedPhoto] = useState<{ url: string; title: string; desc: string } | null>(null);
   const [heroConsoleTab, setHeroConsoleTab] = useState<'admin' | 'teacher' | 'parent'>('admin');
+
+  // Subscriptions & SaaS Packages (Loaded dynamically from Super Admin database)
+  const [packages, setPackages] = useState<PackagePlan[]>(() => {
+    try {
+      const cached = localStorage.getItem('cached_subscription_packages');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return [];
+  });
+  const [loadingPackages, setLoadingPackages] = useState<boolean>(false);
+  const [subscriptionBillingCycle, setSubscriptionBillingCycle] = useState<'Monthly' | 'Yearly'>('Yearly');
+
+  // Load live packages configured by Super Admin from backend & database
+  useEffect(() => {
+    let isMounted = true;
+    const loadPackages = async () => {
+      try {
+        setLoadingPackages(true);
+        const data = await fetchPackagesApi();
+        if (isMounted) {
+          const list = Array.isArray(data) ? data : [];
+          setPackages(list);
+          try {
+            localStorage.setItem('cached_subscription_packages', JSON.stringify(list));
+          } catch {}
+        }
+      } catch (err) {
+        console.warn('Could not fetch Super Admin packages for landing view:', err);
+      } finally {
+        if (isMounted) setLoadingPackages(false);
+      }
+    };
+
+    loadPackages();
+
+    const handlePackagesUpdated = (e: any) => {
+      if (e?.detail && Array.isArray(e.detail)) {
+        setPackages(e.detail);
+      } else {
+        loadPackages();
+      }
+    };
+
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'cached_subscription_packages' && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue);
+          if (Array.isArray(parsed)) {
+            setPackages(parsed);
+          }
+        } catch {}
+      }
+    };
+
+    window.addEventListener('packages_updated', handlePackagesUpdated);
+    window.addEventListener('storage', handleStorageChange);
+    return () => {
+      isMounted = false;
+      window.removeEventListener('packages_updated', handlePackagesUpdated);
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, []);
+
+  const activePackages = useMemo(() => {
+    const list = Array.isArray(packages) ? packages : [];
+    return list.filter(p => !p.status || p.status.toLowerCase() === 'active');
+  }, [packages]);
+
+  const activeFeaturedPlan = useMemo(() => {
+    return activePackages.find(p => p.isPopular) || activePackages[0] || null;
+  }, [activePackages]);
 
   // School Campus Backdrop Image
   const bgCampusImage = 'https://images.unsplash.com/photo-1541339907198-e08756dedf3f?q=80&w=2000&auto=format&fit=crop';
@@ -186,9 +262,9 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
     {
       id: 1,
       date: 'SEP 10, 2026',
-      badge: 'Admissions',
-      title: 'Admissions Open',
-      desc: 'Applications are now open for Pre-Primary to Senior Secondary classes. Schedule a campus visit today.',
+      badge: 'Academic ERP',
+      title: 'New Academic Session Active',
+      desc: 'Academic session schedules, student section allocations, and digital fee structures are now active.',
     },
     {
       id: 2,
@@ -347,61 +423,11 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
   ];
 
   const stats = [
-    { label: 'Active Students', target: 2500, suffix: '+', icon: Users, desc: 'Enrolled across Pre-K to Grade 12', autoIncrement: false },
+    { label: 'Active Students', target: 2500, suffix: '+', icon: Users, desc: 'Managed across active campuses', autoIncrement: false },
     { label: 'Certified Faculty', target: 150, suffix: '+', icon: Award, desc: 'Dedicated educators & specialists', autoIncrement: false },
     { label: 'Academic Excellence', target: 99.2, decimals: 1, suffix: '%', icon: Sparkles, desc: 'Board examination pass rate', autoIncrement: false },
     { label: 'Smart Campus ERP', target: 100, suffix: '%', icon: CheckCircle2, desc: 'Fully synchronized digital workflow', autoIncrement: false },
   ];
-
-  // School Photo Gallery Showcase Items
-  const campusGallery = [
-    {
-      category: 'classrooms',
-      title: 'Interactive Smart Board Classrooms',
-      desc: 'Digitally enabled classrooms equipped with touch panels, high-speed Wi-Fi, and ergonomic learning spaces.',
-      image: 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?q=80&w=1000&auto=format&fit=crop',
-      badge: 'Digital Learning'
-    },
-    {
-      category: 'labs',
-      title: 'Advanced Science & STEM Robotics Lab',
-      desc: 'State-of-the-art physics, chemistry, biology, and robotics laboratories for practical hands-on discovery.',
-      image: 'https://images.unsplash.com/photo-1562774053-701939374585?q=80&w=1000&auto=format&fit=crop',
-      badge: 'STEM & Research'
-    },
-    {
-      category: 'sports',
-      title: 'Olympic-Standard Athletic Grounds',
-      desc: 'Spacious football field, basketball courts, swimming pool, and indoor sports arena for holistic fitness.',
-      image: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?q=80&w=1000&auto=format&fit=crop',
-      badge: 'Sports Complex'
-    },
-    {
-      category: 'library',
-      title: 'Central Digital Library & Study Commons',
-      desc: 'Over 25,000 physical volumes, research journals, e-book archives, and quiet study zones.',
-      image: 'https://images.unsplash.com/photo-1521587760476-6c12a4b040da?q=80&w=1000&auto=format&fit=crop',
-      badge: 'Knowledge Hub'
-    },
-    {
-      category: 'classrooms',
-      title: 'Early Years & Primary Activity Center',
-      desc: 'Vibrant activity rooms designed for early childhood cognitive development and creative expression.',
-      image: 'https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=1000&auto=format&fit=crop',
-      badge: 'Pre-Primary'
-    },
-    {
-      category: 'labs',
-      title: 'High-Tech Computer & AI Technology Center',
-      desc: 'Modern computer workstation suites supporting coding, artificial intelligence, and digital arts curricula.',
-      image: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?q=80&w=1000&auto=format&fit=crop',
-      badge: 'Computer Science'
-    },
-  ];
-
-  const filteredGallery = activeGalleryTab === 'all'
-    ? campusGallery
-    : campusGallery.filter(item => item.category === activeGalleryTab);
 
   const erpFeatures = [
     {
@@ -706,15 +732,17 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
             <button onClick={() => scrollToSection('hero')} className="hover:text-sky-400 transition-colors py-1.5">
               Home
             </button>
-            <button onClick={() => scrollToSection('campus-life')} className="hover:text-sky-400 transition-colors py-1.5">
-              Campus Gallery
-            </button>
             <button onClick={() => scrollToSection('portals')} className="hover:text-sky-400 transition-colors py-1.5">
               Portals
             </button>
             <button onClick={() => scrollToSection('features')} className="hover:text-sky-400 transition-colors py-1.5">
               ERP Features
             </button>
+            {activePackages.length > 0 && (
+              <button onClick={() => scrollToSection('subscriptions')} className="hover:text-sky-400 transition-colors py-1.5 flex items-center gap-1 text-sky-400 font-semibold">
+                <span>Subscriptions</span>
+              </button>
+            )}
             <button onClick={() => scrollToSection('notices')} className="hover:text-sky-400 transition-colors py-1.5">
               Notice Board
             </button>
@@ -775,12 +803,6 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
               Home
             </button>
             <button
-              onClick={() => scrollToSection('campus-life')}
-              className="block w-full text-left py-1.5 px-3 text-slate-200 font-medium hover:text-sky-400 hover:bg-slate-800/80 rounded-lg transition-colors text-xs"
-            >
-              Campus Gallery
-            </button>
-            <button
               onClick={() => scrollToSection('portals')}
               className="block w-full text-left py-1.5 px-3 text-slate-200 font-medium hover:text-sky-400 hover:bg-slate-800/80 rounded-lg transition-colors text-xs"
             >
@@ -792,6 +814,15 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
             >
               ERP Features
             </button>
+            {activePackages.length > 0 && (
+              <button
+                onClick={() => scrollToSection('subscriptions')}
+                className="block w-full text-left py-1.5 px-3 text-sky-400 font-semibold hover:bg-slate-800/80 rounded-lg transition-colors text-xs flex items-center justify-between"
+              >
+                <span>Subscriptions</span>
+                <span className="px-1.5 py-0.5 rounded text-[9px] font-black uppercase bg-sky-500/20 text-sky-300">SaaS</span>
+              </button>
+            )}
             <button
               onClick={() => scrollToSection('notices')}
               className="block w-full text-left py-1.5 px-3 text-slate-200 font-medium hover:text-sky-400 hover:bg-slate-800/80 rounded-lg transition-colors text-xs"
@@ -859,11 +890,11 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
                 </button>
 
                 <button
-                  onClick={() => scrollToSection('campus-life')}
+                  onClick={() => scrollToSection('portals')}
                   className="w-full sm:w-auto px-7 py-3.5 bg-white/90 dark:bg-slate-900/90 hover:bg-white dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 font-semibold rounded-xl text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  <ImageIcon className="w-4.5 h-4.5 text-sky-600 dark:text-sky-400" />
-                  <span>Explore Campus</span>
+                  <Lock className="w-4.5 h-4.5 text-sky-600 dark:text-sky-400" />
+                  <span>Role Portals</span>
                 </button>
               </div>
 
@@ -885,181 +916,174 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
 
             </div>
 
-            {/* Right Interactive Smart School ERP Live Console Card */}
+            {/* Right Showcase: Institutional Cloud ERP & Active Subscription Hub */}
             <div className="lg:col-span-5 relative">
               <div className="relative mx-auto max-w-md lg:max-w-none">
                 
-                <div className="relative rounded-2xl overflow-hidden border border-white/60 dark:border-slate-800/90 bg-white/85 dark:bg-slate-900/85 backdrop-blur-xl p-5 shadow-2xl space-y-4">
+                {/* Decorative Ambient Glow Orbs */}
+                <div className="absolute -top-8 -right-8 w-60 h-60 bg-sky-500/15 dark:bg-sky-500/25 rounded-full blur-3xl pointer-events-none" />
+                <div className="absolute -bottom-8 -left-8 w-52 h-52 bg-blue-600/15 dark:bg-indigo-600/25 rounded-full blur-3xl pointer-events-none" />
+
+                <div className="relative rounded-3xl overflow-hidden border border-white/80 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 backdrop-blur-2xl p-5 sm:p-6 shadow-2xl shadow-sky-500/10 space-y-4">
                   
-                  {/* Console Top Header */}
-                  <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-lg bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-600 dark:text-sky-400 font-bold">
-                        <GraduationCap className="w-4 h-4" />
+                  {/* Top Branding & Live Cloud Status Header */}
+                  <div className="flex items-center justify-between pb-3.5 border-b border-slate-200/80 dark:border-slate-800">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-sky-500 to-blue-600 text-white flex items-center justify-center shrink-0 shadow-md shadow-sky-500/20 font-black">
+                        {schoolInfo.logoUrl ? (
+                          <img
+                            src={resolveMediaUrl(schoolInfo.logoUrl)}
+                            alt="Logo"
+                            className="w-full h-full object-contain p-1 rounded-2xl"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = 'none';
+                            }}
+                          />
+                        ) : (
+                          <GraduationCap className="w-5 h-5 text-white" />
+                        )}
                       </div>
-                      <div>
-                        <h3 className="text-xs font-extrabold text-slate-900 dark:text-white truncate max-w-[220px]" title={`${schoolInfo.name} Live Console`}>
-                          {schoolInfo.name} Live Console
+                      <div className="min-w-0">
+                        <h3 className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white truncate" title={schoolInfo.name}>
+                          {schoolInfo.name || 'Campus ERP'}
                         </h3>
-                        <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Smart Campus Ecosystem</p>
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold flex items-center gap-1 truncate">
+                          <ShieldCheck className="w-3 h-3 text-emerald-500 shrink-0" />
+                          <span>Smart Campus Cloud ERP • 2026-27</span>
+                        </p>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400 animate-pulse" />
-                      <span>ONLINE</span>
+                    <div className="shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase tracking-wider">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping inline-block" />
+                      <span>Live Active</span>
                     </div>
                   </div>
 
-                  {/* Console Role Tabs */}
-                  <div className="grid grid-cols-3 gap-1.5 bg-slate-100/90 dark:bg-slate-950/80 p-1 rounded-xl border border-slate-200 dark:border-slate-800/80 text-[11px] font-bold">
-                    {[
-                      { id: 'admin', label: 'Admin' },
-                      { id: 'teacher', label: 'Teacher' },
-                      { id: 'parent', label: 'Parent' },
-                    ].map((tab) => (
+                  {/* Academic Session & ERP Cloud Spotlight Banner */}
+                  <div
+                    onClick={() => scrollToSection('features')}
+                    className="p-3.5 rounded-2xl bg-gradient-to-r from-sky-500/10 via-blue-500/5 to-indigo-500/10 border border-sky-500/20 hover:border-sky-500/40 cursor-pointer transition-all hover:scale-[1.01] group shadow-2xs"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                          <Sparkles className="w-4 h-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs font-extrabold text-slate-900 dark:text-white group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors truncate">
+                              Smart Campus Cloud (2026-27)
+                            </span>
+                            <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[9px] font-black uppercase tracking-wider border border-emerald-500/30 shrink-0">
+                              Active ERP
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
+                            Unified management across Academics, Attendance, Fees & Fleet
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="text-right shrink-0">
+                        <span className="text-[11px] font-bold text-sky-600 dark:text-sky-400 group-hover:underline flex items-center justify-end gap-1">
+                          Explore ERP <ArrowUpRight className="w-3 h-3" />
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 3 Interactive Campus Pulse Metric Cards */}
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="p-3 rounded-2xl bg-slate-50/90 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 hover:border-emerald-500/40 transition-all text-center space-y-1 group">
+                      <div className="w-7 h-7 mx-auto rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <UserCheck className="w-3.5 h-3.5" />
+                      </div>
+                      <div className="text-xs sm:text-sm font-black text-slate-900 dark:text-white tracking-tight">
+                        98.6%
+                      </div>
+                      <div className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 truncate">
+                        Attendance
+                      </div>
+                    </div>
+
+                    <div className="p-3 rounded-2xl bg-slate-50/90 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 hover:border-sky-500/40 transition-all text-center space-y-1 group">
+                      <div className="w-7 h-7 mx-auto rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <BookOpen className="w-3.5 h-3.5" />
+                      </div>
+                      <div className="text-xs sm:text-sm font-black text-slate-900 dark:text-white tracking-tight">
+                        42 Live
+                      </div>
+                      <div className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 truncate">
+                        Classrooms
+                      </div>
+                    </div>
+
+                    <div className="p-3 rounded-2xl bg-slate-50/90 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 hover:border-indigo-500/40 transition-all text-center space-y-1 group">
+                      <div className="w-7 h-7 mx-auto rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <Bus className="w-3.5 h-3.5" />
+                      </div>
+                      <div className="text-xs sm:text-sm font-black text-slate-900 dark:text-white tracking-tight">
+                        18 Buses
+                      </div>
+                      <div className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 truncate">
+                        GPS Active
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Direct Role Portal Launchpad Buttons */}
+                  <div className="space-y-1.5 pt-1">
+                    <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 dark:text-slate-400 px-0.5">
+                      <span>Quick Portal Access</span>
+                      <span className="text-[10px] text-sky-600 dark:text-sky-400">1-Click Launch</span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-xs">
                       <button
-                        key={tab.id}
-                        onClick={() => setHeroConsoleTab(tab.id as any)}
-                        className={`py-1.5 rounded-lg text-center transition-all ${
-                          heroConsoleTab === tab.id
-                            ? 'bg-sky-500 text-white shadow-md'
-                            : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-                        }`}
+                        onClick={() => onLoginClick('Admin')}
+                        className="p-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 text-amber-800 dark:text-amber-300 font-bold flex items-center gap-2 transition-all hover:scale-[1.02] text-left cursor-pointer"
                       >
-                        {tab.label}
+                        <ShieldCheck className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                        <span className="truncate">Administrator</span>
                       </button>
-                    ))}
-                  </div>
 
-                  {/* Console Live Content Panel */}
-                  <div className="space-y-3 pt-1">
-                    
-                    {heroConsoleTab === 'admin' && (
-                      <div className="space-y-2.5">
-                        <div className="p-3 rounded-xl bg-white/70 dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-                              <UserCheck className="w-3.5 h-3.5" />
-                            </div>
-                            <div>
-                              <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Daily Attendance</div>
-                              <div className="text-xs font-extrabold text-slate-900 dark:text-white">98.6% Checked In</div>
-                            </div>
-                          </div>
-                          <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md">
-                            2,465 / 2,500
-                          </span>
-                        </div>
+                      <button
+                        onClick={() => onLoginClick('Faculty')}
+                        className="p-2.5 rounded-xl bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/20 text-sky-800 dark:text-sky-300 font-bold flex items-center gap-2 transition-all hover:scale-[1.02] text-left cursor-pointer"
+                      >
+                        <GraduationCap className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+                        <span className="truncate">Teacher & Faculty</span>
+                      </button>
 
-                        <div className="p-3 rounded-xl bg-white/70 dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-7 h-7 rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center">
-                              <Building2 className="w-3.5 h-3.5" />
-                            </div>
-                            <div>
-                              <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Active Class Sessions</div>
-                              <div className="text-xs font-extrabold text-slate-900 dark:text-white">42 Classes Live</div>
-                            </div>
-                          </div>
-                          <span className="text-[10px] font-bold text-sky-600 dark:text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded-md">
-                            In Session
-                          </span>
-                        </div>
+                      <button
+                        onClick={() => onLoginClick('Student')}
+                        className="p-2.5 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 text-purple-800 dark:text-purple-300 font-bold flex items-center gap-2 transition-all hover:scale-[1.02] text-left cursor-pointer"
+                      >
+                        <BookOpen className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+                        <span className="truncate">Student</span>
+                      </button>
 
-                        <div className="p-3 rounded-xl bg-white/70 dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-7 h-7 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
-                              <Bus className="w-3.5 h-3.5" />
-                            </div>
-                            <div>
-                              <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">School Bus Fleet</div>
-                              <div className="text-xs font-extrabold text-slate-900 dark:text-white">18 GPS Vehicles Active</div>
-                            </div>
-                          </div>
-                          <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-md">
-                            Tracked
-                          </span>
-                        </div>
-                      </div>
-                    )}
-
-                    {heroConsoleTab === 'teacher' && (
-                      <div className="space-y-2.5">
-                        <div className="p-3 rounded-xl bg-white/70 dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-7 h-7 rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center">
-                              <BookOpen className="w-3.5 h-3.5" />
-                            </div>
-                            <div>
-                              <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Current Period</div>
-                              <div className="text-xs font-extrabold text-slate-900 dark:text-white">Physics - Grade 10-A</div>
-                            </div>
-                          </div>
-                          <span className="text-[10px] font-bold text-sky-600 dark:text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded-md">
-                            Room 204
-                          </span>
-                        </div>
-
-                        <div className="p-3 rounded-xl bg-white/70 dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-7 h-7 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center">
-                              <Award className="w-3.5 h-3.5" />
-                            </div>
-                            <div>
-                              <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Pending Marks Entry</div>
-                              <div className="text-xs font-extrabold text-slate-900 dark:text-white">Mid-Term Board Scores</div>
-                            </div>
-                          </div>
-                          <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-md">
-                            3 Classes
-                          </span>
-                        </div>
-                      </div>
-                    )}
-
-                    {heroConsoleTab === 'parent' && (
-                      <div className="space-y-2.5">
-                        <div className="p-3 rounded-xl bg-white/70 dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-                              <CheckCircle className="w-3.5 h-3.5" />
-                            </div>
-                            <div>
-                              <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Child Attendance</div>
-                              <div className="text-xs font-extrabold text-slate-900 dark:text-white">Present Today (8:15 AM)</div>
-                            </div>
-                          </div>
-                          <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md">
-                            Verified
-                          </span>
-                        </div>
-
-                        <div className="p-3 rounded-xl bg-white/70 dark:bg-slate-900/90 border border-slate-200/80 dark:border-slate-800 flex items-center justify-between">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-7 h-7 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
-                              <Bus className="w-3.5 h-3.5" />
-                            </div>
-                            <div>
-                              <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">School Bus Route #4</div>
-                              <div className="text-xs font-extrabold text-slate-900 dark:text-white">2.4 km from Home Stop</div>
-                            </div>
-                          </div>
-                          <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-md">
-                            En Route
-                          </span>
-                        </div>
-                      </div>
-                    )}
-
-                  </div>
-
-                  {/* Console Footer */}
-                  <div className="pt-2 border-t border-slate-200 dark:border-slate-800/80 flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-600 dark:text-slate-400">
-                      <Sparkles className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
-                      <span>Multi-Role Sign In</span>
+                      <button
+                        onClick={() => onLoginClick('Parent')}
+                        className="p-2.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-800 dark:text-emerald-300 font-bold flex items-center gap-2 transition-all hover:scale-[1.02] text-left cursor-pointer"
+                      >
+                        <HeartHandshake className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        <span className="truncate">Parent & Guardian</span>
+                      </button>
                     </div>
+                  </div>
+
+                  {/* Card Bottom CTA */}
+                  <div className="pt-2.5 border-t border-slate-200/80 dark:border-slate-800 flex items-center justify-center">
+                    <button
+                      onClick={() => scrollToSection(activePackages.length > 0 ? 'subscriptions' : 'features')}
+                      className="text-xs font-bold text-sky-600 dark:text-sky-400 hover:text-sky-700 dark:hover:text-sky-300 hover:underline flex items-center gap-1.5 cursor-pointer py-1 transition-colors"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-sky-500" />
+                      <span>{activePackages.length > 0 ? 'View Subscription Plans' : 'Explore ERP Modules'}</span>
+                      <ArrowRight className="w-3 h-3 text-sky-500" />
+                    </button>
                   </div>
 
                 </div>
@@ -1101,84 +1125,6 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
                 </div>
               );
             })}
-          </div>
-        </section>
-
-        {/* Campus Life & School Infrastructure Gallery Section */}
-        <section id="campus-life" className="py-6 sm:py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-          <div className="text-center max-w-3xl mx-auto mb-4 space-y-1.5">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-700 dark:text-violet-300 text-xs font-semibold backdrop-blur-md bg-white/60 dark:bg-slate-900/60">
-              <ImageIcon className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400" /> Campus Infrastructure & Life
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-              World-Class School Campus & Facilities
-            </h2>
-            <p className="text-slate-700 dark:text-slate-300 text-xs sm:text-sm font-medium">
-              Explore our state-of-the-art classrooms, advanced STEM laboratories, athletic complexes, and modern learning spaces.
-            </p>
-          </div>
-
-          {/* Gallery Filter Tabs */}
-          <div className="flex flex-wrap items-center justify-center gap-2 mb-4">
-            {[
-              { id: 'all', label: 'All Campus View' },
-              { id: 'classrooms', label: 'Smart Classrooms' },
-              { id: 'labs', label: 'STEM & Science Labs' },
-              { id: 'sports', label: 'Sports Complex' },
-              { id: 'library', label: 'Library & Commons' },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveGalleryTab(tab.id as any)}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${
-                  activeGalleryTab === tab.id
-                    ? 'bg-sky-500 text-white shadow-md shadow-sky-500/25'
-                    : 'bg-white/80 dark:bg-slate-900/80 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-slate-800 backdrop-blur-md'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Gallery Photo Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {filteredGallery.map((item, idx) => (
-              <div
-                key={idx}
-                onClick={() => setSelectedPhoto({ url: item.image, title: item.title, desc: item.desc })}
-                className="group relative rounded-2xl overflow-hidden bg-white/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800/80 hover:border-sky-500/50 transition-all duration-300 cursor-pointer shadow-lg backdrop-blur-md"
-              >
-                <div className="aspect-[4/3] w-full overflow-hidden relative">
-                  <img
-                    src={item.image}
-                    alt={item.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-95 group-hover:opacity-100"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent opacity-80 group-hover:opacity-90 transition-opacity" />
-                  
-                  {/* Category Badge top left */}
-                  <div className="absolute top-3 left-3 bg-slate-950/80 backdrop-blur-md border border-slate-700/60 px-2.5 py-0.5 rounded-full text-[10px] font-bold text-sky-400">
-                    {item.badge}
-                  </div>
-
-                  {/* Hover Quick View Icon */}
-                  <div className="absolute top-3 right-3 w-7 h-7 rounded-full bg-slate-950/80 backdrop-blur-md border border-slate-700/60 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Eye className="w-3.5 h-3.5 text-sky-400" />
-                  </div>
-
-                  {/* Card Title & Desc Bottom Overlay */}
-                  <div className="absolute bottom-0 left-0 right-0 p-4 space-y-0.5 text-left">
-                    <h3 className="text-sm font-bold text-white group-hover:text-sky-300 transition-colors">
-                      {item.title}
-                    </h3>
-                    <p className="text-xs text-slate-300 line-clamp-2 leading-relaxed">
-                      {item.desc}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ))}
           </div>
         </section>
 
@@ -1280,7 +1226,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
           onMouseLeave={() => setIsModuleHovered(false)}
           onTouchStart={() => setIsModuleHovered(true)}
           onTouchEnd={() => setIsModuleHovered(false)}
-          className="py-6 sm:py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-slate-200/60 dark:border-slate-800/60"
+          className="pt-6 sm:pt-8 pb-2 sm:pb-3 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-slate-200/60 dark:border-slate-800/60"
         >
           <div className="text-center max-w-3xl mx-auto mb-4 space-y-1.5">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-700 dark:text-sky-300 text-xs font-semibold backdrop-blur-md bg-white/60 dark:bg-slate-900/60">
@@ -1361,6 +1307,184 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
             </div>
           )}
         </section>
+
+        {/* ========================================================= */}
+        {/* Institutional Subscriptions & SaaS Packages Section */}
+        {/* Reflects live packages configured in Super Admin */}
+        {/* ========================================================= */}
+        {activePackages.length > 0 && (
+          <section id="subscriptions" className="pt-3 sm:pt-5 pb-8 sm:pb-10 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-slate-200/60 dark:border-slate-800/60 relative">
+            <div className="text-center max-w-3xl mx-auto space-y-2 mb-4 sm:mb-6">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-700 dark:text-sky-300 text-xs font-bold backdrop-blur-md">
+                <Sparkles className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
+                <span>Institutional Subscription Plans</span>
+              </div>
+              
+              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                Flexible Subscription Plans for Every Institution
+              </h2>
+              
+              <p className="text-slate-600 dark:text-slate-400 text-xs sm:text-sm font-medium leading-relaxed">
+                Transparent, scalable subscription tiers designed to empower standalone academies, growing campuses, and multi-branch educational trusts.
+              </p>
+
+              {/* Monthly / Yearly Billing Switcher */}
+              <div className="pt-1 flex items-center justify-center gap-2">
+                <div className="inline-flex items-center p-1 rounded-2xl bg-slate-200/80 dark:bg-slate-800/80 border border-slate-300/80 dark:border-slate-700/80 shadow-inner">
+                  <button
+                    onClick={() => setSubscriptionBillingCycle('Monthly')}
+                    className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      subscriptionBillingCycle === 'Monthly'
+                        ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    Monthly Billing
+                  </button>
+                  <button
+                    onClick={() => setSubscriptionBillingCycle('Yearly')}
+                    className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                      subscriptionBillingCycle === 'Yearly'
+                        ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    <span>Yearly Billing</span>
+                    <span className="px-1.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase tracking-wider">
+                      Save 20%
+                    </span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Subscription Plans Cards Grid */}
+            <div className={`grid grid-cols-1 ${
+              activePackages.length === 1
+                ? 'max-w-sm mx-auto'
+                : activePackages.length === 2
+                  ? 'md:grid-cols-2 max-w-3xl mx-auto'
+                  : 'md:grid-cols-2 lg:grid-cols-3 max-w-6xl mx-auto'
+            } gap-4 sm:gap-5 items-stretch`}>
+              {activePackages.map((pkg) => {
+                const isPopular = pkg.isPopular;
+                const isMonthly = subscriptionBillingCycle === 'Monthly';
+                const price = isMonthly
+                  ? (pkg.monthlyPrice > 0 ? pkg.monthlyPrice : Math.round(pkg.yearlyPrice / 12))
+                  : (pkg.yearlyPrice > 0 ? pkg.yearlyPrice : pkg.monthlyPrice * 12);
+                const cycleLabel = isMonthly ? '/month' : '/yearly';
+
+                return (
+                  <div
+                    key={pkg.id || pkg.name}
+                    className={`relative rounded-2xl p-4 sm:p-5 flex flex-col justify-between transition-all duration-300 hover:scale-[1.01] backdrop-blur-xl ${
+                      isPopular
+                        ? 'bg-white/95 dark:bg-slate-900/95 border-2 border-sky-500 shadow-xl shadow-sky-500/10 ring-2 ring-sky-500/10'
+                        : 'bg-white/80 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800 shadow-md'
+                    }`}
+                  >
+                    {isPopular && (
+                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full bg-sky-600 text-white text-[9px] font-black uppercase tracking-wider shadow-sm flex items-center gap-1">
+                        <Star className="w-3 h-3 fill-current" />
+                        <span>MOST POPULAR</span>
+                      </div>
+                    )}
+
+                    <div className="space-y-3">
+                      <div>
+                        <div className="flex items-center justify-between gap-2 mb-0.5">
+                          <h3 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">{pkg.name}</h3>
+                          <span className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                            {pkg.status || 'Active'}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium leading-normal">
+                          {pkg.tagline || 'Institutional SaaS Tier'}
+                        </p>
+                      </div>
+
+                      {/* Price Block */}
+                      <div className="py-2 border-y border-slate-100 dark:border-slate-800/80">
+                        <div className="flex items-baseline gap-1.5">
+                          <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
+                            ₹{Number(price).toLocaleString('en-IN')}
+                          </span>
+                          <span className="text-xs text-slate-500 dark:text-slate-400 font-bold">{cycleLabel}</span>
+                        </div>
+                        {subscriptionBillingCycle === 'Yearly' && pkg.monthlyPrice > 0 && (
+                          <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold mt-0.5">
+                            Includes ~20% annual discount
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Capacity Specs Grid */}
+                      <div className="grid grid-cols-2 gap-1.5 text-[11px] py-0.5">
+                        <div className="py-1.5 px-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 flex items-center gap-1.5">
+                          <Users className="w-3.5 h-3.5 text-sky-500 shrink-0" />
+                          <span className="font-bold text-slate-800 dark:text-slate-200 truncate">
+                            {pkg.maxStudents > 0 ? `${pkg.maxStudents.toLocaleString()} Students` : 'Unlimited Students'}
+                          </span>
+                        </div>
+
+                        <div className="py-1.5 px-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 flex items-center gap-1.5">
+                          <Building2 className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                          <span className="font-bold text-slate-800 dark:text-slate-200 truncate">
+                            {pkg.maxBranches > 1 ? `${pkg.maxBranches} Branches` : (pkg.maxBranches === 1 ? '1 Campus' : 'Unlimited Campuses')}
+                          </span>
+                        </div>
+
+                        <div className="py-1.5 px-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 flex items-center gap-1.5">
+                          <Briefcase className="w-3.5 h-3.5 text-purple-500 shrink-0" />
+                          <span className="font-bold text-slate-800 dark:text-slate-200 truncate">
+                            {pkg.maxStaff > 0 ? `${pkg.maxStaff} Staff` : 'Unlimited Staff'}
+                          </span>
+                        </div>
+
+                        <div className="py-1.5 px-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60 flex items-center gap-1.5">
+                          <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                          <span className="font-bold text-slate-800 dark:text-slate-200 truncate">
+                            {pkg.storageGb ? `${pkg.storageGb} GB Cloud` : 'Cloud Storage'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Features List */}
+                      <div className="space-y-1.5 pt-1">
+                        <div className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1">
+                          Included Modules & Capabilities
+                        </div>
+                        <ul className="space-y-1.5">
+                          {pkg.features?.map((feat, idx) => (
+                            <li key={idx} className="flex items-start gap-1.5 text-[11px] sm:text-xs text-slate-700 dark:text-slate-300 font-medium">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
+                              <span className="leading-snug">{feat}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+
+                    {/* Plan CTA */}
+                    <div className="pt-3 mt-4 border-t border-slate-100 dark:border-slate-800/80">
+                      <button
+                        onClick={() => onLoginClick()}
+                        className={`w-full py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-md cursor-pointer active:scale-98 ${
+                          isPopular
+                            ? 'btn-glass-primary text-white shadow-sky-500/25'
+                            : 'bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900'
+                        }`}
+                      >
+                        <span>Choose {pkg.name}</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         {/* Dynamic Notice Board & Announcements */}
         <section id="notices" className="py-6 sm:py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-slate-200/60 dark:border-slate-800/60">
@@ -1465,50 +1589,51 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
           </div>
         </section>
 
-        {/* Institutional Mission Banner */}
+        {/* Enterprise Cloud ERP Architecture Banner */}
         <section className="py-6 sm:py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-slate-200/60 dark:border-slate-800/60">
           <div className="bg-white/80 dark:bg-slate-900/85 border border-white/60 dark:border-slate-800 rounded-2xl p-5 sm:p-6 relative overflow-hidden shadow-xl backdrop-blur-xl">
             <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-6 items-center">
               
               <div className="space-y-3">
-                <span className="text-[11px] font-extrabold uppercase tracking-widest text-sky-600 dark:text-sky-400">Institutional Heritage</span>
+                <span className="text-[11px] font-extrabold uppercase tracking-widest text-sky-600 dark:text-sky-400">Enterprise Cloud Architecture</span>
                 <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white tracking-tight">
-                  Nurturing Character & Academic Excellence
+                  Empowering Modern Educational Campuses
                 </h2>
                 <p className="text-slate-700 dark:text-slate-300 text-xs sm:text-sm leading-relaxed font-medium">
-                  At {schoolInfo.name || 'our Institution'}, our mission extends beyond textbook learning. We foster critical thinking, athletic resilience, ethical leadership, and technological literacy in every student.
+                  {schoolInfo.name ? `${schoolInfo.name} is powered by our Smart Campus Cloud ERP.` : 'Our School Management ERP empowers institutions with unified cloud operations.'} Scale administrative efficiency, automate student lifecycles, and unify academics, finance, and transport on one intelligent cloud platform.
                 </p>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
                   <div className="flex items-center gap-2 text-xs font-semibold text-slate-800 dark:text-slate-200">
-                    <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" /> STEM & Robotics Innovation Labs
+                    <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" /> Multi-Branch & Tenant Isolation
                   </div>
                   <div className="flex items-center gap-2 text-xs font-semibold text-slate-800 dark:text-slate-200">
-                    <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" /> Sports & Athletic Coaching
+                    <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" /> Automated Billing & Digital Receipts
                   </div>
                   <div className="flex items-center gap-2 text-xs font-semibold text-slate-800 dark:text-slate-200">
-                    <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" /> Interactive Digital Classrooms
+                    <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" /> Real-Time Transit & Live Fleet GPS
                   </div>
                   <div className="flex items-center gap-2 text-xs font-semibold text-slate-800 dark:text-slate-200">
-                    <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" /> Dedicated Student Guidance
+                    <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" /> Role-Based Granular Access Control
                   </div>
                 </div>
               </div>
 
               <div className="flex justify-center lg:justify-end">
                 <div className="p-5 rounded-xl bg-white/90 dark:bg-slate-950/90 border border-slate-200 dark:border-slate-800 text-center max-w-sm space-y-3 shadow-xl w-full">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-sky-500 to-violet-600 mx-auto flex items-center justify-center text-white text-lg font-bold shadow-lg shadow-sky-500/30">
-                    <GraduationCap className="w-6 h-6" />
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 mx-auto flex items-center justify-center text-white text-lg font-bold shadow-lg shadow-sky-500/30">
+                    <Building2 className="w-6 h-6" />
                   </div>
                   <div>
-                    <h3 className="text-base font-bold text-slate-900 dark:text-white">Admissions Open 2026</h3>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Limited seats available for Pre-K through Grade 12.</p>
+                    <h3 className="text-base font-bold text-slate-900 dark:text-white">Smart Campus Cloud ERP</h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Scalable cloud tiers designed for standalone academies and growing multi-branch educational trusts.</p>
                   </div>
                   <button
-                    onClick={() => onLoginClick()}
-                    className="w-full py-2.5 bg-sky-500 hover:bg-sky-400 text-white font-bold rounded-xl text-xs shadow-lg shadow-sky-500/25 active:scale-95 transition-all"
+                    onClick={() => scrollToSection('subscriptions')}
+                    className="w-full py-2.5 bg-sky-500 hover:bg-sky-400 text-white font-bold rounded-xl text-xs shadow-lg shadow-sky-500/25 active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                   >
-                    Inquire & Apply Online
+                    <span>View Subscription Plans</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
@@ -1519,44 +1644,14 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
 
       </div>
 
-      {/* Photo Modal Preview Popup */}
-      {selectedPhoto && (
-        <div
-          className="fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4"
-          onClick={() => setSelectedPhoto(null)}
-        >
-          <div
-            className="relative bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden max-w-3xl w-full shadow-2xl animate-in zoom-in-95 duration-200"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              onClick={() => setSelectedPhoto(null)}
-              className="absolute top-3.5 right-3.5 z-10 w-8 h-8 rounded-full bg-slate-950/80 text-slate-300 hover:text-white border border-slate-700 flex items-center justify-center"
-            >
-              <X className="w-4 h-4" />
-            </button>
-
-            <img
-              src={selectedPhoto.url}
-              alt={selectedPhoto.title}
-              className="w-full h-64 sm:h-80 object-cover"
-            />
-            <div className="p-5 space-y-1.5">
-              <h3 className="text-lg font-bold text-slate-900 dark:text-white">{selectedPhoto.title}</h3>
-              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">{selectedPhoto.desc}</p>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Compact Dynamic Footer Section */}
-      <footer id="contact" className="relative z-10 border-t border-slate-800/90 bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur-xl pt-4 pb-3 px-4 sm:px-6 lg:px-8 text-slate-300 dark:text-slate-400">
-        <div className="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 lg:gap-6">
+      <footer id="contact" className="relative z-10 border-t border-slate-800/90 bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur-xl pt-8 pb-5 px-4 sm:px-6 lg:px-8 text-slate-300 dark:text-slate-400">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-12 gap-8 lg:gap-12 items-start">
           
-          {/* Dynamic Institution Contact Info (Direct Logo without background box) */}
-          <div className="sm:col-span-2 space-y-1.5">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 sm:w-8 sm:h-8 shrink-0 flex items-center justify-center">
+          {/* Dynamic Institution Contact Info */}
+          <div className="md:col-span-6 lg:col-span-6 space-y-3">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 shrink-0 flex items-center justify-center">
                 {schoolInfo.logoUrl ? (
                   <img
                     src={resolveMediaUrl(schoolInfo.logoUrl)}
@@ -1567,130 +1662,126 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
                     }}
                   />
                 ) : (
-                  <GraduationCap className="w-5 h-5 text-sky-400" />
+                  <GraduationCap className="w-6 h-6 text-sky-400" />
                 )}
               </div>
-              <span className="font-extrabold text-sm sm:text-base text-white tracking-tight">
-                {schoolInfo.name || 'Educational Institutions'}
-              </span>
+              <div>
+                <span className="font-extrabold text-base text-white tracking-tight">
+                  {schoolInfo.name || 'Educational Institutions'}
+                </span>
+                <span className="block text-[11px] font-semibold text-sky-400/90">
+                  {schoolInfo.affiliation || 'Smart Campus Cloud ERP'}
+                </span>
+              </div>
             </div>
 
-            <p className="text-slate-400 text-xs leading-relaxed max-w-sm">
+            <p className="text-slate-400 text-xs leading-relaxed max-w-lg">
               {schoolInfo.tagline || 'Empowering Minds, Shaping Tomorrow'}
             </p>
 
-            {/* Dynamic Address & Contact */}
-            <div className="pt-1 text-xs text-slate-300 space-y-1.5">
-              <div className="flex items-center gap-2" title="School Location / Address">
-                <MapPin className="w-3.5 h-3.5 text-sky-400 shrink-0" aria-label="School Location Icon" />
-                <span className="text-slate-300">{schoolInfo.address || ''}</span>
-              </div>
+            {/* Dynamic Address & Contact Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-xs text-slate-300">
+              {schoolInfo.address && (
+                <div className="sm:col-span-2 flex items-center gap-2" title="School Location / Address">
+                  <MapPin className="w-3.5 h-3.5 text-sky-400 shrink-0" aria-label="School Location Icon" />
+                  <span className="text-slate-300 truncate">{schoolInfo.address}</span>
+                </div>
+              )}
               <div className="flex items-center gap-2" title="School Contact Phone">
                 <Phone className="w-3.5 h-3.5 text-sky-400 shrink-0" aria-label="School Phone Icon" />
                 <span className="text-slate-300">{schoolInfo.phone || '+91 98765 43210'}</span>
               </div>
               <div className="flex items-center gap-2" title="School Contact Email">
                 <Mail className="w-3.5 h-3.5 text-sky-400 shrink-0" aria-label="School Email Icon" />
-                <span className="text-slate-300">{schoolInfo.email || 'contact@pirnavschool.edu.in'}</span>
+                <span className="text-slate-300 truncate">{schoolInfo.email || 'contact@pirnavschool.edu.in'}</span>
               </div>
-              <div className="flex items-center gap-2" title="School Official Website">
+              <div className="sm:col-span-2 flex items-center gap-2" title="School Official Website">
                 <Globe className="w-3.5 h-3.5 text-sky-400 shrink-0" aria-label="School Website Icon" />
-                <span className="text-slate-300">{schoolInfo.website || 'www.pirnavschool.edu.in'}</span>
+                <span className="text-slate-300 truncate">{schoolInfo.website || 'www.pirnavschool.edu.in'}</span>
               </div>
             </div>
           </div>
 
           {/* Quick Links */}
-          <div>
-            <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-2">Quick Links</h3>
-            <ul className="space-y-1.5 text-xs text-slate-400">
+          <div className="md:col-span-3 lg:col-span-3">
+            <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-3">Quick Navigation</h3>
+            <ul className="space-y-2 text-xs text-slate-400">
               <li>
-                <button onClick={() => scrollToSection('hero')} className="hover:text-sky-400 transition-colors">
-                  Home & Overview
+                <button onClick={() => scrollToSection('hero')} className="hover:text-sky-400 transition-colors cursor-pointer text-left flex items-center gap-1.5">
+                  <ChevronRight className="w-3 h-3 text-slate-500" />
+                  <span>Home & Overview</span>
                 </button>
               </li>
               <li>
-                <button onClick={() => scrollToSection('campus-life')} className="hover:text-sky-400 transition-colors">
-                  Campus Gallery
+                <button onClick={() => scrollToSection('features')} className="hover:text-sky-400 transition-colors cursor-pointer text-left flex items-center gap-1.5">
+                  <ChevronRight className="w-3 h-3 text-slate-500" />
+                  <span>ERP Features</span>
                 </button>
               </li>
               <li>
-                <button onClick={() => scrollToSection('portals')} className="hover:text-sky-400 transition-colors">
-                  Role Portals
+                <button onClick={() => scrollToSection('subscriptions')} className="hover:text-sky-400 transition-colors cursor-pointer text-left flex items-center gap-1.5">
+                  <ChevronRight className="w-3 h-3 text-slate-500" />
+                  <span>Subscription Plans</span>
                 </button>
               </li>
               <li>
-                <button onClick={() => scrollToSection('features')} className="hover:text-sky-400 transition-colors">
-                  ERP Features
-                </button>
-              </li>
-              <li>
-                <button onClick={() => scrollToSection('notices')} className="hover:text-sky-400 transition-colors">
-                  Notice Board
+                <button onClick={() => scrollToSection('notices')} className="hover:text-sky-400 transition-colors cursor-pointer text-left flex items-center gap-1.5">
+                  <ChevronRight className="w-3 h-3 text-slate-500" />
+                  <span>Notice Board</span>
                 </button>
               </li>
             </ul>
           </div>
 
           {/* User Portals */}
-          <div>
-            <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-2">Portal Sign In</h3>
-            <ul className="space-y-1.5 text-xs text-slate-400">
+          <div className="md:col-span-3 lg:col-span-3">
+            <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-3">Portal Access</h3>
+            <ul className="space-y-2 text-xs text-slate-400">
               <li>
-                <button onClick={() => onLoginClick('Super Admin')} className="hover:text-amber-400 text-slate-300 font-semibold transition-colors flex items-center gap-1">
-                  Super Administrator Portal
+                <button
+                  onClick={() => onLoginClick('Super Admin')}
+                  className="hover:text-amber-400 text-amber-300 font-semibold transition-colors flex items-center gap-1.5 cursor-pointer text-left group"
+                >
+                  <ChevronRight className="w-3 h-3 text-amber-500/70 group-hover:text-amber-400" />
+                  <span>Super Administrator Portal</span>
                 </button>
               </li>
               <li>
-                <button onClick={() => onLoginClick('Admin')} className="hover:text-sky-400 transition-colors">
-                  Administrator Portal
+                <button onClick={() => onLoginClick('Admin')} className="hover:text-sky-400 transition-colors cursor-pointer text-left flex items-center gap-1.5">
+                  <ChevronRight className="w-3 h-3 text-slate-500" />
+                  <span>Administrator Portal</span>
                 </button>
               </li>
               <li>
-                <button onClick={() => onLoginClick('Teacher')} className="hover:text-sky-400 transition-colors">
-                  Faculty & Teacher Portal
+                <button onClick={() => onLoginClick('Teacher')} className="hover:text-sky-400 transition-colors cursor-pointer text-left flex items-center gap-1.5">
+                  <ChevronRight className="w-3 h-3 text-slate-500" />
+                  <span>Faculty & Teacher Portal</span>
                 </button>
               </li>
               <li>
-                <button onClick={() => onLoginClick('Parent')} className="hover:text-sky-400 transition-colors">
-                  Parents & Guardians Portal
+                <button onClick={() => onLoginClick('Parent')} className="hover:text-sky-400 transition-colors cursor-pointer text-left flex items-center gap-1.5">
+                  <ChevronRight className="w-3 h-3 text-slate-500" />
+                  <span>Parents & Guardians</span>
                 </button>
               </li>
               <li>
-                <button onClick={() => onLoginClick('Student')} className="hover:text-sky-400 transition-colors">
-                  Student Portal
+                <button onClick={() => onLoginClick('Student')} className="hover:text-sky-400 transition-colors cursor-pointer text-left flex items-center gap-1.5">
+                  <ChevronRight className="w-3 h-3 text-slate-500" />
+                  <span>Student Portal</span>
                 </button>
               </li>
             </ul>
           </div>
 
-          {/* Office Hours */}
-          <div>
-            <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-2">Office Hours</h3>
-            <div className="space-y-1.5 text-xs text-slate-400">
-              <div className="flex items-center gap-2">
-                <Clock className="w-3.5 h-3.5 text-sky-400 shrink-0" />
-                <span>Mon - Fri: 8:00 AM - 4:30 PM</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Clock className="w-3.5 h-3.5 text-sky-400 shrink-0" />
-                <span>Saturday: 8:30 AM - 1:00 PM</span>
-              </div>
-              <p className="text-[11px] text-slate-400 pt-0.5">
-                Digital ERP Portals available 24/7.
-              </p>
-            </div>
-          </div>
-
         </div>
 
         {/* Dynamic Copyright Footer */}
-        <div className="max-w-7xl mx-auto mt-5 pt-3 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between text-slate-400 text-xs gap-2">
+        <div className="max-w-7xl mx-auto mt-7 pt-4 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between text-slate-400 text-xs gap-3">
           <p>© {new Date().getFullYear()} {schoolInfo.name || 'Educational Institutions'}. All rights reserved.</p>
           <div className="flex items-center gap-4 text-slate-400">
-            <span className="hover:text-slate-300 cursor-pointer">Privacy Policy</span>
-            <span className="hover:text-slate-300 cursor-pointer">Terms of Service</span>
-            <span className="hover:text-slate-300 cursor-pointer">Security</span>
+            <span className="hover:text-slate-300 cursor-pointer transition-colors">Privacy Policy</span>
+            <span className="hover:text-slate-300 cursor-pointer transition-colors">Terms of Service</span>
+            <span className="hover:text-slate-300 cursor-pointer transition-colors">Security</span>
           </div>
         </div>
       </footer>
