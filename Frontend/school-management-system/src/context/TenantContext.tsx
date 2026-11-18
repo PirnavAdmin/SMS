@@ -44,20 +44,8 @@ export const applyTenantBranding = (primaryColor?: string) => {
   if (typeof document === 'undefined') return;
   const color = primaryColor && primaryColor.startsWith('#') ? primaryColor : '#0284c7';
   
-  // Set root CSS properties used across Tailwind and custom UI styles
+  // Set tenant-specific root CSS property for branding elements
   document.documentElement.style.setProperty('--tenant-primary', color);
-  document.documentElement.style.setProperty('--color-primary', color);
-  document.documentElement.style.setProperty('--primary', color);
-
-  // Synchronize school default theme storage key for ThemeContext compatibility
-  try {
-    const existing = localStorage.getItem('school_default_theme');
-    const parsed = existing ? JSON.parse(existing) : {};
-    localStorage.setItem(
-      'school_default_theme',
-      JSON.stringify({ ...parsed, primary: color, updatedAt: new Date().toISOString() })
-    );
-  } catch {}
 };
 
 export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {

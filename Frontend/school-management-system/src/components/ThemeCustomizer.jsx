@@ -202,70 +202,95 @@ export const ThemeCustomizer = ({ className = '', onClose = undefined }) => {
     return 'Apply to My Screen';
   }, [isAdmin, applyScope]);
 
-  const handleApply = () => {
-    if (isAdmin && applyScope === 'school') {
-      // 1. Admin applies School-wide default theme (displays to ALL users by default)
-      if (applySchoolDefaultTheme) {
-        applySchoolDefaultTheme(selectedPrimary, selectedSecondary);
-      } else if (applyTheme) {
-        applyTheme(selectedPrimary, selectedSecondary);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleApply = async () => {
+    setIsSaving(true);
+    try {
+      if (isAdmin && applyScope === 'school') {
+        // 1. Admin applies School-wide default theme (displays to ALL users by default and persists to DB)
+        if (applySchoolDefaultTheme) {
+          await applySchoolDefaultTheme(selectedPrimary, selectedSecondary);
+        } else if (applyTheme) {
+          await applyTheme(selectedPrimary, selectedSecondary);
+        }
+
+        if (addToast) {
+          addToast(
+            'success',
+            'School Default Theme Applied',
+            'Theme saved to backend database. Visible to all students, staff, and parents across all devices.'
+          );
+        }
+      } else {
+        // 2. User applies personal theme (applies strictly within this user's screen)
+        if (applyUserTheme) {
+          await applyUserTheme(selectedPrimary, selectedSecondary);
+        } else if (applyTheme) {
+          await applyTheme(selectedPrimary, selectedSecondary);
+        }
+
+        if (addToast) {
+          addToast(
+            'success',
+            'Personal Theme Applied',
+            'Saved to your screen only. Other users will not be affected.'
+          );
+        }
       }
 
+      if (onClose) {
+        onClose();
+      }
+    } catch (err) {
       if (addToast) {
         addToast(
-          'success',
-          'School Default Theme Applied',
-          'Theme updated. Visible to all students, staff, and parents by default.'
+          'error',
+          'Theme Sync Notice',
+          'Saved locally, but backend sync reported: ' + (err?.message || 'Check backend network connection.')
         );
       }
-    } else {
-      // 2. User applies personal theme (applies strictly within this user's screen)
-      if (applyUserTheme) {
-        applyUserTheme(selectedPrimary, selectedSecondary);
-      } else if (applyTheme) {
-        applyTheme(selectedPrimary, selectedSecondary);
+      if (onClose) {
+        onClose();
       }
-
-      if (addToast) {
-        addToast(
-          'success',
-          'Personal Theme Applied',
-          'Saved to your screen only. Other users will not be affected.'
-        );
-      }
-    }
-
-    if (onClose) {
-      onClose();
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  const handleReset = () => {
-    if (isAdmin && applyScope === 'school') {
-      // Admin resets school default back to Sky & Amber
-      if (resetSchoolDefaultTheme) {
-        resetSchoolDefaultTheme();
-      } else if (resetTheme) {
-        resetTheme();
+  const handleReset = async () => {
+    setIsSaving(true);
+    try {
+      if (isAdmin && applyScope === 'school') {
+        // Admin resets school default back to Sky & Amber
+        if (resetSchoolDefaultTheme) {
+          await resetSchoolDefaultTheme();
+        } else if (resetTheme) {
+          await resetTheme();
+        }
+        setSelectedPrimary(DEFAULT_THEME.primary);
+        setSelectedSecondary(DEFAULT_THEME.secondary);
+        if (addToast) {
+          addToast('info', 'School Theme Reset', 'Restored default school colors (Sky & Amber) for all users.');
+        }
+      } else {
+        // Regular user resets personal override -> reverts back to school default theme
+        if (resetUserTheme) {
+          await resetUserTheme();
+        } else if (resetTheme) {
+          await resetTheme();
+        }
+        const schoolTheme = schoolDefaultTheme || DEFAULT_THEME;
+        setSelectedPrimary(schoolTheme.primary);
+        setSelectedSecondary(schoolTheme.secondary);
+        if (addToast) {
+          addToast('info', 'Personal Theme Cleared', 'Restored the school default theme set by administration.');
+        }
       }
-      setSelectedPrimary(DEFAULT_THEME.primary);
-      setSelectedSecondary(DEFAULT_THEME.secondary);
-      if (addToast) {
-        addToast('info', 'School Theme Reset', 'Restored default school colors (Sky & Amber) for all users.');
-      }
-    } else {
-      // Regular user resets personal override -> reverts back to school default theme
-      if (resetUserTheme) {
-        resetUserTheme();
-      } else if (resetTheme) {
-        resetTheme();
-      }
-      const schoolTheme = schoolDefaultTheme || DEFAULT_THEME;
-      setSelectedPrimary(schoolTheme.primary);
-      setSelectedSecondary(schoolTheme.secondary);
-      if (addToast) {
-        addToast('info', 'Personal Theme Cleared', 'Restored the school default theme set by administration.');
-      }
+    } catch (err) {
+      console.warn('Reset theme error:', err);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -676,13 +701,20 @@ export const ThemeCustomizer = ({ className = '', onClose = undefined }) => {
           <button
             type="button"
             onClick={handleApply}
-            className="px-6 py-2.5 rounded-2xl text-xs font-black text-white btn-glass-primary shadow-lg flex items-center gap-1.5 cursor-pointer active:scale-95"
+            disabled={isSaving}
+            className={`px-6 py-2.5 rounded-2xl text-xs font-black text-white btn-glass-primary shadow-lg flex items-center gap-1.5 cursor-pointer active:scale-95 ${
+              isSaving ? 'opacity-70 cursor-wait' : ''
+            }`}
             style={{
               backgroundColor: selectedPrimary,
             }}
           >
-            <Check className="w-4 h-4" />
-            <span>{applyLabel}</span>
+            {isSaving ? (
+              <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            ) : (
+              <Check className="w-4 h-4" />
+            )}
+            <span>{isSaving ? 'Syncing...' : applyLabel}</span>
           </button>
         </div>
       </div>

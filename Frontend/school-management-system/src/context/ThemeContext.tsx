@@ -137,12 +137,12 @@ export interface ThemeContextType {
   isUserOverride: boolean;
   activeUserKey: string;
   updateColor: (key: 'primary' | 'secondary' | string, hex: string) => void;
-  applyTheme: (primary?: string, secondary?: string) => void;
-  applySchoolDefaultTheme: (primary: string, secondary: string) => void;
-  applyUserTheme: (primary: string, secondary: string, userKey?: string) => void;
-  resetTheme: () => void;
-  resetUserTheme: (userKey?: string) => void;
-  resetSchoolDefaultTheme: () => void;
+  applyTheme: (primary?: string, secondary?: string) => Promise<void> | void;
+  applySchoolDefaultTheme: (primary: string, secondary: string) => Promise<void>;
+  applyUserTheme: (primary: string, secondary: string, userKey?: string) => Promise<void>;
+  resetTheme: () => Promise<void> | void;
+  resetUserTheme: (userKey?: string) => Promise<void>;
+  resetSchoolDefaultTheme: () => Promise<void>;
   applyPreset: (primary: string, secondary: string) => void;
   refreshTheme: () => void;
   isDarkMode: boolean;
@@ -158,11 +158,11 @@ export const ThemeContext = createContext<ThemeContextType>({
   activeUserKey: 'default',
   updateColor: () => {},
   applyTheme: () => {},
-  applySchoolDefaultTheme: () => {},
-  applyUserTheme: () => {},
+  applySchoolDefaultTheme: async () => {},
+  applyUserTheme: async () => {},
   resetTheme: () => {},
-  resetUserTheme: () => {},
-  resetSchoolDefaultTheme: () => {},
+  resetUserTheme: async () => {},
+  resetSchoolDefaultTheme: async () => {},
   applyPreset: () => {},
   refreshTheme: () => {},
   isDarkMode: false,
@@ -233,21 +233,32 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const data = await fetchThemeApi(key);
         if (!mounted || !data) return;
 
+        // 1. Resolve authoritative School Default Theme from backend
+        let effectiveSchoolDefault: ThemeColors = DEFAULT_THEME;
         if (data.schoolDefault?.primary && data.schoolDefault?.secondary) {
-          const sDefault: ThemeColors = {
+          effectiveSchoolDefault = {
             primary: data.schoolDefault.primary,
             secondary: data.schoolDefault.secondary,
             updatedAt: data.schoolDefault.updatedAt,
           };
-          setSchoolDefaultTheme(sDefault);
+          setSchoolDefaultTheme(effectiveSchoolDefault);
           try {
-            localStorage.setItem(SCHOOL_DEFAULT_THEME_KEY, JSON.stringify(sDefault));
-            localStorage.setItem(LEGACY_THEME_KEY, JSON.stringify(sDefault));
-            localStorage.setItem(LEGACY_PRIMARY_KEY, sDefault.primary);
-            localStorage.setItem(LEGACY_SECONDARY_KEY, sDefault.secondary);
+            localStorage.setItem(SCHOOL_DEFAULT_THEME_KEY, JSON.stringify(effectiveSchoolDefault));
+            localStorage.setItem(LEGACY_THEME_KEY, JSON.stringify(effectiveSchoolDefault));
+            localStorage.setItem(LEGACY_PRIMARY_KEY, effectiveSchoolDefault.primary);
+            localStorage.setItem(LEGACY_SECONDARY_KEY, effectiveSchoolDefault.secondary);
+          } catch {}
+        } else {
+          setSchoolDefaultTheme(DEFAULT_THEME);
+          try {
+            localStorage.setItem(SCHOOL_DEFAULT_THEME_KEY, JSON.stringify(DEFAULT_THEME));
+            localStorage.setItem(LEGACY_THEME_KEY, JSON.stringify(DEFAULT_THEME));
+            localStorage.setItem(LEGACY_PRIMARY_KEY, DEFAULT_THEME.primary);
+            localStorage.setItem(LEGACY_SECONDARY_KEY, DEFAULT_THEME.secondary);
           } catch {}
         }
 
+        // 2. Resolve User Override or enforce School Default (prevent stale local colors from sticking)
         if (data.isUserOverride && data.userTheme?.primary && data.userTheme?.secondary) {
           const uTheme: ThemeColors = {
             primary: data.userTheme.primary,
@@ -263,14 +274,17 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               localStorage.setItem(USER_THEME_KEY_PREFIX + key, JSON.stringify(uTheme));
             } catch {}
           }
-        } else if (data.schoolDefault?.primary && data.schoolDefault?.secondary) {
-          const localPersonal = getUserPersonalTheme(key);
-          if (!localPersonal) {
-            setPrimary(data.schoolDefault.primary);
-            setSecondary(data.schoolDefault.secondary);
-            setIsUserOverride(false);
-            applyThemeToDocument(data.schoolDefault.primary, data.schoolDefault.secondary);
+        } else {
+          // User has NO backend override -> discard stale local personal colors and adopt school default
+          if (key && key !== 'default') {
+            try {
+              localStorage.removeItem(USER_THEME_KEY_PREFIX + key);
+            } catch {}
           }
+          setPrimary(effectiveSchoolDefault.primary);
+          setSecondary(effectiveSchoolDefault.secondary);
+          setIsUserOverride(false);
+          applyThemeToDocument(effectiveSchoolDefault.primary, effectiveSchoolDefault.secondary);
         }
       } catch (err) {
         console.warn('Backend theme sync notice:', err);
@@ -285,9 +299,9 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   /**
    * Admin-only / System action: Sets the School Default Theme.
-   * This theme is displayed to ALL users by default across the entire portal.
+   * This theme is persisted to the backend API and displayed to ALL users across all devices.
    */
-  const applySchoolDefaultTheme = (newPrimary: string, newSecondary: string) => {
+  const applySchoolDefaultTheme = async (newPrimary: string, newSecondary: string): Promise<void> => {
     const p = newPrimary || primary;
     const s = newSecondary || secondary;
     const updatedTheme: ThemeColors = {
@@ -298,12 +312,11 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     try {
       localStorage.setItem(SCHOOL_DEFAULT_THEME_KEY, JSON.stringify(updatedTheme));
-      // Sync legacy keys for backward compatibility and unauthenticated views (Login, Landing)
       localStorage.setItem(LEGACY_THEME_KEY, JSON.stringify({ primary: p, secondary: s }));
       localStorage.setItem(LEGACY_PRIMARY_KEY, p);
       localStorage.setItem(LEGACY_SECONDARY_KEY, s);
 
-      // If current user had a personal override, clear it so their view matches the new school default
+      // If active user had a personal override, clear it so their view matches the new school default
       const currentKey = getActiveUserKey();
       if (currentKey && currentKey !== 'default') {
         localStorage.removeItem(USER_THEME_KEY_PREFIX + currentKey);
@@ -319,9 +332,12 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     applyThemeToDocument(p, s);
 
     // Persist to backend database API
-    updateSchoolDefaultThemeApi({ primary: p, secondary: s }).catch((err) => {
+    try {
+      await updateSchoolDefaultThemeApi({ primary: p, secondary: s });
+    } catch (err) {
       console.warn('Failed to persist school default theme to backend API:', err);
-    });
+      throw err;
+    }
 
     // Broadcast change to all open components and tabs
     try {
@@ -333,7 +349,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
    * User action: Sets a personal theme for this user account.
    * Applies only within this user's screen; DOES NOT affect other users.
    */
-  const applyUserTheme = (newPrimary: string, newSecondary: string, targetKey?: string) => {
+  const applyUserTheme = async (newPrimary: string, newSecondary: string, targetKey?: string): Promise<void> => {
     const p = newPrimary || primary;
     const s = newSecondary || secondary;
     const key = targetKey || getActiveUserKey();
@@ -357,9 +373,12 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     applyThemeToDocument(p, s);
 
     // Persist to backend database API
-    updateUserThemeApi({ primary: p, secondary: s, userKey: key }).catch((err) => {
+    try {
+      await updateUserThemeApi({ primary: p, secondary: s, userKey: key });
+    } catch (err) {
       console.warn('Failed to persist user theme to backend API:', err);
-    });
+      throw err;
+    }
 
     try {
       window.dispatchEvent(
@@ -376,13 +395,13 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const applyTheme = (newPrimary?: string, newSecondary?: string) => {
     const p = newPrimary || primary;
     const s = newSecondary || secondary;
-    applyUserTheme(p, s);
+    return applyUserTheme(p, s);
   };
 
   /**
    * User action: Clears personal theme override and restores the School Default Theme.
    */
-  const resetUserTheme = (targetKey?: string) => {
+  const resetUserTheme = async (targetKey?: string): Promise<void> => {
     const key = targetKey || getActiveUserKey();
     if (key && key !== 'default') {
       try {
@@ -390,16 +409,19 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       } catch (e) {}
     }
 
-    const defaultTheme = getSchoolDefaultTheme();
+    const defaultTheme = schoolDefaultTheme || getSchoolDefaultTheme();
     setPrimary(defaultTheme.primary);
     setSecondary(defaultTheme.secondary);
     setIsUserOverride(false);
     applyThemeToDocument(defaultTheme.primary, defaultTheme.secondary);
 
     // Persist reset to backend database API
-    resetUserThemeApi(key).catch((err) => {
+    try {
+      await resetUserThemeApi(key);
+    } catch (err) {
       console.warn('Failed to reset user theme on backend API:', err);
-    });
+      throw err;
+    }
 
     try {
       window.dispatchEvent(
@@ -413,7 +435,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   /**
    * Admin action: Resets the School Default Theme back to the original Sky & Amber system default.
    */
-  const resetSchoolDefaultTheme = () => {
+  const resetSchoolDefaultTheme = async (): Promise<void> => {
     const defaultTheme: ThemeColors = {
       ...DEFAULT_THEME,
       updatedAt: new Date().toISOString(),
@@ -440,9 +462,12 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     applyThemeToDocument(DEFAULT_THEME.primary, DEFAULT_THEME.secondary);
 
     // Persist reset to backend database API
-    resetSchoolDefaultThemeApi().catch((err) => {
+    try {
+      await resetSchoolDefaultThemeApi();
+    } catch (err) {
       console.warn('Failed to reset school default theme on backend API:', err);
-    });
+      throw err;
+    }
 
     try {
       window.dispatchEvent(new CustomEvent('school_theme_changed', { detail: defaultTheme }));
