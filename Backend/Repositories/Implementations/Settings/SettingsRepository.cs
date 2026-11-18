@@ -109,7 +109,6 @@ namespace SMS.Api.Repositories.Implementations.Settings
                 if (school != null)
                 {
                     if (!string.IsNullOrWhiteSpace(settings.SchoolName)) school.SchoolName = settings.SchoolName;
-                    if (settings.LogoUrl != null) school.LogoUrl = settings.LogoUrl;
                     if (settings.Address != null) school.Address = settings.Address;
                     if (settings.Phone != null) school.Phone = settings.Phone;
                     if (settings.Email != null) school.Email = settings.Email;
@@ -148,12 +147,7 @@ namespace SMS.Api.Repositories.Implementations.Settings
                     await _tenantStore.SaveChangesAsync();
                 }
 
-                var school = await _context.Schools.IgnoreQueryFilters().FirstOrDefaultAsync(s => s.SchoolCode == tenantIdent || s.SchoolCode == tenantId);
-                if (school != null)
-                {
-                    school.LogoUrl = logoUrl;
-                    await _context.SaveChangesAsync();
-                }
+
             }
             catch (Exception ex)
             {
