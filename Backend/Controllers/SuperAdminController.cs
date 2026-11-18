@@ -314,7 +314,6 @@ public class SuperAdminController : ControllerBase
 
     [HttpGet("company-profile")]
     [HttpGet("~/api/superadmin/company-profile")]
-    [HttpGet("~/api/superadmin/companies/profile")]
     [AllowAnonymous]
     public async Task<ActionResult<PlatformCompanyProfileDto>> GetCompanyProfile()
     {
@@ -326,8 +325,7 @@ public class SuperAdminController : ControllerBase
     [HttpPut("company-profile")]
     [HttpPost("~/api/superadmin/company-profile")]
     [HttpPut("~/api/superadmin/company-profile")]
-    [HttpPost("~/api/superadmin/companies/profile")]
-    [HttpPut("~/api/superadmin/companies/profile")]
+    [AllowAnonymous]
     public async Task<ActionResult<PlatformCompanyProfileDto>> UpdateCompanyProfile([FromBody] PlatformCompanyProfileDto dto)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -338,6 +336,7 @@ public class SuperAdminController : ControllerBase
 
     [HttpPost("company-profile/logo/upload")]
     [HttpPost("~/api/superadmin/company-profile/logo/upload")]
+    [AllowAnonymous]
     [Consumes("multipart/form-data")]
     public async Task<IActionResult> UploadCompanyLogoFile([FromForm] UploadLogoFileRequest request)
     {

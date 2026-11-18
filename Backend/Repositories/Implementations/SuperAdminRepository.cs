@@ -237,7 +237,7 @@ public class SuperAdminRepository : ISuperAdminRepository
 
     public async Task<PlatformCompanyProfile> GetCompanyProfileAsync()
     {
-        var profile = await _context.PlatformCompanyProfiles.FirstOrDefaultAsync(p => p.Id == 1);
+        var profile = await _context.PlatformCompanyProfiles.OrderBy(p => p.Id).FirstOrDefaultAsync();
         if (profile != null)
         {
             return profile;
@@ -245,7 +245,6 @@ public class SuperAdminRepository : ISuperAdminRepository
 
         var initial = new PlatformCompanyProfile
         {
-            Id = 1,
             CompanyName = string.Empty,
             Tagline = string.Empty,
             LogoUrl = string.Empty,
@@ -262,27 +261,28 @@ public class SuperAdminRepository : ISuperAdminRepository
 
     public async Task<PlatformCompanyProfile> UpdateCompanyProfileAsync(PlatformCompanyProfile profile)
     {
-        var existing = await _context.PlatformCompanyProfiles.FirstOrDefaultAsync(p => p.Id == 1);
+        var existing = await _context.PlatformCompanyProfiles.OrderBy(p => p.Id).FirstOrDefaultAsync();
         if (existing == null)
         {
-            profile.Id = 1;
+            profile.Id = 0;
             profile.UpdatedAt = DateTime.UtcNow;
             await _context.PlatformCompanyProfiles.AddAsync(profile);
-            existing = profile;
+            await _context.SaveChangesAsync();
+            return profile;
         }
         else
         {
-            existing.CompanyName = profile.CompanyName;
-            existing.Tagline = profile.Tagline;
-            existing.LogoUrl = profile.LogoUrl;
-            existing.SupportEmail = profile.SupportEmail;
-            existing.SupportPhone = profile.SupportPhone;
-            existing.WebsiteUrl = profile.WebsiteUrl;
-            existing.PrimaryColor = profile.PrimaryColor;
+            existing.CompanyName = profile.CompanyName?.Trim() ?? string.Empty;
+            existing.Tagline = profile.Tagline?.Trim() ?? string.Empty;
+            existing.LogoUrl = profile.LogoUrl?.Trim() ?? string.Empty;
+            existing.SupportEmail = profile.SupportEmail?.Trim() ?? string.Empty;
+            existing.SupportPhone = profile.SupportPhone?.Trim() ?? string.Empty;
+            existing.WebsiteUrl = profile.WebsiteUrl?.Trim() ?? string.Empty;
+            existing.PrimaryColor = string.IsNullOrWhiteSpace(profile.PrimaryColor) ? "#0284c7" : profile.PrimaryColor.Trim();
             existing.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+            return existing;
         }
-        await _context.SaveChangesAsync();
-        return existing;
     }
 
     // --- Subscription Packages & SaaS Tiers ---
