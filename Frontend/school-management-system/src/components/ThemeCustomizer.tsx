@@ -16,7 +16,20 @@ import {
   Shield,
 } from 'lucide-react';
 
-const PRESET_THEMES = [
+export interface ThemeCustomizerProps {
+  className?: string;
+  onClose?: () => void;
+}
+
+export interface PresetTheme {
+  id: string;
+  name: string;
+  description: string;
+  primary: string;
+  secondary: string;
+}
+
+const PRESET_THEMES: PresetTheme[] = [
   {
     id: 'ocean-sun',
     name: 'Sky & Amber',
@@ -75,10 +88,10 @@ const PRESET_THEMES = [
   },
 ];
 
-const PRIMARY_SWATCHES = ['#0284c7', '#059669', '#4f46e5', '#7c3aed', '#dc2626', '#0f172a'];
-const SECONDARY_SWATCHES = ['#f59e0b', '#f43f5e', '#ec4899', '#eab308', '#06b6d4', '#64748b'];
+const PRIMARY_SWATCHES: string[] = ['#0284c7', '#059669', '#4f46e5', '#7c3aed', '#dc2626', '#0f172a'];
+const SECONDARY_SWATCHES: string[] = ['#f59e0b', '#f43f5e', '#ec4899', '#eab308', '#06b6d4', '#64748b'];
 
-export const ThemeCustomizer = ({ className = '', onClose = undefined }) => {
+export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ className = '', onClose }) => {
   const {
     primary,
     secondary,
@@ -92,26 +105,26 @@ export const ThemeCustomizer = ({ className = '', onClose = undefined }) => {
     resetTheme,
   } = useTheme();
 
-  let authUser = null;
-  let authRole = null;
+  let authUser: any = null;
+  let authRole: string | null = null;
   try {
     const auth = useAuth();
     authUser = auth?.user;
-    authRole = auth?.role;
+    authRole = auth?.role || null;
   } catch {
     // If mounted outside AuthProvider
   }
 
-  let addToast = null;
+  let addToast: ((type: 'success' | 'error' | 'info' | 'warning', title: string, message?: string) => void) | null = null;
   try {
     const toast = useToast();
-    addToast = toast?.addToast;
+    addToast = toast?.addToast || null;
   } catch {
     // Optional toast
   }
 
   // Detect whether active user has administrative rights to configure School Default Theme
-  const isAdmin = useMemo(() => {
+  const isAdmin = useMemo<boolean>(() => {
     if (authRole === 'Admin' || authRole === 'Super Admin') return true;
     if (authUser?.role === 'Admin' || authUser?.role === 'Super Admin') return true;
     if (
@@ -133,15 +146,15 @@ export const ThemeCustomizer = ({ className = '', onClose = undefined }) => {
   }, [authRole, authUser]);
 
   // Target Scope: 'school' (all users default) or 'personal' (current user screen only)
-  const [applyScope, setApplyScope] = useState(isAdmin ? 'school' : 'personal');
+  const [applyScope, setApplyScope] = useState<'school' | 'personal'>(isAdmin ? 'school' : 'personal');
 
   useEffect(() => {
     setApplyScope(isAdmin ? 'school' : 'personal');
   }, [isAdmin]);
 
-  const [activeTab, setActiveTab] = useState('presets'); // 'presets' | 'custom'
-  const [selectedPrimary, setSelectedPrimary] = useState(primary || DEFAULT_THEME.primary);
-  const [selectedSecondary, setSelectedSecondary] = useState(secondary || DEFAULT_THEME.secondary);
+  const [activeTab, setActiveTab] = useState<'presets' | 'custom'>('presets');
+  const [selectedPrimary, setSelectedPrimary] = useState<string>(primary || DEFAULT_THEME.primary);
+  const [selectedSecondary, setSelectedSecondary] = useState<string>(secondary || DEFAULT_THEME.secondary);
 
   // Sync state if context primary/secondary changes externally
   useEffect(() => {
@@ -149,25 +162,25 @@ export const ThemeCustomizer = ({ className = '', onClose = undefined }) => {
     if (secondary) setSelectedSecondary(secondary);
   }, [primary, secondary]);
 
-  const handlePrimaryChange = (hex) => {
+  const handlePrimaryChange = (hex: string) => {
     if (!hex) return;
     const cleanHex = hex.startsWith('#') ? hex : `#${hex}`;
     setSelectedPrimary(cleanHex);
   };
 
-  const handleSecondaryChange = (hex) => {
+  const handleSecondaryChange = (hex: string) => {
     if (!hex) return;
     const cleanHex = hex.startsWith('#') ? hex : `#${hex}`;
     setSelectedSecondary(cleanHex);
   };
 
-  const handleSelectPreset = (p, s) => {
+  const handleSelectPreset = (p: string, s: string) => {
     setSelectedPrimary(p);
     setSelectedSecondary(s);
   };
 
   // Determine if Reset button should be disabled
-  const isResetDisabled = useMemo(() => {
+  const isResetDisabled = useMemo<boolean>(() => {
     if (isAdmin && applyScope === 'school') {
       const activeSchoolPrimary = (schoolDefaultTheme?.primary || DEFAULT_THEME.primary).toLowerCase();
       const activeSchoolSecondary = (schoolDefaultTheme?.secondary || DEFAULT_THEME.secondary).toLowerCase();
@@ -188,21 +201,21 @@ export const ThemeCustomizer = ({ className = '', onClose = undefined }) => {
     return !isUserOverride && matchesSchool;
   }, [isAdmin, applyScope, selectedPrimary, selectedSecondary, schoolDefaultTheme, isUserOverride]);
 
-  const resetLabel = useMemo(() => {
+  const resetLabel = useMemo<string>(() => {
     if (isAdmin && applyScope === 'school') {
       return 'Reset School Default';
     }
     return isUserOverride ? 'Reset to School Default' : 'Reset Defaults';
   }, [isAdmin, applyScope, isUserOverride]);
 
-  const applyLabel = useMemo(() => {
+  const applyLabel = useMemo<string>(() => {
     if (isAdmin && applyScope === 'school') {
       return 'Apply as School Default';
     }
     return 'Apply to My Screen';
   }, [isAdmin, applyScope]);
 
-  const [isSaving, setIsSaving] = useState(false);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
 
   const handleApply = async () => {
     setIsSaving(true);
@@ -242,7 +255,7 @@ export const ThemeCustomizer = ({ className = '', onClose = undefined }) => {
       if (onClose) {
         onClose();
       }
-    } catch (err) {
+    } catch (err: any) {
       if (addToast) {
         addToast(
           'error',
@@ -675,9 +688,9 @@ export const ThemeCustomizer = ({ className = '', onClose = undefined }) => {
         <button
           type="button"
           onClick={handleReset}
-          disabled={isResetDisabled}
+          disabled={isResetDisabled || isSaving}
           className={`px-3.5 py-1.5 rounded-2xl text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 ${
-            isResetDisabled
+            isResetDisabled || isSaving
               ? 'text-slate-300 dark:text-slate-600 cursor-not-allowed opacity-50'
               : 'btn-glass-secondary text-slate-600 dark:text-slate-300'
           }`}
@@ -692,6 +705,7 @@ export const ThemeCustomizer = ({ className = '', onClose = undefined }) => {
             <button
               type="button"
               onClick={onClose}
+              disabled={isSaving}
               className="px-4 py-2 rounded-2xl text-xs font-semibold btn-glass-secondary text-slate-600 dark:text-slate-300 cursor-pointer active:scale-95"
             >
               Cancel
