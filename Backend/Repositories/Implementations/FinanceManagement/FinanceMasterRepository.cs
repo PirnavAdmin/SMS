@@ -76,8 +76,8 @@ public class FinanceMasterRepository : IFinanceMasterRepository
 
         var accounts = await _context.FinancialAccounts.AsNoTracking().ToListAsync();
         var accountNameById = accounts.ToDictionary(a => a.Id, a => a.Name);
-        var defaultCashAcct = accounts.FirstOrDefault(a => (a.Type ?? string.Empty).Contains("Cash", StringComparison.OrdinalIgnoreCase) || (a.Name ?? string.Empty).Contains("Cash", StringComparison.OrdinalIgnoreCase))?.Name ?? string.Empty;
-        var defaultBankAcct = accounts.FirstOrDefault(a => !(a.Type ?? string.Empty).Contains("Cash", StringComparison.OrdinalIgnoreCase))?.Name ?? string.Empty;
+        var defaultCashAcct = accounts.FirstOrDefault(a => (a.Type ?? string.Empty).Contains("Cash", StringComparison.OrdinalIgnoreCase) || (a.Name ?? string.Empty).Contains("Cash", StringComparison.OrdinalIgnoreCase))?.Name ?? "Cash Vault";
+        var defaultBankAcct = accounts.FirstOrDefault(a => !(a.Type ?? string.Empty).Contains("Cash", StringComparison.OrdinalIgnoreCase))?.Name ?? "Main Bank Account";
 
         var academicYearsList = await _context.AcademicYears.AsNoTracking().Where(a => !a.IsDeleted).ToListAsync();
         var ayNameById = academicYearsList.ToDictionary(a => a.AcademicYearId, a => a.AcademicYearName);
@@ -107,6 +107,17 @@ public class FinanceMasterRepository : IFinanceMasterRepository
             .GroupBy(s => s.AdmissionNumber!)
             .ToDictionary(g => g.Key, g => g.First());
 
+        var apps = await _context.AdmissionApplications.AsNoTracking().ToListAsync();
+        var appById = apps.ToDictionary(a => a.Id.ToString(), a => a);
+        var appByAdm = apps
+            .Where(a => !string.IsNullOrWhiteSpace(a.AdmissionNo))
+            .GroupBy(a => a.AdmissionNo!)
+            .ToDictionary(g => g.Key, g => g.First());
+        var appByReg = apps
+            .Where(a => !string.IsNullOrWhiteSpace(a.RegistrationNo))
+            .GroupBy(a => a.RegistrationNo!)
+            .ToDictionary(g => g.Key, g => g.First());
+
         var feeReceiptNos = new HashSet<string>(
             payments.Where(p => !string.IsNullOrWhiteSpace(p.ReceiptNo)).Select(p => p.ReceiptNo),
             StringComparer.OrdinalIgnoreCase);
@@ -116,24 +127,48 @@ public class FinanceMasterRepository : IFinanceMasterRepository
             var st = (p.StudentId != null && studentById.TryGetValue(p.StudentId, out var byId))
                 ? byId
                 : (p.StudentId != null && studentByAdm.TryGetValue(p.StudentId, out var byAdm) ? byAdm : null);
-            string stName = st?.StudentName ?? (p.StudentId != null ? $"Student #{p.StudentId}" : "Student");
-            string cName = st?.ClassName ?? string.Empty;
+
+            var ap = (st == null && p.StudentId != null && appById.TryGetValue(p.StudentId, out var byAppId))
+                ? byAppId
+                : (st == null && p.StudentId != null && appByAdm.TryGetValue(p.StudentId, out var byAppAdm) ? byAppAdm
+                : (st == null && p.StudentId != null && appByReg.TryGetValue(p.StudentId, out var byAppReg) ? byAppReg : null));
+
+            string stName = st?.StudentName
+                ?? (ap != null ? $"{ap.FirstName} {ap.LastName}".Trim() : (p.StudentId != null ? $"Student #{p.StudentId}" : "Student"));
+            string cName = st?.ClassName
+                ?? (ap != null ? (ap.AppliedClassId.HasValue ? $"Class {ap.AppliedClassId}" : "") : string.Empty);
             string txnStatus = (p.Status == "Cancelled" || p.Status == "Reversed") ? p.Status : "Completed";
+
+            bool isHostelOrDeposit = (!string.IsNullOrEmpty(p.FeeHeadName) && (p.FeeHeadName.Contains("Hostel", StringComparison.OrdinalIgnoreCase) || p.FeeHeadName.Contains("Deposit", StringComparison.OrdinalIgnoreCase))) ||
+                                    (!string.IsNullOrEmpty(p.Remarks) && (p.Remarks.Contains("Hostel", StringComparison.OrdinalIgnoreCase) || p.Remarks.Contains("Deposit", StringComparison.OrdinalIgnoreCase)));
+            bool isTransport = (!string.IsNullOrEmpty(p.FeeHeadName) && p.FeeHeadName.Contains("Transport", StringComparison.OrdinalIgnoreCase)) ||
+                               (!string.IsNullOrEmpty(p.Remarks) && p.Remarks.Contains("Transport", StringComparison.OrdinalIgnoreCase));
+            bool isUniform = (!string.IsNullOrEmpty(p.FeeHeadName) && p.FeeHeadName.Contains("Uniform", StringComparison.OrdinalIgnoreCase)) ||
+                             (!string.IsNullOrEmpty(p.Remarks) && p.Remarks.Contains("Uniform", StringComparison.OrdinalIgnoreCase));
+
+            string txnCategory = isHostelOrDeposit ? "Hostel & Residence Fees" :
+                                 isTransport ? "Transport Fees" :
+                                 isUniform ? "Uniform & Supplies Fees" :
+                                 "Tuition & Academic Fees";
+
+            string feeTitle = !string.IsNullOrWhiteSpace(p.FeeHeadName) ? p.FeeHeadName : (!string.IsNullOrWhiteSpace(p.Remarks) ? p.Remarks : "Fee Payment");
+            string classPart = !string.IsNullOrWhiteSpace(cName) ? $" ({cName})" : "";
+            string description = $"Fee Collection — {stName}{classPart} - {feeTitle}";
 
             result.Add(new FinanceTransactionDto
             {
                 Id = p.Id,
-                TransactionId = !string.IsNullOrEmpty(p.ReceiptNo) ? p.ReceiptNo : $"TXN-FEE-{p.Id:D4}",
+                TransactionId = $"TXN-FEE-{p.Id:D4}",
                 Type = "Income",
-                SourceModule = "Fees",
-                Category = "Tuition & Academic Fees",
-                Description = $"Fee Collection — {stName} ({cName})",
+                SourceModule = "Fee Collection",
+                Category = txnCategory,
+                Description = description,
                 Amount = p.Amount,
-                PaymentMode = p.PaymentMethod ?? "Cash",
-                Account = (p.PaymentMethod == "Cash") ? defaultCashAcct : defaultBankAcct,
+                PaymentMode = !string.IsNullOrWhiteSpace(p.PaymentMethod) ? p.PaymentMethod : "Bank Transfer",
+                Account = (p.PaymentMethod != null && p.PaymentMethod.Contains("Cash", StringComparison.OrdinalIgnoreCase)) ? defaultCashAcct : defaultBankAcct,
                 TransactionDate = p.PaymentDate,
                 Status = txnStatus,
-                ReferenceNumber = p.TransactionId ?? "",
+                ReferenceNumber = !string.IsNullOrEmpty(p.ReceiptNo) ? p.ReceiptNo : (p.TransactionId ?? ""),
                 CreatedBy = "Accounts Counter",
                 Branch = string.Empty,
                 AcademicYear = (st != null && st.AcademicYearId > 0 && ayNameById.TryGetValue(st.AcademicYearId, out var stAy)) ? stAy : fallbackAyName
@@ -184,10 +219,40 @@ public class FinanceMasterRepository : IFinanceMasterRepository
             }
             if (l.Category == "Fee Refund") continue; // Pending refund requests live in FeeRefundRequests until disbursed
 
+            // Skip legacy mock test transactions with dummy admission numbers
+            if (!string.IsNullOrWhiteSpace(l.AdmissionNo) && l.AdmissionNo.StartsWith("ADM-179", StringComparison.OrdinalIgnoreCase))
+                continue;
+
             bool isReversed = (l.Particulars ?? "").Contains("[Reversed", StringComparison.OrdinalIgnoreCase);
             string acctName = l.FinancialAccountId.HasValue && accountNameById.TryGetValue(l.FinancialAccountId.Value, out var an)
                 ? an
                 : (!string.IsNullOrWhiteSpace(l.AdmissionNo) && !l.StudentId.HasValue ? l.AdmissionNo : defaultBankAcct);
+
+            string lDesc = l.Particulars ?? "Ledger Transaction";
+            if (lDesc.EndsWith(" -") || lDesc.EndsWith("-"))
+            {
+                lDesc = lDesc.TrimEnd('-', ' ');
+            }
+
+            var lSt = (l.StudentId.HasValue && studentById.TryGetValue(l.StudentId.Value.ToString(), out var byId))
+                ? byId
+                : (!string.IsNullOrWhiteSpace(l.AdmissionNo) && studentByAdm.TryGetValue(l.AdmissionNo, out var byAdm) ? byAdm : null);
+            var lAp = (lSt == null && l.StudentId.HasValue && appById.TryGetValue(l.StudentId.Value.ToString(), out var byAppId))
+                ? byAppId
+                : (lSt == null && !string.IsNullOrWhiteSpace(l.AdmissionNo) && appByAdm.TryGetValue(l.AdmissionNo, out var byAppAdm) ? byAppAdm : null);
+
+            if (lSt != null || lAp != null)
+            {
+                string sName = lSt?.StudentName ?? $"{lAp?.FirstName} {lAp?.LastName}".Trim();
+                string cName = lSt?.ClassName ?? (lAp?.AppliedClassId.HasValue == true ? $"Class {lAp.AppliedClassId}" : "");
+                string classPart = !string.IsNullOrWhiteSpace(cName) ? $" ({cName})" : "";
+                if (!lDesc.Contains(sName, StringComparison.OrdinalIgnoreCase))
+                {
+                    lDesc = $"{lDesc} - {sName}{classPart}";
+                }
+            }
+
+            string lPaymentMode = (l.Particulars ?? "").Contains("Cash", StringComparison.OrdinalIgnoreCase) ? "Cash" : "Bank Transfer";
 
             result.Add(new FinanceTransactionDto
             {
@@ -196,9 +261,9 @@ public class FinanceMasterRepository : IFinanceMasterRepository
                 Type = l.Credit > 0 ? "Income" : "Expense",
                 SourceModule = string.IsNullOrWhiteSpace(l.TransactionType) ? "Manual" : l.TransactionType,
                 Category = l.Category ?? "General",
-                Description = l.Particulars ?? "Ledger Transaction",
+                Description = lDesc,
                 Amount = l.Credit > 0 ? l.Credit : l.Debit,
-                PaymentMode = "Bank Transfer",
+                PaymentMode = lPaymentMode,
                 Account = acctName,
                 TransactionDate = l.TransactionDate,
                 Status = isReversed ? "Reversed" : "Completed",
@@ -288,12 +353,13 @@ public class FinanceMasterRepository : IFinanceMasterRepository
 
         var ledgers = await _context.LedgerEntries.AsNoTracking()
             .Where(l => l.Category != "Fee Refund")
-            .Select(l => new { l.ReferenceNo, l.Credit, l.Debit, l.TransactionDate, l.Particulars })
+            .Select(l => new { l.ReferenceNo, l.Credit, l.Debit, l.TransactionDate, l.Particulars, l.AdmissionNo })
             .ToListAsync();
 
         var standaloneLedgers = ledgers
             .Where(l => (string.IsNullOrWhiteSpace(l.ReferenceNo) || !excludedRefs.Contains(l.ReferenceNo)) &&
-                        !(l.Particulars ?? "").Contains("[Reversed", StringComparison.OrdinalIgnoreCase))
+                        !(l.Particulars ?? "").Contains("[Reversed", StringComparison.OrdinalIgnoreCase) &&
+                        !((l.AdmissionNo ?? "").StartsWith("ADM-179", StringComparison.OrdinalIgnoreCase)))
             .ToList();
 
         decimal manualInflow = standaloneLedgers.Sum(l => l.Credit);

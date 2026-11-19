@@ -1417,6 +1417,12 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             _context.FeePayments.Add(payment);
 
             string canonicalStr = canonicalStudentId.ToString();
+            var targetApp = await _context.AdmissionApplications.FirstOrDefaultAsync(a =>
+                a.Id == request.StudentId ||
+                a.Id == canonicalStudentId ||
+                (!string.IsNullOrEmpty(a.AdmissionNo) && (a.AdmissionNo == canonicalStr || (student != null && a.AdmissionNo == student.AdmissionNumber))) ||
+                (!string.IsNullOrEmpty(a.RegistrationNo) && a.RegistrationNo == canonicalStr));
+
             var matchingAssignment = await _context.StudentFeeAssignments
                 .FirstOrDefaultAsync(a => a.StudentId == canonicalStr && (a.Status == "Active" || string.IsNullOrEmpty(a.Status)));
             if (matchingAssignment != null)
@@ -1431,20 +1437,11 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                 (!string.IsNullOrEmpty(payment.Remarks) && payment.Remarks.Contains("Security Deposit", StringComparison.OrdinalIgnoreCase)) ||
                 (!string.IsNullOrEmpty(payment.PaidItemsJson) && payment.PaidItemsJson.Contains("Security Deposit", StringComparison.OrdinalIgnoreCase));
 
-            if (isDepositPayment)
+            if (isDepositPayment && targetApp != null)
             {
-                var targetApp = await _context.AdmissionApplications.FirstOrDefaultAsync(a =>
-                    a.Id == request.StudentId ||
-                    a.Id == canonicalStudentId ||
-                    (!string.IsNullOrEmpty(a.AdmissionNo) && (a.AdmissionNo == canonicalStr || (student != null && a.AdmissionNo == student.AdmissionNumber))) ||
-                    (!string.IsNullOrEmpty(a.RegistrationNo) && a.RegistrationNo == canonicalStr));
-
-                if (targetApp != null)
-                {
-                    targetApp.HostelSecurityDepositPaid = true;
-                    targetApp.SecurityDepositAmount = payment.Amount;
-                    targetApp.SecurityDepositReceiptNo = receiptNo;
-                }
+                targetApp.HostelSecurityDepositPaid = true;
+                targetApp.SecurityDepositAmount = payment.Amount;
+                targetApp.SecurityDepositReceiptNo = receiptNo;
             }
 
             var acct = await ResolveActiveAccountForModeAsync(payment.PaymentMethod);
@@ -1453,21 +1450,38 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                 acct.CurrentBalance += payment.Amount;
             }
 
+            string resolvedStudentName = !string.IsNullOrWhiteSpace(existingProfile?.StudentName)
+                ? existingProfile.StudentName
+                : (student?.StudentName ?? (targetApp != null ? $"{targetApp.FirstName} {targetApp.LastName}".Trim() : $"Student #{canonicalStudentId}"));
+            string resolvedClassName = !string.IsNullOrWhiteSpace(existingProfile?.ClassName)
+                ? existingProfile.ClassName
+                : string.Empty;
+            string classPart = !string.IsNullOrWhiteSpace(resolvedClassName) ? $" ({resolvedClassName})" : "";
+
+            string ledgerParticulars = $"Fee Collection — {resolvedStudentName}{classPart} - {payment.FeeHeadName} ({receiptNo})";
+            string ledgerCategory = isDepositPayment
+                ? "Hostel & Residence Fees"
+                : (!string.IsNullOrEmpty(payment.FeeHeadName) && payment.FeeHeadName.Contains("Transport", StringComparison.OrdinalIgnoreCase)
+                    ? "Transport Fees"
+                    : (!string.IsNullOrEmpty(payment.FeeHeadName) && payment.FeeHeadName.Contains("Uniform", StringComparison.OrdinalIgnoreCase)
+                        ? "Uniform & Supplies Fees"
+                        : "Tuition & Academic Fees"));
+
             _context.LedgerEntries.Add(new LedgerEntry
             {
                 TransactionDate = payment.PaymentDate,
                 TransactionType = "Fee Collection",
-                Category = "Tuition & Academic Fees",
+                Category = ledgerCategory,
                 ReferenceNo = receiptNo,
                 FinancialAccountId = acct?.Id,
                 StudentId = canonicalStudentId,
-                AdmissionNo = student?.AdmissionNumber ?? canonicalStr,
+                AdmissionNo = student?.AdmissionNumber ?? targetApp?.AdmissionNo ?? canonicalStr,
                 AcademicYearId = student?.AcademicYearId ?? 1,
                 BranchId = student?.BranchId ?? 1,
                 Debit = 0m,
                 Credit = payment.Amount,
                 Balance = acct?.CurrentBalance ?? 0m,
-                Particulars = $"Fee Collection Receipt ({receiptNo}) - {payment.FeeHeadName}"
+                Particulars = ledgerParticulars
             });
 
             await _context.SaveChangesAsync();
