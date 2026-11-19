@@ -82,7 +82,33 @@ export const apiClient = async <T = any>(endpoint: string, options: RequestInit 
 
   const rawBase = (import.meta.env.VITE_API_URL as string) || '';
   const baseUrl = rawBase.trim().replace(/\/+$/, '');
-  const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  let cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+
+  // Automatically append branch and academic year query parameters for non-auth requests
+  if (!isAuthEndpoint) {
+    try {
+      const dummyBase = 'http://localhost';
+      const parsedUrl = new URL(cleanEndpoint, dummyBase);
+      let paramsModified = false;
+      if (branch && branch !== 'All Branches' && branch !== 'All') {
+        if (!parsedUrl.searchParams.has('branch') && !parsedUrl.searchParams.has('branchId')) {
+          parsedUrl.searchParams.set('branch', branch);
+          parsedUrl.searchParams.set('branchId', branch);
+          paramsModified = true;
+        }
+      }
+      if (academicYear && academicYear !== 'All') {
+        if (!parsedUrl.searchParams.has('academicYear') && !parsedUrl.searchParams.has('academicYearId')) {
+          parsedUrl.searchParams.set('academicYear', academicYear);
+          parsedUrl.searchParams.set('academicYearId', academicYear);
+          paramsModified = true;
+        }
+      }
+      if (paramsModified) {
+        cleanEndpoint = parsedUrl.pathname + parsedUrl.search;
+      }
+    } catch {}
+  }
 
   const isLocalHost = typeof window !== 'undefined' && (
     window.location.hostname === 'localhost' ||

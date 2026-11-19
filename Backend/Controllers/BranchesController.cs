@@ -23,6 +23,44 @@ namespace SMS.Api.Controllers
             _context = context;
         }
 
+        [HttpGet("/api/user/default-context")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetDefaultContext()
+        {
+            try
+            {
+                var defaultBranch = await _context.Branches.AsNoTracking()
+                    .Where(b => b.Status == "Active")
+                    .OrderBy(b => b.BranchId)
+                    .FirstOrDefaultAsync();
+
+                var activeYear = await _context.AcademicYears.AsNoTracking()
+                    .Where(ay => !ay.IsDeleted && ay.IsCurrent)
+                    .OrderByDescending(ay => ay.AcademicYearId)
+                    .FirstOrDefaultAsync()
+                    ?? await _context.AcademicYears.AsNoTracking()
+                        .Where(ay => !ay.IsDeleted && ay.IsActive)
+                        .OrderByDescending(ay => ay.AcademicYearId)
+                        .FirstOrDefaultAsync();
+
+                return Ok(new
+                {
+                    success = true,
+                    data = new
+                    {
+                        defaultBranchId = defaultBranch?.BranchId.ToString() ?? "",
+                        defaultBranchName = defaultBranch?.BranchName ?? "",
+                        activeAcademicYearId = activeYear?.AcademicYearId.ToString() ?? "",
+                        activeAcademicYearName = activeYear?.AcademicYearName ?? ""
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
         // GET: api/Branches
         [HttpGet]
         public async Task<IActionResult> GetBranches()

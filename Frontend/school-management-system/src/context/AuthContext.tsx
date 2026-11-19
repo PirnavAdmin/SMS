@@ -5,6 +5,7 @@ import { fetchUserProfileApi, getLocalUserProfile, saveLocalUserProfile, getActi
 import { DEFAULT_USER_AVATAR } from '../utils/mediaUtils';
 import { fetchBranchesApi, fetchAcademicYearsApi } from '../api/settings';
 import { setActiveBranchHeader, setActiveAcademicYearHeader, cancelPendingRequests } from '../api/client';
+import { readFiltersFromUrl } from '../hooks/useGlobalFilters';
 import { setActiveTenantIdentifier, clearActiveTenantIdentifier } from '../utils/subdomain';
 
 interface AuthContextType {
@@ -262,8 +263,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return t || null;
   });
 
-  const [selectedBranch, setSelectedBranchState] = useState<string>('');
-  const [selectedAcademicYear, setSelectedAcademicYearState] = useState<string>('');
+  // State strictly initialized and derived from URL query parameters (no localStorage)
+  const initialUrlFilters = readFiltersFromUrl();
+  const [selectedBranch, setSelectedBranchState] = useState<string>(() => initialUrlFilters.branchName || initialUrlFilters.branchId || '');
+  const [selectedAcademicYear, setSelectedAcademicYearState] = useState<string>(() => initialUrlFilters.academicYearName || initialUrlFilters.academicYearId || '');
+
+  // Synchronize state when browser URL changes (e.g. popstate or pushState)
+  useEffect(() => {
+    const syncFromUrl = () => {
+      const urlFilters = readFiltersFromUrl();
+      const b = urlFilters.branchName || urlFilters.branchId;
+      const ay = urlFilters.academicYearName || urlFilters.academicYearId;
+      if (b) setSelectedBranchState(b);
+      if (ay) setSelectedAcademicYearState(ay);
+    };
+
+    window.addEventListener('popstate', syncFromUrl);
+    window.addEventListener('global_filters_changed', syncFromUrl);
+    return () => {
+      window.removeEventListener('popstate', syncFromUrl);
+      window.removeEventListener('global_filters_changed', syncFromUrl);
+    };
+  }, []);
 
   useEffect(() => {
     if (!token || !user) {
@@ -271,50 +292,69 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     const handleSync = async () => {
-      try {
-        const res: any = await fetchBranchesApi();
-        const branchList = (res?.success && Array.isArray(res.data)) ? res.data : (Array.isArray(res) ? res : []);
-        const validBranchNames = branchList
-          .filter((b: any) => b && b.status !== 'Inactive')
-          .map((b: any) => typeof b === 'string' ? b : (b.name || b.branchName))
-          .filter(Boolean);
+      const urlFilters = readFiltersFromUrl();
+      let currentBranch = urlFilters.branchName || urlFilters.branchId;
+      let currentAY = urlFilters.academicYearName || urlFilters.academicYearId;
 
-        const storedBranch = localStorage.getItem('selected_branch');
-        if (storedBranch && (storedBranch === 'All' || storedBranch === 'All Branches' || validBranchNames.includes(storedBranch))) {
-          setSelectedBranchState(storedBranch);
-        } else if (validBranchNames.length > 0) {
-          const first = validBranchNames[0];
-          setSelectedBranchState(first);
-          localStorage.setItem('selected_branch', first);
-        } else {
-          setSelectedBranchState('');
-          localStorage.removeItem('selected_branch');
-        }
-      } catch {
-        setSelectedBranchState('');
-        localStorage.removeItem('selected_branch');
+      // If either filter is missing from URL, query default context from backend API
+      if (!currentBranch || !currentAY) {
+        try {
+          const defRes = await fetch('/api/user/default-context');
+          if (defRes.ok) {
+            const defJson = await defRes.json();
+            const defData = defJson?.data || defJson;
+            if (defData) {
+              if (!currentBranch) currentBranch = defData.defaultBranchName || defData.defaultBranchId;
+              if (!currentAY) currentAY = defData.activeAcademicYearName || defData.activeAcademicYearId;
+            }
+          }
+        } catch {}
       }
 
-      try {
-        const ayRes: any = await fetchAcademicYearsApi();
-        const ayList = (ayRes?.success && Array.isArray(ayRes.data)) ? ayRes.data : (Array.isArray(ayRes) ? ayRes : []);
-        if (ayList.length > 0) {
-          const storedYear = localStorage.getItem('selected_academic_year');
-          const active = ayList.find((a: any) => a.isCurrentAcademicYear || a.status === 'Active') || ayList[0];
-          const val = active?.academicYear || active?.year;
-          if (storedYear && ayList.some((a: any) => (a.academicYear === storedYear || a.year === storedYear))) {
-            setSelectedAcademicYearState(storedYear);
-          } else if (val) {
-            setSelectedAcademicYearState(val);
-            localStorage.setItem('selected_academic_year', val);
+      // Fallback to branches API if still missing
+      if (!currentBranch) {
+        try {
+          const res: any = await fetchBranchesApi();
+          const branchList = (res?.success && Array.isArray(res.data)) ? res.data : (Array.isArray(res) ? res : []);
+          const validBranchNames = branchList
+            .filter((b: any) => b && b.status !== 'Inactive')
+            .map((b: any) => typeof b === 'string' ? b : (b.name || b.branchName))
+            .filter(Boolean);
+
+          if (validBranchNames.length > 0) {
+            currentBranch = validBranchNames[0];
           }
-        } else {
-          setSelectedAcademicYearState('');
-          localStorage.removeItem('selected_academic_year');
-        }
-      } catch {
-        setSelectedAcademicYearState('');
-        localStorage.removeItem('selected_academic_year');
+        } catch {}
+      }
+
+      // Fallback to academic-years API if still missing
+      if (!currentAY) {
+        try {
+          const ayRes: any = await fetchAcademicYearsApi();
+          const ayList = (ayRes?.success && Array.isArray(ayRes.data)) ? ayRes.data : (Array.isArray(ayRes) ? ayRes : []);
+          if (ayList.length > 0) {
+            const active = ayList.find((a: any) => a.isCurrentAcademicYear || a.isCurrent || a.status === 'Active') || ayList[0];
+            const val = active?.academicYear || active?.academicYearName || active?.year;
+            if (val) currentAY = val;
+          }
+        } catch {}
+      }
+
+      // Update state, headers, and URL query params (without localStorage)
+      if (currentBranch) {
+        setSelectedBranchState(currentBranch);
+        setActiveBranchHeader(currentBranch);
+      }
+      if (currentAY) {
+        setSelectedAcademicYearState(currentAY);
+        setActiveAcademicYearHeader(currentAY);
+      }
+
+      if (typeof window !== 'undefined' && (currentBranch || currentAY)) {
+        const url = new URL(window.location.href);
+        if (currentBranch) url.searchParams.set('branch', currentBranch);
+        if (currentAY) url.searchParams.set('academicYear', currentAY);
+        window.history.replaceState({}, '', url.toString());
       }
     };
 
@@ -329,25 +369,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [token, user?.id, user?.email]);
 
   const handleSetBranch = (branch: string) => {
+    // Prevent race conditions: Cancel all pending in-flight requests immediately
+    cancelPendingRequests();
+
     setSelectedBranchState(branch);
     setActiveBranchHeader(branch);
-    if (branch) {
-      localStorage.setItem('selected_branch', branch);
-    } else {
-      localStorage.removeItem('selected_branch');
+
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      if (branch) {
+        url.searchParams.set('branch', branch);
+      } else {
+        url.searchParams.delete('branch');
+        url.searchParams.delete('branchId');
+      }
+      window.history.pushState({}, '', url.toString());
     }
+
     window.dispatchEvent(new CustomEvent('global_context_branch_changed', { detail: { branch } }));
+    window.dispatchEvent(new CustomEvent('global_filters_changed', { detail: { branch } }));
   };
 
   const handleSetAcademicYear = (academicYear: string) => {
+    // Prevent race conditions: Cancel all pending in-flight requests immediately
+    cancelPendingRequests();
+
     setSelectedAcademicYearState(academicYear);
     setActiveAcademicYearHeader(academicYear);
-    if (academicYear) {
-      localStorage.setItem('selected_academic_year', academicYear);
-    } else {
-      localStorage.removeItem('selected_academic_year');
+
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      if (academicYear) {
+        url.searchParams.set('academicYear', academicYear);
+      } else {
+        url.searchParams.delete('academicYear');
+        url.searchParams.delete('academicYearId');
+      }
+      window.history.pushState({}, '', url.toString());
     }
+
     window.dispatchEvent(new CustomEvent('global_context_academic_year_changed', { detail: { academicYear } }));
+    window.dispatchEvent(new CustomEvent('global_filters_changed', { detail: { academicYear } }));
   };
 
   useEffect(() => {

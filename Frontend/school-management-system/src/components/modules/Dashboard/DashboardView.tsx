@@ -23,6 +23,7 @@ import { EmployeesByDepartmentChart } from './EmployeesByDepartmentChart';
 import { SpeedometerAttendanceCard } from './SpeedometerAttendanceCard';
 import { PendingApprovalsCard } from './PendingApprovalsCard';
 import { AnimatedCounter } from '../../common/AnimatedCounter';
+import { OccupancyBar } from './OccupancyBar';
 
 interface DashboardViewProps {
   onNavigate: (module: string) => void;
@@ -292,11 +293,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
         }
         await Promise.all([
           loadSummaryData(selectedBranch, selectedAcademicYear),
-          typeof fetchStudents === 'function' ? fetchStudents() : Promise.resolve(),
-          typeof fetchStaff === 'function' ? fetchStaff() : Promise.resolve(),
-          typeof fetchAdmissions === 'function' ? fetchAdmissions() : Promise.resolve(),
-          typeof fetchAcademicClasses === 'function' ? fetchAcademicClasses() : Promise.resolve(),
-          typeof fetchTodayStudentAttendanceSummary === 'function' ? fetchTodayStudentAttendanceSummary() : Promise.resolve()
+          typeof fetchStudents === 'function' ? fetchStudents(true) : Promise.resolve(),
+          typeof fetchStaff === 'function' ? fetchStaff(true) : Promise.resolve(),
+          typeof fetchAdmissions === 'function' ? fetchAdmissions(true) : Promise.resolve(),
+          typeof fetchAcademicClasses === 'function' ? fetchAcademicClasses(true) : Promise.resolve(),
+          typeof fetchTodayStudentAttendanceSummary === 'function' ? fetchTodayStudentAttendanceSummary(true) : Promise.resolve()
         ]);
       } catch (err) {
         console.error("Error loading dashboard data:", err);
@@ -1173,6 +1174,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
           </div>
         </div>
       </div>
+
+      {/* Hostel Bed Occupancy Rate Bar Driven by Selected Global Filters */}
+      <OccupancyBar className="my-3 sm:my-3.5" />
 
       <div className="space-y-3 sm:space-y-3.5">
         {/* Top Row: Student Attendance, Staff Attendance, Events & Holidays */}
