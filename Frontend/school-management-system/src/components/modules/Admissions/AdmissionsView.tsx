@@ -5626,23 +5626,6 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                       <span className="font-bold text-slate-700 dark:text-slate-300 block">
                         {formatStudentType(app.studentType)}
                       </span>
-                      {isResidentialApp(app) ? (
-                        checkAppDepositPaid(app) ? (
-                          <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold block mt-0.5">
-                            ✓ Deposit Paid ({formatCurrency(getAppDepositAmount(app))})
-                          </span>
-                        ) : (
-                          <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium block mt-0.5">
-                            Deposit Pending
-                          </span>
-                        )
-                      ) : (
-                        getAppPaidFeeAmount(app) > 0 ? (
-                          <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold block mt-0.5">
-                            Fee Paid: {formatCurrency(getAppPaidFeeAmount(app))}
-                          </span>
-                        ) : null
-                      )}
                     </td>
                     <td className="py-3 px-4">
                       <p className="text-slate-800 dark:text-slate-200">
