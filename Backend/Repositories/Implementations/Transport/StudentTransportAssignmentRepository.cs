@@ -135,6 +135,41 @@ namespace SMS.Api.Repositories.Implementations
                 })
                 .ToListAsync();
 
+            // Enrich with student details (name, class, section, parent info)
+            var studentIds = items.Where(i => i.StudentId.HasValue && i.StudentId.Value > 0).Select(i => (int)i.StudentId!.Value).Distinct().ToList();
+            var admissionNos = items.Where(i => !string.IsNullOrWhiteSpace(i.AdmissionNo)).Select(i => i.AdmissionNo.Trim().ToLower()).Distinct().ToList();
+
+            if (studentIds.Count > 0 || admissionNos.Count > 0)
+            {
+                var matchedStudents = await _context.Students
+                    .AsNoTracking()
+                    .Include(s => s.ClassGrade)
+                    .Include(s => s.ClassSection)
+                    .Where(s => !s.IsDeleted && (studentIds.Contains(s.StudentId) || admissionNos.Contains(s.AdmissionNumber.ToLower()) || admissionNos.Contains(s.RollNumber.ToLower())))
+                    .ToListAsync();
+
+                foreach (var item in items)
+                {
+                    var student = matchedStudents.FirstOrDefault(s =>
+                        (item.StudentId.HasValue && s.StudentId == item.StudentId.Value) ||
+                        (!string.IsNullOrWhiteSpace(item.AdmissionNo) && (
+                            string.Equals(s.AdmissionNumber, item.AdmissionNo, StringComparison.OrdinalIgnoreCase) ||
+                            string.Equals(s.RollNumber, item.AdmissionNo, StringComparison.OrdinalIgnoreCase)
+                        ))
+                    );
+
+                    if (student != null)
+                    {
+                        item.StudentName = student.StudentName;
+                        item.RollNumber = student.RollNumber;
+                        item.ClassName = student.ClassGrade?.ClassName ?? string.Empty;
+                        item.SectionName = student.ClassSection?.SectionName ?? string.Empty;
+                        item.FatherName = student.FatherName ?? string.Empty;
+                        item.FatherMobile = student.FatherMobile ?? student.MobileNumber ?? string.Empty;
+                    }
+                }
+            }
+
             return new PagedResult<StudentTransportAssignmentDto>
             {
                 Items = items,
@@ -150,7 +185,7 @@ namespace SMS.Api.Repositories.Implementations
         public async Task<StudentTransportAssignmentDto?> GetByIdAsync(
             long studentTransportAssignmentId)
         {
-            return await _context.StudentTransportAssignments
+            var dto = await _context.StudentTransportAssignments
                 .AsNoTracking()
                 .Where(x =>
                     x.StudentTransportAssignmentId ==
@@ -187,6 +222,35 @@ namespace SMS.Api.Repositories.Implementations
                     UpdatedAt = x.UpdatedAt
                 })
                 .FirstOrDefaultAsync();
+
+            if (dto != null)
+            {
+                var student = await _context.Students
+                    .AsNoTracking()
+                    .Include(s => s.ClassGrade)
+                    .Include(s => s.ClassSection)
+                    .FirstOrDefaultAsync(s =>
+                        !s.IsDeleted && (
+                            (dto.StudentId.HasValue && s.StudentId == dto.StudentId.Value) ||
+                            (!string.IsNullOrWhiteSpace(dto.AdmissionNo) && (
+                                s.AdmissionNumber == dto.AdmissionNo ||
+                                s.RollNumber == dto.AdmissionNo
+                            ))
+                        )
+                    );
+
+                if (student != null)
+                {
+                    dto.StudentName = student.StudentName;
+                    dto.RollNumber = student.RollNumber;
+                    dto.ClassName = student.ClassGrade?.ClassName ?? string.Empty;
+                    dto.SectionName = student.ClassSection?.SectionName ?? string.Empty;
+                    dto.FatherName = student.FatherName ?? string.Empty;
+                    dto.FatherMobile = student.FatherMobile ?? student.MobileNumber ?? string.Empty;
+                }
+            }
+
+            return dto;
         }
 
         // ---------------------------------------------------------

@@ -5,6 +5,12 @@ namespace SMS.Api.Dtos.Transport.StudentTransportAssignment
         public long StudentTransportAssignmentId { get; set; }
         public long? StudentId { get; set; }
         public string AdmissionNo { get; set; } = string.Empty;
+        public string? StudentName { get; set; }
+        public string? RollNumber { get; set; }
+        public string? ClassName { get; set; }
+        public string? SectionName { get; set; }
+        public string? FatherName { get; set; }
+        public string? FatherMobile { get; set; }
 
         public long RouteId { get; set; }
         public string? RouteName { get; set; }
@@ -27,7 +33,5 @@ namespace SMS.Api.Dtos.Transport.StudentTransportAssignment
         public long? UpdatedBy { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
-
-
     }
 }
