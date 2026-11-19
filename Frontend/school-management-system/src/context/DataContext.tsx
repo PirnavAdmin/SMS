@@ -4466,7 +4466,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               return {
                 id: item.applicationId
                   ? item.applicationId.toString()
-                  : existing?.id || Math.random().toString(),
+                  : item.id
+                    ? item.id.toString()
+                    : existing?.id || Math.random().toString(),
                 studentId:
                   item.studentId ||
                   item.registrationNo ||
@@ -7479,8 +7481,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const updateStudent = (id: string, updates: Partial<Student>) => {
-    const oldStudent = students.find((s) => s.id === id);
-    const numericId = parseInt(id, 10);
+    const oldStudent = students.find(
+      (s) =>
+        s.id === id ||
+        (s.admissionNo && String(s.admissionNo).toLowerCase() === String(id).toLowerCase()) ||
+        ((s as any).studentId && String((s as any).studentId).toLowerCase() === String(id).toLowerCase())
+    );
+    const numericId = parseInt(oldStudent?.id || id, 10);
 
     const targetClassName = updates.className || oldStudent?.className || "";
     if (

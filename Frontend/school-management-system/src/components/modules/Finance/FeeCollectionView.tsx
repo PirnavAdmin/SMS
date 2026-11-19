@@ -197,6 +197,9 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
   const [isSubmittingRefund, setIsSubmittingRefund] = useState<boolean>(false);
 
   useEffect(() => {
+    if (fetchAdmissions) {
+      fetchAdmissions().catch(() => {});
+    }
     if ((!students || students.length === 0) && fetchStudents) {
       fetchStudents().catch(() => {});
     }
@@ -209,6 +212,20 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     // Run once on mount; mutations refresh via DataContext events
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Listen to admissions or students updates to keep Fee Collection roster strictly synchronized
+  useEffect(() => {
+    const handleSync = () => {
+      if (fetchAdmissions) fetchAdmissions(true).catch(() => {});
+      if (fetchStudents) fetchStudents(true).catch(() => {});
+    };
+    window.addEventListener("admissions_updated", handleSync);
+    window.addEventListener("students_updated", handleSync);
+    return () => {
+      window.removeEventListener("admissions_updated", handleSync);
+      window.removeEventListener("students_updated", handleSync);
+    };
+  }, [fetchAdmissions, fetchStudents]);
 
   // Fetch dynamic backend fee profile whenever selectedStudent changes
   useEffect(() => {
@@ -608,7 +625,9 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
 
   // Use real enrolled students master roster, supplementing with non-duplicated admissions if any
   const allEnrolledStudents = React.useMemo(() => {
-    const map = new Map<string, Student>();
+    const list: Student[] = [];
+    const seenAdmissionNos = new Set<string>();
+    const seenNames = new Set<string>();
 
     // 1. Primary source for students: Admissions (both pending and enrolled)
     (admissions || [])
@@ -620,113 +639,106 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
       .forEach((adm) => {
         const isEnrolled = String(adm.status || "").toLowerCase().trim() === "enrolled" || String(adm.status || "").toLowerCase().trim() === "admitted";
         const admId = adm.id || adm.applicationNo || adm.registrationNo;
-        const admNo = (adm as any).admissionNo || (adm as any).admissionNumber || adm.registrationNo || adm.applicationNo || adm.id;
+        const admNo = String((adm as any).admissionNo || (adm as any).admissionNumber || adm.registrationNo || adm.applicationNo || adm.id || "").trim();
         if (!admNo) return;
         const fullName = (adm.applicantName || adm.studentName || (adm as any).applicantFullName || `${adm.firstName || ''} ${adm.lastName || ''}`).trim();
         if (!fullName) return;
 
         const nameKey = fullName.toLowerCase().replace(/[^a-z0-9]/g, '');
-        const nameParts = fullName.split(" ");
-        const fName = adm.firstName || nameParts[0] || "Student";
-        const lName = adm.lastName || nameParts.slice(1).join(" ") || "";
-        const targetCls = adm.appliedClass || (adm as any).appliedClassGrade || adm.targetClass || adm.className || (academicClasses && academicClasses[0] ? academicClasses[0].name : "");
+        const admKey = admNo.toLowerCase();
 
-        const dynamicStudentId = isEnrolled
-          ? ((adm as any).studentId || (adm as any).rollNo || adm.registrationNo || String(admId))
+        // Check if there is an enrolled master student record in `students` for this admission
+        const matchingStudent = (students || []).find((s) => {
+          if (!s) return false;
+          const sAdmNo = String(s.admissionNo || (s as any).admissionNumber || "").toLowerCase().trim();
+          if (sAdmNo && sAdmNo === admKey) return true;
+          const sStuId = String(s.studentId || s.rollNo || (s as any).registrationNumber || "").toLowerCase().trim();
+          const admRegNo = String(adm.registrationNo || (adm as any).studentId || "").toLowerCase().trim();
+          if (sStuId && admRegNo && sStuId === admRegNo) return true;
+          const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+          if (nameKey && sFullName && nameKey === sFullName) return true;
+          return false;
+        });
+
+        const nameParts = fullName.split(" ");
+        const fName = adm.firstName || matchingStudent?.firstName || nameParts[0] || "Student";
+        const lName = adm.lastName || matchingStudent?.lastName || nameParts.slice(1).join(" ") || "";
+        const targetCls = adm.appliedClass || (adm as any).appliedClassGrade || adm.targetClass || adm.className || matchingStudent?.className || (academicClasses && academicClasses[0] ? academicClasses[0].name : "");
+
+        const dynamicStudentId = (isEnrolled || matchingStudent)
+          ? (matchingStudent?.studentId || (matchingStudent as any)?.rollNo || (adm as any).studentId || (adm as any).rollNo || adm.registrationNo || String(admId))
           : (adm.admissionNo || (adm as any).admissionNumber || adm.applicationNo || String(admId));
 
-        map.set(nameKey, {
+        const studentRecord: Student = {
+          // Keep adm.id as id so admission lookups (targetAdm) and fees find the admission record
           id: String(admId),
+          studentDbId: matchingStudent?.id ? String(matchingStudent.id) : undefined,
           studentId: dynamicStudentId,
           firstName: fName,
           lastName: lName,
           admissionNo: admNo,
           className: targetCls,
-          section: adm.section || "A",
-          gender: adm.gender || "Male",
-          studentType: (adm.residentialStatus === "Residential" || adm.studentType === "Residential") ? "Hosteller" : "Day Scholar",
-          residentialStatus: adm.residentialStatus || adm.studentType || "Non-Residential",
-          joiningDate: adm.admissionDate || (adm as any).createdAt?.split("T")[0] || new Date().toISOString().split("T")[0],
+          section: adm.section || matchingStudent?.section || "A",
+          gender: adm.gender || matchingStudent?.gender || "Male",
+          studentType: (adm.residentialStatus === "Residential" || adm.studentType === "Residential" || matchingStudent?.studentType === "Hosteller") ? "Hosteller" : "Day Scholar",
+          residentialStatus: adm.residentialStatus || adm.studentType || (matchingStudent as any)?.residentialStatus || "Non-Residential",
+          joiningDate: adm.admissionDate || matchingStudent?.joiningDate || (adm as any).createdAt?.split("T")[0] || new Date().toISOString().split("T")[0],
           dueFee: 0,
-          paidFee: (adm as any).paidFee || 0,
+          paidFee: (adm as any).paidFee || matchingStudent?.paidFee || 0,
           totalFee: 0,
           rollNo: dynamicStudentId,
-          fatherName: adm.parentName || adm.fatherName || (adm as any).fatherFullName || "",
-          motherName: adm.motherName || (adm as any).motherFullName || "",
-          mobile: adm.mobile || adm.phone || (adm as any).fatherContact || "",
-          email: adm.email || (adm as any).parentEmail || "",
-          address: adm.address || (adm as any).areaLocality || "",
-          status: isEnrolled ? "Active" : "Applied",
-          academicYear: adm.academicYear || selectedAcademicYear || "",
-
-          branch: adm.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
-          selectedOptionalFees: adm.selectedOptionalFees || [],
-          // Preserve dynamic transport assignment information
-          transportRequired: Boolean(adm.transportRequired),
-          transportType: adm.transportType || "AC",
-          busRoute: adm.busRoute || (adm as any).routeName || "",
-          pickupPoint: adm.pickupPoint || (adm as any).pickupPointName || (adm as any).pickupName || "",
-          routeId: (adm as any).routeId || "",
-          pickupPointId: (adm as any).pickupPointId || "",
+          fatherName: adm.parentName || adm.fatherName || (adm as any).fatherFullName || matchingStudent?.fatherName || "",
+          motherName: adm.motherName || (adm as any).motherFullName || matchingStudent?.motherName || "",
+          mobile: adm.mobile || adm.phone || (adm as any).fatherContact || matchingStudent?.mobile || "",
+          email: adm.email || (adm as any).parentEmail || matchingStudent?.email || "",
+          address: adm.address || (adm as any).areaLocality || matchingStudent?.address || "",
+          status: (isEnrolled || matchingStudent) ? "Active" : "Applied",
+          academicYear: adm.academicYear || matchingStudent?.academicYear || selectedAcademicYear || "",
+          branch: adm.branch || matchingStudent?.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
+          selectedOptionalFees: adm.selectedOptionalFees || (matchingStudent as any)?.selectedOptionalFees || [],
+          transportRequired: Boolean(adm.transportRequired || matchingStudent?.transportRequired),
+          transportType: adm.transportType || matchingStudent?.transportType || "AC",
+          busRoute: adm.busRoute || (adm as any).routeName || matchingStudent?.busRoute || "",
+          pickupPoint: adm.pickupPoint || (adm as any).pickupPointName || (adm as any).pickupName || matchingStudent?.pickupPoint || "",
+          routeId: (adm as any).routeId || (matchingStudent as any)?.routeId || "",
+          pickupPointId: (adm as any).pickupPointId || (matchingStudent as any)?.pickupPointId || "",
           registrationNo: adm.registrationNo || (adm as any).registrationNumber || dynamicStudentId,
           applicationNo: adm.applicationNo || (adm as any).applicationId || "",
           hostelSharing: (adm as any).hostelSharing || (adm as any).roomSharing || (adm as any).roomType || "",
           hostelAc: (adm as any).hostelAc || (adm as any).acType || "",
           hostelSecurityDepositPaid: Boolean((adm as any).hostelSecurityDepositPaid),
-          isEnrolled: isEnrolled,
-        } as unknown as Student);
+          admissionFeePaid: Boolean((adm as any).admissionFeePaid),
+          isEnrolled: isEnrolled || Boolean(matchingStudent),
+        } as unknown as Student;
+
+        if (admKey) seenAdmissionNos.add(admKey);
+        if (nameKey) seenNames.add(nameKey);
+        list.push(studentRecord);
       });
 
-    // 2. Secondary source: Master database students, skipping legacy dummy ADM-2026-2020 or students already present
+    // 2. Secondary source: Master database students not already covered by admissions
     (students || [])
       .filter((s) => s && (!s.status || s.status === "Active" || s.status === "Enrolled"))
       .forEach((s) => {
         if (!s) return;
-        const fullName = `${s.firstName || ''} ${s.lastName || ''}`.trim() || (s as any).studentName || '';
-        const nameKey = fullName.toLowerCase().replace(/[^a-z0-9]/g, '');
-        if (nameKey && map.has(nameKey)) {
-          const existing = map.get(nameKey)!;
-          map.set(nameKey, {
-            ...existing,
-            ...s,
-            id: s.id ? String(s.id) : existing.id,
-            admissionNo: s.admissionNo || existing.admissionNo,
-            studentId: existing.studentId || (s as any).studentId || s.rollNo || existing.rollNo,
-            rollNo: (existing.rollNo && existing.rollNo !== "0" ? existing.rollNo : "") || (s.rollNo && s.rollNo !== "0" ? s.rollNo : "") || existing.studentId,
-            registrationNo: (existing as any).registrationNo || (s as any).registrationNumber || existing.studentId,
-            feeCalculationMethod: (s as any).feeCalculationMethod || (existing as any).feeCalculationMethod,
-            feePolicy: (s as any).feePolicy || (existing as any).feePolicy,
-            transportRequired: existing.transportRequired ?? (s as any).transportRequired,
-            busRoute: existing.busRoute || (s as any).busRoute,
-            pickupPoint: existing.pickupPoint || (s as any).pickupPoint,
-            transportType: existing.transportType || (s as any).transportType,
-            routeId: (existing as any).routeId || (s as any).routeId,
-            pickupPointId: (existing as any).pickupPointId || (s as any).pickupPointId,
-          });
-          return;
-        }
+        const sAdmNo = String(s.admissionNo || (s as any).admissionNumber || "").toLowerCase().trim();
+        const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (sAdmNo && seenAdmissionNos.has(sAdmNo)) return;
+        if (sFullName && seenNames.has(sFullName)) return;
 
-        const admKey = (s.admissionNo || s.id || "").toLowerCase().trim();
-        if (admKey) {
-          map.set(admKey, {
-            ...s,
-            studentId: (s as any).studentId || s.rollNo || s.admissionNo,
-          });
-        }
+        const fallbackStudentId = (s as any).studentId || s.rollNo || s.admissionNo || String(s.id);
+        if (sAdmNo) seenAdmissionNos.add(sAdmNo);
+        if (sFullName) seenNames.add(sFullName);
+
+        list.push({
+          ...s,
+          studentId: fallbackStudentId,
+          isEnrolled: true,
+        });
       });
 
-    // Deduplicate any overlapping student records by primary key id or admission number
-    const finalMap = new Map<string, Student>();
-    for (const st of map.values()) {
-      const uniqueId = String(st.id || st.admissionNo || (st as any).studentId || "");
-      if (uniqueId && !finalMap.has(uniqueId)) {
-        finalMap.set(uniqueId, st);
-      } else if (uniqueId) {
-        finalMap.set(uniqueId, { ...finalMap.get(uniqueId)!, ...st });
-      }
-    }
-    return Array.from(finalMap.values());
-  }, [students, admissions, selectedBranch]);
+    return list;
+  }, [students, admissions, selectedBranch, selectedAcademicYear, academicClasses]);
 
   const getStudentDisplayId = React.useCallback(
     (st: any): string => {
@@ -1468,15 +1480,16 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
       try {
         const sFullName = `${selectedStudent.firstName || ""} ${selectedStudent.lastName || ""}`.trim().toLowerCase();
         const targetAdm = (admissions || []).find((a) =>
-          String(a.id) === String(selectedStudent.id) ||
           (selectedStudent.admissionNo && (
-            String(a.admissionNo) === String(selectedStudent.admissionNo) ||
-            String(a.applicationNo) === String(selectedStudent.admissionNo) ||
-            String(a.registrationNo) === String(selectedStudent.admissionNo)
+            String(a.admissionNo).toLowerCase() === String(selectedStudent.admissionNo).toLowerCase() ||
+            String(a.applicationNo).toLowerCase() === String(selectedStudent.admissionNo).toLowerCase() ||
+            String(a.registrationNo).toLowerCase() === String(selectedStudent.admissionNo).toLowerCase()
           )) ||
+          ((selectedStudent as any).admissionId && String(a.id) === String((selectedStudent as any).admissionId)) ||
+          String(a.id) === String(selectedStudent.id) ||
           ((selectedStudent as any).studentId && (
-            String(a.studentId) === String((selectedStudent as any).studentId) ||
-            String(a.registrationNo) === String((selectedStudent as any).studentId)
+            String(a.studentId).toLowerCase() === String((selectedStudent as any).studentId).toLowerCase() ||
+            String(a.registrationNo).toLowerCase() === String((selectedStudent as any).studentId).toLowerCase()
           )) ||
           (sFullName && (
             `${a.applicantName || ""}`.trim().toLowerCase() === sFullName ||
@@ -1543,15 +1556,16 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
       try {
         const sFullName = `${selectedStudent.firstName || ""} ${selectedStudent.lastName || ""}`.trim().toLowerCase();
         const targetAdm = (admissions || []).find((a) =>
-          String(a.id) === String(selectedStudent.id) ||
           (selectedStudent.admissionNo && (
-            String(a.admissionNo) === String(selectedStudent.admissionNo) ||
-            String(a.applicationNo) === String(selectedStudent.admissionNo) ||
-            String(a.registrationNo) === String(selectedStudent.admissionNo)
+            String(a.admissionNo).toLowerCase() === String(selectedStudent.admissionNo).toLowerCase() ||
+            String(a.applicationNo).toLowerCase() === String(selectedStudent.admissionNo).toLowerCase() ||
+            String(a.registrationNo).toLowerCase() === String(selectedStudent.admissionNo).toLowerCase()
           )) ||
+          ((selectedStudent as any).admissionId && String(a.id) === String((selectedStudent as any).admissionId)) ||
+          String(a.id) === String(selectedStudent.id) ||
           ((selectedStudent as any).studentId && (
-            String(a.studentId) === String((selectedStudent as any).studentId) ||
-            String(a.registrationNo) === String((selectedStudent as any).studentId)
+            String(a.studentId).toLowerCase() === String((selectedStudent as any).studentId).toLowerCase() ||
+            String(a.registrationNo).toLowerCase() === String((selectedStudent as any).studentId).toLowerCase()
           )) ||
           (sFullName && (
             `${a.applicantName || ""}`.trim().toLowerCase() === sFullName ||
@@ -2315,7 +2329,15 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
       });
     } else {
       // No explicit uniform issues yet recorded — check if opted at admission
-      const admRecord = (admissions || []).find(a => a.id === selectedStudent.id || a.applicationNo === selectedStudent.id || (selectedStudent.admissionNo && (a.id === selectedStudent.admissionNo || a.applicationNo === selectedStudent.admissionNo)));
+      const admRecord = (admissions || []).find(
+        (a) =>
+          (selectedStudent.admissionNo && (
+            String(a.admissionNo).toLowerCase() === String(selectedStudent.admissionNo).toLowerCase() ||
+            String(a.applicationNo).toLowerCase() === String(selectedStudent.admissionNo).toLowerCase()
+          )) ||
+          String(a.id) === String(selectedStudent.id) ||
+          String(a.applicationNo) === String(selectedStudent.id)
+      );
       const optList = admRecord ? admRecord.selectedOptionalFees : null;
       const isExplicitlyOptedOut = Boolean(
         (admRecord as any)?.uniformOpted === false ||
