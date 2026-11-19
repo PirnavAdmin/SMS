@@ -804,6 +804,26 @@ using (var scope = app.Services.CreateScope())
                     }
                     catch { }
 
+                    // Ensure users.SchoolId foreign key has ON DELETE SET NULL to avoid delete school constraint failure
+                    try
+                    {
+                        cmd.CommandText = $"SELECT CONSTRAINT_NAME FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA = '{dbName}' AND TABLE_NAME = 'users' AND COLUMN_NAME = 'SchoolId' AND REFERENCED_TABLE_NAME = 'schools' LIMIT 1;";
+                        var userFkObj = cmd.ExecuteScalar();
+                        if (userFkObj != null && userFkObj != System.DBNull.Value)
+                        {
+                            var userFkName = userFkObj.ToString();
+                            if (!string.IsNullOrEmpty(userFkName))
+                            {
+                                cmd.CommandText = $"ALTER TABLE `users` DROP FOREIGN KEY `{userFkName}`;";
+                                cmd.ExecuteNonQuery();
+                                cmd.CommandText = "ALTER TABLE `users` ADD CONSTRAINT `FK_users_schools_SchoolId` FOREIGN KEY (`SchoolId`) REFERENCES `schools` (`SchoolId`) ON DELETE SET NULL;";
+                                cmd.ExecuteNonQuery();
+                                System.Console.WriteLine("[Database Schema Upgrade] Updated `FK_users_schools_SchoolId` with ON DELETE SET NULL.");
+                            }
+                        }
+                    }
+                    catch { }
+
                     // Automatic Multi-Tenant Column Upgrade: ensure TenantId exists on all tables
                     try
                     {

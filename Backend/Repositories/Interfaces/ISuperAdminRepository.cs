@@ -12,6 +12,7 @@ public interface ISuperAdminRepository
     Task<School?> GetSchoolByCodeAsync(string schoolCode);
     Task AddSchoolAsync(School school);
     void DeleteSchool(School school);
+    Task DeleteSchoolCascadeAsync(int schoolId, string? tenantId = null);
 
     // User/Admin Management
     Task<List<Admin>> GetAdminsAsync(string? search);

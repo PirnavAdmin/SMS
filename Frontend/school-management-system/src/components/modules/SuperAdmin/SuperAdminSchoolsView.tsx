@@ -45,6 +45,7 @@ export const SuperAdminSchoolsView: React.FC<SuperAdminSchoolsViewProps> = ({ on
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingSchool, setEditingSchool] = useState<SchoolItem | null>(null);
   const [deletingSchool, setDeletingSchool] = useState<SchoolItem | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [viewingSchool, setViewingSchool] = useState<SchoolItem | null>(null);
   const [loginModalSchool, setLoginModalSchool] = useState<SchoolItem | null>(null);
   const [schoolUsersSummary, setSchoolUsersSummary] = useState<any>(null);
@@ -146,12 +147,16 @@ export const SuperAdminSchoolsView: React.FC<SuperAdminSchoolsViewProps> = ({ on
   const handleDeleteConfirm = async () => {
     if (!deletingSchool) return;
     try {
+      setIsDeleting(true);
       await deleteSchoolApi(deletingSchool.schoolId);
       setSchools(prev => prev.filter(s => s.schoolId !== deletingSchool.schoolId));
+      setSelectedIds(prev => prev.filter(id => id !== deletingSchool.schoolId));
       addToast('success', 'School Removed', `${deletingSchool.schoolName} has been deleted.`);
       setDeletingSchool(null);
     } catch (err: any) {
       addToast('error', 'Error', err?.message || 'Failed to delete school.');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -651,11 +656,14 @@ export const SuperAdminSchoolsView: React.FC<SuperAdminSchoolsViewProps> = ({ on
                             <Edit3 className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() => setDeletingSchool(school)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeletingSchool(school);
+                            }}
                             title="Delete School"
-                            className="w-8 h-8 rounded-xl btn-glass-secondary flex items-center justify-center text-rose-500 hover:text-rose-600 active:scale-90 transition-transform cursor-pointer"
+                            className="w-8 h-8 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 hover:text-rose-700 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 dark:text-rose-400 border border-rose-200 dark:border-rose-800/80 flex items-center justify-center active:scale-90 transition-all cursor-pointer shadow-xs"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="w-4 h-4 text-rose-600 dark:text-rose-400" />
                           </button>
                         </div>
                       </td>
@@ -726,8 +734,9 @@ export const SuperAdminSchoolsView: React.FC<SuperAdminSchoolsViewProps> = ({ on
       {/* Delete Confirmation Modal */}
       <ConfirmModal
         isOpen={!!deletingSchool}
-        onClose={() => setDeletingSchool(null)}
+        onClose={() => !isDeleting && setDeletingSchool(null)}
         onConfirm={handleDeleteConfirm}
+        isLoading={isDeleting}
         title="Delete Educational Institution"
         message={`Are you sure you want to permanently delete "${deletingSchool?.schoolName}"? All associated classes, students, and admin accounts will be affected.`}
         confirmText="Delete School"

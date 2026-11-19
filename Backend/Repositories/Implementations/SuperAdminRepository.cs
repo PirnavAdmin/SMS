@@ -64,6 +64,148 @@ public class SuperAdminRepository : ISuperAdminRepository
         _context.Schools.Remove(school);
     }
 
+    public async Task DeleteSchoolCascadeAsync(int schoolId, string? tenantId = null)
+    {
+        // 1. Gather all admin and user IDs belonging to this school or tenant
+        var adminIds = await _context.Admins
+            .IgnoreQueryFilters()
+            .Where(a => a.SchoolId == schoolId || (tenantId != null && a.TenantId == tenantId))
+            .Select(a => a.AdminId)
+            .ToListAsync();
+
+        var userIds = await _context.Users
+            .IgnoreQueryFilters()
+            .Where(u => u.SchoolId == schoolId || (tenantId != null && u.TenantId == tenantId))
+            .Select(u => u.UserId)
+            .ToListAsync();
+
+        // 2. Remove OTP verifications for these users/admins
+        var otps = await _context.OtpVerifications
+            .IgnoreQueryFilters()
+            .Where(o => (o.AdminId.HasValue && adminIds.Contains(o.AdminId.Value)) ||
+                        (o.UserId.HasValue && userIds.Contains(o.UserId.Value)))
+            .ToListAsync();
+
+        if (otps.Any())
+        {
+            _context.OtpVerifications.RemoveRange(otps);
+        }
+
+        // 3. Remove Admins and their roles
+        var admins = await _context.Admins
+            .IgnoreQueryFilters()
+            .Include(a => a.Roles)
+            .Where(a => a.SchoolId == schoolId || (tenantId != null && a.TenantId == tenantId))
+            .ToListAsync();
+
+        foreach (var a in admins)
+        {
+            a.Roles.Clear();
+        }
+        if (admins.Any())
+        {
+            _context.Admins.RemoveRange(admins);
+        }
+
+        // 4. Remove Users and their roles
+        var users = await _context.Users
+            .IgnoreQueryFilters()
+            .Include(u => u.Roles)
+            .Where(u => u.SchoolId == schoolId || (tenantId != null && u.TenantId == tenantId))
+            .ToListAsync();
+
+        foreach (var u in users)
+        {
+            u.Roles.Clear();
+        }
+        if (users.Any())
+        {
+            _context.Users.RemoveRange(users);
+        }
+
+        // 5. Clear SchoolId on any remaining users/admins in database
+        var remainingUsers = await _context.Users
+            .IgnoreQueryFilters()
+            .Where(u => u.SchoolId == schoolId)
+            .ToListAsync();
+        foreach (var u in remainingUsers)
+        {
+            u.SchoolId = null;
+        }
+
+        var remainingAdmins = await _context.Admins
+            .IgnoreQueryFilters()
+            .Where(a => a.SchoolId == schoolId)
+            .ToListAsync();
+        foreach (var a in remainingAdmins)
+        {
+            a.SchoolId = null;
+        }
+
+        // 6. Clear SchoolId on AuditLogs to preserve history without foreign key failure
+        var auditLogs = await _context.AuditLogs
+            .IgnoreQueryFilters()
+            .Where(al => al.SchoolId == schoolId)
+            .ToListAsync();
+        foreach (var al in auditLogs)
+        {
+            al.SchoolId = null;
+        }
+
+        // 7. Remove SystemNotifications referencing this school
+        var notifications = await _context.SystemNotifications
+            .IgnoreQueryFilters()
+            .Where(sn => sn.SchoolId == schoolId)
+            .ToListAsync();
+        if (notifications.Any())
+        {
+            _context.SystemNotifications.RemoveRange(notifications);
+        }
+
+        // 8. Clean up tenant-scoped records if tenantId is present
+        if (!string.IsNullOrWhiteSpace(tenantId))
+        {
+            try
+            {
+                var staff = await _context.Staff.IgnoreQueryFilters().Where(s => s.TenantId == tenantId).ToListAsync();
+                if (staff.Any()) _context.Staff.RemoveRange(staff);
+
+                var students = await _context.Students.IgnoreQueryFilters().Where(s => s.TenantId == tenantId).ToListAsync();
+                if (students.Any()) _context.Students.RemoveRange(students);
+
+                var admissions = await _context.Admissions.IgnoreQueryFilters().Where(a => a.TenantId == tenantId).ToListAsync();
+                if (admissions.Any()) _context.Admissions.RemoveRange(admissions);
+
+                var branches = await _context.Branches.IgnoreQueryFilters().Where(b => b.TenantId == tenantId).ToListAsync();
+                if (branches.Any()) _context.Branches.RemoveRange(branches);
+
+                var departments = await _context.Departments.IgnoreQueryFilters().Where(d => d.TenantId == tenantId).ToListAsync();
+                if (departments.Any()) _context.Departments.RemoveRange(departments);
+
+                var subjects = await _context.Subjects.IgnoreQueryFilters().Where(s => s.TenantId == tenantId).ToListAsync();
+                if (subjects.Any()) _context.Subjects.RemoveRange(subjects);
+
+                var settings = await _context.SchoolSettings.IgnoreQueryFilters().Where(s => s.TenantId == tenantId).ToListAsync();
+                if (settings.Any()) _context.SchoolSettings.RemoveRange(settings);
+            }
+            catch { }
+        }
+
+        // Save child deletions first so foreign key dependencies are cleared
+        await _context.SaveChangesAsync();
+
+        // 9. Remove School entity itself
+        var school = await _context.Schools
+            .IgnoreQueryFilters()
+            .FirstOrDefaultAsync(s => s.SchoolId == schoolId);
+
+        if (school != null)
+        {
+            _context.Schools.Remove(school);
+            await _context.SaveChangesAsync();
+        }
+    }
+
     // --- User/Admin Management ---
 
     public async Task<List<Admin>> GetAdminsAsync(string? search)

@@ -557,9 +557,7 @@ public class SuperAdminService : ISuperAdminService
         var school = await _saRepository.GetSchoolByIdAsync(schoolId)
             ?? throw new NotFoundException($"School with ID '{schoolId}' not found.");
 
-        _saRepository.DeleteSchool(school);
-        await _saRepository.SaveChangesAsync();
-
+        string? tenantId = null;
         if (_tenantStore != null)
         {
             try
@@ -568,12 +566,15 @@ public class SuperAdminService : ISuperAdminService
                 var tenant = await _tenantStore.AppTenants.FirstOrDefaultAsync(t => (t.Identifier != null && t.Identifier.ToLower() == sCode) || t.Name == school.SchoolName);
                 if (tenant != null)
                 {
+                    tenantId = tenant.Id;
                     _tenantStore.AppTenants.Remove(tenant);
                     await _tenantStore.SaveChangesAsync();
                 }
             }
             catch { }
         }
+
+        await _saRepository.DeleteSchoolCascadeAsync(schoolId, tenantId);
 
         var adminUser = await _userRepository.GetByIdAsync(requestedByUserId);
         await LogActivityAsync(requestedByUserId, adminUser?.FullName ?? "SuperAdmin", "SuperAdmin", "Delete School", $"Deleted school: {school.SchoolName}");
