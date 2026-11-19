@@ -10,6 +10,7 @@ import { ConfirmModal } from '../../common/ConfirmModal';
 import { DateInput } from '../../common/DateInput';
 import { SearchableSelect } from '../../common/SearchableSelect';
 import { Pagination } from '../../common/Pagination';
+import { LoadingSpinner } from '../../common/LoadingSpinner';
 import { getWardens, getStaffCandidates, getHostelBlocks, assignWarden, deleteWarden, HostelBlock, StaffCandidate } from '../../../api/hostel';
 
 interface WardenRecord {
@@ -424,7 +425,7 @@ export const WardenMasterView: React.FC<WardenMasterViewProps> = ({
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
                 {loading ? (
                   <tr>
-                    <td colSpan={5} className="py-8 text-center text-slate-400 italic">Loading wardens...</td>
+                    <td colSpan={5} className="py-12 text-center"><LoadingSpinner text="Loading..." /></td>
                   </tr>
                 ) : filteredWardens.length === 0 ? (
                   <tr>

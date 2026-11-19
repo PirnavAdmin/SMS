@@ -3,6 +3,7 @@ import { formatCurrency } from '../../../utils/currency';
 import { Package, Plus, AlertCircle, ShoppingCart } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
+import { LoadingSpinner } from '../../common/LoadingSpinner';
 
 const MAX_INVENTORY_QTY = 1000000;
 const MAX_INVENTORY_PRICE = 100000000;
@@ -18,6 +19,14 @@ export const InventoryView: React.FC = () => {
   const { addToast } = useToast();
 
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [loading, setLoading] = useState<boolean>(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, []);
   const [formError, setFormError] = useState<string | null>(null);
   const [newItem, setNewItem] = useState({
     itemName: '',
@@ -134,7 +143,13 @@ export const InventoryView: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
-              {inventory.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={6} className="py-12 text-center">
+                    <LoadingSpinner text="Loading..." />
+                  </td>
+                </tr>
+              ) : inventory.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="py-8 px-4 text-center text-slate-400 italic">
                     No inventory items found.

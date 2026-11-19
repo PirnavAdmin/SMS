@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Activity, Users, GraduationCap, Briefcase, UserCheck, Shield, Building2, RefreshCw, HardDrive, Cpu, Database } from 'lucide-react';
 import { fetchUserStatisticsApi, UserStatisticsResponse, fetchSchoolsApi, SchoolItem } from '../../../api/superadmin';
+import { LoadingSpinner } from '../../common/LoadingSpinner';
 
 export const SuperAdminMetricsView: React.FC = () => {
   const [stats, setStats] = useState<UserStatisticsResponse | null>(null);
@@ -163,11 +164,8 @@ export const SuperAdminMetricsView: React.FC = () => {
             <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="p-12 text-center text-slate-400">
-                    <div className="flex flex-col items-center justify-center gap-2">
-                      <div className="w-6 h-6 border-2 border-sky-500 border-t-transparent rounded-full animate-spin" />
-                      <span>Loading institution usage breakdown...</span>
-                    </div>
+                  <td colSpan={8} className="p-12 text-center">
+                    <LoadingSpinner text="Loading..." />
                   </td>
                 </tr>
               ) : paginatedSchools.length === 0 ? (

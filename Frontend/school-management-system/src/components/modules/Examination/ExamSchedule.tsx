@@ -7,6 +7,7 @@ import { ExamTimetablePreview } from './components/ExamTimetablePreview';
 import { ExamSetup, ExamSchedule as ExamScheduleType, SubjectItem, Staff } from '../../../types';
 import { InvigilatorOption } from './components/ExamScheduleTable';
 import { Panel } from './components/SharedUI';
+import { LoadingSpinner } from '../../common/LoadingSpinner';
 import { useData } from '../../../context/DataContext';
 import { checkRoomCollision, checkInvigilatorCollision } from './utils/examValidation';
 import {
@@ -686,7 +687,7 @@ export const ExamSchedule: React.FC<ExamScheduleProps> = ({
               <div className="relative">
                 {loading && (
                   <div className="absolute inset-0 bg-white/60 dark:bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-40 rounded-3xl">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-sky-600"></div>
+                    <LoadingSpinner size="sm" />
                   </div>
                 )}
                 <ExamScheduleTable
@@ -711,7 +712,7 @@ export const ExamSchedule: React.FC<ExamScheduleProps> = ({
             <div className="relative">
               {loading && (
                 <div className="absolute inset-0 bg-white/60 dark:bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-40 rounded-3xl">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-sky-600"></div>
+                  <LoadingSpinner size="sm" />
                 </div>
               )}
               <ExamTimetablePreview

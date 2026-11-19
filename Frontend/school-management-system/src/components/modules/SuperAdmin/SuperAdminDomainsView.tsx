@@ -6,6 +6,7 @@ import {
 import { SchoolItem, AdminItem, fetchSchoolsApi, fetchAdminsApi } from '../../../api/superadmin';
 import { validateSearchQuery } from '../../../utils/validation';
 import { CustomerLoginModal } from './CustomerLoginModal';
+import { LoadingSpinner } from '../../common/LoadingSpinner';
 
 export const SuperAdminDomainsView: React.FC = () => {
   const [schools, setSchools] = useState<SchoolItem[]>([]);
@@ -172,11 +173,8 @@ export const SuperAdminDomainsView: React.FC = () => {
             <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="p-12 text-center text-slate-400">
-                    <div className="flex flex-col items-center justify-center gap-2">
-                      <div className="w-6 h-6 border-2 border-sky-500 border-t-transparent rounded-full animate-spin" />
-                      <span>Loading portals & domains...</span>
-                    </div>
+                  <td colSpan={6} className="p-12 text-center">
+                    <LoadingSpinner text="Loading..." />
                   </td>
                 </tr>
               ) : searchError ? (

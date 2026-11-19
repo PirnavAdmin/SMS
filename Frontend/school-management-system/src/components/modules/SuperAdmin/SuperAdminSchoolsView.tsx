@@ -20,6 +20,7 @@ import { validateSearchQuery } from '../../../utils/validation';
 import { AddSchoolModal } from './AddSchoolModal';
 import { CustomerLoginModal } from './CustomerLoginModal';
 import { ConfirmModal } from '../../common/ConfirmModal';
+import { LoadingSpinner } from '../../common/LoadingSpinner';
 
 interface SuperAdminSchoolsViewProps {
   onNavigate?: (module: string) => void;
@@ -490,11 +491,8 @@ export const SuperAdminSchoolsView: React.FC<SuperAdminSchoolsViewProps> = ({ on
             <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-xs text-slate-700 dark:text-slate-300">
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="p-12 text-center text-slate-400">
-                    <div className="flex flex-col items-center justify-center gap-2">
-                      <div className="w-6 h-6 border-2 border-sky-500 border-t-transparent rounded-full animate-spin" />
-                      <span>Loading registered institutions...</span>
-                    </div>
+                  <td colSpan={8} className="p-12 text-center">
+                    <LoadingSpinner text="Loading..." />
                   </td>
                 </tr>
               ) : searchError ? (

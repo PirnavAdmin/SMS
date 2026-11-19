@@ -4,6 +4,7 @@ import { BookOpen, Calendar, Clock, Target, Home, MapPin, User, Megaphone, Alert
 import { useAuth } from '../../../context/AuthContext';
 import { useData } from '../../../context/DataContext';
 import { normalizeStudentType } from '../../../utils/studentTypeUtils';
+import { DashboardShimmer } from '../../common/DashboardShimmer';
 
 interface StudentDashboardViewProps {
   onNavigate?: (module: string) => void;
@@ -469,12 +470,7 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ onNa
   const dayFormatted = todayObj.toLocaleDateString('en-US', { weekday: 'long' }).toUpperCase();
 
   if (!currentWard) {
-    return (
-      <div className="p-12 text-center">
-        <div className="w-8 h-8 border-3 border-sky-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-        <p className="text-xs text-slate-500 font-medium">Loading student records...</p>
-      </div>
-    );
+    return <DashboardShimmer />;
   }
 
   return (

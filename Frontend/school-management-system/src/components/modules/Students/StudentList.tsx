@@ -17,6 +17,7 @@ import { useToast } from '../../../context/ToastContext';
 import { Badge } from '../../common/Badge';
 import { ExportButton } from '../../common/ExportButton';
 import { ConfirmModal } from '../../common/ConfirmModal';
+import { LoadingSpinner } from '../../common/LoadingSpinner';
 import { SchoolPrintHeader } from '../../common/SchoolPrintHeader';
 import { StudentFormModal } from './StudentFormModal';
 import { StudentProfileDrawer } from './StudentProfileDrawer';
@@ -35,7 +36,14 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
   const [allocations, setAllocations] = useState<BedAllocation[]>([]);
   const [hostelBlocks, setHostelBlocks] = useState<any[]>([]);
   const [wardenSelectedBlockId, setWardenSelectedBlockId] = useState<string>('All');
-  const [loading, setLoading] = useState((students?.length ?? 0) === 0);
+  const [loading, setLoading] = useState<boolean>(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, []);
   const { addToast } = useToast();
   const { user, role, selectedBranch, selectedAcademicYear } = useAuth();
 
@@ -1702,8 +1710,8 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
                   {loading ? (
                     <tr>
-                      <td colSpan={9} className="text-center py-8 text-slate-400">
-                        <div className="animate-pulse">Loading student records...</div>
+                      <td colSpan={9} className="text-center py-12">
+                        <LoadingSpinner text="Loading..." />
                       </td>
                     </tr>
                   ) : searchError ? (

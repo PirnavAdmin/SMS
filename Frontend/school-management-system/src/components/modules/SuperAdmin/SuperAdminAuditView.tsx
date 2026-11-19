@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ShieldAlert, Search, RefreshCw, Clock, Filter, User, Building2, CheckCircle2, X } from 'lucide-react';
 import { AuditLogItem, fetchAuditLogsApi } from '../../../api/superadmin';
+import { LoadingSpinner } from '../../common/LoadingSpinner';
 
 export const SuperAdminAuditView: React.FC = () => {
   const [logs, setLogs] = useState<AuditLogItem[]>([]);
@@ -137,11 +138,8 @@ export const SuperAdminAuditView: React.FC = () => {
             <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="p-12 text-center text-slate-400">
-                    <div className="flex flex-col items-center justify-center gap-2">
-                      <div className="w-6 h-6 border-2 border-sky-500 border-t-transparent rounded-full animate-spin" />
-                      <span>Loading audit trail...</span>
-                    </div>
+                  <td colSpan={6} className="p-12 text-center">
+                    <LoadingSpinner text="Loading..." />
                   </td>
                 </tr>
               ) : paginatedLogs.length === 0 ? (

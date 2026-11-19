@@ -53,6 +53,7 @@ import { applySchoolBranding } from "../../../utils/brandingUtils";
 import { ConfirmModal } from "../../common/ConfirmModal";
 import { Pagination } from "../../common/Pagination";
 import { ValidatedSearchInput } from "../../common/ValidatedSearchInput";
+import { LoadingSpinner } from "../../common/LoadingSpinner";
 import {
   AcademicYearMaster,
   CertificateTemplateConfig,
@@ -4215,11 +4216,8 @@ export const SettingsView: React.FC = () => {
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium text-slate-700 dark:text-slate-300">
                   {snapshotsLoading && snapshots.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="py-10 text-center text-slate-400">
-                        <div className="flex flex-col items-center justify-center gap-2">
-                          <RefreshCw className="w-5 h-5 animate-spin text-brand-500" />
-                          <span>Loading server snapshots...</span>
-                        </div>
+                      <td colSpan={6} className="py-12 text-center">
+                        <LoadingSpinner text="Loading..." />
                       </td>
                     </tr>
                   ) : snapshots.length === 0 ? (
@@ -4359,11 +4357,8 @@ export const SettingsView: React.FC = () => {
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium text-slate-700 dark:text-slate-300">
                   {auditLoading && displayedAuditLogs.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="py-12 text-center text-slate-400">
-                        <div className="flex flex-col items-center justify-center gap-2">
-                          <RefreshCw className="w-6 h-6 animate-spin text-brand-500" />
-                          <span className="text-xs font-semibold">Loading institutional audit trail...</span>
-                        </div>
+                      <td colSpan={5} className="py-12 text-center">
+                        <LoadingSpinner text="Loading..." />
                       </td>
                     </tr>
                   ) : displayedAuditLogs.length === 0 ? (

@@ -26,6 +26,7 @@ import {
   X
 } from 'lucide-react';
 import { PrintableReportCard } from './PrintableReportCard';
+import { LoadingSpinner } from '../../common/LoadingSpinner';
 import { ExamSetup, Student, SubjectItem, ProcessedResult } from '../../../types';
 import { useResults } from './hooks/useResults';
 import { useData } from '../../../context/DataContext';
@@ -1122,11 +1123,8 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
 
         {/* Loading indicator */}
         {isApiLoading ? (
-          <div className="p-12 text-center bg-white dark:bg-slate-900 border border-sky-400 rounded-3xl space-y-3">
-            <Loader2 className="w-8 h-8 text-sky-600 animate-spin mx-auto" />
-            <p className="text-xs font-bold text-slate-600 dark:text-slate-300">
-              Retrieving released report cards...
-            </p>
+          <div className="p-8 text-center bg-white dark:bg-slate-900 border border-sky-400 rounded-3xl">
+            <LoadingSpinner text="Loading..." />
           </div>
         ) : releasedResults.length === 0 ? (
           /* Explicit No Data Found state (Handles missing records or failed API with graceful UI) */

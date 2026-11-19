@@ -6,6 +6,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { ConfirmModal } from '../../common/ConfirmModal';
 import { Pagination } from '../../common/Pagination';
 import { SearchableSelect } from '../../common/SearchableSelect';
+import { LoadingSpinner } from '../../common/LoadingSpinner';
 import { getRoomTypes, createRoomType, updateRoomType, deleteRoomType, getHostelBlocks, createRoom, RoomType, HostelBlock } from '../../../api/hostel';
 
 export const MAX_ROOMS_PER_CATEGORY = 50;
@@ -710,7 +711,7 @@ export const RoomTypeMasterView: React.FC = () => {
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
                 {loading ? (
                   <tr>
-                    <td colSpan={isWarden ? 5 : 6} className="py-10 text-center text-slate-400 italic font-semibold">Loading room types...</td>
+                    <td colSpan={isWarden ? 5 : 6} className="py-12 text-center"><LoadingSpinner text="Loading..." /></td>
                   </tr>
                 ) : filtered.length === 0 ? (
                   <tr>

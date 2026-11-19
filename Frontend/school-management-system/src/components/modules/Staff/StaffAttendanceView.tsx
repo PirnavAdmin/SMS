@@ -56,6 +56,7 @@ import { useAuth } from "../../../context/AuthContext";
 import { DateInput } from "../../common/DateInput";
 import { ConfirmModal } from "../../common/ConfirmModal";
 import { Pagination } from "../../common/Pagination";
+import { LoadingSpinner } from "../../common/LoadingSpinner";
 import {
   teacherCheckInApi,
   teacherCheckOutApi,
@@ -138,6 +139,15 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
   }, [fetchDepartments, fetchDesignations]);
 
   const todayStr = new Date().toLocaleDateString('en-CA');
+  const [loading, setLoading] = useState<boolean>(true);
+
+  useEffect(() => {
+    setLoading(true);
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [activeTab, selectedBranch, selectedDate]);
 
   const getLeaveTypeAllowance = (codeOrName: string): number => {
     const q = codeOrName.toLowerCase();
@@ -4191,7 +4201,13 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
-                    {searchError ? (
+                    {loading ? (
+                      <tr>
+                        <td colSpan={8} className="py-12 text-center">
+                          <LoadingSpinner text="Loading..." />
+                        </td>
+                      </tr>
+                    ) : searchError ? (
                       <tr>
                         <td colSpan={8} className="py-12 text-center">
                           <div className="flex flex-col items-center justify-center gap-1.5 text-rose-500 dark:text-rose-400">

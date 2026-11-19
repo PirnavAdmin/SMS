@@ -58,6 +58,7 @@ import { DateInput } from "../../common/DateInput";
 import { AdvancedDatePicker } from "../../common/AdvancedDatePicker";
 import { Pagination } from "../../common/Pagination";
 import { SchoolPrintHeader } from "../../common/SchoolPrintHeader";
+import { LoadingSpinner } from "../../common/LoadingSpinner";
 import { lookupPostalCode, getOfflinePostalInfo } from "../../../utils/postalLookup";
 import { isClassInRange, getSharingCapacity, matchesSharingType } from "../../../utils/classSorter";
 import {
@@ -321,6 +322,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
   const { addToast } = useToast();
   const { selectedBranch, selectedAcademicYear } = useAuth();
 
+  const [loading, setLoading] = useState<boolean>(true);
+
   useEffect(() => {
     if (typeof fetchAdmissions === "function") {
       fetchAdmissions();
@@ -328,6 +331,10 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     if (typeof fetchFinanceData === "function") {
       fetchFinanceData().catch(() => {});
     }
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 250);
+    return () => clearTimeout(timer);
   }, [selectedBranch, selectedAcademicYear]);
 
   const dynamicCampuses = useMemo(() => {
@@ -5785,7 +5792,13 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
               </tr>
             </thead>
             <tbody className="font-medium">
-              {paginated.length === 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan={6} className="text-center py-12">
+                    <LoadingSpinner text="Loading..." />
+                  </td>
+                </tr>
+              ) : paginated.length === 0 ? (
                 <tr>
                   <td
                     colSpan={6}

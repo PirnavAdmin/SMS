@@ -12,6 +12,7 @@ import {
 } from '../../../api/superadmin';
 import { useToast } from '../../../context/ToastContext';
 import { ConfirmModal } from '../../common/ConfirmModal';
+import { LoadingSpinner } from '../../common/LoadingSpinner';
 
 const PREDEFINED_MODULE_FEATURES = [
   'Student Admissions & Directory',
@@ -212,6 +213,10 @@ export const SuperAdminPackagesView: React.FC = () => {
     addToast('success', 'Package Removed', `${deletingPlan.name} has been deleted.`);
     setDeletingPlan(null);
   };
+
+  if (loading) {
+    return <LoadingSpinner fullPage text="Loading..." />;
+  }
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300 pb-12">

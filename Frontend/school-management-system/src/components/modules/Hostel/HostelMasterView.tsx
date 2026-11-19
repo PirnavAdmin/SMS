@@ -5,6 +5,7 @@ import { useToast } from '../../../context/ToastContext';
 import { useAuth } from '../../../context/AuthContext';
 import { ConfirmModal } from '../../common/ConfirmModal';
 import { Pagination } from '../../common/Pagination';
+import { LoadingSpinner } from '../../common/LoadingSpinner';
 import { getHostelBlocks, createHostelBlock, updateHostelBlock, deleteHostelBlock, getRooms, getAllocations, HostelBlock, HostelRoom, BedAllocation } from '../../../api/hostel';
 
 interface FloorAlloc {
@@ -423,7 +424,7 @@ export const HostelMasterView: React.FC<HostelMasterViewProps> = ({
           {/* Hostels Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
           {loading ? (
-            <div className="col-span-full py-12 text-center text-slate-400 font-semibold italic">Loading Hostels...</div>
+            <div className="col-span-full py-12 text-center"><LoadingSpinner text="Loading..." /></div>
           ) : filteredHostels.length === 0 ? (
             <div className="col-span-full py-12 text-center text-slate-400 font-semibold italic">No hostels found for this category.</div>
           ) : (

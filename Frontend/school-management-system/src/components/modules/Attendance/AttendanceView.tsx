@@ -11,6 +11,7 @@ import { exportToExcel } from '../../../utils/excelExport';
 import { formatToDDMMYYYY, formatToISO, checkSundayOrHoliday } from '../../../utils/dateValidation';
 import { Pagination } from '../../common/Pagination';
 import { SchoolPrintHeader } from '../../common/SchoolPrintHeader';
+import { LoadingSpinner } from '../../common/LoadingSpinner';
 import { matchesClassName, compareClassesAscending, formatDisplayClassName } from '../../../utils/classSorter';
 
 // Types
@@ -642,6 +643,15 @@ export const AttendanceView = () => {
   const [isEditable, setIsEditable] = useState<boolean>(false);
   const [expandedRemarks, setExpandedRemarks] = useState<Record<string, boolean>>({});
   const [isDownloading, setIsDownloading] = useState(false);
+  const [loading, setLoading] = useState<boolean>(true);
+
+  useEffect(() => {
+    setLoading(true);
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [selectedClassId, selectedSection, date]);
  
   useEffect(() => {
     if (fetchStudents && (!allStudents || allStudents.length === 0)) {
@@ -1777,7 +1787,13 @@ export const AttendanceView = () => {
                     </tr>
                   </thead>
                   <tbody className="font-medium">
-                    {paginatedStudents.length === 0 ? (
+                    {loading ? (
+                      <tr>
+                        <td colSpan={4} className="py-12 text-center">
+                          <LoadingSpinner text="Loading..." />
+                        </td>
+                      </tr>
+                    ) : paginatedStudents.length === 0 ? (
                       <tr>
                         <td colSpan={4} className="py-12 text-center text-slate-400 italic">No students found matching your filters.</td>
                       </tr>
@@ -1940,7 +1956,13 @@ export const AttendanceView = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
-                      {paginatedStudents.length === 0 ? (
+                      {loading ? (
+                        <tr>
+                          <td colSpan={matrixDates.length + 6} className="py-12 text-center">
+                            <LoadingSpinner text="Loading..." />
+                          </td>
+                        </tr>
+                      ) : paginatedStudents.length === 0 ? (
                         <tr>
                           <td colSpan={matrixDates.length + 6} className="py-12 text-center text-slate-400 italic">No students found matching your filters.</td>
                         </tr>

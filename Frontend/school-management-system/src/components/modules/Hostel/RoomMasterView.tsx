@@ -5,6 +5,7 @@ import { useToast } from '../../../context/ToastContext';
 import { useAuth } from '../../../context/AuthContext';
 import { ConfirmModal } from '../../common/ConfirmModal';
 import { Pagination } from '../../common/Pagination';
+import { LoadingSpinner } from '../../common/LoadingSpinner';
 import { getRooms, createRoom, updateRoom, deleteRoom, getHostelBlocks, getRoomTypes, formatRoomNumber, HostelRoom, HostelBlock, RoomType } from '../../../api/hostel';
 
 interface RoomMasterViewProps {
@@ -398,7 +399,7 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
           </div>
         </div>
       ) : loading ? (
-        <div className="py-12 text-center text-slate-400 font-bold">Loading rooms...</div>
+        <div className="py-12 text-center"><LoadingSpinner text="Loading..." /></div>
       ) : filteredRooms.length === 0 ? (
         <div className="py-12 text-center text-slate-400 font-bold">No rooms found.</div>
       ) : (

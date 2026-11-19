@@ -14,6 +14,7 @@ import {
 } from '../../../api/superadmin';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
+import { DashboardShimmer } from '../../common/DashboardShimmer';
 
 interface SuperAdminDashboardViewProps {
   onNavigate: (module: string) => void;
@@ -239,6 +240,10 @@ export const SuperAdminDashboardView: React.FC<SuperAdminDashboardViewProps> = (
   const handleSendReminder = (schoolName: string) => {
     addToast('success', 'Reminder Dispatched', `Subscription notification sent to ${schoolName}.`);
   };
+
+  if (loading) {
+    return <DashboardShimmer />;
+  }
 
   return (
     <div className="space-y-4 animate-in fade-in duration-300 pb-6">

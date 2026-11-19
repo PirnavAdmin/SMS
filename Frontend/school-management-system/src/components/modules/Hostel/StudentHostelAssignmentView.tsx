@@ -8,6 +8,7 @@ import { useToast } from '../../../context/ToastContext';
 import { ConfirmModal } from '../../common/ConfirmModal';
 import { Pagination } from '../../common/Pagination';
 import { SearchableSelect } from '../../common/SearchableSelect';
+import { LoadingSpinner } from '../../common/LoadingSpinner';
 import { useAuth } from '../../../context/AuthContext';
 import { getAllocations, createAllocation, vacateAllocation, vacateStudentAllocation, getRooms, getHostelBlocks, formatRoomNumber, getEligibleStudentsForAllocation, BedAllocation, HostelRoom, HostelBlock, EligibleHostelStudent } from '../../../api/hostel';
 import { normalizeStudentType } from '../../../utils/studentTypeUtils';
@@ -1721,9 +1722,9 @@ export const StudentHostelAssignmentView: React.FC = () => {
                     <tr>
                       <td
                         colSpan={7}
-                        className="py-8 text-center text-slate-400"
+                        className="py-12 text-center"
                       >
-                        Loading allocations...
+                        <LoadingSpinner text="Loading..." />
                       </td>
                     </tr>
                   ) : filteredAssignments.length === 0 ? (

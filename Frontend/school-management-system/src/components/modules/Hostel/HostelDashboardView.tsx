@@ -4,6 +4,7 @@ import { useToast } from '../../../context/ToastContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useData } from '../../../context/DataContext';
 import { Pagination } from '../../common/Pagination';
+import { LoadingSpinner } from '../../common/LoadingSpinner';
 import { getHostelBlocks, getRooms, getAllocations, formatRoomNumber, HostelBlock, HostelRoom, BedAllocation } from '../../../api/hostel';
 import { formatCurrency } from '../../../utils/currency';
 import { isClassInRange } from '../../../utils/classSorter';
@@ -435,8 +436,8 @@ export const HostelDashboardView: React.FC<HostelDashboardViewProps> = ({
       </div>
 
       {loading ? (
-        <div className="py-20 text-center text-slate-400 font-bold italic">
-          Loading executive metrics & operational overview...
+        <div className="py-12 text-center">
+          <LoadingSpinner text="Loading..." />
         </div>
       ) : (
         <>

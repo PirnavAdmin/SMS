@@ -31,6 +31,7 @@ import { useToast } from "../../../context/ToastContext";
 import { Badge } from "../../common/Badge";
 import { ExportButton } from "../../common/ExportButton";
 import { ConfirmModal } from "../../common/ConfirmModal";
+import { LoadingSpinner } from "../../common/LoadingSpinner";
 import { StaffFormModal } from "./StaffFormModal";
 import { StaffProfileDrawer } from "./StaffProfileDrawerEnhanced";
 import { StaffLetterModal } from "./Letters/StaffLetterModal";
@@ -114,6 +115,16 @@ export const StaffList: React.FC<{
   const [activeCategory, setActiveCategory] = useState<string>(
     normalizeStaffType(initialCategory || "Teaching Staff"),
   );
+
+  const [loading, setLoading] = useState<boolean>(true);
+  const [tabLoading, setTabLoading] = useState<boolean>(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, []);
 
   const deptDropdownRef = useRef<HTMLDivElement>(null);
   const designationDropdownRef = useRef<HTMLDivElement>(null);
@@ -581,6 +592,10 @@ export const StaffList: React.FC<{
     setFilterDesignation("All");
     setFilterStatus("All");
     setCurrentPage(1);
+    setTabLoading(true);
+    setTimeout(() => {
+      setTabLoading(false);
+    }, 200);
   };
 
   const openBulkModal = () => {
@@ -1126,7 +1141,13 @@ export const StaffList: React.FC<{
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80 font-medium">
-              {searchError ? (
+              {loading || tabLoading ? (
+                <tr>
+                  <td colSpan={9} className="py-12 text-center">
+                    <LoadingSpinner text="Loading..." />
+                  </td>
+                </tr>
+              ) : searchError ? (
                 <tr>
                   <td colSpan={9} className="text-center py-10">
                     <div className="flex flex-col items-center justify-center gap-1.5 text-rose-500 dark:text-rose-400">

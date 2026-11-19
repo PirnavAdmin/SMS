@@ -7,6 +7,7 @@ import * as XLSX from 'xlsx';
 import { fetchSchoolsApi, fetchPackagesApi, SchoolItem, PackagePlan } from '../../../api/superadmin';
 import { useToast } from '../../../context/ToastContext';
 import { validateSearchQuery } from '../../../utils/validation';
+import { LoadingSpinner } from '../../common/LoadingSpinner';
 
 interface Transaction {
   id: string;
@@ -271,11 +272,8 @@ export const SuperAdminTransactionsView: React.FC = () => {
             <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="p-12 text-center text-slate-400">
-                    <div className="flex flex-col items-center justify-center gap-2">
-                      <div className="w-6 h-6 border-2 border-sky-500 border-t-transparent rounded-full animate-spin" />
-                      <span>Loading subscription invoices...</span>
-                    </div>
+                  <td colSpan={7} className="p-12 text-center">
+                    <LoadingSpinner text="Loading..." />
                   </td>
                 </tr>
               ) : searchError ? (

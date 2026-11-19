@@ -9,6 +9,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { Badge } from '../../common/Badge';
 import { getParentTransport } from '../../../api/parent/parentApi';
 import { useParentWards, ParentStudentSelector } from '../../common/ParentStudentSelector';
+import { LoadingSpinner } from '../../common/LoadingSpinner';
 
 export const ParentBusInfoView: React.FC = () => {
   const { studentTransports = [], routeMasters = [], admissions = [], students = [] } = useData();
@@ -229,9 +230,8 @@ export const ParentBusInfoView: React.FC = () => {
       </div>
 
       {loadingTransport ? (
-        <div className="bg-white dark:bg-slate-900 p-12 text-center rounded-3xl border border-sky-300 dark:border-sky-800 shadow-xs">
-          <div className="w-8 h-8 border-2 border-sky-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-sm font-semibold text-slate-500">Loading transport assignment...</p>
+        <div className="bg-white dark:bg-slate-900 p-8 text-center rounded-3xl border border-sky-300 dark:border-sky-800 shadow-xs">
+          <LoadingSpinner text="Loading..." />
         </div>
       ) : !isAssigned ? (
         <div className="bg-white dark:bg-slate-900 p-12 text-center rounded-3xl border border-sky-300 dark:border-sky-800 shadow-xs">

@@ -13,6 +13,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { apiClient } from '../../../api/client';
 import { printPayslip as printPayslipTemplate } from '../../../utils/payslipTemplate';
+import { LoadingSpinner } from '../../common/LoadingSpinner';
 
 type MainTab = 'dashboard' | 'config' | 'structures' | 'processing' | 'payslips' | 'reports';
 type ConfigTab = 'general' | 'components' | 'leave' | 'attendance' | 'deductions' | 'cycle' | 'overtime' | 'settings';
@@ -1618,9 +1619,8 @@ export const StaffPayrollView: React.FC<StaffPayrollViewProps> = ({ initialTab, 
 
     if (structuresLoading) {
       return (
-        <div className="flex flex-col items-center justify-center p-12 space-y-3 animate-in fade-in">
-          <div className="animate-spin rounded-full h-8 w-8 border-4 border-sky-600 border-t-transparent" />
-          <p className="text-slate-500 font-bold text-xs">Loading Salary Structures...</p>
+        <div className="flex flex-col items-center justify-center p-8">
+          <LoadingSpinner text="Loading..." />
         </div>
       );
     }

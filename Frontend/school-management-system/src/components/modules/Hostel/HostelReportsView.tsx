@@ -9,6 +9,7 @@ import { ExportButton } from '../../common/ExportButton';
 import { Pagination } from '../../common/Pagination';
 import { SchoolPrintHeader } from '../../common/SchoolPrintHeader';
 import { SearchableSelect } from '../../common/SearchableSelect';
+import { LoadingSpinner } from '../../common/LoadingSpinner';
 import { getHostelBlocks, getRooms, getAllocations, getWardens, formatRoomNumber, HostelBlock, HostelRoom, BedAllocation, WardenRecord } from '../../../api/hostel';
 import { normalizeStudentType } from '../../../utils/studentTypeUtils';
 import { formatPhoneNumber } from '../../../utils/validation';
@@ -662,7 +663,7 @@ export const HostelReportsView: React.FC = () => {
 
           <div className="overflow-x-auto">
             {loading ? (
-              <div className="py-12 text-center text-xs text-slate-400 font-semibold italic">Loading hostel report data...</div>
+              <div className="py-12 text-center"><LoadingSpinner text="Loading..." /></div>
             ) : reportData.length === 0 ? (
               <p className="text-center py-10 text-xs text-slate-400 italic font-semibold">No report records found matching filter.</p>
             ) : (

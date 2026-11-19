@@ -6,6 +6,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { SchoolPrintHeader } from '../../common/SchoolPrintHeader';
 import { getParentTimetable } from '../../../api/parent/parentApi';
 import { useParentWards, ParentStudentSelector } from '../../common/ParentStudentSelector';
+import { LoadingSpinner } from '../../common/LoadingSpinner';
 
 export const ParentTimetableView: React.FC = () => {
   const { timetable, periodSettings, subjects: masterSubjects } = useData();
@@ -186,9 +187,8 @@ export const ParentTimetableView: React.FC = () => {
 
       {/* Timetable Content */}
       {loading ? (
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-sky-300 dark:border-sky-800 p-12 text-center shadow-xs">
-          <div className="animate-spin w-8 h-8 border-3 border-sky-500 border-t-transparent rounded-full mx-auto" />
-          <p className="text-xs font-bold text-slate-400 mt-3">Loading timetable...</p>
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-sky-300 dark:border-sky-800 p-8 text-center shadow-xs">
+          <LoadingSpinner text="Loading..." />
         </div>
       ) : !hasTimetable ? (
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-sky-300 dark:border-sky-800 p-12 text-center shadow-xs flex flex-col items-center justify-center space-y-3.5">

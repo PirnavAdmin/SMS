@@ -5,6 +5,7 @@ import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { getParentTeachers } from '../../../api/parent/parentApi';
 import { useParentWards, ParentStudentSelector } from '../../common/ParentStudentSelector';
+import { LoadingSpinner } from '../../common/LoadingSpinner';
 
 interface TeacherItem {
   id: string | number;
@@ -458,23 +459,7 @@ export const ParentTeacherInfoView: React.FC = () => {
       />
 
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[1, 2, 3, 4, 5, 6].map((idx) => (
-            <div key={idx} className="bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 rounded-2xl p-5 flex flex-col gap-3 shadow-xs animate-pulse">
-              <div className="flex items-start gap-3">
-                <div className="w-12 h-12 rounded-full bg-slate-200 dark:bg-slate-800 shrink-0" />
-                <div className="space-y-2 flex-1">
-                  <div className="h-4 w-32 rounded-md bg-slate-200 dark:bg-slate-800" />
-                  <div className="h-3 w-24 rounded-md bg-slate-200 dark:bg-slate-800" />
-                </div>
-              </div>
-              <div className="flex flex-col gap-2 pt-4 border-t border-slate-100 dark:border-slate-800">
-                <div className="h-3 w-28 rounded-md bg-slate-200 dark:bg-slate-800" />
-                <div className="h-3 w-40 rounded-md bg-slate-200 dark:bg-slate-800" />
-              </div>
-            </div>
-          ))}
-        </div>
+        <LoadingSpinner fullPage text="Loading..." />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
           {filteredTeachers.map(teacher => {

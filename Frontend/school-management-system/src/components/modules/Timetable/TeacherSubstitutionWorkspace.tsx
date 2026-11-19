@@ -10,6 +10,7 @@ import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { SchoolPrintHeader } from '../../common/SchoolPrintHeader';
+import { LoadingSpinner } from '../../common/LoadingSpinner';
 import {
   fetchTeacherSubstitutionsApi,
   fetchAbsentTeachersScheduleApi,
@@ -495,9 +496,8 @@ export const TeacherSubstitutionWorkspace: React.FC<{
       {/* Main Content Area: Absent Teachers & Periods Section */}
       <div className="space-y-4">
         {loading ? (
-          <div className="glass-card p-12 rounded-2xl text-center border border-slate-200/80 dark:border-slate-800">
-            <RefreshCw className="w-8 h-8 text-sky-600 animate-spin mx-auto mb-3" />
-            <p className="text-sm font-bold text-slate-700 dark:text-slate-300">Loading daily schedules & leaves...</p>
+          <div className="glass-card p-8 rounded-2xl text-center border border-slate-200/80 dark:border-slate-800">
+            <LoadingSpinner text="Loading..." />
           </div>
         ) : filteredAbsentSchedules.length === 0 ? (
           <div className="glass-card p-12 rounded-2xl text-center border border-slate-200/80 dark:border-slate-800">

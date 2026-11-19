@@ -6,6 +6,7 @@ import {
 import { useToast } from '../../../context/ToastContext';
 import { useData } from '../../../context/DataContext';
 import { ConfirmModal } from '../../common/ConfirmModal';
+import { LoadingSpinner } from '../../common/LoadingSpinner';
 import { SubjectItem, Department, DesignationMaster } from '../../../types';
 import { 
   fetchSubjectsApi, createSubjectApi, updateSubjectApi, deleteSubjectApi,
@@ -760,7 +761,7 @@ export const SubjectsView: React.FC = () => {
                   </thead>
                   <tbody className="font-medium">
                     {loading ? (
-                      <tr><td colSpan={5} className="text-center py-12"><Loader2 className="w-6 h-6 animate-spin mx-auto text-slate-500" /></td></tr>
+                      <tr><td colSpan={5} className="text-center py-12"><LoadingSpinner text="Loading..." /></td></tr>
                     ) : paginated.length === 0 ? (
                       <tr><td colSpan={5} className="text-center py-8 text-slate-500 font-bold">No subjects found matching criteria.</td></tr>
                     ) : (

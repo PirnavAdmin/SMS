@@ -6,6 +6,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { useData } from '../../../context/DataContext';
 import { ExportButton } from '../../common/ExportButton';
 import { Pagination } from '../../common/Pagination';
+import { LoadingSpinner } from '../../common/LoadingSpinner';
 import { getHostelBlocks, getRooms, getAllocations, getNightAttendance, saveNightAttendance, formatRoomNumber, HostelBlock, HostelRoom, BedAllocation, NightAttendanceRecord } from '../../../api/hostel';
 import { formatConfiguredStudentAdmissionNo } from '../../../utils/idGenerator';
 import { exportToExcel } from '../../../utils/excelExport';
@@ -1304,7 +1305,7 @@ export const HostelAttendanceView: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
                 {loading ? (
-                  <tr><td colSpan={7} className="py-12 text-center text-slate-400 font-bold">Loading student attendance register...</td></tr>
+                  <tr><td colSpan={7} className="py-12 text-center"><LoadingSpinner text="Loading..." /></td></tr>
                 ) : paginatedAssignments.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="py-12 text-center text-slate-400 font-semibold">
@@ -1436,8 +1437,8 @@ export const HostelAttendanceView: React.FC = () => {
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
                 {loading ? (
                   <tr>
-                    <td colSpan={matrixDates.length + 6} className="py-12 text-center text-slate-400 font-bold">
-                      Loading monthly attendance register...
+                    <td colSpan={matrixDates.length + 6} className="py-12 text-center">
+                      <LoadingSpinner text="Loading..." />
                     </td>
                   </tr>
                 ) : paginatedAssignments.length === 0 ? (
