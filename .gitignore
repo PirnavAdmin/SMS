@@ -6,3 +6,5 @@ obj/
 /Backend/wwwroot/uploads/branding
 
 !.env.example
+Frontend/school-management-system/.env
+Frontend/school-management-system/.env

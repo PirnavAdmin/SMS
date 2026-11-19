@@ -16,6 +16,7 @@ import {
 } from "../../../utils/uniformUtils";
 import { matchesClassName, compareClassesAscending } from "../../../utils/classSorter";
 import { formatDateForDisplay } from "../../../utils/dateValidation";
+import { normalizeStudentType } from "../../../utils/studentTypeUtils";
 import { validateSearchQuery } from "../../../utils/validation";
 import { ValidatedSearchInput } from "../../common/ValidatedSearchInput";
 import { Pagination } from "../../common/Pagination";
@@ -1544,11 +1545,8 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
 
     const isApplicantResident =
       (targetAdmissionRecord &&
-        (String(targetAdmissionRecord.studentType || "").toLowerCase().includes("resident") ||
-         String(targetAdmissionRecord.studentType || "").toLowerCase().includes("hostel") ||
-         String((targetAdmissionRecord as any).residentialStatus || "").toLowerCase().includes("resident"))) ||
-      String(selectedStudent.studentType || "").toLowerCase().includes("hostel") ||
-      String((selectedStudent as any).residentialStatus || "").toLowerCase().includes("resident");
+        normalizeStudentType(targetAdmissionRecord.studentType || (targetAdmissionRecord as any).residentialStatus) === "Residential") ||
+      normalizeStudentType(selectedStudent.studentType || (selectedStudent as any).residentialStatus) === "Residential";
 
     const isDepositSatisfied =
       !isApplicantResident ||
