@@ -922,7 +922,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
               </select>
             </div>
             {!isReadOnlyAccess && (
-              <button onClick={() => handleOpenAddOrEditBook()} className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs shadow-md shadow-sky-500/20 flex items-center gap-1.5 transition-all cursor-pointer">
+              <button onClick={() => handleOpenAddOrEditBook()} className="btn-glass-primary px-4 py-2 rounded-xl text-white font-extrabold text-xs shadow-md flex items-center gap-1.5 transition-all cursor-pointer">
                 <Plus className="w-4 h-4" /> Add New Book
               </button>
             )}
@@ -1008,7 +1008,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
           <div className="flex items-center justify-between glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border">
             <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2"><Layers className="w-4 h-4 text-sky-500" /> Book Categories</h3>
             {!isReadOnlyAccess && (
-              <button onClick={() => setModalType('addCategory')} className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs shadow-md flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer">
+              <button onClick={() => setModalType('addCategory')} className="btn-glass-primary px-4 py-2 rounded-xl text-white font-extrabold text-xs shadow-md flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer">
                 <Plus className="w-4 h-4" /> Add Category
               </button>
             )}
@@ -1050,7 +1050,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
           <div className="flex items-center justify-between glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border">
             <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2"><Users className="w-4 h-4 text-sky-500" /> Authors Directory</h3>
             {!isReadOnlyAccess && (
-              <button onClick={() => setModalType('addAuthor')} className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs shadow-md flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer">
+              <button onClick={() => setModalType('addAuthor')} className="btn-glass-primary px-4 py-2 rounded-xl text-white font-extrabold text-xs shadow-md flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer">
                 <Plus className="w-4 h-4" /> Add Author
               </button>
             )}
@@ -1116,7 +1116,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
               </div>
             </div>
             {!isReadOnlyAccess && (
-              <button onClick={() => setModalType('addRack')} className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs shadow-md flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer">
+              <button onClick={() => setModalType('addRack')} className="btn-glass-primary px-4 py-2 rounded-xl text-white font-extrabold text-xs shadow-md flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer">
                 <Plus className="w-4 h-4" /> Add Rack Location
               </button>
             )}
@@ -1212,7 +1212,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
           <div className="flex items-center justify-between glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border">
             <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2"><UserCheck className="w-4 h-4 text-sky-500" /> Library Members</h3>
             {!isReadOnlyAccess && (
-              <button onClick={() => { setMemberFormState({ memberId: '', name: '', role: 'Student', phone: '', maxLimit: 3 }); setModalType('addMember'); }} className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs shadow-md flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer">
+              <button onClick={() => { setMemberFormState({ memberId: '', name: '', role: 'Student', phone: '', maxLimit: 3 }); setModalType('addMember'); }} className="btn-glass-primary px-4 py-2 rounded-xl text-white font-extrabold text-xs shadow-md flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer">
                 <Plus className="w-4 h-4" /> Register Member
               </button>
             )}
@@ -1751,7 +1751,7 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ initialPhase = 'phase1
               </div>
             </div>
 
-            <button type="submit" className="w-full py-3 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-black text-xs shadow-lg shadow-sky-500/20 cursor-pointer transition-all">
+            <button type="submit" className="btn-glass-primary w-full py-3 rounded-xl text-white font-black text-xs shadow-lg cursor-pointer transition-all">
               Confirm & Dispatch Book
             </button>
           </form>

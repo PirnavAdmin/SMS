@@ -4295,7 +4295,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                         <button
                           type="button"
                           onClick={() => setIsMidYearFeeModalOpen(false)}
-                          className="px-6 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs shadow-lg shadow-sky-600/20 transition-all cursor-pointer"
+                          className="btn-glass-primary px-6 py-2.5 rounded-xl text-white font-extrabold text-xs shadow-lg transition-all cursor-pointer"
                         >
                           Confirm & Apply Method
                         </button>
@@ -5441,7 +5441,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                 <button
                   type="submit"
                   disabled={isSubmitting || isSubmittingForm}
-                  className="px-6 py-2.5 text-xs font-bold text-white bg-sky-600 hover:bg-sky-500 rounded-xl shadow-lg shadow-brand-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer"
+                  className="btn-glass-primary px-6 py-2.5 text-xs font-bold text-white rounded-xl shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer"
                 >
                   {(isSubmitting || isSubmittingForm) ? (
                     <>
@@ -5662,7 +5662,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           </button>
           <button
             onClick={handleOpenAdd}
-            className="inline-flex py-2 px-4 items-center gap-2 rounded-xl bg-sky-600 text-[11px] font-black text-white hover:bg-sky-700 shadow-lg shadow-sky-500/20"
+            className="btn-glass-primary inline-flex py-2 px-4 items-center gap-2 rounded-xl text-[11px] font-black text-white shadow-lg cursor-pointer active:scale-95 transition-all"
           >
             <Plus className="w-4 h-4" /> New Admission
           </button>
@@ -7063,7 +7063,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
               <button
                 type="button"
                 onClick={handleDownloadTemplate}
-                className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-extrabold shadow-md flex items-center gap-2 transition-all cursor-pointer"
+                className="btn-glass-primary px-4 py-2 rounded-xl text-white text-xs font-extrabold shadow-md flex items-center gap-2 transition-all cursor-pointer"
               >
                 <Download className="w-4 h-4" /> Download Template
               </button>
@@ -7157,7 +7157,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                 type="button"
                 onClick={handleStartBulkUpload}
                 disabled={!selectedFile || isUploading}
-                className="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 disabled:bg-slate-200 dark:disabled:bg-slate-800 text-white disabled:text-slate-400 text-xs font-extrabold shadow-lg shadow-sky-600/20 transition-all disabled:shadow-none cursor-pointer flex items-center gap-2"
+                className="btn-glass-primary px-5 py-2.5 rounded-xl disabled:bg-slate-200 dark:disabled:bg-slate-800 text-white disabled:text-slate-400 text-xs font-extrabold shadow-lg transition-all disabled:shadow-none cursor-pointer flex items-center gap-2"
               >
                 {isUploading ? "Uploading..." : "Upload Applications"}
               </button>

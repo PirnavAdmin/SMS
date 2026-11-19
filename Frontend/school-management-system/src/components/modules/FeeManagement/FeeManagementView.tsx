@@ -380,7 +380,7 @@ export const FeeManagementView: React.FC = () => {
 
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <button type="button" onClick={() => setIsStructFormOpen(false)} className="px-4 py-2 font-semibold bg-slate-100 dark:bg-slate-800 rounded-xl">Cancel</button>
-                <button type="submit" className="px-4 py-2 font-bold bg-sky-600 text-white rounded-xl">Save Fee Structure</button>
+                <button type="submit" className="btn-glass-primary px-4 py-2 font-bold text-white rounded-xl shadow-md">Save Fee Structure</button>
               </div>
             </form>
           </div>

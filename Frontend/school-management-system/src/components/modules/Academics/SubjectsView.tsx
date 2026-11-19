@@ -1171,7 +1171,7 @@ export const SubjectsView: React.FC = () => {
 
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <button type="button" onClick={() => setIsFormOpen(false)} className="px-4 py-2 font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 rounded-xl">Cancel</button>
-                <button type="submit" className="px-5 py-2 font-bold text-white bg-sky-600 hover:bg-sky-500 rounded-xl shadow-md">
+                <button type="submit" className="btn-glass-primary px-5 py-2 font-bold text-white rounded-xl shadow-md">
                   {editingSubject ? 'Save Changes' : 'Create Subject'}
                 </button>
               </div>
@@ -1271,7 +1271,7 @@ export const SubjectsView: React.FC = () => {
 
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <button type="button" onClick={() => setIsDeptModalOpen(false)} className="px-4 py-2 font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 rounded-xl">Cancel</button>
-                <button type="submit" className="px-5 py-2 font-bold text-white bg-sky-600 hover:bg-sky-500 rounded-xl shadow-md">
+                <button type="submit" className="btn-glass-primary px-5 py-2 font-bold text-white rounded-xl shadow-md">
                   {editingDepartment ? 'Save Changes' : 'Create Department'}
                 </button>
               </div>
@@ -1333,7 +1333,7 @@ export const SubjectsView: React.FC = () => {
               </div>
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <button type="button" onClick={() => setIsDesigModalOpen(false)} className="px-4 py-2 font-bold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 rounded-xl">Cancel</button>
-                <button type="submit" className="px-5 py-2 font-bold text-white bg-sky-600 hover:bg-sky-500 rounded-xl shadow-md">{editingDesignation ? 'Save Changes' : 'Create Designation'}</button>
+                <button type="submit" className="btn-glass-primary px-5 py-2 font-bold text-white rounded-xl shadow-md">{editingDesignation ? 'Save Changes' : 'Create Designation'}</button>
               </div>
             </form>
           </div>
