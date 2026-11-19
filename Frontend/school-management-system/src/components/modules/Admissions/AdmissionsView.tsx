@@ -453,6 +453,12 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     securityDepositPaymentMode: "Cash",
     securityDepositTxnId: "",
     securityDepositDate: new Date().toISOString().split("T")[0],
+    admissionFeePaid: false,
+    admissionFeeAmount: 0,
+    admissionFeeReceiptNo: "",
+    admissionFeePaymentMode: "Cash",
+    admissionFeeTxnId: "",
+    admissionFeeDate: new Date().toISOString().split("T")[0],
       branch: (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" && dynamicCampuses.includes(selectedBranch))
         ? selectedBranch
         : (dynamicCampuses[0] || ""),
@@ -944,6 +950,12 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     securityDepositPaymentMode: "Cash",
     securityDepositTxnId: "",
     securityDepositDate: new Date().toISOString().split("T")[0],
+    admissionFeePaid: false,
+    admissionFeeAmount: 0,
+    admissionFeeReceiptNo: "",
+    admissionFeePaymentMode: "Cash",
+    admissionFeeTxnId: "",
+    admissionFeeDate: new Date().toISOString().split("T")[0],
     branch: (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" && dynamicCampuses.includes(selectedBranch))
       ? selectedBranch
       : (dynamicCampuses[0] || ""),
@@ -1312,6 +1324,95 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     academicClasses,
   ]);
 
+  const applicableAdmissionFee = useMemo(() => {
+    const cls = formData.appliedClass || "";
+    if (!cls) return 0;
+    const matchedStruct = (dynamicFeeStructures || []).find(
+      (s) => matchesClassName(s.className, cls) && (s.status === "Active" || !s.status)
+    ) || (dynamicFeeStructures || []).find((s) => matchesClassName(s.className, cls));
+    if (matchedStruct && matchedStruct.items) {
+      const admItem = matchedStruct.items.find(
+        (i) =>
+          (i.feeHeadName || "").toLowerCase().includes("admission") ||
+          (i.category || "").toLowerCase().includes("admission")
+      );
+      if (admItem && Number(admItem.amount) > 0) {
+        return Number(admItem.amount);
+      }
+    }
+    const admHead = (feeHeads || []).find(
+      (h) =>
+        h.status === "Active" &&
+        ((h.name || "").toLowerCase().includes("admission") || (h.category || "").toLowerCase().includes("admission")) &&
+        (!h.applicableClasses || h.applicableClasses.length === 0 || h.applicableClasses.some((c) => matchesClassName(c, cls)) || h.applicableClasses.includes("All"))
+    );
+    if (admHead && Number(admHead.amount) > 0) {
+      return Number(admHead.amount);
+    }
+    return 0;
+  }, [formData.appliedClass, dynamicFeeStructures, feeHeads]);
+
+  const getAppAdmissionFeeAmount = (app: AdmissionApplication): number => {
+    if (app.admissionFeeAmount && Number(app.admissionFeeAmount) > 0) return Number(app.admissionFeeAmount);
+    const cls = app.appliedClass || (app as any).grade || "";
+    if (!cls) return 0;
+    const matchedStruct = (dynamicFeeStructures || []).find(
+      (s) => matchesClassName(s.className, cls) && (s.status === "Active" || !s.status)
+    ) || (dynamicFeeStructures || []).find((s) => matchesClassName(s.className, cls));
+    if (matchedStruct && matchedStruct.items) {
+      const admItem = matchedStruct.items.find(
+        (i) =>
+          (i.feeHeadName || "").toLowerCase().includes("admission") ||
+          (i.category || "").toLowerCase().includes("admission")
+      );
+      if (admItem && Number(admItem.amount) > 0) {
+        return Number(admItem.amount);
+      }
+    }
+    const admHead = (feeHeads || []).find(
+      (h) =>
+        h.status === "Active" &&
+        ((h.name || "").toLowerCase().includes("admission") || (h.category || "").toLowerCase().includes("admission")) &&
+        (!h.applicableClasses || h.applicableClasses.length === 0 || h.applicableClasses.some((c) => matchesClassName(c, cls)) || h.applicableClasses.includes("All"))
+    );
+    if (admHead && Number(admHead.amount) > 0) {
+      return Number(admHead.amount);
+    }
+    return 0;
+  };
+
+  const checkAppAdmissionFeePaid = (app: AdmissionApplication): boolean => {
+    const requiredAmt = getAppAdmissionFeeAmount(app);
+    if (requiredAmt <= 0) return true;
+    if (app.admissionFeePaid && Boolean(app.admissionFeeReceiptNo)) return true;
+    if (app.admissionFeePaid) return true;
+
+    const targetId = String(app.id || "");
+    const targetAdm = String(app.applicationNo || app.admissionNo || (app as any).registrationNo || "").toLowerCase().trim();
+    const targetStuId = String(app.studentId || (app as any).rollNo || "").toLowerCase().trim();
+    const targetName = String(app.applicantName || "").toLowerCase().trim();
+
+    return (feePayments || []).some((p) => {
+      const pId = String(p.studentId || "").toLowerCase().trim();
+      const pAdm = String(p.admissionNo || "").toLowerCase().trim();
+      const pName = String(p.studentName || "").toLowerCase().trim();
+
+      const matchesId =
+        (pId && (pId === targetId || pId === targetAdm || pId === targetStuId)) ||
+        (pAdm && (pAdm === targetId || pAdm === targetAdm || pAdm === targetStuId)) ||
+        (targetName && pName && targetName === pName);
+
+      if (!matchesId) return false;
+
+      return (
+        String(p.feeHeadName || "").toLowerCase().includes("admission") ||
+        String(p.remarks || "").toLowerCase().includes("admission") ||
+        String(p.paidItemsJson || "").toLowerCase().includes("admission") ||
+        (p.paymentAllocation || []).some((a: any) => String(a.feeHeadName || "").toLowerCase().includes("admission"))
+      );
+    });
+  };
+
   const applicableSecurityDeposit = useMemo(() => {
     if (!isResidentialStudent) return 0;
     const configuredDeposit = Number(applicableHostelFeeConfig?.securityDeposit);
@@ -1351,7 +1452,6 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     academicClasses,
   ]);
 
-  
   const getSharingFeeHint = (sharingVal: string) => {
     if (!isResidentialStudent) return "";
     const studentClass = (formData.appliedClass || formData.className || "").trim().toLowerCase();
@@ -2063,6 +2163,12 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     securityDepositPaymentMode: "Cash",
     securityDepositTxnId: "",
     securityDepositDate: new Date().toISOString().split("T")[0],
+    admissionFeePaid: false,
+    admissionFeeAmount: 0,
+    admissionFeeReceiptNo: "",
+    admissionFeePaymentMode: "Cash",
+    admissionFeeTxnId: "",
+    admissionFeeDate: new Date().toISOString().split("T")[0],
       branch: "",
       joiningDate: new Date().toISOString().split("T")[0],
       admissionDate: new Date().toISOString().split("T")[0],
@@ -2208,6 +2314,34 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       isDepositPaidInPayments
     );
 
+    const isAdmissionFeePaidInPayments = (feePayments || []).some((p) => {
+      const pId = String(p.studentId || "");
+      const pAdm = String(p.admissionNo || "");
+      const pName = String(p.studentName || "").toLowerCase().trim();
+      const targetId = String(app.id || "");
+      const targetAdm = String(app.applicationNo || app.admissionNo || (app as any).registrationNo || "");
+      const targetName = String(app.applicantName || "").toLowerCase().trim();
+
+      const matchesId =
+        (pId && (pId === targetId || pId === targetAdm)) ||
+        (pAdm && (pAdm === targetId || pAdm === targetAdm)) ||
+        (targetName && pName && targetName === pName);
+
+      const isAdmHead =
+        String(p.feeHeadName || "").toLowerCase().includes("admission") ||
+        String(p.remarks || "").toLowerCase().includes("admission") ||
+        String(p.paidItemsJson || "").toLowerCase().includes("admission") ||
+        (p.paymentAllocation || []).some((a: any) => String(a.feeHeadName || "").toLowerCase().includes("admission"));
+
+      return matchesId && isAdmHead;
+    });
+
+    const isAdmFeeAlreadyPaid = Boolean(
+      app.admissionFeePaid ||
+      (app as any).admissionFeePaid ||
+      isAdmissionFeePaidInPayments
+    );
+
     const initialPayMode = app.securityDepositPaymentMode || (app as any).securityDepositPaymentMode || "Cash";
     const initialTxn = app.securityDepositTxnId || (app as any).securityDepositTxnId || "";
     const initialDate = app.securityDepositDate || (app as any).securityDepositDate || new Date().toISOString().split("T")[0];
@@ -2252,6 +2386,12 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       securityDepositPaymentMode: initialPayMode,
       securityDepositTxnId: initialTxn,
       securityDepositDate: initialDate,
+      admissionFeePaid: isAdmFeeAlreadyPaid,
+      admissionFeeAmount: app.admissionFeeAmount || (app as any).admissionFeeAmount || 0,
+      admissionFeeReceiptNo: app.admissionFeeReceiptNo || (app as any).admissionFeeReceiptNo || "",
+      admissionFeePaymentMode: app.admissionFeePaymentMode || (app as any).admissionFeePaymentMode || "Cash",
+      admissionFeeTxnId: app.admissionFeeTxnId || (app as any).admissionFeeTxnId || "",
+      admissionFeeDate: app.admissionFeeDate || (app as any).admissionFeeDate || new Date().toISOString().split("T")[0],
       scholarshipId: app.scholarshipId || "",
       discountId: app.discountId || "",
       selectedOptionalFees: optFees,
@@ -2834,6 +2974,12 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           securityDepositPaymentMode: formData.securityDepositPaymentMode || depositPaymentMode,
           securityDepositTxnId: formData.securityDepositTxnId || depositTxnId,
           securityDepositDate: formData.securityDepositDate || depositDate,
+          admissionFeePaid: Boolean(formData.admissionFeePaid),
+          admissionFeeAmount: applicableAdmissionFee,
+          admissionFeeReceiptNo: formData.admissionFeeReceiptNo || "",
+          admissionFeePaymentMode: formData.admissionFeePaymentMode || "Cash",
+          admissionFeeTxnId: formData.admissionFeeTxnId || "",
+          admissionFeeDate: formData.admissionFeeDate || new Date().toISOString().split("T")[0],
         });
 
         // Notify hostel system of admission update directly
@@ -2983,6 +3129,12 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           securityDepositPaymentMode: formData.securityDepositPaymentMode || depositPaymentMode,
           securityDepositTxnId: formData.securityDepositTxnId || depositTxnId,
           securityDepositDate: formData.securityDepositDate || depositDate,
+          admissionFeePaid: Boolean(formData.admissionFeePaid),
+          admissionFeeAmount: applicableAdmissionFee,
+          admissionFeeReceiptNo: formData.admissionFeeReceiptNo || "",
+          admissionFeePaymentMode: formData.admissionFeePaymentMode || "Cash",
+          admissionFeeTxnId: formData.admissionFeeTxnId || "",
+          admissionFeeDate: formData.admissionFeeDate || new Date().toISOString().split("T")[0],
           branch: formData.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" && dynamicCampuses.includes(selectedBranch) ? selectedBranch : "") || (dynamicCampuses[0] || ""),
           academicYear: formData.academicYear || selectedAcademicYear || "2026-27",
           scholarshipId: formData.scholarshipId,
@@ -3356,12 +3508,16 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           (h.name && i.feeHeadName && String(h.name || "").toLowerCase().trim() === String(i.feeHeadName || "").toLowerCase().trim()),
       );
       const dynamicName = fh?.name || i.feeHeadName;
+      const isAdmFeeItem = (dynamicName || "").toLowerCase().includes("admission") || (i.category || "").toLowerCase().includes("admission");
+      const admRemarks = isAdmFeeItem
+        ? (formData.admissionFeePaid ? "✓ Paid" : "Must pay before enrollment")
+        : (isSelected ? lateRemarks : "Optional Fee Not Selected");
 
       items.push({
         name: dynamicName,
         amount: isSelected ? adjustedAmount : i.amount,
         isApplicable: isSelected,
-        remarks: isSelected ? lateRemarks : "Optional Fee Not Selected",
+        remarks: admRemarks,
       });
     });
 
@@ -5407,6 +5563,48 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                         )}
                       </div>
                     )}
+
+                    {/* Pay Button & Admission Fee Status on Right Side */}
+                    {applicableAdmissionFee > 0 && (
+                      <div className="pt-2 space-y-2">
+                        {formData.admissionFeePaid ? (
+                          <div className="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 space-y-1">
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5 text-xs">
+                                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                                Admission Fee Paid
+                              </span>
+                              <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-200 dark:bg-emerald-800 text-emerald-800 dark:text-emerald-200 font-extrabold">
+                                VERIFIED
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-emerald-700 dark:text-emerald-400">
+                              Amount: {formatCurrency(applicableAdmissionFee)}
+                              {formData.admissionFeeReceiptNo ? ` • Receipt: ${formData.admissionFeeReceiptNo}` : ""}
+                            </p>
+                            <p className="text-[10px] text-emerald-600 dark:text-emerald-500 font-medium">
+                              ✓ Mandatory admission fee satisfied for enrollment.
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 space-y-2">
+                            <div className="flex items-center justify-between text-xs font-bold text-amber-900 dark:text-amber-200">
+                              <span className="flex items-center gap-1.5">
+                                <ShieldCheck className="w-4 h-4 text-amber-600" />
+                                Admission Fee
+                              </span>
+                              <span>{formatCurrency(applicableAdmissionFee)}</span>
+                            </div>
+                            <p className="text-[11px] text-amber-700 dark:text-amber-300">
+                              Admission fee must be paid before student can be enrolled.
+                            </p>
+                            <div className="p-2.5 rounded-xl bg-amber-100/70 dark:bg-amber-900/30 text-[11px] text-amber-900 dark:text-amber-200 font-semibold border border-amber-200/60 dark:border-amber-800/40">
+                              ℹ️ Payable via Fee Collection after saving admission form. Once paid, the student will automatically be enrolled.
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </>
                 )}
               </div>
@@ -5742,32 +5940,39 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                             >
                               Reject
                             </button>
-                            <button
-                              disabled={isStatusUpdateLoading}
-                              onClick={() => {
-                                if (isResidentialApp(app) && !checkAppDepositPaid(app)) {
-                                  addToast(
-                                    "warning",
-                                    "Hostel Security Deposit Required",
-                                    `Cannot enroll ${app.applicantName || "student"}. Mandatory Hostel Security Deposit must be paid before enrollment.`
-                                  );
-                                  return;
-                                }
-                                setConfirmingApp({ app, status: "Enrolled" });
-                              }}
-                              title={
-                                isResidentialApp(app) && !checkAppDepositPaid(app)
-                                  ? "Mandatory Hostel Security Deposit pending"
-                                  : "Enroll Student"
-                              }
-                              className={`px-3.5 py-1.5 rounded-xl font-bold text-xs shadow-md flex items-center gap-1 transition-all ${
-                                isResidentialApp(app) && !checkAppDepositPaid(app)
-                                  ? "bg-slate-300 dark:bg-slate-700 text-slate-500 dark:text-slate-400 cursor-not-allowed"
-                                  : "bg-emerald-600 hover:bg-emerald-500 text-white cursor-pointer"
-                              }`}
-                            >
-                              <UserCheck className="w-3.5 h-3.5" /> Enroll Student
-                            </button>
+                            {(() => {
+                              const isDepositBlocked = isResidentialApp(app) && !checkAppDepositPaid(app);
+                              const isAdmFeeBlocked = !checkAppAdmissionFeePaid(app);
+                              const isEnrollBlocked = isDepositBlocked || isAdmFeeBlocked;
+                              const blockReason = isDepositBlocked && isAdmFeeBlocked
+                                ? "Mandatory Admission Fee and Hostel Security Deposit must be paid before enrollment."
+                                : isAdmFeeBlocked
+                                  ? "Mandatory Admission Fee must be paid before enrollment."
+                                  : isDepositBlocked
+                                    ? "Mandatory Hostel Security Deposit must be paid before enrollment."
+                                    : "";
+
+                              return (
+                                <button
+                                  disabled={isStatusUpdateLoading}
+                                  onClick={() => {
+                                    if (isEnrollBlocked) {
+                                      addToast("warning", "Mandatory Fee Payment Required", blockReason);
+                                      return;
+                                    }
+                                    setConfirmingApp({ app, status: "Enrolled" });
+                                  }}
+                                  title={isEnrollBlocked ? blockReason : "Enroll Student"}
+                                  className={`px-3.5 py-1.5 rounded-xl font-bold text-xs shadow-md flex items-center gap-1 transition-all ${
+                                    isEnrollBlocked
+                                      ? "bg-slate-300 dark:bg-slate-700 text-slate-500 dark:text-slate-400 cursor-not-allowed"
+                                      : "bg-emerald-600 hover:bg-emerald-500 text-white cursor-pointer"
+                                  }`}
+                                >
+                                  <UserCheck className="w-3.5 h-3.5" /> Enroll Student
+                                </button>
+                              );
+                            })()}
                           </>
                         )}
                       </div>
@@ -6262,15 +6467,18 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
         }
         onConfirm={async () => {
           if (confirmingApp && confirmingApp.app) {
-            if (
-              confirmingApp.status === "Enrolled" &&
-              isResidentialApp(confirmingApp.app) &&
-              !checkAppDepositPaid(confirmingApp.app)
-            ) {
+            const isDepositBlocked = isResidentialApp(confirmingApp.app) && !checkAppDepositPaid(confirmingApp.app);
+            const isAdmFeeBlocked = !checkAppAdmissionFeePaid(confirmingApp.app);
+            if (confirmingApp.status === "Enrolled" && (isDepositBlocked || isAdmFeeBlocked)) {
+              const modalReason = isDepositBlocked && isAdmFeeBlocked
+                ? "Mandatory Admission Fee and Hostel Security Deposit must be paid before enrolling."
+                : isAdmFeeBlocked
+                  ? "Mandatory Admission Fee must be paid before enrolling."
+                  : "Mandatory Hostel Security Deposit must be paid before enrolling residential students.";
               addToast(
                 "error",
                 "Enrollment Blocked",
-                "Mandatory Hostel Security Deposit must be paid before enrolling residential students."
+                modalReason
               );
               setConfirmingApp(null);
               return;

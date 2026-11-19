@@ -84,6 +84,9 @@ public class AdmissionApplication
     public bool HostelSecurityDepositPaid { get; set; } = false;
     public decimal? SecurityDepositAmount { get; set; }
     public string? SecurityDepositReceiptNo { get; set; }
+    public bool AdmissionFeePaid { get; set; } = false;
+    public decimal? AdmissionFeeAmount { get; set; }
+    public string? AdmissionFeeReceiptNo { get; set; }
 
     // Financial Benefits
     public string? Scholarship { get; set; } = "None";

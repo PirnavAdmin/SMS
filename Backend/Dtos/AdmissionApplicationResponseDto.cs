@@ -145,6 +145,15 @@ public class AdmissionApplicationResponseDto
     [JsonPropertyName("securityDepositReceiptNo")]
     public string? SecurityDepositReceiptNo { get; set; }
 
+    [JsonPropertyName("admissionFeePaid")]
+    public bool AdmissionFeePaid { get; set; }
+
+    [JsonPropertyName("admissionFeeAmount")]
+    public decimal? AdmissionFeeAmount { get; set; }
+
+    [JsonPropertyName("admissionFeeReceiptNo")]
+    public string? AdmissionFeeReceiptNo { get; set; }
+
     [JsonPropertyName("allocatedBedId")]
     public string? AllocatedBedId => AvailableBed;
 

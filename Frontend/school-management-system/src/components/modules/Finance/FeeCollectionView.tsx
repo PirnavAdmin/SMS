@@ -1533,7 +1533,65 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
       }
     }
 
-    // Auto-enroll applicant directly upon fee payment ONLY IF mandatory deposit is satisfied
+    // Check if Admission Fee was paid in this transaction
+    const isAdmissionFeeCollected =
+      selectedInstallments.some((id) => id.toLowerCase().includes("adm") || id.toLowerCase().includes("admission")) ||
+      paymentAllocations.some((a) => (a.feeHeadName || "").toLowerCase().includes("admission")) ||
+      (remarks && remarks.toLowerCase().includes("admission"));
+
+    if (isAdmissionFeeCollected) {
+      try {
+        const sFullName = `${selectedStudent.firstName || ""} ${selectedStudent.lastName || ""}`.trim().toLowerCase();
+        const targetAdm = (admissions || []).find((a) =>
+          String(a.id) === String(selectedStudent.id) ||
+          (selectedStudent.admissionNo && (
+            String(a.admissionNo) === String(selectedStudent.admissionNo) ||
+            String(a.applicationNo) === String(selectedStudent.admissionNo) ||
+            String(a.registrationNo) === String(selectedStudent.admissionNo)
+          )) ||
+          ((selectedStudent as any).studentId && (
+            String(a.studentId) === String((selectedStudent as any).studentId) ||
+            String(a.registrationNo) === String((selectedStudent as any).studentId)
+          )) ||
+          (sFullName && (
+            `${a.applicantName || ""}`.trim().toLowerCase() === sFullName ||
+            `${(a as any).firstName || ""} ${(a as any).lastName || ""}`.trim().toLowerCase() === sFullName
+          ))
+        );
+        if (targetAdm && updateAdmission) {
+          await updateAdmission(targetAdm.id, {
+            admissionFeePaid: true,
+            admissionFeeAmount: numericAmount,
+            admissionFeeReceiptNo: receiptNumber,
+            paidFee: (targetAdm.paidFee || 0) + numericAmount,
+          } as any);
+        }
+
+        if (selectedStudent.id && updateStudent) {
+          updateStudent(selectedStudent.id, {
+            admissionFeePaid: true,
+            paidFee: (selectedStudent.paidFee || 0) + numericAmount,
+          } as any);
+        }
+
+        setSelectedStudent((prev: any) => (prev ? { ...prev, admissionFeePaid: true } : prev));
+
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("admissions_updated"));
+          window.dispatchEvent(new CustomEvent("students_updated"));
+          window.dispatchEvent(new CustomEvent("finance_data_updated"));
+        }
+        addToast(
+          "success",
+          "Admission Fee Settled",
+          "Admission fee received! Mandatory admission requirement satisfied.",
+        );
+      } catch (err) {
+        console.warn("Failed to set admissionFeePaid flag", err);
+      }
+    }
+
+    // Auto-enroll applicant directly upon fee payment ONLY IF mandatory deposit & admission fee are satisfied
     const targetAdmissionRecord = (admissions || []).find((a) =>
       String(a.id) === String(selectedStudent.id) ||
       (selectedStudent.admissionNo && (
@@ -1554,9 +1612,32 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
       Boolean(targetAdmissionRecord?.hostelSecurityDepositPaid && (targetAdmissionRecord as any)?.securityDepositReceiptNo) ||
       Boolean(selectedStudent.hostelSecurityDepositPaid && (selectedStudent as any)?.securityDepositReceiptNo);
 
+    // Check if class requires admission fee
+    const applicantClassName = targetAdmissionRecord?.appliedClass || selectedStudent.className || "";
+    const matchedStruct = (dynamicFeeStructures || []).find(
+      (s) => matchesClassName(s.className, applicantClassName) && (s.status === "Active" || !s.status)
+    ) || (dynamicFeeStructures || []).find((s) => matchesClassName(s.className, applicantClassName));
+    const dynamicAdmItem = matchedStruct?.items?.find(
+      (i) => (i.feeHeadName || "").toLowerCase().includes("admission") || (i.category || "").toLowerCase().includes("admission")
+    );
+    const hasMandatoryAdmFee = Boolean(
+      (dynamicAdmItem && Number(dynamicAdmItem.amount) > 0) ||
+      (targetAdmissionRecord?.admissionFeeAmount && targetAdmissionRecord.admissionFeeAmount > 0)
+    );
+
+    const isAdmissionFeeSatisfied =
+      !hasMandatoryAdmFee ||
+      isAdmissionFeeCollected ||
+      Boolean(targetAdmissionRecord?.admissionFeePaid && (targetAdmissionRecord as any)?.admissionFeeReceiptNo) ||
+      Boolean(targetAdmissionRecord?.admissionFeePaid) ||
+      Boolean(selectedStudent.admissionFeePaid);
+
     if (targetAdmissionRecord && updateAdmissionStatus && targetAdmissionRecord.status !== "Enrolled") {
-      if (!isDepositSatisfied) {
-        console.info("Auto-enrollment deferred: Residential student has unpaid mandatory security deposit.");
+      if (!isDepositSatisfied || !isAdmissionFeeSatisfied) {
+        const pendingReasons: string[] = [];
+        if (!isDepositSatisfied) pendingReasons.push("unpaid hostel security deposit");
+        if (!isAdmissionFeeSatisfied) pendingReasons.push("unpaid admission fee");
+        console.info(`Auto-enrollment deferred: Student has mandatory ${pendingReasons.join(" and ")}.`);
       } else {
         try {
           const assignedStudentId = await updateAdmissionStatus(targetAdmissionRecord.id, "Enrolled");
@@ -2679,18 +2760,87 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
       }
     }
 
-    // Ensure Hostel Security Deposit is sorted to the VERY TOP (Row 1)
+    // Ensure Admission Fee is properly synchronized and displayed if configured for class
+    let admInstallments = combined.filter(
+      (c) =>
+        (c.feeHeadName || "").toLowerCase().includes("admission") ||
+        (c.termName || "").toLowerCase().includes("admission") ||
+        (c.feeHeadId || "").toLowerCase().includes("adm")
+    );
+
+    let classAdmFeeAmount = 0;
+    const studentClassForFee = selectedStudent.className || admRecord?.appliedClass || "";
+    const matchedClassStruct = (dynamicFeeStructures || []).find(
+      (s) => matchesClassName(s.className, studentClassForFee) && (s.status === "Active" || !s.status)
+    ) || (dynamicFeeStructures || []).find((s) => matchesClassName(s.className, studentClassForFee));
+
+    if (matchedClassStruct && matchedClassStruct.items) {
+      const foundAdm = matchedClassStruct.items.find(
+        (i) => (i.feeHeadName || "").toLowerCase().includes("admission") || (i.category || "").toLowerCase().includes("admission")
+      );
+      if (foundAdm && Number(foundAdm.amount) > 0) {
+        classAdmFeeAmount = Number(foundAdm.amount);
+      }
+    }
+    if (classAdmFeeAmount <= 0 && admRecord?.admissionFeeAmount && Number(admRecord.admissionFeeAmount) > 0) {
+      classAdmFeeAmount = Number(admRecord.admissionFeeAmount);
+    }
+
+    const isAdmFeePaid = (feePayments || []).some((p) => {
+      const isStudentMatch =
+        p.studentId === selectedStudent.id ||
+        (selectedStudent.admissionNo && p.studentId === selectedStudent.admissionNo);
+      if (!isStudentMatch || !p.amountPaid || p.amountPaid <= 0) return false;
+      return (
+        p.selectedInstallmentIds?.some((id) => id.toLowerCase().includes("adm")) ||
+        p.paymentAllocation?.some((a) => (a.feeHeadName || "").toLowerCase().includes("admission")) ||
+        (p.remarks || "").toLowerCase().includes("admission")
+      );
+    }) || Boolean(selectedStudent.admissionFeePaid || admRecord?.admissionFeePaid);
+
+    if (admInstallments.length > 0) {
+      admInstallments.forEach((inst) => {
+        if (isAdmFeePaid) {
+          inst.paidAmount = inst.amount;
+          inst.dueAmount = 0;
+          inst.status = "Paid";
+        }
+      });
+    } else if (classAdmFeeAmount > 0) {
+      combined.unshift({
+        id: `INST-${selectedStudent.id}-${currentYear}-FH-ADM-onetime`,
+        studentId: selectedStudent.id,
+        academicYear: currentYear,
+        feeAssignmentId: `FA-ADM-${selectedStudent.id}`,
+        feeHeadId: "FH-ADM",
+        feeHeadName: "Admission Fee",
+        frequency: "One Time",
+        termId: "ONETIME",
+        termName: "One Time",
+        dueDate: new Date().toISOString().split("T")[0],
+        amount: classAdmFeeAmount,
+        paidAmount: isAdmFeePaid ? classAdmFeeAmount : 0,
+        dueAmount: isAdmFeePaid ? 0 : classAdmFeeAmount,
+        status: isAdmFeePaid ? "Paid" : "Pending",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+    }
+
+    // Ensure Hostel Security Deposit and Admission Fee are sorted to the VERY TOP (Row 1 & 2)
     combined.sort((a, b) => {
-      const aIsDep =
+      const aIsMandatory =
         a.feeHeadId === "FH-HST-DEP" ||
         (a.feeHeadName || "").toLowerCase().includes("security deposit") ||
-        (a.termName || "").toLowerCase().includes("security deposit");
-      const bIsDep =
+        (a.termName || "").toLowerCase().includes("security deposit") ||
+        (a.feeHeadName || "").toLowerCase().includes("admission");
+      const bIsMandatory =
         b.feeHeadId === "FH-HST-DEP" ||
         (b.feeHeadName || "").toLowerCase().includes("security deposit") ||
-        (b.termName || "").toLowerCase().includes("security deposit");
-      if (aIsDep && !bIsDep) return -1;
-      if (!aIsDep && bIsDep) return 1;
+        (b.termName || "").toLowerCase().includes("security deposit") ||
+        (b.feeHeadName || "").toLowerCase().includes("admission");
+      if (aIsMandatory && !bIsMandatory) return -1;
+      if (!aIsMandatory && bIsMandatory) return 1;
       return 0;
     });
 

@@ -261,6 +261,24 @@ public class SubmitAdmissionDto
     [JsonPropertyName("securityDepositDate")]
     public string? SecurityDepositDate { get; set; }
 
+    [JsonPropertyName("admissionFeePaid")]
+    public bool? AdmissionFeePaid { get; set; }
+
+    [JsonPropertyName("admissionFeeAmount")]
+    public decimal? AdmissionFeeAmount { get; set; }
+
+    [JsonPropertyName("admissionFeeReceiptNo")]
+    public string? AdmissionFeeReceiptNo { get; set; }
+
+    [JsonPropertyName("admissionFeePaymentMode")]
+    public string? AdmissionFeePaymentMode { get; set; }
+
+    [JsonPropertyName("admissionFeeTxnId")]
+    public string? AdmissionFeeTxnId { get; set; }
+
+    [JsonPropertyName("admissionFeeDate")]
+    public string? AdmissionFeeDate { get; set; }
+
     [JsonPropertyName("allocatedBedId")]
     public string? AllocatedBedId
     {

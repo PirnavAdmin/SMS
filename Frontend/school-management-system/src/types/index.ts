@@ -293,6 +293,12 @@ export interface Student {
   securityDepositPaymentMode?: string;
   securityDepositTxnId?: string;
   securityDepositDate?: string;
+  admissionFeePaid?: boolean;
+  admissionFeeAmount?: number;
+  admissionFeeReceiptNo?: string;
+  admissionFeePaymentMode?: string;
+  admissionFeeTxnId?: string;
+  admissionFeeDate?: string;
 
   boardType?: 'State Board' | 'CBSE';
 
@@ -573,6 +579,12 @@ export interface AdmissionApplication {
   securityDepositPaymentMode?: string;
   securityDepositTxnId?: string;
   securityDepositDate?: string;
+  admissionFeePaid?: boolean;
+  admissionFeeAmount?: number;
+  admissionFeeReceiptNo?: string;
+  admissionFeePaymentMode?: string;
+  admissionFeeTxnId?: string;
+  admissionFeeDate?: string;
   branch?: string;
   scholarshipId?: string;
   discountId?: string;

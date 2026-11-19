@@ -1444,6 +1444,19 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                 targetApp.SecurityDepositReceiptNo = receiptNo;
             }
 
+            // Sync Admission Fee status on Admission Application if admission fee was collected
+            bool isAdmissionFeePayment =
+                (!string.IsNullOrEmpty(payment.FeeHeadName) && (payment.FeeHeadName.Contains("Admission Fee", StringComparison.OrdinalIgnoreCase) || payment.FeeHeadName.Contains("Admission", StringComparison.OrdinalIgnoreCase))) ||
+                (!string.IsNullOrEmpty(payment.Remarks) && payment.Remarks.Contains("Admission", StringComparison.OrdinalIgnoreCase)) ||
+                (!string.IsNullOrEmpty(payment.PaidItemsJson) && payment.PaidItemsJson.Contains("Admission", StringComparison.OrdinalIgnoreCase));
+
+            if (isAdmissionFeePayment && targetApp != null)
+            {
+                targetApp.AdmissionFeePaid = true;
+                targetApp.AdmissionFeeAmount = payment.Amount;
+                targetApp.AdmissionFeeReceiptNo = receiptNo;
+            }
+
             var acct = await ResolveActiveAccountForModeAsync(payment.PaymentMethod);
             if (acct != null)
             {
@@ -1461,11 +1474,13 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             string ledgerParticulars = $"Fee Collection — {resolvedStudentName}{classPart} - {payment.FeeHeadName} ({receiptNo})";
             string ledgerCategory = isDepositPayment
                 ? "Hostel & Residence Fees"
-                : (!string.IsNullOrEmpty(payment.FeeHeadName) && payment.FeeHeadName.Contains("Transport", StringComparison.OrdinalIgnoreCase)
-                    ? "Transport Fees"
-                    : (!string.IsNullOrEmpty(payment.FeeHeadName) && payment.FeeHeadName.Contains("Uniform", StringComparison.OrdinalIgnoreCase)
-                        ? "Uniform & Supplies Fees"
-                        : "Tuition & Academic Fees"));
+                : (isAdmissionFeePayment
+                    ? "Admission Fees"
+                    : (!string.IsNullOrEmpty(payment.FeeHeadName) && payment.FeeHeadName.Contains("Transport", StringComparison.OrdinalIgnoreCase)
+                        ? "Transport Fees"
+                        : (!string.IsNullOrEmpty(payment.FeeHeadName) && payment.FeeHeadName.Contains("Uniform", StringComparison.OrdinalIgnoreCase)
+                            ? "Uniform & Supplies Fees"
+                            : "Tuition & Academic Fees")));
 
             _context.LedgerEntries.Add(new LedgerEntry
             {

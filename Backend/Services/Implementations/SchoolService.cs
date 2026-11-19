@@ -1030,6 +1030,37 @@ public class SchoolService : ISchoolService
 			}
 		}
 
+		// Sync verified Admission Fee payments
+		var admissionFeePayments = await _context.FeePayments.AsNoTracking()
+			.Where(p => (p.FeeHeadName != null && (p.FeeHeadName.Contains("Admission Fee") || p.FeeHeadName.Contains("Admission"))) ||
+			            (p.Remarks != null && p.Remarks.Contains("Admission")) ||
+			            (p.PaidItemsJson != null && p.PaidItemsJson.Contains("Admission")))
+			.Select(p => new { p.StudentId, p.Amount, p.ReceiptNo })
+			.ToListAsync();
+
+		if (admissionFeePayments.Any())
+		{
+			foreach (var r in result)
+			{
+				if (!r.AdmissionFeePaid)
+				{
+					var match = admissionFeePayments.FirstOrDefault(p =>
+						p.StudentId == r.Id.ToString() ||
+						(r.Id > 100000 && p.StudentId == (r.Id - 100000).ToString()) ||
+						(!string.IsNullOrEmpty(r.AdmissionNo) && p.StudentId == r.AdmissionNo) ||
+						(!string.IsNullOrEmpty(r.RegistrationNo) && p.StudentId == r.RegistrationNo) ||
+						(!string.IsNullOrEmpty(r.StudentId) && p.StudentId == r.StudentId));
+
+					if (match != null)
+					{
+						r.AdmissionFeePaid = true;
+						if (r.AdmissionFeeAmount <= 0) r.AdmissionFeeAmount = match.Amount;
+						if (string.IsNullOrEmpty(r.AdmissionFeeReceiptNo)) r.AdmissionFeeReceiptNo = match.ReceiptNo;
+					}
+				}
+			}
+		}
+
 		return result.OrderBy(r => string.Equals(r.Status, "Enrolled", StringComparison.OrdinalIgnoreCase) || string.Equals(r.Status, "Admitted", StringComparison.OrdinalIgnoreCase) || string.Equals(r.Status, "Active", StringComparison.OrdinalIgnoreCase) ? 1 : 0)
 					 .ThenBy(r => GetClassSortWeight(r.AppliedClassGrade))
 					 .ThenBy(r => r.StudentName)
@@ -1099,6 +1130,20 @@ public class SchoolService : ISchoolService
 					resp.HostelSecurityDepositPaid = true;
 					if (resp.SecurityDepositAmount <= 0) resp.SecurityDepositAmount = depPayment.Amount;
 					if (string.IsNullOrEmpty(resp.SecurityDepositReceiptNo)) resp.SecurityDepositReceiptNo = depPayment.ReceiptNo;
+				}
+			}
+			if (!resp.AdmissionFeePaid)
+			{
+				var admPayment = await _context.FeePayments.AsNoTracking().FirstOrDefaultAsync(p =>
+					(p.StudentId == app.Id.ToString() || (!string.IsNullOrEmpty(app.AdmissionNo) && p.StudentId == app.AdmissionNo) || (!string.IsNullOrEmpty(app.RegistrationNo) && p.StudentId == app.RegistrationNo)) &&
+					((p.FeeHeadName != null && (p.FeeHeadName.Contains("Admission Fee") || p.FeeHeadName.Contains("Admission"))) ||
+					 (p.Remarks != null && p.Remarks.Contains("Admission")) ||
+					 (p.PaidItemsJson != null && p.PaidItemsJson.Contains("Admission"))));
+				if (admPayment != null)
+				{
+					resp.AdmissionFeePaid = true;
+					if (resp.AdmissionFeeAmount <= 0) resp.AdmissionFeeAmount = admPayment.Amount;
+					if (string.IsNullOrEmpty(resp.AdmissionFeeReceiptNo)) resp.AdmissionFeeReceiptNo = admPayment.ReceiptNo;
 				}
 			}
 			await PopulateParentOnboardingStatusAsync(resp);
@@ -1182,6 +1227,20 @@ public class SchoolService : ISchoolService
 					resp.HostelSecurityDepositPaid = true;
 					if (resp.SecurityDepositAmount <= 0) resp.SecurityDepositAmount = depPayment.Amount;
 					if (string.IsNullOrEmpty(resp.SecurityDepositReceiptNo)) resp.SecurityDepositReceiptNo = depPayment.ReceiptNo;
+				}
+			}
+			if (!resp.AdmissionFeePaid)
+			{
+				var admPayment = await _context.FeePayments.AsNoTracking().FirstOrDefaultAsync(p =>
+					(p.StudentId == app.Id.ToString() || (!string.IsNullOrEmpty(app.AdmissionNo) && p.StudentId == app.AdmissionNo) || (!string.IsNullOrEmpty(app.RegistrationNo) && p.StudentId == app.RegistrationNo)) &&
+					((p.FeeHeadName != null && (p.FeeHeadName.Contains("Admission Fee") || p.FeeHeadName.Contains("Admission"))) ||
+					 (p.Remarks != null && p.Remarks.Contains("Admission")) ||
+					 (p.PaidItemsJson != null && p.PaidItemsJson.Contains("Admission"))));
+				if (admPayment != null)
+				{
+					resp.AdmissionFeePaid = true;
+					if (resp.AdmissionFeeAmount <= 0) resp.AdmissionFeeAmount = admPayment.Amount;
+					if (string.IsNullOrEmpty(resp.AdmissionFeeReceiptNo)) resp.AdmissionFeeReceiptNo = admPayment.ReceiptNo;
 				}
 			}
 			await PopulateParentOnboardingStatusAsync(resp);
@@ -1329,6 +1388,68 @@ public class SchoolService : ISchoolService
 		return $"ADM-{DateTime.UtcNow.Year}-{(maxAdmSeq + 1):D4}";
 	}
 
+	private async Task<(bool Required, decimal Amount)> GetAdmissionFeeRequirementAsync(AdmissionApplication app)
+	{
+		if (app.AdmissionFeeAmount.HasValue && app.AdmissionFeeAmount.Value > 0)
+		{
+			return (true, app.AdmissionFeeAmount.Value);
+		}
+
+		string? appClassName = app.AppliedClass?.ClassName;
+		if (string.IsNullOrWhiteSpace(appClassName) && app.AppliedClassId.HasValue && app.AppliedClassId.Value > 0)
+		{
+			var cls = await _context.Classes.AsNoTracking().FirstOrDefaultAsync(c => c.ClassId == app.AppliedClassId.Value);
+			appClassName = cls?.ClassName;
+		}
+
+		if (string.IsNullOrWhiteSpace(appClassName))
+		{
+			return (false, 0m);
+		}
+
+		var structures = await _context.DynamicFeeStructures.AsNoTracking()
+			.Where(s => s.Status == "Active" || string.IsNullOrEmpty(s.Status))
+			.ToListAsync();
+
+		var appClass = appClassName.Trim();
+		var matchedStruct = structures.FirstOrDefault(s =>
+			string.Equals(s.ClassName, appClass, StringComparison.OrdinalIgnoreCase) ||
+			(s.ClassName != null && s.ClassName.Contains(appClass, StringComparison.OrdinalIgnoreCase)));
+
+		if (matchedStruct != null && !string.IsNullOrWhiteSpace(matchedStruct.ItemsJson))
+		{
+			try
+			{
+				using var doc = System.Text.Json.JsonDocument.Parse(matchedStruct.ItemsJson);
+				if (doc.RootElement.ValueKind == System.Text.Json.JsonValueKind.Array)
+				{
+					foreach (var item in doc.RootElement.EnumerateArray())
+					{
+						string? headName = item.TryGetProperty("FeeHeadName", out var hn) ? hn.GetString() : null;
+						string? category = item.TryGetProperty("Category", out var cat) ? cat.GetString() : null;
+						decimal amt = 0m;
+						if (item.TryGetProperty("Amount", out var amEl))
+						{
+							if (amEl.ValueKind == System.Text.Json.JsonValueKind.Number) amt = amEl.GetDecimal();
+							else if (amEl.ValueKind == System.Text.Json.JsonValueKind.String && decimal.TryParse(amEl.GetString(), out var parsed)) amt = parsed;
+						}
+
+						bool isAdm = (headName != null && headName.Contains("Admission", StringComparison.OrdinalIgnoreCase)) ||
+						             (category != null && category.Contains("Admission", StringComparison.OrdinalIgnoreCase));
+
+						if (isAdm && amt > 0)
+						{
+							return (true, amt);
+						}
+					}
+				}
+			}
+			catch { }
+		}
+
+		return (false, 0m);
+	}
+
 	public async Task<string?> EnrollStudentAsync(int id)
 	{
 		var app = await _schoolRepository.GetApplicationByIdAsync(id);
@@ -1374,6 +1495,27 @@ public class SchoolService : ISchoolService
 			{
 				var depAmt = app.SecurityDepositAmount > 0 ? app.SecurityDepositAmount : 0m;
 				throw new BadRequestException($"Cannot enroll applicant '{app.FirstName} {app.LastName}'. Mandatory Hostel Security Deposit {(depAmt > 0 ? $"of ₹{depAmt:N0} " : "")}must be paid prior to enrollment.");
+			}
+		}
+
+		var (hasMandatoryAdmFee, admFeeAmount) = await GetAdmissionFeeRequirementAsync(app);
+		if (hasMandatoryAdmFee && admFeeAmount > 0)
+		{
+			bool hasVerifiedAdmFee = app.AdmissionFeePaid && !string.IsNullOrWhiteSpace(app.AdmissionFeeReceiptNo);
+			if (!hasVerifiedAdmFee)
+			{
+				string canonicalStr = app.Id.ToString();
+				hasVerifiedAdmFee = await _context.FeePayments.AsNoTracking().AnyAsync(p =>
+					p.Status != "Cancelled" && p.Status != "Reversed" &&
+					(p.StudentId == canonicalStr || p.StudentId == app.AdmissionNo || p.StudentId == app.RegistrationNo) &&
+					((p.FeeHeadName != null && (p.FeeHeadName.Contains("Admission Fee") || p.FeeHeadName.Contains("Admission"))) ||
+					 (p.Remarks != null && p.Remarks.Contains("Admission")) ||
+					 (p.PaidItemsJson != null && p.PaidItemsJson.Contains("Admission"))));
+			}
+
+			if (!hasVerifiedAdmFee)
+			{
+				throw new BadRequestException($"Cannot enroll applicant '{app.FirstName} {app.LastName}'. Mandatory Admission Fee {(admFeeAmount > 0 ? $"of ₹{admFeeAmount:N0} " : "")}must be paid prior to enrollment.");
 			}
 		}
 
@@ -1607,6 +1749,27 @@ public class SchoolService : ISchoolService
 						throw new BadRequestException($"Cannot enroll applicant '{app.FirstName} {app.LastName}'. Mandatory Hostel Security Deposit {(depAmt > 0 ? $"of ₹{depAmt:N0} " : "")}must be paid prior to enrollment.");
 					}
 				}
+
+				var (hasMandatoryAdmFee, admFeeAmount) = await GetAdmissionFeeRequirementAsync(app);
+				if (hasMandatoryAdmFee && admFeeAmount > 0)
+				{
+					bool hasVerifiedAdmFee = app.AdmissionFeePaid && !string.IsNullOrWhiteSpace(app.AdmissionFeeReceiptNo);
+					if (!hasVerifiedAdmFee)
+					{
+						string canonicalStr = app.Id.ToString();
+						hasVerifiedAdmFee = await _context.FeePayments.AsNoTracking().AnyAsync(p =>
+							p.Status != "Cancelled" && p.Status != "Reversed" &&
+							(p.StudentId == canonicalStr || p.StudentId == app.AdmissionNo || p.StudentId == app.RegistrationNo) &&
+							((p.FeeHeadName != null && (p.FeeHeadName.Contains("Admission Fee") || p.FeeHeadName.Contains("Admission"))) ||
+							 (p.Remarks != null && p.Remarks.Contains("Admission")) ||
+							 (p.PaidItemsJson != null && p.PaidItemsJson.Contains("Admission"))));
+					}
+
+					if (!hasVerifiedAdmFee)
+					{
+						throw new BadRequestException($"Cannot enroll applicant '{app.FirstName} {app.LastName}'. Mandatory Admission Fee {(admFeeAmount > 0 ? $"of ₹{admFeeAmount:N0} " : "")}must be paid prior to enrollment.");
+					}
+				}
 			}
 
 			app.Status = status;
@@ -1813,6 +1976,9 @@ public class SchoolService : ISchoolService
 			HostelSecurityDepositPaid = dto.HostelSecurityDepositPaid ?? false,
 			SecurityDepositAmount = dto.SecurityDepositAmount ?? 0m,
 			SecurityDepositReceiptNo = dto.SecurityDepositReceiptNo,
+			AdmissionFeePaid = dto.AdmissionFeePaid ?? false,
+			AdmissionFeeAmount = dto.AdmissionFeeAmount ?? 0m,
+			AdmissionFeeReceiptNo = dto.AdmissionFeeReceiptNo,
 			Scholarship = dto.Scholarship,
 			Discount = dto.Discount,
 			Status = !string.IsNullOrWhiteSpace(dto.Status) ? dto.Status.Trim() : "Pending"
@@ -1946,6 +2112,10 @@ public class SchoolService : ISchoolService
 			app.PickupPoint = null;
 			app.DropPoint = null;
 		}
+		if (dto.AdmissionFeePaid.HasValue) app.AdmissionFeePaid = dto.AdmissionFeePaid.Value;
+		if (dto.AdmissionFeeAmount.HasValue) app.AdmissionFeeAmount = dto.AdmissionFeeAmount.Value;
+		if (!string.IsNullOrWhiteSpace(dto.AdmissionFeeReceiptNo)) app.AdmissionFeeReceiptNo = dto.AdmissionFeeReceiptNo;
+
 		app.Scholarship = dto.Scholarship;
 		app.Discount = dto.Discount;
 		if (!string.IsNullOrWhiteSpace(dto.AcademicYear)) app.AcademicYear = dto.AcademicYear;
@@ -2548,6 +2718,9 @@ public class SchoolService : ISchoolService
 		HostelSecurityDepositPaid = a.HostelSecurityDepositPaid,
 		SecurityDepositAmount = a.SecurityDepositAmount,
 		SecurityDepositReceiptNo = a.SecurityDepositReceiptNo,
+		AdmissionFeePaid = a.AdmissionFeePaid,
+		AdmissionFeeAmount = a.AdmissionFeeAmount,
+		AdmissionFeeReceiptNo = a.AdmissionFeeReceiptNo,
 		Scholarship = a.Scholarship,
 		Discount = a.Discount,
 		Status = a.Status ?? "",
