@@ -446,22 +446,32 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
     let absent = 0;
     let late = 0;
     let halfDay = 0;
-    let total = 0;
+    let total = displayTotalStudents || summaryData?.totalStudents || students.length || 0;
 
     if (summaryData?.studentAttendance && summaryData.studentAttendance.total > 0) {
       present = summaryData.studentAttendance.present || 0;
       absent = summaryData.studentAttendance.absent || 0;
       late = summaryData.studentAttendance.late || 0;
       halfDay = summaryData.studentAttendance.halfDay || 0;
-      total = summaryData.studentAttendance.total;
+      if (summaryData.studentAttendance.total > 0 && !displayTotalStudents) {
+        total = summaryData.studentAttendance.total;
+      }
     } else if (todayStudentAttendanceSummary && todayStudentAttendanceSummary.totalDays > 0) {
       present = todayStudentAttendanceSummary.present || 0;
       absent = todayStudentAttendanceSummary.absent || 0;
       late = todayStudentAttendanceSummary.late || 0;
       halfDay = todayStudentAttendanceSummary.halfDay || 0;
-      total = (present + absent + late + halfDay) || (summaryData?.totalStudents ?? students.length ?? 0);
-    } else {
-      total = summaryData?.totalStudents ?? students.length ?? 0;
+    }
+
+    if (displayTotalStudents > 0) {
+      total = displayTotalStudents;
+    } else if (total === 0) {
+      total = present + absent + late + halfDay;
+    }
+
+    // When attendance logging has begun for students today, any unrecorded students from the total roster are absent
+    if ((present > 0 || late > 0 || halfDay > 0) && total > (present + absent + late + halfDay)) {
+      absent = total - (present + late + halfDay);
     }
 
     const presentPct = total > 0 && present > 0 ? Math.round((present / total) * 100) : 0;
@@ -474,7 +484,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
       presentPct, latePct, halfDayPct, absentPct,
       pEnd: presentPct, lEnd: presentPct + latePct, hdEnd: presentPct + latePct + halfDayPct
     };
-  }, [summaryData, todayStudentAttendanceSummary, students.length]);
+  }, [summaryData, todayStudentAttendanceSummary, students.length, displayTotalStudents]);
 
   // Pie chart calculation (Teaching & Non-Teaching Staff Attendance)
   const [staffAttendanceTab, setStaffAttendanceTab] = useState<'Teaching' | 'Non-Teaching'>('Teaching');
@@ -557,6 +567,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
       total = teachingStaff.length > 0 ? teachingStaff.length : (present + absent + late + halfDay);
     }
 
+    // When attendance logging has begun for the day, any unrecorded staff from the total roster are absent
+    if ((present > 0 || late > 0 || halfDay > 0) && total > (present + absent + late + halfDay) && absent === 0) {
+      absent = total - (present + late + halfDay);
+    }
+
     const presentPct = total > 0 && present > 0 ? Math.round((present / total) * 100) : 0;
     const latePct = total > 0 && late > 0 ? Math.round((late / total) * 100) : 0;
     const halfDayPct = total > 0 && halfDay > 0 ? Math.round((halfDay / total) * 100) : 0;
@@ -629,6 +644,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
       });
 
       total = nonTeachingStaff.length > 0 ? nonTeachingStaff.length : (present + absent + late + halfDay);
+    }
+
+    // When attendance logging has begun for the day, any unrecorded staff from the total roster are absent
+    if ((present > 0 || late > 0 || halfDay > 0) && total > (present + absent + late + halfDay) && absent === 0) {
+      absent = total - (present + late + halfDay);
     }
 
     const presentPct = total > 0 && present > 0 ? Math.round((present / total) * 100) : 0;

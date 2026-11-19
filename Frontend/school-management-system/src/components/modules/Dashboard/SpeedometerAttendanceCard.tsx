@@ -180,27 +180,31 @@ export const SpeedometerAttendanceCard: React.FC<
     0,
   );
 
+  const effectiveTotal = Math.max(total, totalActiveCount);
+
   const gapDeg = activeGaugeSegments.length > 1 ? 3 : 0;
   const totalGaps = (activeGaugeSegments.length - 1) * gapDeg;
-  const availableDeg = 180 - totalGaps;
+  const availableDeg = Math.max(0, 180 - totalGaps);
 
   let currentAngle = 180;
   const renderedSegments = activeGaugeSegments.map((item) => {
-    // Ensure small values (e.g. 1% or 2%) have a visible min angle of 5 deg
+    // Proportional angle for this segment based on effectiveTotal
     const rawAngle =
-      totalActiveCount > 0 ? (item.count / totalActiveCount) * availableDeg : 0;
-    const clampedAngle = Math.max(5, rawAngle);
+      effectiveTotal > 0 ? (item.count / effectiveTotal) * availableDeg : 0;
+    // Ensure small values (e.g. 1% or 2%) have a visible min angle of 4 deg if count > 0
+    const clampedAngle = item.count > 0 ? Math.max(4, rawAngle) : 0;
     return {
       ...item,
       desiredAngle: clampedAngle,
     };
   });
 
-  // Re-scale if clamped sum exceeds availableDeg
+  // Re-scale only if clamped sum exceeds availableDeg
   const sumAngles = renderedSegments.reduce((s, it) => s + it.desiredAngle, 0);
+  const scale =
+    sumAngles > availableDeg && sumAngles > 0 ? availableDeg / sumAngles : 1;
   const finalSegments = renderedSegments.map((item) => {
-    const finalAngle =
-      sumAngles > 0 ? (item.desiredAngle / sumAngles) * availableDeg : 0;
+    const finalAngle = item.desiredAngle * scale;
     const start = currentAngle;
     const end = currentAngle - finalAngle;
     currentAngle = end - gapDeg;
