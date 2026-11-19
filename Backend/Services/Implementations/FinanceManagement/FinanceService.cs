@@ -442,6 +442,7 @@ public class FinanceService : IFinanceService
         var activeHeads = allHeads.Where(h => (h.Status ?? "").Equals("Active", StringComparison.OrdinalIgnoreCase)).ToList();
 
         bool isTuition = category.Equals("Tuition", StringComparison.OrdinalIgnoreCase) || category.Equals("Tuition Fee", StringComparison.OrdinalIgnoreCase);
+        bool isAdmission = category.Equals("Admission", StringComparison.OrdinalIgnoreCase) || category.Equals("Admission Fee", StringComparison.OrdinalIgnoreCase);
         bool isHostel = category.Equals("Hostel", StringComparison.OrdinalIgnoreCase);
         bool isTransport = category.Equals("Transport", StringComparison.OrdinalIgnoreCase);
         bool isUniform = category.Equals("Uniform", StringComparison.OrdinalIgnoreCase);
@@ -451,7 +452,8 @@ public class FinanceService : IFinanceService
         {
             var hCat = h.Category ?? "";
             var hName = h.Name ?? "";
-            if (isTuition) return hCat.Equals("Tuition", StringComparison.OrdinalIgnoreCase) || hCat.Equals("Tuition Fee", StringComparison.OrdinalIgnoreCase) || hCat.Equals("General", StringComparison.OrdinalIgnoreCase);
+            if (isTuition) return hCat.Equals("Tuition", StringComparison.OrdinalIgnoreCase) || hCat.Equals("Tuition Fee", StringComparison.OrdinalIgnoreCase) || hCat.Equals("General", StringComparison.OrdinalIgnoreCase) || hCat.Contains("Admission", StringComparison.OrdinalIgnoreCase);
+            if (isAdmission) return hCat.Equals("Admission", StringComparison.OrdinalIgnoreCase) || hCat.Equals("Admission Fee", StringComparison.OrdinalIgnoreCase) || hName.Contains("Admission", StringComparison.OrdinalIgnoreCase);
             if (isHostel) return hCat.Equals("Hostel", StringComparison.OrdinalIgnoreCase) || hName.Contains("Hostel", StringComparison.OrdinalIgnoreCase);
             if (isTransport) return hCat.Equals("Transport", StringComparison.OrdinalIgnoreCase) || hName.Contains("Transport", StringComparison.OrdinalIgnoreCase);
             if (isUniform) return hCat.Equals("Uniform", StringComparison.OrdinalIgnoreCase) || hName.Contains("Uniform", StringComparison.OrdinalIgnoreCase);
@@ -564,15 +566,15 @@ public class FinanceService : IFinanceService
 
         var isTuition = category.Equals("Tuition", StringComparison.OrdinalIgnoreCase) || category.Equals("Tuition Fee", StringComparison.OrdinalIgnoreCase);
 
-        // Check if a fee structure already exists for the same dimensions
+        // Check if an exact fee structure already exists to update (match by ID or exact same name and dimensions)
         var existingList = await _repo.GetDynamicFeeStructuresAsync();
         var existing = existingList.FirstOrDefault(x =>
-            (x.TargetAudience ?? "").Equals(category, StringComparison.OrdinalIgnoreCase) &&
-            (string.IsNullOrEmpty(x.AcademicYear) || x.AcademicYear.Equals(academicYear, StringComparison.OrdinalIgnoreCase)) &&
-            (string.IsNullOrEmpty(x.Branch) || x.Branch.Equals(branch, StringComparison.OrdinalIgnoreCase)) &&
-            (isTuition
-                ? (x.ClassName != null && x.ClassName.Trim().Equals(className, StringComparison.OrdinalIgnoreCase))
-                : (x.Name != null && x.Name.Trim().Equals((dto.Name ?? "").Trim(), StringComparison.OrdinalIgnoreCase))));
+            (dto.Id > 0 && x.Id == dto.Id) ||
+            ((x.TargetAudience ?? "").Equals(category, StringComparison.OrdinalIgnoreCase) &&
+             (string.IsNullOrEmpty(x.AcademicYear) || x.AcademicYear.Equals(academicYear, StringComparison.OrdinalIgnoreCase)) &&
+             (string.IsNullOrEmpty(x.Branch) || x.Branch.Equals(branch, StringComparison.OrdinalIgnoreCase)) &&
+             (x.ClassName != null && x.ClassName.Trim().Equals(className, StringComparison.OrdinalIgnoreCase)) &&
+             (x.Name != null && !string.IsNullOrWhiteSpace(dto.Name) && x.Name.Trim().Equals(dto.Name.Trim(), StringComparison.OrdinalIgnoreCase))));
 
         if (existing != null)
         {

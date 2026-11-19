@@ -2770,16 +2770,22 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
 
     let classAdmFeeAmount = 0;
     const studentClassForFee = selectedStudent.className || admRecord?.appliedClass || "";
-    const matchedClassStruct = (dynamicFeeStructures || []).find(
+    const matchingClassStructs = (dynamicFeeStructures || []).filter(
       (s) => matchesClassName(s.className, studentClassForFee) && (s.status === "Active" || !s.status)
-    ) || (dynamicFeeStructures || []).find((s) => matchesClassName(s.className, studentClassForFee));
+    );
+    const candidateStructs = matchingClassStructs.length > 0
+      ? matchingClassStructs
+      : (dynamicFeeStructures || []).filter((s) => matchesClassName(s.className, studentClassForFee));
 
-    if (matchedClassStruct && matchedClassStruct.items) {
-      const foundAdm = matchedClassStruct.items.find(
-        (i) => (i.feeHeadName || "").toLowerCase().includes("admission") || (i.category || "").toLowerCase().includes("admission")
-      );
-      if (foundAdm && Number(foundAdm.amount) > 0) {
-        classAdmFeeAmount = Number(foundAdm.amount);
+    for (const struct of candidateStructs) {
+      if (struct && struct.items && struct.items.length > 0) {
+        const foundAdm = struct.items.find(
+          (i) => (i.feeHeadName || "").toLowerCase().includes("admission") || (i.category || "").toLowerCase().includes("admission")
+        );
+        if (foundAdm && Number(foundAdm.amount) > 0) {
+          classAdmFeeAmount = Number(foundAdm.amount);
+          break;
+        }
       }
     }
     if (classAdmFeeAmount <= 0 && admRecord?.admissionFeeAmount && Number(admRecord.admissionFeeAmount) > 0) {

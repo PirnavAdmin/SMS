@@ -145,7 +145,7 @@ public class FinanceController : ControllerBase
     [Authorize(Roles = ReadRoles)]
     public IActionResult GetFeeTypes()
     {
-        var types = new List<string> { "Tuition Fee", "Others", "Hostel", "Transport", "Uniform" };
+        var types = new List<string> { "Tuition Fee", "Admission Fee", "Others", "Hostel", "Transport", "Uniform" };
         return Ok(new { success = true, data = types });
     }
 

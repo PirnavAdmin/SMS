@@ -3367,27 +3367,31 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
     const studentBranch = (formData.branch || selectedBranch || "").trim().toLowerCase();
 
-    const dfs =
-      structuresToSearch.find(
-        (d) =>
-          matchesClass(d.className, clsName) &&
-          (d.status === "Active" || !d.status) &&
-          (!studentBranch || studentBranch === "all" || studentBranch === "all branches" ||
-           !d.branch || d.branch.toLowerCase().trim() === "all" || d.branch.toLowerCase().trim() === "all branches" ||
-           d.branch.toLowerCase().trim() === studentBranch ||
-           studentBranch.includes(d.branch.toLowerCase().trim()) ||
-           d.branch.toLowerCase().trim().includes(studentBranch))
-      ) ||
-      structuresToSearch.find(
-        (d) => matchesClass(d.className, clsName) && (d.status === "Active" || !d.status)
-      ) ||
-      structuresToSearch.find((d) => matchesClass(d.className, clsName)) ||
-      (dynamicFeeStructures || []).find(
-        (d) => matchesClass(d.className, clsName) && (d.status === "Active" || !d.status)
-      ) ||
-      (dynamicFeeStructures || []).find((d) => matchesClass(d.className, clsName));
+    const matchingDfsList = structuresToSearch.filter(
+      (d) =>
+        matchesClass(d.className, clsName) &&
+        (d.status === "Active" || !d.status) &&
+        (!studentBranch || studentBranch === "all" || studentBranch === "all branches" ||
+         !d.branch || d.branch.toLowerCase().trim() === "all" || d.branch.toLowerCase().trim() === "all branches" ||
+         d.branch.toLowerCase().trim() === studentBranch ||
+         studentBranch.includes(d.branch.toLowerCase().trim()) ||
+         d.branch.toLowerCase().trim().includes(studentBranch))
+    );
+    const effectiveDfsList = matchingDfsList.length > 0
+      ? matchingDfsList
+      : structuresToSearch.filter((d) => matchesClass(d.className, clsName) && (d.status === "Active" || !d.status));
 
-    const rawBaseItems = dfs ? (dfs.items || []) : [];
+    const rawBaseItems: any[] = [];
+    const seenHeadKeys = new Set<string>();
+    effectiveDfsList.forEach((struct) => {
+      (struct.items || []).forEach((item) => {
+        const key = String(item.feeHeadId || item.feeHeadName || "").toLowerCase().trim();
+        if (key && !seenHeadKeys.has(key)) {
+          seenHeadKeys.add(key);
+          rawBaseItems.push(item);
+        }
+      });
+    });
 
     const baseItemsFiltered = rawBaseItems.filter(
       (item) =>
@@ -3402,16 +3406,18 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
     let baseItems = baseItemsFiltered.length > 0 ? baseItemsFiltered : rawBaseItems;
 
-    if (baseItems.length === 0 && dfs && Number(dfs.totalAmount || 0) > 0) {
-      baseItems = [
-        {
-          feeHeadId: String(dfs.id || "1"),
-          feeHeadName: dfs.name || "Tuition Fee",
-          category: dfs.category || "Tuition Fee",
-          amount: Number(dfs.totalAmount),
-          frequency: "Quarterly",
-        } as any,
-      ];
+    if (baseItems.length === 0 && effectiveDfsList.length > 0) {
+      effectiveDfsList.forEach((dfs) => {
+        if (Number(dfs.totalAmount || 0) > 0) {
+          baseItems.push({
+            feeHeadId: String(dfs.id || "1"),
+            feeHeadName: dfs.name || "Tuition Fee",
+            category: dfs.category || "Tuition Fee",
+            amount: Number(dfs.totalAmount),
+            frequency: "Quarterly",
+          } as any);
+        }
+      });
     }
 
     let items: {

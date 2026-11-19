@@ -12752,10 +12752,36 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               a.studentId === st.id &&
               (!dfs.academicYear || matchesAcademicYear(a.academicYear, dfs.academicYear)),
           );
+
+          // Dynamically aggregate all fee heads from all active non-hostel structures for this class
+          const existingAssign = existingIdx !== -1 ? updated[existingIdx] : null;
+          const classStructs = (dynamicFeeStructures || []).filter(
+            (d) =>
+              matchesClassName(d.className, dfs.className) &&
+              (d.status === "Active" || !d.status) &&
+              (!dfs.academicYear || !d.academicYear || matchesAcademicYear(d.academicYear, dfs.academicYear))
+          );
+          const activeStructs = classStructs.some((d) => String(d.id) === String(dfs.id))
+            ? classStructs.map((d) => (String(d.id) === String(dfs.id) ? dfs : d))
+            : [...classStructs, dfs];
+
+          const mergedHeads: FeeStructureItem[] = [];
+          const seenKeys = new Set<string>();
+          activeStructs.forEach((s) => {
+            (s.items || []).forEach((item) => {
+              const k = String(item.feeHeadId || item.feeHeadName || "").toLowerCase().trim();
+              if (k && !seenKeys.has(k)) {
+                seenKeys.add(k);
+                mergedHeads.push(item);
+              }
+            });
+          });
+          const combinedTotal = mergedHeads.reduce((sum, i) => sum + (Number(i.amount) || 0), 0) || dfs.totalAmount;
+
           const newAssign: StudentFeeAssignment = {
             id:
-              existingIdx !== -1
-                ? updated[existingIdx].id
+              existingAssign
+                ? existingAssign.id
                 : `SFA-${st.id}-${dfs.academicYear || selectedAcademicYear || "2026-2027"}`,
             studentId: st.id,
             studentName: `${st.firstName} ${st.lastName}`,
@@ -12765,8 +12791,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             className: st.className,
             section: st.section,
             feeStructureId: dfs.id,
-            assignedFeeHeads: dfs.items,
-            baseFeeTotal: dfs.totalAmount,
+            assignedFeeHeads: mergedHeads.length > 0 ? mergedHeads : dfs.items,
+            baseFeeTotal: combinedTotal,
             assignedDate: new Date().toISOString().split("T")[0],
             status: "Active",
           };
@@ -12785,10 +12811,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             matchesClassName(s.className, dfs.className) ||
             matchesClassName((s as any).appliedClass, dfs.className)
           ) {
+            const classStructs = (dynamicFeeStructures || []).filter(
+              (d) =>
+                matchesClassName(d.className, dfs.className) &&
+                (d.status === "Active" || !d.status) &&
+                (!dfs.academicYear || !d.academicYear || matchesAcademicYear(d.academicYear, dfs.academicYear))
+            );
+            const activeStructs = classStructs.some((d) => String(d.id) === String(dfs.id))
+              ? classStructs.map((d) => (String(d.id) === String(dfs.id) ? dfs : d))
+              : [...classStructs, dfs];
+            const mergedTotal = activeStructs.reduce((sum, cur) => sum + (Number(cur.totalAmount) || 0), 0) || dfs.totalAmount;
+
             return {
               ...s,
-              totalFee: dfs.totalAmount,
-              dueFee: Math.max(0, dfs.totalAmount - (s.paidFee || 0)),
+              totalFee: mergedTotal,
+              dueFee: Math.max(0, mergedTotal - (s.paidFee || 0)),
             };
           }
           return s;
@@ -12829,6 +12866,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     setDynamicFeeStructures((prev) => {
       const isHostel = newDfs.category === "Hostel";
       const normClass = (newDfs.className || "").trim().toLowerCase();
+      const normName = (newDfs.name || "").trim().toLowerCase();
       const normHostel = (newDfs.hostelName || "").trim().toLowerCase();
       const filtered = prev.filter((d) => {
         if (String(d.id) === String(id)) return false;
@@ -12839,10 +12877,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             (!d.academicYear || d.academicYear === newDfs.academicYear)
           );
         } else {
-          return (
-            d.category === "Hostel" ||
-            (d.className || "").trim().toLowerCase() !== normClass
-          );
+          // Do NOT purge other fee structures for the same class!
+          // Only replace if exact duplicate (same class, same name, same academic year)
+          const sameClass = (d.className || "").trim().toLowerCase() === normClass;
+          const sameName = (d.name || "").trim().toLowerCase() === normName;
+          const sameAy = !d.academicYear || !newDfs.academicYear || d.academicYear === newDfs.academicYear;
+          return !(sameClass && sameName && sameAy);
         }
       });
       const updated = [...filtered, newDfs];
@@ -12909,22 +12949,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     const isHostel = target?.category === "Hostel";
     let remainingStructures: DynamicFeeStructure[] = [];
     setDynamicFeeStructures((prev) => {
-      const filtered = prev.filter((d) => {
-        if (String(d.id) === String(id)) return false;
-        if (
-          !isHostel &&
-          targetClass &&
-          d.className &&
-          d.className.toLowerCase().trim() ===
-            targetClass.toLowerCase().trim() &&
-          (!target?.academicYear ||
-            !d.academicYear ||
-            d.academicYear === target.academicYear)
-        ) {
-          return false;
-        }
-        return true;
-      });
+      const filtered = prev.filter((d) => String(d.id) !== String(id));
       remainingStructures = filtered;
       try {
         localStorage.setItem(
@@ -12944,14 +12969,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         if (
           String(a.feeStructureId) === String(id) ||
           String((a as any).dynamicFeeStructureId) === String(id)
-        ) {
-          return false;
-        }
-        if (
-          !isHostel &&
-          targetClass &&
-          a.className &&
-          matchesClassName(a.className, targetClass)
         ) {
           return false;
         }
@@ -12977,10 +12994,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           targetClass &&
           matchesClassName(s.className, targetClass)
         ) {
-          const otherStructure = remainingStructures.find((d) =>
-            matchesClassName(d.className, s.className),
+          const otherStructures = remainingStructures.filter((d) =>
+            matchesClassName(d.className, s.className) && (d.status === "Active" || !d.status),
           );
-          const newFee = otherStructure ? otherStructure.totalAmount : 0;
+          const newFee = otherStructures.reduce((sum, d) => sum + (Number(d.totalAmount) || 0), 0);
           return {
             ...s,
             totalFee: newFee,

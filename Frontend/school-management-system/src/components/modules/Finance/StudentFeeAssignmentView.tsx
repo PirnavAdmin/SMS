@@ -823,14 +823,15 @@ export const StudentFeeAssignmentView: React.FC = () => {
                           if (validAssignment && (assignment.baseFeeTotal || (assignment as any).totalAmount)) {
                             return formatCurrency(assignment.baseFeeTotal || (assignment as any).totalAmount || 0);
                           }
-                          const matchingDfs = (dynamicFeeStructures || []).find(
+                          const matchingDfsList = (dynamicFeeStructures || []).filter(
                             (d) => matchesClassName(d.className, st.className) && 
                                    (matchesAcademicYear(d.academicYear, activeAY) || !d.academicYear) && 
                                    (d.status === 'Active' || !d.status)
                           );
-                          const dfsAmt = matchingDfs 
-                            ? (matchingDfs.totalAmount || matchingDfs.items?.reduce((acc, it) => acc + Number(it.amount || 0), 0) || 0) 
-                            : 0;
+                          const dfsAmt = matchingDfsList.reduce((acc, d) => {
+                            const stAmt = d.totalAmount || d.items?.reduce((sub, it) => sub + Number(it.amount || 0), 0) || 0;
+                            return acc + Number(stAmt);
+                          }, 0);
                           return formatCurrency(dfsAmt);
                         })()}
                       </td>

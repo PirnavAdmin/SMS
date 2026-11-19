@@ -13,6 +13,7 @@ import { getHostelBlocks } from '../../../api/hostel';
 
 const SYSTEM_FEE_TYPES: FeeHeadCategory[] = [
   'Tuition Fee',
+  'Admission Fee',
   'Others',
   'Hostel',
   'Transport',

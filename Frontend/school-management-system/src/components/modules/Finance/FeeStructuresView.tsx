@@ -102,6 +102,7 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
   // Form State for Modal
   const [structName, setStructName] = useState("");
   const [structClass, setStructClass] = useState("");
+  const [structCategory, setStructCategory] = useState<string>("Tuition Fee");
   const [structAcademicYear, setStructAcademicYear] = useState("");
   const [structStatus, setStructStatus] = useState<"Active" | "Inactive" | "">("");
   const [structItems, setStructItems] = useState<FeeStructureItem[]>([]);
@@ -180,6 +181,7 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
     setEditingStruct(null);
     setStructClass("");
     setStructName("");
+    setStructCategory("Tuition Fee");
     setStructAcademicYear("");
     setStructStatus("");
     setStructItems([]);
@@ -194,6 +196,7 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
     setEditingStruct(s);
     setStructName(s.name || `${s.className} Fee Structure`);
     setStructClass(s.className || "");
+    setStructCategory(s.category || s.feeCategory || "Tuition Fee");
     setStructAcademicYear(s.academicYear || selectedAcademicYear || (academicYears && academicYears[0]?.academicYear) || "");
     setStructStatus(s.status || "Active");
     const activeHeadIds = new Set(activeFeeHeads.map((h) => String(h.id).trim().toLowerCase()));
@@ -387,6 +390,16 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
 
     const finalTotal = finalItems.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
 
+    let resolvedCategory = structCategory || "Tuition Fee";
+    const hasOnlyAdm = finalItems.length > 0 && finalItems.every(i => (i.feeHeadName || "").toLowerCase().includes("admission") || (i.category || "").toLowerCase().includes("admission"));
+    const hasAdm = finalItems.some(i => (i.feeHeadName || "").toLowerCase().includes("admission") || (i.category || "").toLowerCase().includes("admission"));
+    const hasTuition = finalItems.some(i => (i.feeHeadName || "").toLowerCase().includes("tuition") || (i.category || "").toLowerCase().includes("tuition"));
+    if (hasOnlyAdm) {
+      resolvedCategory = "Admission Fee";
+    } else if (hasAdm && hasTuition) {
+      resolvedCategory = "Tuition & Academic Fees";
+    }
+
     const payload: Omit<DynamicFeeStructure, "id"> = {
       name: structName.trim() || `${structClass} Fee Structure`,
       academicYear: defaultAy,
@@ -394,8 +407,8 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
       className: structClass,
       section: "A",
       studentCategory: "General",
-      category: "Tuition Fee",
-      feeCategory: "Tuition Fee",
+      category: resolvedCategory,
+      feeCategory: resolvedCategory,
       items: finalItems,
       totalAmount: finalTotal,
       status: structStatus,
@@ -529,6 +542,11 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
                           <span className="px-2 py-0.5 rounded-lg font-extrabold text-[10px] uppercase tracking-wider bg-[var(--primary-color)]/10 text-[var(--primary-color)]">
                             {s.className || "Class Grade"}
                           </span>
+                          {s.category && (
+                            <span className="px-2 py-0.5 rounded-lg font-bold text-[10px] bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300 border border-sky-200 dark:border-sky-800">
+                              {s.category}
+                            </span>
+                          )}
                           {s.status === "Inactive" && (
                             <span className="px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400">
                               Inactive
@@ -700,6 +718,22 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
                     ) : (
                       <option value={structAcademicYear}>{structAcademicYear || "Select Academic Year"}</option>
                     )}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                    Fee Category
+                  </label>
+                  <select
+                    value={structCategory}
+                    onChange={(e) => setStructCategory(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-semibold outline-none text-xs cursor-pointer"
+                  >
+                    <option value="Tuition Fee">Tuition Fee</option>
+                    <option value="Admission Fee">Admission Fee</option>
+                    <option value="Tuition & Academic Fees">Tuition & Academic Fees</option>
+                    <option value="Others">Others</option>
                   </select>
                 </div>
 

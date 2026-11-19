@@ -1412,39 +1412,42 @@ public class SchoolService : ISchoolService
 			.ToListAsync();
 
 		var appClass = appClassName.Trim();
-		var matchedStruct = structures.FirstOrDefault(s =>
+		var matchedStructs = structures.Where(s =>
 			string.Equals(s.ClassName, appClass, StringComparison.OrdinalIgnoreCase) ||
 			(s.ClassName != null && s.ClassName.Contains(appClass, StringComparison.OrdinalIgnoreCase)));
 
-		if (matchedStruct != null && !string.IsNullOrWhiteSpace(matchedStruct.ItemsJson))
+		foreach (var matchedStruct in matchedStructs)
 		{
-			try
+			if (!string.IsNullOrWhiteSpace(matchedStruct.ItemsJson))
 			{
-				using var doc = System.Text.Json.JsonDocument.Parse(matchedStruct.ItemsJson);
-				if (doc.RootElement.ValueKind == System.Text.Json.JsonValueKind.Array)
+				try
 				{
-					foreach (var item in doc.RootElement.EnumerateArray())
+					using var doc = System.Text.Json.JsonDocument.Parse(matchedStruct.ItemsJson);
+					if (doc.RootElement.ValueKind == System.Text.Json.JsonValueKind.Array)
 					{
-						string? headName = item.TryGetProperty("FeeHeadName", out var hn) ? hn.GetString() : null;
-						string? category = item.TryGetProperty("Category", out var cat) ? cat.GetString() : null;
-						decimal amt = 0m;
-						if (item.TryGetProperty("Amount", out var amEl))
+						foreach (var item in doc.RootElement.EnumerateArray())
 						{
-							if (amEl.ValueKind == System.Text.Json.JsonValueKind.Number) amt = amEl.GetDecimal();
-							else if (amEl.ValueKind == System.Text.Json.JsonValueKind.String && decimal.TryParse(amEl.GetString(), out var parsed)) amt = parsed;
-						}
+							string? headName = item.TryGetProperty("FeeHeadName", out var hn) ? hn.GetString() : null;
+							string? category = item.TryGetProperty("Category", out var cat) ? cat.GetString() : null;
+							decimal amt = 0m;
+							if (item.TryGetProperty("Amount", out var amEl))
+							{
+								if (amEl.ValueKind == System.Text.Json.JsonValueKind.Number) amt = amEl.GetDecimal();
+								else if (amEl.ValueKind == System.Text.Json.JsonValueKind.String && decimal.TryParse(amEl.GetString(), out var parsed)) amt = parsed;
+							}
 
-						bool isAdm = (headName != null && headName.Contains("Admission", StringComparison.OrdinalIgnoreCase)) ||
-						             (category != null && category.Contains("Admission", StringComparison.OrdinalIgnoreCase));
+							bool isAdm = (headName != null && headName.Contains("Admission", StringComparison.OrdinalIgnoreCase)) ||
+							             (category != null && category.Contains("Admission", StringComparison.OrdinalIgnoreCase));
 
-						if (isAdm && amt > 0)
-						{
-							return (true, amt);
+							if (isAdm && amt > 0)
+							{
+								return (true, amt);
+							}
 						}
 					}
 				}
+				catch { }
 			}
-			catch { }
 		}
 
 		return (false, 0m);
