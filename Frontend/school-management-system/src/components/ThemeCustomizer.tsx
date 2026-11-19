@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { HexColorPicker, HexColorInput } from 'react-colorful';
 import { useTheme, DEFAULT_THEME } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
@@ -96,14 +96,23 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ className = ''
     primary,
     secondary,
     schoolDefaultTheme,
+    superAdminTheme,
+    isSuperAdminScreen,
     isUserOverride,
+    updateColor,
     applySchoolDefaultTheme,
+    applySuperAdminTheme,
     applyUserTheme,
     resetUserTheme,
     resetSchoolDefaultTheme,
+    resetSuperAdminTheme,
     applyTheme,
     resetTheme,
   } = useTheme();
+
+  const initialPrimaryRef = useRef(primary);
+  const initialSecondaryRef = useRef(secondary);
+  const isAppliedRef = useRef(false);
 
   let authUser: any = null;
   let authRole: string | null = null;
@@ -123,10 +132,29 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ className = ''
     // Optional toast
   }
 
+  // Detect whether active user is in Super Admin mode (Super Admin portal)
+  const isSuperAdminMode = useMemo<boolean>(() => {
+    if (isSuperAdminScreen) return true;
+    const r = (authRole || '').toLowerCase();
+    if (r.includes('super')) return true;
+    const ur = (authUser?.role || '').toLowerCase();
+    if (ur.includes('super')) return true;
+    try {
+      const saved = localStorage.getItem('auth_user');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const savedRole = (parsed?.role || '').toLowerCase();
+        if (savedRole.includes('super')) return true;
+      }
+    } catch {}
+    return false;
+  }, [isSuperAdminScreen, authRole, authUser]);
+
   // Detect whether active user has administrative rights to configure School Default Theme
   const isAdmin = useMemo<boolean>(() => {
-    if (authRole === 'Admin' || authRole === 'Super Admin') return true;
-    if (authUser?.role === 'Admin' || authUser?.role === 'Super Admin') return true;
+    if (isSuperAdminMode) return false;
+    if (authRole === 'Admin') return true;
+    if (authUser?.role === 'Admin') return true;
     if (
       authUser?.email &&
       (authUser.email.toLowerCase().includes('admin') ||
@@ -139,11 +167,11 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ className = ''
       if (saved) {
         const parsed = JSON.parse(saved);
         const r = (parsed?.role || '').toLowerCase().replace(/[_\s-]+/g, '');
-        if (r === 'admin' || r === 'superadmin') return true;
+        if (r === 'admin') return true;
       }
     } catch {}
     return false;
-  }, [authRole, authUser]);
+  }, [isSuperAdminMode, authRole, authUser]);
 
   // Target Scope: 'school' (all users default) or 'personal' (current user screen only)
   const [applyScope, setApplyScope] = useState<'school' | 'personal'>(isAdmin ? 'school' : 'personal');
@@ -153,34 +181,68 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ className = ''
   }, [isAdmin]);
 
   const [activeTab, setActiveTab] = useState<'presets' | 'custom'>('presets');
-  const [selectedPrimary, setSelectedPrimary] = useState<string>(primary || DEFAULT_THEME.primary);
-  const [selectedSecondary, setSelectedSecondary] = useState<string>(secondary || DEFAULT_THEME.secondary);
+  const [selectedPrimary, setSelectedPrimary] = useState<string>(() => {
+    if (isSuperAdminMode) return superAdminTheme?.primary || primary || DEFAULT_THEME.primary;
+    return primary || DEFAULT_THEME.primary;
+  });
+  const [selectedSecondary, setSelectedSecondary] = useState<string>(() => {
+    if (isSuperAdminMode) return superAdminTheme?.secondary || secondary || DEFAULT_THEME.secondary;
+    return secondary || DEFAULT_THEME.secondary;
+  });
 
   // Sync state if context primary/secondary changes externally
   useEffect(() => {
-    if (primary) setSelectedPrimary(primary);
-    if (secondary) setSelectedSecondary(secondary);
-  }, [primary, secondary]);
+    if (isSuperAdminMode) {
+      if (superAdminTheme?.primary) setSelectedPrimary(superAdminTheme.primary);
+      if (superAdminTheme?.secondary) setSelectedSecondary(superAdminTheme.secondary);
+    } else {
+      if (primary) setSelectedPrimary(primary);
+      if (secondary) setSelectedSecondary(secondary);
+    }
+  }, [isSuperAdminMode, superAdminTheme, primary, secondary]);
 
   const handlePrimaryChange = (hex: string) => {
     if (!hex) return;
     const cleanHex = hex.startsWith('#') ? hex : `#${hex}`;
     setSelectedPrimary(cleanHex);
+    updateColor?.('primary', cleanHex);
   };
 
   const handleSecondaryChange = (hex: string) => {
     if (!hex) return;
     const cleanHex = hex.startsWith('#') ? hex : `#${hex}`;
     setSelectedSecondary(cleanHex);
+    updateColor?.('secondary', cleanHex);
   };
 
   const handleSelectPreset = (p: string, s: string) => {
     setSelectedPrimary(p);
     setSelectedSecondary(s);
+    updateColor?.('primary', p);
+    updateColor?.('secondary', s);
+  };
+
+  const handleModalClose = () => {
+    if (!isAppliedRef.current) {
+      updateColor?.('primary', initialPrimaryRef.current);
+      updateColor?.('secondary', initialSecondaryRef.current);
+    }
+    onClose?.();
   };
 
   // Determine if Reset button should be disabled
   const isResetDisabled = useMemo<boolean>(() => {
+    if (isSuperAdminMode) {
+      const activeSAPrimary = (superAdminTheme?.primary || DEFAULT_THEME.primary).toLowerCase();
+      const activeSASecondary = (superAdminTheme?.secondary || DEFAULT_THEME.secondary).toLowerCase();
+      const isAlreadyDefault =
+        selectedPrimary?.toLowerCase() === DEFAULT_THEME.primary.toLowerCase() &&
+        selectedSecondary?.toLowerCase() === DEFAULT_THEME.secondary.toLowerCase() &&
+        activeSAPrimary === DEFAULT_THEME.primary.toLowerCase() &&
+        activeSASecondary === DEFAULT_THEME.secondary.toLowerCase();
+      return isAlreadyDefault;
+    }
+
     if (isAdmin && applyScope === 'school') {
       const activeSchoolPrimary = (schoolDefaultTheme?.primary || DEFAULT_THEME.primary).toLowerCase();
       const activeSchoolSecondary = (schoolDefaultTheme?.secondary || DEFAULT_THEME.secondary).toLowerCase();
@@ -199,28 +261,50 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ className = ''
       selectedSecondary?.toLowerCase() === schoolS;
 
     return !isUserOverride && matchesSchool;
-  }, [isAdmin, applyScope, selectedPrimary, selectedSecondary, schoolDefaultTheme, isUserOverride]);
+  }, [isSuperAdminMode, superAdminTheme, isAdmin, applyScope, selectedPrimary, selectedSecondary, schoolDefaultTheme, isUserOverride]);
 
   const resetLabel = useMemo<string>(() => {
+    if (isSuperAdminMode) {
+      return 'Reset Super Admin Theme';
+    }
     if (isAdmin && applyScope === 'school') {
       return 'Reset School Default';
     }
     return isUserOverride ? 'Reset to School Default' : 'Reset Defaults';
-  }, [isAdmin, applyScope, isUserOverride]);
+  }, [isSuperAdminMode, isAdmin, applyScope, isUserOverride]);
 
   const applyLabel = useMemo<string>(() => {
+    if (isSuperAdminMode) {
+      return 'Apply to Super Admin';
+    }
     if (isAdmin && applyScope === 'school') {
       return 'Apply as School Default';
     }
     return 'Apply to My Screen';
-  }, [isAdmin, applyScope]);
+  }, [isSuperAdminMode, isAdmin, applyScope]);
 
   const [isSaving, setIsSaving] = useState<boolean>(false);
 
   const handleApply = async () => {
     setIsSaving(true);
+    isAppliedRef.current = true;
     try {
-      if (isAdmin && applyScope === 'school') {
+      if (isSuperAdminMode) {
+        // Super Admin applies platform-wide Super Admin theme (strictly for Super Admin screens)
+        if (applySuperAdminTheme) {
+          await applySuperAdminTheme(selectedPrimary, selectedSecondary);
+        } else if (applyTheme) {
+          await applyTheme(selectedPrimary, selectedSecondary);
+        }
+
+        if (addToast) {
+          addToast(
+            'success',
+            'Super Admin Theme Applied',
+            'Theme saved to platform database. Applied exclusively to Super Admin screens.'
+          );
+        }
+      } else if (isAdmin && applyScope === 'school') {
         // 1. Admin applies School-wide default theme (displays to ALL users by default and persists to DB)
         if (applySchoolDefaultTheme) {
           await applySchoolDefaultTheme(selectedPrimary, selectedSecondary);
@@ -273,8 +357,21 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ className = ''
 
   const handleReset = async () => {
     setIsSaving(true);
+    isAppliedRef.current = true;
     try {
-      if (isAdmin && applyScope === 'school') {
+      if (isSuperAdminMode) {
+        // Super Admin resets platform theme back to system default (Sky & Amber)
+        if (resetSuperAdminTheme) {
+          await resetSuperAdminTheme();
+        } else if (resetTheme) {
+          await resetTheme();
+        }
+        setSelectedPrimary(DEFAULT_THEME.primary);
+        setSelectedSecondary(DEFAULT_THEME.secondary);
+        if (addToast) {
+          addToast('info', 'Super Admin Theme Reset', 'Restored default platform theme colors for Super Admin.');
+        }
+      } else if (isAdmin && applyScope === 'school') {
         // Admin resets school default back to Sky & Amber
         if (resetSchoolDefaultTheme) {
           await resetSchoolDefaultTheme();
@@ -326,7 +423,12 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ className = ''
               <h3 className="font-extrabold text-sm text-slate-900 dark:text-white leading-tight">
                 Theme & Colors
               </h3>
-              {isAdmin ? (
+              {isSuperAdminMode ? (
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20">
+                  <Shield className="w-2.5 h-2.5" />
+                  Super Admin Studio
+                </span>
+              ) : isAdmin ? (
                 <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
                   <Shield className="w-2.5 h-2.5" />
                   Admin Studio
@@ -339,7 +441,9 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ className = ''
               )}
             </div>
             <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight">
-              {isAdmin
+              {isSuperAdminMode
+                ? 'Customize Super Admin platform theme and interface colors (applies to Super Admin screens only)'
+                : isAdmin
                 ? 'Configure school-wide default theme or personalize your own screen'
                 : 'Personalize your workspace colors (applies to your screen only)'}
             </p>
@@ -349,7 +453,7 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ className = ''
         {onClose && (
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleModalClose}
             className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
             title="Close"
           >
@@ -359,7 +463,22 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ className = ''
       </div>
 
       {/* Target Scope Banner / Selector */}
-      {isAdmin ? (
+      {isSuperAdminMode ? (
+        <div className="px-3 py-1.5 rounded-xl border border-sky-200 dark:border-sky-900/60 bg-sky-50/60 dark:bg-sky-950/30 flex items-center justify-between gap-2 shadow-2xs">
+          <div className="flex items-center gap-2 min-w-0">
+            <Globe className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400 shrink-0" />
+            <div className="flex items-center gap-1.5 truncate text-[11px]">
+              <span className="font-extrabold text-slate-900 dark:text-white">Scope:</span>
+              <span className="px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-sky-500 text-white shadow-xs">
+                Super Admin Portal (Only)
+              </span>
+            </div>
+          </div>
+          <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium shrink-0">
+            School portals remain unaffected
+          </span>
+        </div>
+      ) : isAdmin ? (
         <div className="px-3 py-1.5 rounded-xl border border-sky-200 dark:border-sky-900/60 bg-sky-50/60 dark:bg-sky-950/30 flex items-center justify-between gap-2 shadow-2xs">
           <div className="flex items-center gap-2 min-w-0">
             <Globe className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400 shrink-0" />

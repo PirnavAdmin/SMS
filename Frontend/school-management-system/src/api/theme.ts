@@ -8,6 +8,7 @@ export interface ThemeColorsResponse {
 
 export interface ThemeApiResponse {
   schoolDefault: ThemeColorsResponse | null;
+  superAdminTheme?: ThemeColorsResponse | null;
   userTheme: ThemeColorsResponse | null;
   effectiveTheme: ThemeColorsResponse | null;
   isUserOverride: boolean;
@@ -73,6 +74,44 @@ export const updateUserThemeApi = async (payload: {
 export const resetUserThemeApi = async (userKey?: string) => {
   const query = userKey ? `?userKey=${encodeURIComponent(userKey)}` : '';
   return apiClient(`/api/Theme/user/reset${query}`, {
+    method: 'POST',
+  });
+};
+
+/**
+ * Fetch Super Admin platform theme configuration.
+ */
+export const fetchSuperAdminThemeApi = async (): Promise<ThemeColorsResponse | null> => {
+  try {
+    const res = await apiClient('/api/Theme/superadmin', { method: 'GET' });
+    if (res && res.success && res.data) {
+      return res.data;
+    }
+    return null;
+  } catch (error) {
+    console.warn('Backend SuperAdmin theme fetch warning:', error);
+    return null;
+  }
+};
+
+/**
+ * Set Super Admin platform-wide theme (applied exclusively to Super Admin screens).
+ */
+export const updateSuperAdminThemeApi = async (payload: {
+  primary: string;
+  secondary: string;
+}) => {
+  return apiClient('/api/Theme/superadmin', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+};
+
+/**
+ * Reset Super Admin platform-wide theme to default.
+ */
+export const resetSuperAdminThemeApi = async () => {
+  return apiClient('/api/Theme/superadmin/reset', {
     method: 'POST',
   });
 };

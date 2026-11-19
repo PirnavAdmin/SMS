@@ -33,7 +33,7 @@ namespace SMS.Api.Controllers
 
         private async Task<(SchoolSettings settings, ThemeSettingsContainer container)> GetThemeContainerAsync()
         {
-            var settings = await _context.SchoolSettings.FirstOrDefaultAsync();
+            var settings = await _context.SchoolSettings.IgnoreQueryFilters().FirstOrDefaultAsync();
             if (settings == null)
             {
                 settings = new SchoolSettings
@@ -118,11 +118,117 @@ namespace SMS.Api.Controllers
                     data = new
                     {
                         schoolDefault = container.SchoolDefault,
+                        superAdminTheme = container.SuperAdminTheme,
                         userTheme,
                         effectiveTheme,
                         isUserOverride,
                         activeUserKey = key ?? "default"
                     }
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        // GET: api/Theme/superadmin
+        [HttpGet("superadmin")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetSuperAdminTheme()
+        {
+            try
+            {
+                var (_, container) = await GetThemeContainerAsync();
+                return Ok(new
+                {
+                    success = true,
+                    data = container.SuperAdminTheme ?? new ThemeItemDto
+                    {
+                        Primary = "#0284c7",
+                        Secondary = "#f59e0b",
+                        UpdatedAt = DateTime.UtcNow.ToString("o")
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        // POST: api/Theme/superadmin
+        [HttpPost("superadmin")]
+        [HttpPut("superadmin")]
+        [AllowAnonymous]
+        public async Task<IActionResult> UpdateSuperAdminTheme([FromBody] ApplyThemeRequestDto dto)
+        {
+            if (dto == null) return BadRequest(new { success = false, message = "Payload required." });
+
+            try
+            {
+                var (settings, container) = await GetThemeContainerAsync();
+
+                var primary = NormalizeHex(dto.Primary) ?? dto.Primary?.Trim() ?? "#0284c7";
+                var secondary = NormalizeHex(dto.Secondary) ?? dto.Secondary?.Trim() ?? "#f59e0b";
+
+                container.SuperAdminTheme = new ThemeItemDto
+                {
+                    Primary = primary,
+                    Secondary = secondary,
+                    UpdatedAt = DateTime.UtcNow.ToString("o")
+                };
+
+                settings.ThemeSettingsJson = JsonSerializer.Serialize(container);
+                settings.UpdatedAt = DateTime.UtcNow;
+
+                // Synchronize PrimaryColor on PlatformCompanyProfile if present
+                try
+                {
+                    var profile = await _context.PlatformCompanyProfiles.FirstOrDefaultAsync();
+                    if (profile != null)
+                    {
+                        profile.PrimaryColor = primary;
+                        profile.UpdatedAt = DateTime.UtcNow;
+                    }
+                }
+                catch { }
+
+                await _context.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Super Admin platform theme applied exclusively to Super Admin screens.",
+                    data = container.SuperAdminTheme
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        // POST: api/Theme/superadmin/reset
+        [HttpPost("superadmin/reset")]
+        [AllowAnonymous]
+        public async Task<IActionResult> ResetSuperAdminTheme()
+        {
+            try
+            {
+                var (settings, container) = await GetThemeContainerAsync();
+                container.SuperAdminTheme = null;
+
+                settings.ThemeSettingsJson = JsonSerializer.Serialize(container);
+                settings.UpdatedAt = DateTime.UtcNow;
+
+                await _context.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "Super Admin platform theme reset to default.",
+                    data = (ThemeItemDto?)null
                 });
             }
             catch (Exception ex)
@@ -301,6 +407,9 @@ namespace SMS.Api.Controllers
     {
         [JsonPropertyName("schoolDefault")]
         public ThemeItemDto? SchoolDefault { get; set; }
+
+        [JsonPropertyName("superAdminTheme")]
+        public ThemeItemDto? SuperAdminTheme { get; set; }
 
         [JsonPropertyName("userThemes")]
         public Dictionary<string, ThemeItemDto> UserThemes { get; set; } = new Dictionary<string, ThemeItemDto>(StringComparer.OrdinalIgnoreCase);

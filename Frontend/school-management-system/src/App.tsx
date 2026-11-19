@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { installGlobalInputValidation } from "./utils/validation";
 import { hasModuleAccess } from "./utils/rbac";
 import { TenantProvider, useTenant } from "./context/TenantContext";
-import { ThemeProvider } from "./context/ThemeContext";
+import { ThemeProvider, useTheme } from "./context/ThemeContext";
 import { ToastProvider } from "./context/ToastContext";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { HostelProvider } from "./context/HostelContext";
@@ -95,6 +95,7 @@ const formatEmailToName = (email?: string): string => {
 const MainLayout: React.FC = () => {
   const { isAuthenticated, user, setUser, role, setRole } = useAuth();
   const { staff, driverMasters, students, admissions } = useData();
+  const { setIsSuperAdminScreen, setIsLandingPage } = useTheme();
   const [activeModule, setActiveModuleState] = useState<string>(() => {
     try {
       const isTimeout = localStorage.getItem("session_timeout_occurred") === "true";
@@ -302,6 +303,19 @@ const MainLayout: React.FC = () => {
   }, [isAuthenticated]);
 
   const isSuperAdmin = userRole.includes("super admin") || userRole.includes("superadmin") || (role || "").toLowerCase().includes("super");
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setIsSuperAdminScreen(false);
+      setIsLandingPage(true);
+      return;
+    }
+    setIsLandingPage(false);
+    const isSuperAdminView =
+      activeModule.startsWith("superadmin-") ||
+      (isSuperAdmin && (activeModule === "dashboard" || activeModule === "profile" || activeModule === "my-profile"));
+    setIsSuperAdminScreen(isSuperAdminView);
+  }, [isAuthenticated, activeModule, isSuperAdmin, setIsSuperAdminScreen, setIsLandingPage]);
 
   useEffect(() => {
     if (isSuperAdmin && isAuthenticated) {

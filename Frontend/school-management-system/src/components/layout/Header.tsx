@@ -731,8 +731,9 @@ export const Header: React.FC<HeaderProps> = ({
             {isDarkMode ? <Sun className="w-4 sm:w-4.5 h-4 sm:h-4.5 text-amber-400 stroke-[2.2]" /> : <Moon className="w-4 sm:w-4.5 h-4 sm:h-4.5 text-slate-600 stroke-[2.2]" />}
           </button>
 
-          {/* Notifications Dropdown */}
-          <div className="relative" ref={notifRef}>
+          {/* Notifications Dropdown (Hidden for SuperAdmin) */}
+          {!isSuperAdmin && (
+            <div className="relative" ref={notifRef}>
             <button
               onClick={toggleNotifMenu}
               className="w-8.5 h-8.5 sm:w-9.5 sm:h-9.5 rounded-2xl btn-glass-secondary flex items-center justify-center relative cursor-pointer active:scale-95"
@@ -849,6 +850,7 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             )}
           </div>
+          )}
 
           {/* User Profile */}
           <div className="relative" ref={userRef}>

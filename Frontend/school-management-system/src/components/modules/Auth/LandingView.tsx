@@ -41,7 +41,7 @@ import {
   fetchPackagesApi,
   fetchCompanyProfileApi
 } from '../../../api/superadmin';
-import { useTheme } from '../../../context/ThemeContext';
+import { useTheme, DEFAULT_THEME, applyThemeToDocument } from '../../../context/ThemeContext';
 import { resolveMediaUrl } from '../../../utils/mediaUtils';
 
 interface LandingViewProps {
@@ -153,6 +153,12 @@ const StatCounter: React.FC<StatCounterProps> = ({
 
 export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
   const { isDarkMode, toggleDarkMode } = useTheme();
+
+  // Ensure LandingView always isolates its presentation to pure platform default colors, immune to tenant admin theme changes
+  useEffect(() => {
+    applyThemeToDocument(DEFAULT_THEME.primary, DEFAULT_THEME.secondary);
+  }, []);
+
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'all' | 'academic' | 'management' | 'campus'>('all');
   const [heroConsoleTab, setHeroConsoleTab] = useState<'admin' | 'teacher' | 'parent'>('admin');
@@ -1309,7 +1315,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
                         onClick={() => onLoginClick()}
                         className={`w-full py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-md cursor-pointer active:scale-98 ${
                           isPopular
-                            ? 'btn-glass-primary text-white shadow-sky-500/25'
+                            ? 'bg-sky-600 hover:bg-sky-500 text-white shadow-lg shadow-sky-500/25'
                             : 'bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100 text-white dark:text-slate-900'
                         }`}
                       >

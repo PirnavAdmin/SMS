@@ -5,6 +5,9 @@ import {
   resetSchoolDefaultThemeApi,
   updateUserThemeApi,
   resetUserThemeApi,
+  fetchSuperAdminThemeApi,
+  updateSuperAdminThemeApi,
+  resetSuperAdminThemeApi,
 } from '../api/theme';
 
 export interface ThemeColors {
@@ -18,11 +21,35 @@ export const DEFAULT_THEME: ThemeColors = {
   secondary: '#f59e0b',
 };
 
+export const SUPERADMIN_THEME_KEY = 'superadmin_theme';
 export const SCHOOL_DEFAULT_THEME_KEY = 'school_default_theme';
 export const USER_THEME_KEY_PREFIX = 'user_theme_';
 export const LEGACY_THEME_KEY = 'theme_colors';
 export const LEGACY_PRIMARY_KEY = 'theme_primary';
 export const LEGACY_SECONDARY_KEY = 'theme_secondary';
+
+/**
+ * Returns the Super Admin platform theme.
+ * Stored independently and applied ONLY to Super Admin screens.
+ */
+export const getSuperAdminTheme = (): ThemeColors => {
+  try {
+    const saved = localStorage.getItem(SUPERADMIN_THEME_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed?.primary && parsed?.secondary) {
+        return {
+          primary: parsed.primary,
+          secondary: parsed.secondary,
+          updatedAt: parsed.updatedAt,
+        };
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to load superadmin theme from localStorage:', e);
+  }
+  return DEFAULT_THEME;
+};
 
 /**
  * Returns a unique key representing the active user (email, id, or username).
@@ -134,15 +161,22 @@ export interface ThemeContextType {
   secondary: string;
   colors: ThemeColors;
   schoolDefaultTheme: ThemeColors;
+  superAdminTheme: ThemeColors;
+  isSuperAdminScreen: boolean;
+  setIsSuperAdminScreen: (val: boolean) => void;
+  isLandingPage: boolean;
+  setIsLandingPage: (val: boolean) => void;
   isUserOverride: boolean;
   activeUserKey: string;
   updateColor: (key: 'primary' | 'secondary' | string, hex: string) => void;
   applyTheme: (primary?: string, secondary?: string) => Promise<void> | void;
   applySchoolDefaultTheme: (primary: string, secondary: string) => Promise<void>;
+  applySuperAdminTheme: (primary: string, secondary: string) => Promise<void>;
   applyUserTheme: (primary: string, secondary: string, userKey?: string) => Promise<void>;
   resetTheme: () => Promise<void> | void;
   resetUserTheme: (userKey?: string) => Promise<void>;
   resetSchoolDefaultTheme: () => Promise<void>;
+  resetSuperAdminTheme: () => Promise<void>;
   applyPreset: (primary: string, secondary: string) => void;
   refreshTheme: () => void;
   isDarkMode: boolean;
@@ -154,15 +188,22 @@ export const ThemeContext = createContext<ThemeContextType>({
   secondary: DEFAULT_THEME.secondary,
   colors: DEFAULT_THEME,
   schoolDefaultTheme: DEFAULT_THEME,
+  superAdminTheme: DEFAULT_THEME,
+  isSuperAdminScreen: false,
+  setIsSuperAdminScreen: () => {},
+  isLandingPage: true,
+  setIsLandingPage: () => {},
   isUserOverride: false,
   activeUserKey: 'default',
   updateColor: () => {},
   applyTheme: () => {},
   applySchoolDefaultTheme: async () => {},
+  applySuperAdminTheme: async () => {},
   applyUserTheme: async () => {},
   resetTheme: () => {},
   resetUserTheme: async () => {},
   resetSchoolDefaultTheme: async () => {},
+  resetSuperAdminTheme: async () => {},
   applyPreset: () => {},
   refreshTheme: () => {},
   isDarkMode: false,
@@ -173,11 +214,22 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const initialUserKey = getActiveUserKey();
   const initialResolved = resolveActiveTheme(initialUserKey);
   const initialSchoolDefault = getSchoolDefaultTheme();
+  const initialSuperAdmin = getSuperAdminTheme();
 
   const [primary, setPrimary] = useState<string>(initialResolved.theme.primary);
   const [secondary, setSecondary] = useState<string>(initialResolved.theme.secondary);
   const [isUserOverride, setIsUserOverride] = useState<boolean>(initialResolved.isUserOverride);
   const [schoolDefaultTheme, setSchoolDefaultTheme] = useState<ThemeColors>(initialSchoolDefault);
+  const [superAdminTheme, setSuperAdminTheme] = useState<ThemeColors>(initialSuperAdmin);
+  const [isSuperAdminScreen, setIsSuperAdminScreen] = useState<boolean>(false);
+  const [isLandingPage, setIsLandingPage] = useState<boolean>(() => {
+    try {
+      const token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
+      return !token;
+    } catch {
+      return true;
+    }
+  });
   const [activeUserKey, setActiveUserKey] = useState<string>(initialUserKey);
 
   // Dark mode support
@@ -224,6 +276,24 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
+  // Synchronize active colors whenever isLandingPage, isSuperAdminScreen or themes change
+  useEffect(() => {
+    if (isLandingPage) {
+      setPrimary(DEFAULT_THEME.primary);
+      setSecondary(DEFAULT_THEME.secondary);
+      applyThemeToDocument(DEFAULT_THEME.primary, DEFAULT_THEME.secondary);
+    } else if (isSuperAdminScreen) {
+      setPrimary(superAdminTheme.primary);
+      setSecondary(superAdminTheme.secondary);
+      applyThemeToDocument(superAdminTheme.primary, superAdminTheme.secondary);
+    } else {
+      const activeSchool = isUserOverride ? getUserPersonalTheme(activeUserKey) || schoolDefaultTheme : schoolDefaultTheme;
+      setPrimary(activeSchool.primary);
+      setSecondary(activeSchool.secondary);
+      applyThemeToDocument(activeSchool.primary, activeSchool.secondary);
+    }
+  }, [isLandingPage, isSuperAdminScreen, superAdminTheme, schoolDefaultTheme, isUserOverride, activeUserKey]);
+
   // Synchronize theme with backend API on mount or user switch
   useEffect(() => {
     let mounted = true;
@@ -233,7 +303,20 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         const data = await fetchThemeApi(key);
         if (!mounted || !data) return;
 
-        // 1. Resolve authoritative School Default Theme from backend
+        // 1. Resolve Super Admin platform theme if returned
+        if (data.superAdminTheme?.primary && data.superAdminTheme?.secondary) {
+          const saTheme: ThemeColors = {
+            primary: data.superAdminTheme.primary,
+            secondary: data.superAdminTheme.secondary,
+            updatedAt: data.superAdminTheme.updatedAt,
+          };
+          setSuperAdminTheme(saTheme);
+          try {
+            localStorage.setItem(SUPERADMIN_THEME_KEY, JSON.stringify(saTheme));
+          } catch {}
+        }
+
+        // 2. Resolve authoritative School Default Theme from backend
         let effectiveSchoolDefault: ThemeColors = DEFAULT_THEME;
         if (data.schoolDefault?.primary && data.schoolDefault?.secondary) {
           effectiveSchoolDefault = {
@@ -342,6 +425,75 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     // Broadcast change to all open components and tabs
     try {
       window.dispatchEvent(new CustomEvent('school_theme_changed', { detail: updatedTheme }));
+    } catch {}
+  };
+
+  /**
+   * SuperAdmin-only action: Sets the Super Admin Platform Theme.
+   * This theme is persisted to the backend API and applied ONLY to Super Admin screens.
+   * DOES NOT modify or overwrite the school-wide default theme.
+   */
+  const applySuperAdminTheme = async (newPrimary: string, newSecondary: string): Promise<void> => {
+    const p = newPrimary || primary;
+    const s = newSecondary || secondary;
+    const updatedTheme: ThemeColors = {
+      primary: p,
+      secondary: s,
+      updatedAt: new Date().toISOString(),
+    };
+
+    try {
+      localStorage.setItem(SUPERADMIN_THEME_KEY, JSON.stringify(updatedTheme));
+    } catch (e) {
+      console.error('Failed to save superadmin theme to localStorage:', e);
+    }
+
+    setSuperAdminTheme(updatedTheme);
+    if (isSuperAdminScreen) {
+      setPrimary(p);
+      setSecondary(s);
+      applyThemeToDocument(p, s);
+    }
+
+    try {
+      await updateSuperAdminThemeApi({ primary: p, secondary: s });
+    } catch (err) {
+      console.warn('Failed to persist superadmin theme to backend API:', err);
+    }
+
+    try {
+      window.dispatchEvent(new CustomEvent('superadmin_theme_changed', { detail: updatedTheme }));
+    } catch {}
+  };
+
+  /**
+   * SuperAdmin action: Resets Super Admin theme back to system default.
+   */
+  const resetSuperAdminTheme = async (): Promise<void> => {
+    const defaultTheme: ThemeColors = {
+      ...DEFAULT_THEME,
+      updatedAt: new Date().toISOString(),
+    };
+
+    try {
+      localStorage.removeItem(SUPERADMIN_THEME_KEY);
+    } catch (e) {}
+
+    setSuperAdminTheme(defaultTheme);
+    if (isSuperAdminScreen) {
+      setPrimary(defaultTheme.primary);
+      setSecondary(defaultTheme.secondary);
+      applyThemeToDocument(defaultTheme.primary, defaultTheme.secondary);
+    }
+
+    try {
+      await resetSuperAdminThemeApi();
+    } catch (err) {
+      console.warn('Failed to reset superadmin theme on backend API:', err);
+    }
+
+    try {
+      window.dispatchEvent(new CustomEvent('superadmin_theme_changed', { detail: defaultTheme }));
     } catch {}
   };
 
@@ -533,12 +685,24 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       refreshTheme();
     };
 
+    const handleSuperAdminThemeChange = (e: any) => {
+      const newSaTheme = e?.detail || getSuperAdminTheme();
+      setSuperAdminTheme(newSaTheme);
+      if (isSuperAdminScreen) {
+        setPrimary(newSaTheme.primary);
+        setSecondary(newSaTheme.secondary);
+        applyThemeToDocument(newSaTheme.primary, newSaTheme.secondary);
+      }
+    };
+
     const handleStorage = (e: StorageEvent) => {
       if (!e.key) {
         refreshTheme();
         return;
       }
-      if (e.key === SCHOOL_DEFAULT_THEME_KEY || e.key === LEGACY_THEME_KEY) {
+      if (e.key === SUPERADMIN_THEME_KEY) {
+        handleSuperAdminThemeChange({ detail: getSuperAdminTheme() });
+      } else if (e.key === SCHOOL_DEFAULT_THEME_KEY || e.key === LEGACY_THEME_KEY) {
         handleSchoolThemeChange({ detail: getSchoolDefaultTheme() });
       } else if (e.key === 'auth_user' || e.key === 'auth_token') {
         refreshTheme();
@@ -551,6 +715,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
 
     window.addEventListener('school_theme_changed', handleSchoolThemeChange);
+    window.addEventListener('superadmin_theme_changed', handleSuperAdminThemeChange);
     window.addEventListener('user_theme_changed', handleUserThemeChange);
     window.addEventListener('auth_user_changed', handleAuthChange);
     window.addEventListener('auth_login', handleAuthChange);
@@ -559,28 +724,36 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
     return () => {
       window.removeEventListener('school_theme_changed', handleSchoolThemeChange);
+      window.removeEventListener('superadmin_theme_changed', handleSuperAdminThemeChange);
       window.removeEventListener('user_theme_changed', handleUserThemeChange);
       window.removeEventListener('auth_user_changed', handleAuthChange);
       window.removeEventListener('auth_login', handleAuthChange);
       window.removeEventListener('auth_logout', handleAuthChange);
       window.removeEventListener('storage', handleStorage);
     };
-  }, [refreshTheme]);
+  }, [refreshTheme, isSuperAdminScreen]);
 
   const contextValue: ThemeContextType = {
     primary,
     secondary,
     colors: { primary, secondary },
     schoolDefaultTheme,
+    superAdminTheme,
+    isSuperAdminScreen,
+    setIsSuperAdminScreen,
+    isLandingPage,
+    setIsLandingPage,
     isUserOverride,
     activeUserKey,
     updateColor,
     applyTheme,
     applySchoolDefaultTheme,
+    applySuperAdminTheme,
     applyUserTheme,
     resetTheme,
     resetUserTheme,
     resetSchoolDefaultTheme,
+    resetSuperAdminTheme,
     applyPreset,
     refreshTheme,
     isDarkMode,
