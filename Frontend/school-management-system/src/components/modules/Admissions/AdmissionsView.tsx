@@ -1401,7 +1401,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
   const checkAppDepositPaid = (app: AdmissionApplication): boolean => {
     if (!isResidentialApp(app)) return false;
-    if (app.hostelSecurityDepositPaid || (app as any).securityDepositPaid) return true;
+    if (app.hostelSecurityDepositPaid && Boolean(app.securityDepositReceiptNo)) return true;
     const targetId = String(app.id || "");
     const targetAdm = String(app.applicationNo || app.admissionNo || (app as any).registrationNo || "").toLowerCase().trim();
     const targetStuId = String(app.studentId || (app as any).rollNo || "").toLowerCase().trim();

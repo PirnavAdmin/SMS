@@ -1553,8 +1553,8 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     const isDepositSatisfied =
       !isApplicantResident ||
       isSecurityDepositCollected ||
-      Boolean(targetAdmissionRecord?.hostelSecurityDepositPaid) ||
-      Boolean(selectedStudent.hostelSecurityDepositPaid);
+      Boolean(targetAdmissionRecord?.hostelSecurityDepositPaid && (targetAdmissionRecord as any)?.securityDepositReceiptNo) ||
+      Boolean(selectedStudent.hostelSecurityDepositPaid && (selectedStudent as any)?.securityDepositReceiptNo);
 
     if (targetAdmissionRecord && updateAdmissionStatus && targetAdmissionRecord.status !== "Enrolled") {
       if (!isDepositSatisfied) {

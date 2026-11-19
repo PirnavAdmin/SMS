@@ -1355,11 +1355,26 @@ public class SchoolService : ISchoolService
 		}
 
 		bool isResidential = string.Equals(app.StudentType, "Residential", StringComparison.OrdinalIgnoreCase) ||
-		                     string.Equals(app.StudentType, "Hosteller", StringComparison.OrdinalIgnoreCase);
-		if (isResidential && !app.HostelSecurityDepositPaid)
+		                     string.Equals(app.StudentType, "Hosteller", StringComparison.OrdinalIgnoreCase) ||
+		                     !string.IsNullOrWhiteSpace(app.HostelBlock);
+		if (isResidential)
 		{
-			var depAmt = app.SecurityDepositAmount > 0 ? app.SecurityDepositAmount : 0m;
-			throw new BadRequestException($"Cannot enroll applicant '{app.FirstName} {app.LastName}'. Mandatory Hostel Security Deposit {(depAmt > 0 ? $"of ₹{depAmt:N0} " : "")}must be paid prior to enrollment.");
+			bool hasVerifiedDeposit = app.HostelSecurityDepositPaid && !string.IsNullOrWhiteSpace(app.SecurityDepositReceiptNo);
+			if (!hasVerifiedDeposit)
+			{
+				string canonicalStr = app.Id.ToString();
+				hasVerifiedDeposit = await _context.FeePayments.AsNoTracking().AnyAsync(p =>
+					p.Status != "Cancelled" && p.Status != "Reversed" &&
+					(p.StudentId == canonicalStr || p.StudentId == app.AdmissionNo || p.StudentId == app.RegistrationNo) &&
+					((p.FeeHeadName != null && p.FeeHeadName.Contains("Security Deposit")) ||
+					 (p.Remarks != null && p.Remarks.Contains("Security Deposit"))));
+			}
+
+			if (!hasVerifiedDeposit)
+			{
+				var depAmt = app.SecurityDepositAmount > 0 ? app.SecurityDepositAmount : 0m;
+				throw new BadRequestException($"Cannot enroll applicant '{app.FirstName} {app.LastName}'. Mandatory Hostel Security Deposit {(depAmt > 0 ? $"of ₹{depAmt:N0} " : "")}must be paid prior to enrollment.");
+			}
 		}
 
 		if (string.IsNullOrWhiteSpace(app.AdmissionNo) || app.AdmissionNo.StartsWith("REG-", StringComparison.OrdinalIgnoreCase))
@@ -1571,11 +1586,26 @@ public class SchoolService : ISchoolService
 			if (string.Equals(status, "Enrolled", StringComparison.OrdinalIgnoreCase))
 			{
 				bool isResidential = string.Equals(app.StudentType, "Residential", StringComparison.OrdinalIgnoreCase) ||
-				                     string.Equals(app.StudentType, "Hosteller", StringComparison.OrdinalIgnoreCase);
-				if (isResidential && !app.HostelSecurityDepositPaid)
+				                     string.Equals(app.StudentType, "Hosteller", StringComparison.OrdinalIgnoreCase) ||
+				                     !string.IsNullOrWhiteSpace(app.HostelBlock);
+				if (isResidential)
 				{
-					var depAmt = app.SecurityDepositAmount > 0 ? app.SecurityDepositAmount : 0m;
-					throw new BadRequestException($"Cannot enroll applicant '{app.FirstName} {app.LastName}'. Mandatory Hostel Security Deposit {(depAmt > 0 ? $"of ₹{depAmt:N0} " : "")}must be paid prior to enrollment.");
+					bool hasVerifiedDeposit = app.HostelSecurityDepositPaid && !string.IsNullOrWhiteSpace(app.SecurityDepositReceiptNo);
+					if (!hasVerifiedDeposit)
+					{
+						string canonicalStr = app.Id.ToString();
+						hasVerifiedDeposit = await _context.FeePayments.AsNoTracking().AnyAsync(p =>
+							p.Status != "Cancelled" && p.Status != "Reversed" &&
+							(p.StudentId == canonicalStr || p.StudentId == app.AdmissionNo || p.StudentId == app.RegistrationNo) &&
+							((p.FeeHeadName != null && p.FeeHeadName.Contains("Security Deposit")) ||
+							 (p.Remarks != null && p.Remarks.Contains("Security Deposit"))));
+					}
+
+					if (!hasVerifiedDeposit)
+					{
+						var depAmt = app.SecurityDepositAmount > 0 ? app.SecurityDepositAmount : 0m;
+						throw new BadRequestException($"Cannot enroll applicant '{app.FirstName} {app.LastName}'. Mandatory Hostel Security Deposit {(depAmt > 0 ? $"of ₹{depAmt:N0} " : "")}must be paid prior to enrollment.");
+					}
 				}
 			}
 
