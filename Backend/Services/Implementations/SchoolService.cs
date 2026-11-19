@@ -1354,6 +1354,14 @@ public class SchoolService : ISchoolService
 			throw new BadRequestException($"Application with ID {id} is already enrolled.");
 		}
 
+		bool isResidential = string.Equals(app.StudentType, "Residential", StringComparison.OrdinalIgnoreCase) ||
+		                     string.Equals(app.StudentType, "Hosteller", StringComparison.OrdinalIgnoreCase);
+		if (isResidential && !app.HostelSecurityDepositPaid)
+		{
+			var depAmt = app.SecurityDepositAmount > 0 ? app.SecurityDepositAmount : 0m;
+			throw new BadRequestException($"Cannot enroll applicant '{app.FirstName} {app.LastName}'. Mandatory Hostel Security Deposit {(depAmt > 0 ? $"of ₹{depAmt:N0} " : "")}must be paid prior to enrollment.");
+		}
+
 		if (string.IsNullOrWhiteSpace(app.AdmissionNo) || app.AdmissionNo.StartsWith("REG-", StringComparison.OrdinalIgnoreCase))
 		{
 			app.AdmissionNo = await GenerateSequentialAdmissionNoAsync();
@@ -1560,6 +1568,17 @@ public class SchoolService : ISchoolService
 		var app = await _schoolRepository.GetApplicationByIdAsync(id);
 		if (app != null)
 		{
+			if (string.Equals(status, "Enrolled", StringComparison.OrdinalIgnoreCase))
+			{
+				bool isResidential = string.Equals(app.StudentType, "Residential", StringComparison.OrdinalIgnoreCase) ||
+				                     string.Equals(app.StudentType, "Hosteller", StringComparison.OrdinalIgnoreCase);
+				if (isResidential && !app.HostelSecurityDepositPaid)
+				{
+					var depAmt = app.SecurityDepositAmount > 0 ? app.SecurityDepositAmount : 0m;
+					throw new BadRequestException($"Cannot enroll applicant '{app.FirstName} {app.LastName}'. Mandatory Hostel Security Deposit {(depAmt > 0 ? $"of ₹{depAmt:N0} " : "")}must be paid prior to enrollment.");
+				}
+			}
+
 			app.Status = status;
 			if (string.Equals(status, "Enrolled", StringComparison.OrdinalIgnoreCase) && 
 			    (string.IsNullOrWhiteSpace(app.AdmissionNo) || app.AdmissionNo.StartsWith("REG-", StringComparison.OrdinalIgnoreCase)))

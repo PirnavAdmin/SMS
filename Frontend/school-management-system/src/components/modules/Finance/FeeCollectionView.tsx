@@ -1532,7 +1532,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
       }
     }
 
-    // Auto-enroll applicant directly upon fee payment
+    // Auto-enroll applicant directly upon fee payment ONLY IF mandatory deposit is satisfied
     const targetAdmissionRecord = (admissions || []).find((a) =>
       String(a.id) === String(selectedStudent.id) ||
       (selectedStudent.admissionNo && (
@@ -1542,18 +1542,36 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
       ))
     );
 
+    const isApplicantResident =
+      (targetAdmissionRecord &&
+        (String(targetAdmissionRecord.studentType || "").toLowerCase().includes("resident") ||
+         String(targetAdmissionRecord.studentType || "").toLowerCase().includes("hostel") ||
+         String((targetAdmissionRecord as any).residentialStatus || "").toLowerCase().includes("resident"))) ||
+      String(selectedStudent.studentType || "").toLowerCase().includes("hostel") ||
+      String((selectedStudent as any).residentialStatus || "").toLowerCase().includes("resident");
+
+    const isDepositSatisfied =
+      !isApplicantResident ||
+      isSecurityDepositCollected ||
+      Boolean(targetAdmissionRecord?.hostelSecurityDepositPaid) ||
+      Boolean(selectedStudent.hostelSecurityDepositPaid);
+
     if (targetAdmissionRecord && updateAdmissionStatus && targetAdmissionRecord.status !== "Enrolled") {
-      try {
-        const assignedStudentId = await updateAdmissionStatus(targetAdmissionRecord.id, "Enrolled");
-        if (assignedStudentId) {
-          addToast(
-            "success",
-            "Student Enrolled Automatically",
-            `${selectedStudent.firstName} ${selectedStudent.lastName} has been automatically enrolled (Student ID: ${assignedStudentId}) upon fee payment.`
-          );
+      if (!isDepositSatisfied) {
+        console.info("Auto-enrollment deferred: Residential student has unpaid mandatory security deposit.");
+      } else {
+        try {
+          const assignedStudentId = await updateAdmissionStatus(targetAdmissionRecord.id, "Enrolled");
+          if (assignedStudentId) {
+            addToast(
+              "success",
+              "Student Enrolled Automatically",
+              `${selectedStudent.firstName} ${selectedStudent.lastName} has been automatically enrolled (Student ID: ${assignedStudentId}) upon fee payment.`
+            );
+          }
+        } catch (err) {
+          console.warn("Failed to auto-enroll student on fee payment:", err);
         }
-      } catch (err) {
-        console.warn("Failed to auto-enroll student on fee payment:", err);
       }
     }
 
@@ -2578,8 +2596,10 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
         hostelDepositAmount = Number(fhc.securityDeposit);
       } else if (admRecord?.hostelSecurityDeposit) {
         hostelDepositAmount = Number(admRecord.hostelSecurityDeposit);
+      } else if (Number((admRecord as any)?.securityDepositAmount) > 0) {
+        hostelDepositAmount = Number((admRecord as any).securityDepositAmount);
       } else {
-        hostelDepositAmount = 5000;
+        hostelDepositAmount = 0;
       }
     }
 

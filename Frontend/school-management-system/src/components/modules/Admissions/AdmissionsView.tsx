@@ -1372,7 +1372,35 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     return "";
   };
 
+  const isResidentialApp = (app: AdmissionApplication): boolean => {
+    const sType = String(app.studentType || (app as any).residentialStatus || "").toLowerCase().trim();
+    return sType.includes("resident") || sType.includes("hostel");
+  };
+
+  const getAppPaidFeeAmount = (app: AdmissionApplication): number => {
+    if (Number((app as any).paidFee || 0) > 0) return Number((app as any).paidFee);
+    const targetId = String(app.id || "");
+    const targetAdm = String(app.applicationNo || app.admissionNo || (app as any).registrationNo || "").toLowerCase().trim();
+    const targetStuId = String(app.studentId || (app as any).rollNo || "").toLowerCase().trim();
+    const targetName = String(app.applicantName || "").toLowerCase().trim();
+
+    const payments = (feePayments || []).filter((p) => {
+      const pId = String(p.studentId || "").toLowerCase().trim();
+      const pAdm = String(p.admissionNo || "").toLowerCase().trim();
+      const pName = String(p.studentName || "").toLowerCase().trim();
+
+      return (
+        (pId && (pId === targetId || pId === targetAdm || pId === targetStuId)) ||
+        (pAdm && (pAdm === targetId || pAdm === targetAdm || pAdm === targetStuId)) ||
+        (targetName && pName && targetName === pName)
+      );
+    });
+
+    return payments.reduce((sum, p) => sum + Number(p.amountPaid || (p as any).amount || 0), 0);
+  };
+
   const checkAppDepositPaid = (app: AdmissionApplication): boolean => {
+    if (!isResidentialApp(app)) return false;
     if (app.hostelSecurityDepositPaid || (app as any).securityDepositPaid) return true;
     const targetId = String(app.id || "");
     const targetAdm = String(app.applicationNo || app.admissionNo || (app as any).registrationNo || "").toLowerCase().trim();
@@ -1401,6 +1429,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
   };
 
   const getAppDepositAmount = (app: AdmissionApplication): number => {
+    if (!isResidentialApp(app)) return 0;
     if (Number(app.securityDepositAmount) > 0) return Number(app.securityDepositAmount);
     const targetId = String(app.id || "");
     const targetAdm = String(app.applicationNo || app.admissionNo || (app as any).registrationNo || "").toLowerCase().trim();
@@ -1430,7 +1459,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     if (payment) {
       return Number(payment.amountPaid || (payment as any).amount || 0);
     }
-    return Number((app as any).paidFee || 0);
+    return 0;
   };
 
   const handleConfirmSecurityDepositPayment = () => {
@@ -5597,19 +5626,22 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                       <span className="font-bold text-slate-700 dark:text-slate-300 block">
                         {formatStudentType(app.studentType)}
                       </span>
-                      {checkAppDepositPaid(app) ? (
-                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold block mt-0.5">
-                          ✓ Deposit Paid ({formatCurrency(getAppDepositAmount(app))})
-                        </span>
-                      ) : (app.studentType === "Residential" || (app as any).studentType === "Hosteller") ? (
-                        <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium block mt-0.5">
-                          Deposit Pending
-                        </span>
-                      ) : null}
-                      {Number((app as any).paidFee || 0) > 0 && !checkAppDepositPaid(app) && (
-                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold block mt-0.5">
-                          Fee Paid: {formatCurrency(Number((app as any).paidFee))}
-                        </span>
+                      {isResidentialApp(app) ? (
+                        checkAppDepositPaid(app) ? (
+                          <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold block mt-0.5">
+                            ✓ Deposit Paid ({formatCurrency(getAppDepositAmount(app))})
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-amber-600 dark:text-amber-400 font-medium block mt-0.5">
+                            Deposit Pending
+                          </span>
+                        )
+                      ) : (
+                        getAppPaidFeeAmount(app) > 0 ? (
+                          <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold block mt-0.5">
+                            Fee Paid: {formatCurrency(getAppPaidFeeAmount(app))}
+                          </span>
+                        ) : null
                       )}
                     </td>
                     <td className="py-3 px-4">
@@ -5719,13 +5751,29 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                             </button>
                             <button
                               disabled={isStatusUpdateLoading}
-                              onClick={() =>
-                                setConfirmingApp({ app, status: "Enrolled" })
+                              onClick={() => {
+                                if (isResidentialApp(app) && !checkAppDepositPaid(app)) {
+                                  addToast(
+                                    "warning",
+                                    "Hostel Security Deposit Required",
+                                    `Cannot enroll ${app.applicantName || "student"}. Mandatory Hostel Security Deposit must be paid before enrollment.`
+                                  );
+                                  return;
+                                }
+                                setConfirmingApp({ app, status: "Enrolled" });
+                              }}
+                              title={
+                                isResidentialApp(app) && !checkAppDepositPaid(app)
+                                  ? "Mandatory Hostel Security Deposit pending"
+                                  : "Enroll Student"
                               }
-                              className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                              className={`px-3.5 py-1.5 rounded-xl font-bold text-xs shadow-md flex items-center gap-1 transition-all ${
+                                isResidentialApp(app) && !checkAppDepositPaid(app)
+                                  ? "bg-slate-300 dark:bg-slate-700 text-slate-500 dark:text-slate-400 cursor-not-allowed"
+                                  : "bg-emerald-600 hover:bg-emerald-500 text-white cursor-pointer"
+                              }`}
                             >
-                              <UserCheck className="w-3.5 h-3.5" /> Enroll
-                              Student
+                              <UserCheck className="w-3.5 h-3.5" /> Enroll Student
                             </button>
                           </>
                         )}
@@ -6221,6 +6269,19 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
         }
         onConfirm={async () => {
           if (confirmingApp && confirmingApp.app) {
+            if (
+              confirmingApp.status === "Enrolled" &&
+              isResidentialApp(confirmingApp.app) &&
+              !checkAppDepositPaid(confirmingApp.app)
+            ) {
+              addToast(
+                "error",
+                "Enrollment Blocked",
+                "Mandatory Hostel Security Deposit must be paid before enrolling residential students."
+              );
+              setConfirmingApp(null);
+              return;
+            }
             setIsStatusUpdateLoading(true);
             try {
               const studentId = await updateAdmissionStatus(
