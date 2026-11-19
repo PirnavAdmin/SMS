@@ -47,8 +47,14 @@ export const changePasswordApi = async (data: {
   confirmPassword: string;
   emailOrPhone?: string;
 }) => {
+  const token = localStorage.getItem('auth_token');
+  const headers: Record<string, string> = {};
+  if (token && token !== 'null' && token !== 'undefined') {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
   return apiClient('/api/auth/change-password', {
     method: 'POST',
+    headers,
     body: JSON.stringify(data),
   });
 };

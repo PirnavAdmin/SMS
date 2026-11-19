@@ -19,7 +19,7 @@ interface AuthContextType {
   login: (emailOrPhone: string, password?: string, role?: UserRole) => Promise<boolean>;
   logout: () => void;
   setRole: (role: UserRole) => void;
-  changePassword: (oldPass: string, newPass: string) => Promise<boolean>;
+  changePassword: (oldPass: string, newPass: string, confirmPass?: string) => Promise<boolean>;
   sendOtp: (emailOrPhone: string) => Promise<boolean>;
   verifyOtp: (emailOrPhone: string, otpCode: string) => Promise<boolean>;
   resetPasswordWithOtp: (emailOrPhone: string, otpCode: string, newPassword: string) => Promise<boolean>;
@@ -633,12 +633,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const changePassword = async (oldPass: string, newPass: string): Promise<boolean> => {
+  const changePassword = async (oldPass: string, newPass: string, confirmPass?: string): Promise<boolean> => {
     const candidateIdentifier = user?.email || user?.phone || user?.name || '';
     await changePasswordApi({
       oldPassword: oldPass,
       newPassword: newPass,
-      confirmPassword: newPass,
+      confirmPassword: confirmPass || newPass,
       emailOrPhone: candidateIdentifier,
     });
     return true;

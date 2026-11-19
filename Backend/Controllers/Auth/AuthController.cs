@@ -38,10 +38,10 @@ public class AuthController : ControllerBase
     [HttpPost("change-password")]
     public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequestDto dto)
     {
-        var emailClaim = User.FindFirst(ClaimTypes.Email)?.Value;
-        var idClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        var nameClaim = User.FindFirst(ClaimTypes.Name)?.Value;
-        var roleClaim = User.FindFirst(ClaimTypes.Role)?.Value;
+        var emailClaim = User.FindFirst(ClaimTypes.Email)?.Value ?? User.FindFirst("email")?.Value;
+        var idClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value ?? User.FindFirst("id")?.Value;
+        var nameClaim = User.FindFirst(ClaimTypes.Name)?.Value ?? User.FindFirst("name")?.Value ?? User.FindFirst("unique_name")?.Value;
+        var roleClaim = User.FindFirst(ClaimTypes.Role)?.Value ?? User.FindFirst("role")?.Value;
         await _authService.ChangePasswordAsync(dto, emailClaim, idClaim, nameClaim, roleClaim);
         return Ok(new { message = "Password updated successfully." });
     }

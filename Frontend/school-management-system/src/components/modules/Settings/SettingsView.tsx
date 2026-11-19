@@ -22,6 +22,7 @@ import {
   FileCheck,
   Layers,
   ShieldCheck,
+  Loader2,
   FileText,
   Check,
   Layout,
@@ -851,6 +852,7 @@ export const SettingsView: React.FC = () => {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
 
   const [idForm, setIdForm] = useState<IdSequenceSettings>(() => getIdSequenceSettings());
   const [editingIdCards, setEditingIdCards] = useState<Record<string, boolean>>({
@@ -989,25 +991,40 @@ export const SettingsView: React.FC = () => {
 
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!passForm.newPassword || passForm.newPassword.length < 4) {
-      addToast("warning", "Password Weak", "Password must be at least 4 characters.");
+    if (!passForm.currentPassword) {
+      addToast("warning", "Required Field", "Please enter your current password.");
+      return;
+    }
+    if (!passForm.newPassword || passForm.newPassword.length < 6) {
+      addToast("warning", "Password Weak", "New password must be at least 6 characters.");
       return;
     }
     if (passForm.newPassword !== passForm.confirmPassword) {
       addToast("error", "Mismatch", "New password and confirmation do not match.");
       return;
     }
-    if (changePassword) {
-      const isSuccess = await changePassword(passForm.currentPassword, passForm.newPassword);
-      if (isSuccess) {
-        addToast("success", "Password Changed", "Your password has been updated successfully.");
-        setPassForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
-      } else {
-        addToast("error", "Error", "Failed to update password. Check current password.");
+    if (passForm.currentPassword === passForm.newPassword) {
+      addToast("warning", "Same Password", "New password cannot be the same as your current password.");
+      return;
+    }
+
+    setIsUpdatingPassword(true);
+    try {
+      if (changePassword) {
+        await changePassword(passForm.currentPassword, passForm.newPassword, passForm.confirmPassword);
       }
-    } else {
-      addToast("success", "Password Updated", "Password updated successfully.");
+      try {
+        if (localStorage.getItem('remember_me') === 'true') {
+          localStorage.setItem('remember_me_password', passForm.newPassword);
+        }
+      } catch {}
+      addToast("success", "Password Changed", "Your password has been updated successfully.");
       setPassForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    } catch (err: any) {
+      const msg = err?.message || "Failed to update password. Please check your current password.";
+      addToast("error", "Update Failed", msg);
+    } finally {
+      setIsUpdatingPassword(false);
     }
   };
 
@@ -2311,10 +2328,20 @@ export const SettingsView: React.FC = () => {
                 <div className="pt-2">
                   <button
                     type="submit"
-                    className="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white font-extrabold text-sm shadow-sm flex items-center justify-center gap-2 transition cursor-pointer active:scale-95"
+                    disabled={isUpdatingPassword}
+                    className="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white font-extrabold text-sm shadow-sm flex items-center justify-center gap-2 transition cursor-pointer active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <ShieldCheck className="w-4 h-4 text-brand-400" />
-                    Update Password
+                    {isUpdatingPassword ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin text-brand-400" />
+                        <span>Updating Password...</span>
+                      </>
+                    ) : (
+                      <>
+                        <ShieldCheck className="w-4 h-4 text-brand-400" />
+                        <span>Update Password</span>
+                      </>
+                    )}
                   </button>
                 </div>
               </form>

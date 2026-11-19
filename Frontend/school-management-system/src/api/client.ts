@@ -50,7 +50,13 @@ export const apiClient = async <T = any>(endpoint: string, options: RequestInit 
     // Ignore parsing errors
   }
 
-  const isAuthEndpoint = endpoint.includes('/auth/') || endpoint.includes('/superadmin/login');
+  const isPublicAuthEndpoint =
+    endpoint.includes('/auth/login') ||
+    endpoint.includes('/superadmin/login') ||
+    endpoint.includes('/auth/otp/') ||
+    endpoint.includes('/auth/forgot-password');
+
+  const isAuthEndpoint = isPublicAuthEndpoint;
 
   const headers = new Headers(options.headers || {});
   if (!headers.has('Content-Type') && !(options.body instanceof FormData)) {
