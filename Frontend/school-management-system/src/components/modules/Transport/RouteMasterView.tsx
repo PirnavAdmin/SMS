@@ -410,8 +410,8 @@ export const RouteMasterView: React.FC = () => {
       )}
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl flex flex-col max-h-[90vh] space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-3xl max-w-md w-full p-4 sm:p-6 shadow-2xl flex flex-col max-h-[92vh] space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 shrink-0">
               <h3 className="text-base font-bold text-slate-900 dark:text-white">
                 {editingRoute ? 'Edit Route' : 'Create Route'}
@@ -421,7 +421,7 @@ export const RouteMasterView: React.FC = () => {
  
             <form onSubmit={handleSubmit} data-no-time-validation="true" className="flex flex-col flex-1 min-h-0 space-y-4 text-xs">
               <div className="flex-1 overflow-y-auto space-y-3 pr-1 pb-4">
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block font-semibold mb-1">Route Code (Unique) <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                     <input
@@ -457,7 +457,7 @@ export const RouteMasterView: React.FC = () => {
                   />
                 </div>
  
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block font-semibold mb-1">Route Start</label>
                     <input
@@ -484,7 +484,7 @@ export const RouteMasterView: React.FC = () => {
                   </div>
                 </div>
  
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block font-semibold mb-1">Total Distance (KM)</label>
                     <input
@@ -526,7 +526,7 @@ export const RouteMasterView: React.FC = () => {
                 {/* Distance-based Pricing Configuration */}
                 <div className="p-3 rounded-2xl bg-sky-50/70 dark:bg-sky-950/30 border border-sky-100 dark:border-sky-900/60 space-y-2">
                   <p className="text-[11px] font-extrabold uppercase text-sky-700 dark:text-sky-300">Distance & Slab Rate Configuration</p>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                     <div>
                       <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-0.5">Min Range (KM)</label>
                       <input
@@ -576,8 +576,8 @@ export const RouteMasterView: React.FC = () => {
                       />
                     </div>
                   </div>
-                  <div className="grid grid-cols-3 gap-2 pt-1 border-t border-sky-100/50 dark:border-sky-900/30">
-                    <div className="invisible"></div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 border-t border-sky-100/50 dark:border-sky-900/30">
+                    <div className="hidden sm:block"></div>
                     <div>
                       <label className="block text-[10px] font-bold text-slate-600 dark:text-slate-400 mb-0.5">AC Base Fare (₹)</label>
                       <input

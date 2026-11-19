@@ -466,8 +466,8 @@ export const StudentTransportAssignmentView: React.FC = () => {
 
       {/* ASSIGNMENT MODAL WITH AUTO-LOAD & CAPACITY VALIDATION */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-3xl max-w-md w-full p-4 sm:p-6 shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <h3 className="text-base font-bold text-slate-900 dark:text-white">Allocate Student Transport Service</h3>
               <button onClick={() => setIsModalOpen(false)} className="text-slate-400">✕</button>
@@ -537,25 +537,25 @@ export const StudentTransportAssignmentView: React.FC = () => {
               {/* AUTO-LOADED DRIVER & ATTENDANT DISPLAY */}
               <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-1">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Auto-Loaded Crew Details</p>
-                <div className="flex items-center justify-between font-bold text-slate-800 dark:text-slate-200 text-[11px]">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between font-bold text-slate-800 dark:text-slate-200 text-[11px] gap-1">
                   <span>Driver: <strong className="text-sky-600">{autoDriverName}</strong></span>
                   <span>Attendant: <strong className="text-emerald-600">{autoAttendantName}</strong></span>
                 </div>
               </div>
 
               {/* CAPACITY VALIDATION STATUS BANNER */}
-              <div className={`p-3 rounded-2xl border flex items-center justify-between ${isVehicleFull ? 'bg-rose-50 border-rose-200 text-rose-700' : 'bg-sky-50 border-sky-200 text-sky-800 dark:bg-sky-950 dark:border-sky-800 dark:text-sky-200'}`}>
+              <div className={`p-3 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2 ${isVehicleFull ? 'bg-rose-50 border-rose-200 text-rose-700' : 'bg-sky-50 border-sky-200 text-sky-800 dark:bg-sky-950 dark:border-sky-800 dark:text-sky-200'}`}>
                 <div>
                   <p className="text-[10px] font-bold uppercase">Vehicle Capacity Validation</p>
                   <p className="font-extrabold text-sm">{autoVehicleNumber}</p>
                 </div>
-                <div className="text-right">
+                <div className="text-left sm:text-right">
                   <p className="text-[10px] font-bold">Seat Status</p>
                   <p className="font-bold text-xs">{assignedCount} / {totalCapacity} Seats ({availableSeats} Available)</p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block font-semibold mb-1">Fee Payment Plan</label>
                   <select value={feePlan} onChange={e => setFeePlan(e.target.value as any)} className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold">
@@ -612,8 +612,8 @@ export const StudentTransportAssignmentView: React.FC = () => {
         const attendantEmpId = vehicleAssignedRel?.attendantEmployeeId || attendantObj?.employeeId || (attendantObj as any)?.empId || (attendantObj as any)?.employeeId || '-';
 
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-in fade-in">
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-2xl w-full p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-slate-950/70 backdrop-blur-md animate-in fade-in">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-3xl max-w-2xl w-full p-4 sm:p-6 shadow-2xl space-y-5 max-h-[92vh] overflow-y-auto">
               {/* Header */}
               <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                 <div className="flex items-center gap-3">

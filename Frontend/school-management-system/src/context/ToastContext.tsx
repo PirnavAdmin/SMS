@@ -84,7 +84,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   return (
     <ToastContext.Provider value={value}>
       {children}
-      <div className="fixed top-5 right-5 sm:top-6 sm:right-6 z-[99999] flex flex-col gap-2.5 max-w-sm w-full pointer-events-none no-print print:hidden">
+      <div className="fixed top-3 left-3 right-3 sm:top-6 sm:left-auto sm:right-6 z-[99999] flex flex-col gap-2.5 sm:max-w-sm sm:w-full pointer-events-none no-print print:hidden">
         {toasts.map(toast => {
           const typeConfigs: Record<ToastType, {
             container: string;
@@ -146,15 +146,15 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           return (
             <div
               key={toast.id}
-              className={`pointer-events-auto flex items-start gap-2.5 p-3 sm:p-3.5 rounded-2xl shadow-xl transition-all duration-300 animate-in slide-in-from-top-4 fade-in backdrop-blur-md ${cfg.container}`}
+              className={`pointer-events-auto flex items-start gap-2.5 p-3 sm:p-3.5 rounded-2xl shadow-xl transition-all duration-300 animate-in slide-in-from-top-4 fade-in backdrop-blur-md w-full min-w-0 ${cfg.container}`}
             >
               <div className={`p-1.5 rounded-xl shrink-0 ${cfg.iconBg}`}>
                 <IconComponent className={`w-4 h-4 stroke-[2.5] ${cfg.iconColor}`} />
               </div>
               <div className="flex-1 min-w-0 text-xs">
-                <p className={`font-bold leading-snug ${cfg.titleColor}`}>{toast.title}</p>
+                <p className={`font-bold leading-snug break-words ${cfg.titleColor}`}>{toast.title}</p>
                 {toast.message && (
-                  <p className={`text-[11px] mt-0.5 leading-snug ${cfg.messageColor}`}>{toast.message}</p>
+                  <p className={`text-[11px] mt-0.5 leading-snug break-words ${cfg.messageColor}`}>{toast.message}</p>
                 )}
               </div>
               <button

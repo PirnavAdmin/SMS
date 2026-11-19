@@ -728,8 +728,8 @@ export const PickupPointsView: React.FC = () => {
 
       {/* Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-3xl max-w-xl w-full p-4 sm:p-6 shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
               <div>
                 <h3 className="text-base font-bold text-slate-900 dark:text-white">
@@ -746,7 +746,7 @@ export const PickupPointsView: React.FC = () => {
 
             <form onSubmit={handleSubmit} className="space-y-3.5 text-xs">
               <div>
-                <div className="flex items-center justify-between mb-1">
+                <div className="flex flex-wrap items-center justify-between gap-1 mb-1">
                   <label className="block font-semibold">
                     Select Route <span className="text-rose-500 font-bold ml-0.5">*</span>
                   </label>
@@ -780,7 +780,7 @@ export const PickupPointsView: React.FC = () => {
 
               {editingPoint ? (
                 <>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block font-semibold mb-1">
                         Pickup Point Name <span className="text-rose-500 font-bold ml-0.5">*</span>
@@ -827,7 +827,7 @@ export const PickupPointsView: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block font-semibold mb-1">
                         Distance from School (KM) <span className="text-rose-500 font-bold ml-0.5">*</span>
@@ -884,7 +884,7 @@ export const PickupPointsView: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <label className="block font-semibold mb-1 flex items-center gap-1.5">
                         <Clock className="w-3.5 h-3.5 text-sky-500 flex-shrink-0" />
@@ -974,7 +974,7 @@ export const PickupPointsView: React.FC = () => {
                 </>
               ) : (
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
                     <label className="block font-semibold">
                       Pickup Points, Distances & Timings <span className="text-rose-500 font-bold ml-0.5">*</span>
                     </label>
@@ -1024,7 +1024,7 @@ export const PickupPointsView: React.FC = () => {
                             )}
                           </div>
 
-                          <div className="grid grid-cols-3 gap-2.5">
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                             <div>
                               <label className="block text-[10px] font-bold text-slate-500 mb-0.5">
                                 Distance (KM) <span className="text-rose-500 font-bold ml-0.5">*</span>
