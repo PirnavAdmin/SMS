@@ -1037,6 +1037,8 @@ export const SettingsView: React.FC = () => {
   const [isSavingAY, setIsSavingAY] = useState(false);
   const [editingAY, setEditingAY] = useState<AcademicYearMaster | null>(null);
   const [deletingAY, setDeletingAY] = useState<AcademicYearMaster | null>(null);
+  const [activatingAY, setActivatingAY] = useState<AcademicYearMaster | null>(null);
+  const [isActivatingAY, setIsActivatingAY] = useState(false);
   const [ayErrors, setAyErrors] = useState<{
     academicYear?: string;
     status?: string;
@@ -1681,7 +1683,7 @@ export const SettingsView: React.FC = () => {
     }
   };
 
-  const handleSetActiveSession = (ay: AcademicYearMaster) => {
+  const handlePromptSetActiveSession = (ay: AcademicYearMaster) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const end = ay.endDate ? new Date(ay.endDate) : null;
@@ -1696,12 +1698,29 @@ export const SettingsView: React.FC = () => {
       return;
     }
 
-    setCurrentAcademicYear(ay.id);
-    addToast(
-      "success",
-      "Current Session Updated",
-      `Set ${ay.academicYear} as active academic session.`,
-    );
+    setActivatingAY(ay);
+  };
+
+  const confirmSetActiveSession = async () => {
+    if (!activatingAY) return;
+    setIsActivatingAY(true);
+    try {
+      await setCurrentAcademicYear(activatingAY.id);
+      addToast(
+        "success",
+        "Active Session Updated",
+        `Set "${activatingAY.academicYear}" as the active academic session for this branch.`
+      );
+      setActivatingAY(null);
+    } catch (err: any) {
+      addToast(
+        "error",
+        "Activation Failed",
+        err?.message || "Failed to set active academic session."
+      );
+    } finally {
+      setIsActivatingAY(false);
+    }
   };
 
   const filteredAcademicYears = useMemo(() => {
@@ -2950,8 +2969,9 @@ export const SettingsView: React.FC = () => {
               const isPastEnd = Boolean(
                 ay.endDate && new Date(ay.endDate) < new Date(new Date().setHours(0, 0, 0, 0))
               );
+              const isActive = (ay.status === "Active" || Boolean(ay.isCurrentAcademicYear)) && !isPastEnd;
               const displayStatus =
-                ay.status === "Active"
+                isActive
                   ? "Active"
                   : ay.status === "Closed" || isPastEnd
                     ? "Closed"
@@ -2960,7 +2980,11 @@ export const SettingsView: React.FC = () => {
               return (
                 <div
                   key={ay.id}
-                  className="glass-card p-5 rounded-3xl space-y-3 border border-slate-200 dark:border-slate-800 relative"
+                  className={`glass-card p-5 rounded-3xl space-y-3 border relative transition-all ${
+                    isActive
+                      ? "border-emerald-300 dark:border-emerald-800/80 shadow-md shadow-emerald-500/5 ring-1 ring-emerald-500/20"
+                      : "border-slate-200 dark:border-slate-800"
+                  }`}
                 >
                   <div className="flex items-center justify-between">
                     <span className="font-mono font-bold text-[10px] text-sky-600 bg-sky-50 dark:bg-sky-950 px-2 py-0.5 rounded-md">
@@ -3002,12 +3026,12 @@ export const SettingsView: React.FC = () => {
                   </div>
 
                   <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                    {ay.status === "Active" ? (
+                    {displayStatus === "Active" ? (
                       <span className="text-[11px] font-black text-emerald-600 flex items-center gap-1">
                         <CheckCircle2 className="w-3.5 h-3.5" /> Current Active
                         Session
                       </span>
-                    ) : ay.status === "Closed" || (ay.endDate && new Date(ay.endDate) < new Date(new Date().setHours(0, 0, 0, 0))) ? (
+                    ) : displayStatus === "Closed" ? (
                       <span
                         className="text-xs font-bold text-slate-400 dark:text-slate-500 flex items-center gap-1"
                         title="Completed academic year cannot be set as active session"
@@ -3016,8 +3040,9 @@ export const SettingsView: React.FC = () => {
                       </span>
                     ) : (
                       <button
-                        onClick={() => handleSetActiveSession(ay)}
-                        className="text-xs font-bold text-emerald-600 hover:text-emerald-500 cursor-pointer"
+                        type="button"
+                        onClick={() => handlePromptSetActiveSession(ay)}
+                        className="text-xs font-bold text-emerald-600 hover:text-emerald-500 cursor-pointer flex items-center gap-1 active:scale-95 transition-all"
                       >
                         Set as Active Session
                       </button>
@@ -4838,6 +4863,14 @@ export const SettingsView: React.FC = () => {
                     <span>⚠️</span> {ayErrors.status}
                   </p>
                 )}
+                {ayForm.status === "Active" && (
+                  <div className="mt-2 p-2.5 rounded-xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800/60 text-xs text-sky-800 dark:text-sky-300 flex items-start gap-1.5">
+                    <span className="shrink-0 mt-0.5">ℹ️</span>
+                    <span>
+                      Only <strong>one session</strong> can be active at a time for this branch. Saving will set <strong>{ayForm.academicYear || "this session"}</strong> as the active session and automatically deactivate any other active session.
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div>
@@ -4899,6 +4932,33 @@ export const SettingsView: React.FC = () => {
         message={`Are you sure you want to remove ${deletingAY?.academicYear}? This session will be removed from system configurations.`}
         onConfirm={confirmDeleteAY}
         onCancel={() => setDeletingAY(null)}
+      />
+
+      {/* Activate Academic Year Custom Alert Modal */}
+      <ConfirmModal
+        isOpen={!!activatingAY}
+        title="Change Active Academic Session"
+        subtitle="Single Active Session Policy"
+        variant="warning"
+        confirmLabel="Set as Active Session"
+        cancelLabel="Cancel"
+        isLoading={isActivatingAY}
+        onConfirm={confirmSetActiveSession}
+        onCancel={() => setActivatingAY(null)}
+        message={
+          <div className="space-y-3 text-left">
+            <p className="text-slate-600 dark:text-slate-300">
+              Are you sure you want to set{" "}
+              <strong className="text-slate-900 dark:text-white font-mono font-extrabold">
+                {activatingAY?.academicYear}
+              </strong>{" "}
+              as the active academic session?
+            </p>
+            <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-800 dark:text-amber-300">
+              <span className="font-extrabold">⚠️ Note:</span> Only <strong>one session</strong> can be active at a time for this branch. Activating this session will automatically deactivate the currently active session.
+            </div>
+          </div>
+        }
       />
     </div>
   );

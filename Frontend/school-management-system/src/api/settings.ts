@@ -129,6 +129,12 @@ export const updateAcademicYearApi = async (id: number | string, payload: any) =
   });
 };
 
+export const setActiveAcademicYearApi = async (id: number | string) => {
+  return apiClient(`/api/AcademicYears/${id}/set-current`, {
+    method: 'PUT'
+  });
+};
+
 export const deleteAcademicYearApi = async (id: number | string) => {
   return apiClient(`/api/AcademicYears/${id}`, {
     method: 'DELETE'
