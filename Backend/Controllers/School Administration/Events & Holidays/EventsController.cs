@@ -341,7 +341,6 @@ public class EventsController : ControllerBase
     }
 
     [HttpPut("school-events/{id}")]
-    [HttpPut("/api/events/school-events/{id}")]
     public async Task<IActionResult> UpdateSchoolEvent(string id, [FromBody] CreateSchoolEventDto dto)
     {
         int numericId = 0;
@@ -369,7 +368,6 @@ public class EventsController : ControllerBase
     }
 
     [HttpDelete("school-events/{id}")]
-    [HttpDelete("/api/events/school-events/{id}")]
     public async Task<IActionResult> DeleteSchoolEvent(string id)
     {
         int numericId = 0;
@@ -514,8 +512,6 @@ public class EventsController : ControllerBase
 
     [HttpPut("holidays/{id}")]
     [HttpPut("/api/holidays/{id}")]
-    [HttpPut("holidays/{id:int}")]
-    [HttpPut("/api/holidays/{id:int}")]
     public async Task<IActionResult> UpdateHoliday(string id, [FromBody] CreateHolidayDto dto)
     {
         int numericId = 0;
@@ -540,8 +536,6 @@ public class EventsController : ControllerBase
 
     [HttpDelete("holidays/{id}")]
     [HttpDelete("/api/holidays/{id}")]
-    [HttpDelete("holidays/{id:int}")]
-    [HttpDelete("/api/holidays/{id:int}")]
     public async Task<IActionResult> DeleteHoliday(string id)
     {
         int numericId = 0;

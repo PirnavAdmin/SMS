@@ -225,7 +225,6 @@ CREATE TABLE IF NOT EXISTS `librarian_attendances` (
     }
 
     [HttpPut("{id}")]
-    [HttpPut("/api/librarian-attendance/{id}")]
     public async Task<IActionResult> UpdateAttendance(string id, [FromBody] CreateLibrarianAttendanceDto dto)
     {
         await EnsureDefaultAttendanceLogsAsync();
@@ -286,7 +285,6 @@ CREATE TABLE IF NOT EXISTS `librarian_attendances` (
     }
 
     [HttpDelete("{id}")]
-    [HttpDelete("/api/librarian-attendance/{id}")]
     public async Task<IActionResult> DeleteAttendance(string id)
     {
         await EnsureDefaultAttendanceLogsAsync();
