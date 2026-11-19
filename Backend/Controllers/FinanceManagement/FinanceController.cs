@@ -191,17 +191,17 @@ public class FinanceController : ControllerBase
                                        x.AcademicYear.Equals("All", System.StringComparison.OrdinalIgnoreCase) ||
                                        x.AcademicYear.ToLower().Replace(" ", "") == cleanYear ||
                                        x.AcademicYear.ToLower().Replace(" ", "").Contains(cleanYear) ||
-                                       cleanYear.Contains(x.AcademicYear.ToLower().Replace(" ", "")) ||
                                        x.AcademicYear.StartsWith(startYear));
             }
             if (!string.IsNullOrWhiteSpace(branch) && !branch.Equals("ALL", System.StringComparison.OrdinalIgnoreCase) && !branch.Equals("All Branches", System.StringComparison.OrdinalIgnoreCase))
             {
+                string cleanBranch = branch.Trim().ToLower();
+                string cleanBranchBase = cleanBranch.Replace(" branch", "").Replace(" campus", "").Trim();
                 list = list.Where(x => string.IsNullOrEmpty(x.Branch) || 
                                        x.Branch.Equals("All", System.StringComparison.OrdinalIgnoreCase) || 
                                        x.Branch.Equals("All Branches", System.StringComparison.OrdinalIgnoreCase) ||
                                        x.Branch.Equals(branch, System.StringComparison.OrdinalIgnoreCase) ||
-                                       x.Branch.ToLower().Contains(branch.ToLower()) ||
-                                       branch.ToLower().Contains(x.Branch.ToLower()));
+                                       x.Branch.ToLower().Contains(cleanBranchBase));
             }
 
             return Ok(new { success = true, data = list });

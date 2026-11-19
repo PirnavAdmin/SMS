@@ -117,7 +117,6 @@ namespace SMS.Api.Controllers.AcademicManagement
                     c.AcademicYear.ToLower() == "all" ||
                     c.AcademicYear.ToLower().Replace(" ", "") == cleanYear ||
                     c.AcademicYear.ToLower().Replace(" ", "").Contains(cleanYear) ||
-                    cleanYear.Contains(c.AcademicYear.ToLower().Replace(" ", "")) ||
                     c.AcademicYear.StartsWith(startYear));
             }
 

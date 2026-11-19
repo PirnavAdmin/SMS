@@ -2025,6 +2025,9 @@ using (var scope = app.Services.CreateScope())
         EnsureColumnExists("admission_applications", "SecurityDepositAmount", "decimal(18,2) NOT NULL DEFAULT 0.00");
         EnsureColumnExists("admission_applications", "SecurityDepositReceiptNo", "varchar(100) NULL");
         EnsureColumnExists("admission_applications", "AcademicYear", "varchar(100) NULL");
+        EnsureColumnExists("admission_applications", "AdmissionFeePaid", "tinyint(1) NOT NULL DEFAULT 0");
+        EnsureColumnExists("admission_applications", "AdmissionFeeAmount", "decimal(18,2) NULL");
+        EnsureColumnExists("admission_applications", "AdmissionFeeReceiptNo", "varchar(100) NULL");
         EnsureColumnExists("admissions", "academic_year", "varchar(100) NULL");
         EnsureColumnExists("admission_applications", "BranchName", "varchar(100) NULL");
         EnsureColumnExists("admissions", "academic_year", "varchar(100) NULL");

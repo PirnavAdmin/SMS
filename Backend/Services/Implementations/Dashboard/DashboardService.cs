@@ -128,7 +128,10 @@ public class DashboardService : IDashboardService
 
         if (!string.IsNullOrEmpty(targetBranchName) && !targetBranchName.Equals("All Branches", StringComparison.OrdinalIgnoreCase) && !targetBranchName.Equals("All", StringComparison.OrdinalIgnoreCase))
         {
-            admissionAppsQuery = admissionAppsQuery.Where(a => a.BranchName != null && a.BranchName.ToLower() == targetBranchName.ToLower());
+            string cleanBranch = targetBranchName.Trim().ToLower();
+            string cleanBranchBase = cleanBranch.Replace(" branch", "").Replace(" campus", "").Trim();
+            admissionAppsQuery = admissionAppsQuery.Where(a => a.BranchName != null &&
+                (a.BranchName.ToLower() == cleanBranch || a.BranchName.ToLower() == cleanBranchBase || a.BranchName.ToLower().Contains(cleanBranchBase)));
         }
 
         if (!string.IsNullOrWhiteSpace(academicYearContext) && !academicYearContext.Equals("All", StringComparison.OrdinalIgnoreCase))
@@ -138,12 +141,10 @@ public class DashboardService : IDashboardService
             admissionAppsQuery = admissionAppsQuery.Where(a => 
                 (a.AcademicYear != null && (a.AcademicYear.ToLower().Replace(" ", "") == cleanYear ||
                                            a.AcademicYear.ToLower().Replace(" ", "").Contains(cleanYear) ||
-                                           cleanYear.Contains(a.AcademicYear.ToLower().Replace(" ", "")) ||
                                            a.AcademicYear.StartsWith(startYear))) ||
                 (a.AppliedClass != null && a.AppliedClass.AcademicYear != null &&
                 (a.AppliedClass.AcademicYear.ToLower().Replace(" ", "") == cleanYear ||
                  a.AppliedClass.AcademicYear.ToLower().Replace(" ", "").Contains(cleanYear) ||
-                 cleanYear.Contains(a.AppliedClass.AcademicYear.ToLower().Replace(" ", "")) ||
                  a.AppliedClass.AcademicYear.StartsWith(startYear))));
         }
 
@@ -173,8 +174,7 @@ public class DashboardService : IDashboardService
             staffQuery = staffQuery.Where(s => string.IsNullOrEmpty(s.BranchName) || 
                                                s.BranchName.ToLower() == cleanBranch || 
                                                s.BranchName.ToLower() == cleanBranchBase ||
-                                               s.BranchName.ToLower().Contains(cleanBranchBase) ||
-                                               cleanBranch.Contains(s.BranchName.ToLower()));
+                                               s.BranchName.ToLower().Contains(cleanBranchBase));
         }
 
         var staffInfo = await staffQuery
@@ -196,7 +196,13 @@ public class DashboardService : IDashboardService
 
         if (!string.IsNullOrEmpty(targetBranchName) && !targetBranchName.Equals("All Branches", StringComparison.OrdinalIgnoreCase) && !targetBranchName.Equals("All", StringComparison.OrdinalIgnoreCase))
         {
-            classQuery = classQuery.Where(c => c.CampusLocation == targetBranchName || c.CampusLocation == "All" || c.CampusLocation == "All Branches");
+            string cleanBranch = targetBranchName.Trim().ToLower();
+            string cleanBranchBase = cleanBranch.Replace(" branch", "").Replace(" campus", "").Trim();
+            classQuery = classQuery.Where(c => c.CampusLocation == targetBranchName ||
+                                               c.CampusLocation == cleanBranchBase ||
+                                               (c.CampusLocation != null && c.CampusLocation.ToLower().Contains(cleanBranchBase)) ||
+                                               c.CampusLocation == "All" ||
+                                               c.CampusLocation == "All Branches");
         }
 
         if (!string.IsNullOrWhiteSpace(academicYearContext) && !academicYearContext.Equals("All", StringComparison.OrdinalIgnoreCase))
@@ -206,7 +212,6 @@ public class DashboardService : IDashboardService
             classQuery = classQuery.Where(c => c.AcademicYear != null &&
                 (c.AcademicYear.ToLower().Replace(" ", "") == cleanYear ||
                  c.AcademicYear.ToLower().Replace(" ", "").Contains(cleanYear) ||
-                 cleanYear.Contains(c.AcademicYear.ToLower().Replace(" ", "")) ||
                  c.AcademicYear.StartsWith(startYear)));
         }
 
@@ -218,7 +223,10 @@ public class DashboardService : IDashboardService
 
         if (!string.IsNullOrEmpty(targetBranchName) && !targetBranchName.Equals("All Branches", StringComparison.OrdinalIgnoreCase) && !targetBranchName.Equals("All", StringComparison.OrdinalIgnoreCase))
         {
-            admQuery = admQuery.Where(a => a.BranchName == targetBranchName);
+            string cleanBranch = targetBranchName.Trim().ToLower();
+            string cleanBranchBase = cleanBranch.Replace(" branch", "").Replace(" campus", "").Trim();
+            admQuery = admQuery.Where(a => a.BranchName != null &&
+                (a.BranchName.ToLower() == cleanBranch || a.BranchName.ToLower() == cleanBranchBase || a.BranchName.ToLower().Contains(cleanBranchBase)));
         }
 
         if (!string.IsNullOrWhiteSpace(academicYearContext) && !academicYearContext.Equals("All", StringComparison.OrdinalIgnoreCase))
@@ -228,12 +236,10 @@ public class DashboardService : IDashboardService
             admQuery = admQuery.Where(a => 
                 (a.AcademicYear != null && (a.AcademicYear.ToLower().Replace(" ", "") == cleanYear ||
                                            a.AcademicYear.ToLower().Replace(" ", "").Contains(cleanYear) ||
-                                           cleanYear.Contains(a.AcademicYear.ToLower().Replace(" ", "")) ||
                                            a.AcademicYear.StartsWith(startYear))) ||
                 (a.AppliedClass != null && a.AppliedClass.AcademicYear != null &&
                 (a.AppliedClass.AcademicYear.ToLower().Replace(" ", "") == cleanYear ||
                  a.AppliedClass.AcademicYear.ToLower().Replace(" ", "").Contains(cleanYear) ||
-                 cleanYear.Contains(a.AppliedClass.AcademicYear.ToLower().Replace(" ", "")) ||
                  a.AppliedClass.AcademicYear.StartsWith(startYear))));
         }
 

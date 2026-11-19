@@ -41,8 +41,7 @@ public class SchoolRepository : ISchoolRepository
             query = query.Where(s => string.IsNullOrEmpty(s.BranchName) || 
                                      s.BranchName.ToLower() == cleanBranch || 
                                      s.BranchName.ToLower() == cleanBranchBase ||
-                                     s.BranchName.ToLower().Contains(cleanBranchBase) ||
-                                     cleanBranch.Contains(s.BranchName.ToLower()));
+                                     s.BranchName.ToLower().Contains(cleanBranchBase));
         }
 
         if (!string.IsNullOrWhiteSpace(department) && !department.Equals("All Departments", System.StringComparison.OrdinalIgnoreCase))
@@ -237,7 +236,9 @@ public class SchoolRepository : ISchoolRepository
                 var bObj = _context.Branches.FirstOrDefault(b => b.BranchId == bId);
                 if (bObj != null) branch = bObj.BranchName;
             }
-            query = query.Where(a => a.BranchName != null && (a.BranchName.ToLower() == branch.ToLower() || a.BranchName.ToLower().Contains(branch.ToLower()) || branch.ToLower().Contains(a.BranchName.ToLower())));
+            string cleanBranch = branch.Trim().ToLower();
+            string cleanBranchBase = cleanBranch.Replace(" branch", "").Replace(" campus", "").Trim();
+            query = query.Where(a => a.BranchName != null && (a.BranchName.ToLower() == cleanBranch || a.BranchName.ToLower() == cleanBranchBase || a.BranchName.ToLower().Contains(cleanBranchBase)));
         }
 
         if (!string.IsNullOrWhiteSpace(academicYear) && !academicYear.Equals("All", System.StringComparison.OrdinalIgnoreCase))
@@ -245,8 +246,8 @@ public class SchoolRepository : ISchoolRepository
             var cleanYear = academicYear.Trim().ToLower().Replace(" ", "");
             var startYear = cleanYear.Length >= 4 ? cleanYear.Substring(0, 4) : cleanYear;
             query = query.Where(a => 
-                (a.AcademicYear != null && (a.AcademicYear.ToLower().Replace(" ", "") == cleanYear || a.AcademicYear.ToLower().Replace(" ", "").Contains(cleanYear) || cleanYear.Contains(a.AcademicYear.ToLower().Replace(" ", "")) || a.AcademicYear.StartsWith(startYear))) ||
-                (a.AppliedClass != null && a.AppliedClass.AcademicYear != null && (a.AppliedClass.AcademicYear.ToLower().Replace(" ", "") == cleanYear || a.AppliedClass.AcademicYear.ToLower().Replace(" ", "").Contains(cleanYear) || cleanYear.Contains(a.AppliedClass.AcademicYear.ToLower().Replace(" ", "")) || a.AppliedClass.AcademicYear.StartsWith(startYear)))
+                (a.AcademicYear != null && (a.AcademicYear.ToLower().Replace(" ", "") == cleanYear || a.AcademicYear.ToLower().Replace(" ", "").Contains(cleanYear) || a.AcademicYear.StartsWith(startYear))) ||
+                (a.AppliedClass != null && a.AppliedClass.AcademicYear != null && (a.AppliedClass.AcademicYear.ToLower().Replace(" ", "") == cleanYear || a.AppliedClass.AcademicYear.ToLower().Replace(" ", "").Contains(cleanYear) || a.AppliedClass.AcademicYear.StartsWith(startYear)))
             );
         }
 
@@ -444,9 +445,8 @@ public class SchoolRepository : ISchoolRepository
                 var matchedBranchIds = await _context.Branches.AsNoTracking()
                     .Where(b => b.BranchName.ToLower() == cleanBranch ||
                                 b.BranchName.ToLower().Contains(cleanBranch) ||
-                                cleanBranch.Contains(b.BranchName.ToLower()) ||
-                                (!string.IsNullOrEmpty(keyword) && (b.BranchName.ToLower().Contains(keyword) || keyword.Contains(b.BranchName.ToLower()))) ||
-                                (!string.IsNullOrEmpty(keyword) && b.Address != null && (b.Address.ToLower().Contains(keyword) || keyword.Contains(b.Address.ToLower()))) ||
+                                (!string.IsNullOrEmpty(keyword) && b.BranchName.ToLower().Contains(keyword)) ||
+                                (!string.IsNullOrEmpty(keyword) && b.Address != null && b.Address.ToLower().Contains(keyword)) ||
                                 (!string.IsNullOrEmpty(b.BranchCode) && b.BranchCode.ToLower() == cleanBranch))
                     .Select(b => b.BranchId)
                     .ToListAsync();
@@ -480,7 +480,6 @@ public class SchoolRepository : ISchoolRepository
                 query = query.Where(s => s.AcademicYear != null &&
                     (s.AcademicYear.AcademicYearName.ToLower().Replace(" ", "") == cleanYear ||
                      s.AcademicYear.AcademicYearName.ToLower().Replace(" ", "").Contains(cleanYear) ||
-                     cleanYear.Contains(s.AcademicYear.AcademicYearName.ToLower().Replace(" ", "")) ||
                      s.AcademicYear.AcademicYearName.StartsWith(startYear)));
             }
         }

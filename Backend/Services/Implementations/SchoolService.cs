@@ -810,7 +810,9 @@ public class SchoolService : ISchoolService
 
 		if (!string.IsNullOrWhiteSpace(branch) && !branch.Equals("All Branches", StringComparison.OrdinalIgnoreCase) && !branch.Equals("All", StringComparison.OrdinalIgnoreCase) && !branch.Equals("All Campuses", StringComparison.OrdinalIgnoreCase))
 		{
-			studentQuery = studentQuery.Where(s => s.Branch != null && (s.Branch.BranchName.ToLower() == branch.ToLower() || s.Branch.BranchName.ToLower().Contains(branch.ToLower()) || branch.ToLower().Contains(s.Branch.BranchName.ToLower())));
+			string cleanBranch = branch.Trim().ToLower();
+			string cleanBranchBase = cleanBranch.Replace(" branch", "").Replace(" campus", "").Trim();
+			studentQuery = studentQuery.Where(s => s.Branch != null && (s.Branch.BranchName.ToLower() == cleanBranch || s.Branch.BranchName.ToLower() == cleanBranchBase || s.Branch.BranchName.ToLower().Contains(cleanBranchBase)));
 		}
 
 		if (!string.IsNullOrWhiteSpace(academicYear) && !academicYear.Equals("All", StringComparison.OrdinalIgnoreCase))

@@ -41,7 +41,6 @@ public class AdmissionsController : ControllerBase
             apps = apps.Where(a => !string.IsNullOrWhiteSpace(a.AcademicYear) &&
                                    (a.AcademicYear.ToLower().Replace(" ", "") == cleanYear ||
                                     a.AcademicYear.ToLower().Replace(" ", "").Contains(cleanYear) ||
-                                    cleanYear.Contains(a.AcademicYear.ToLower().Replace(" ", "")) ||
                                     a.AcademicYear.StartsWith(startYear))).ToList();
         }
 
