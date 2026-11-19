@@ -1165,7 +1165,12 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       formData.roomSharing ||
       formData.sharingType ||
       ""
-    ).toLowerCase();
+    ).toLowerCase().trim();
+
+    // If no room sharing preference has been selected yet, do not assume or pre-select a hostel accommodation fee!
+    if (!userSharing) {
+      return null;
+    }
 
     const userAc = (
       formData.hostelAc ||
@@ -1500,7 +1505,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       className: formData.appliedClass || formData.className || "Nursery",
       studentType: "Residential",
       residentialStatus: "Residential",
-      hostelSharing: formData.roomSharing || (formData as any).hostelSharing || formData.sharingType || "Single",
+      hostelSharing: formData.roomSharing || (formData as any).hostelSharing || formData.sharingType || "",
       hostelAc: formData.facilityPreference || (formData as any).hostelAc || formData.acType || "Non-AC",
       hostelBlock: formData.hostelBlock || "",
       feeHead: "Hostel Security Deposit",
@@ -3443,27 +3448,31 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     const isHostelOpted = isResidentForm;
 
     if (isHostelOpted) {
-      const chosenShare =
+      const chosenShare = (
         formData.hostelSharing ||
         formData.roomSharing ||
         formData.sharingType ||
-        "";
-      const chosenAc =
+        ""
+      ).trim();
+      const chosenAc = (
         formData.hostelAc ||
         formData.acType ||
         formData.hostelAcPreference ||
         formData.facilityPreference ||
-        "";
+        ""
+      ).trim();
       const secDep = applicableSecurityDeposit;
       const hstFee =
-        Number(
-          applicableHostelFeeConfig?.hostelFee ||
-          applicableHostelFeeConfig?.termFee,
-        ) || 0;
+        chosenShare && applicableHostelFeeConfig
+          ? (Number(
+              applicableHostelFeeConfig?.hostelFee ||
+              applicableHostelFeeConfig?.termFee,
+            ) || 0)
+          : 0;
 
       const prefTag = chosenShare
         ? (chosenAc ? ` (${chosenShare}, ${chosenAc})` : ` (${chosenShare})`)
-        : (chosenAc ? ` (${chosenAc})` : "");
+        : "";
 
       if (secDep > 0) {
         items.push({
@@ -3483,7 +3492,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
         });
       }
 
-      if (hstFee > 0) {
+      if (chosenShare && hstFee > 0) {
         items.push({
           name: `Hostel Accommodation Fee${prefTag}`,
           amount: hstFee,
@@ -3491,10 +3500,12 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
         });
       } else {
         items.push({
-          name: `Hostel Accommodation Fee${prefTag}`,
+          name: "Hostel Accommodation Fee",
           amount: 0,
           isApplicable: false,
-          remarks: chosenShare ? `No Fee Configured for ${chosenShare} in Fee Setup` : "No Hostel Fee Configured in Fee Setup",
+          remarks: !chosenShare
+            ? "Pending Room Sharing Selection"
+            : `No Fee Configured for ${chosenShare} in Fee Setup`,
         });
       }
     } else {
