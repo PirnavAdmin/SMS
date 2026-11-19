@@ -88,26 +88,26 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
 
   const modalContent = (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md animate-in fade-in"
+      className="fixed inset-0 z-[100] flex items-center justify-center p-2.5 sm:p-4 bg-slate-950/60 backdrop-blur-md animate-in fade-in"
       onClick={handleClose}
     >
       <div
-        className="glass-surface rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 relative"
+        className="glass-surface rounded-2xl sm:rounded-3xl max-w-md w-full p-4 sm:p-6 shadow-2xl space-y-4 relative max-h-[92vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-3">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
             <div
-              className={`p-3 rounded-2xl backdrop-blur-md shadow-xs ${getIconWrapperClass()}`}
+              className={`p-2.5 sm:p-3 rounded-xl sm:rounded-2xl backdrop-blur-md shadow-xs shrink-0 ${getIconWrapperClass()}`}
             >
               {getVariantIcon()}
             </div>
-            <div>
-              <h3 className="text-lg font-extrabold text-slate-900 dark:text-white tracking-tight">
+            <div className="min-w-0 flex-1">
+              <h3 className="text-base sm:text-lg font-extrabold text-slate-900 dark:text-white tracking-tight break-words">
                 {title}
               </h3>
               {subtitle && (
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-medium">
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-medium break-words">
                   {subtitle}
                 </p>
               )}
@@ -117,7 +117,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
             type="button"
             onClick={handleClose}
             disabled={isLoading}
-            className="w-8 h-8 rounded-full btn-glass-secondary flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer disabled:opacity-50"
+            className="w-8 h-8 rounded-full btn-glass-secondary flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer disabled:opacity-50 shrink-0"
             aria-label="Close"
           >
             <X className="w-4 h-4 shrink-0 stroke-[2.2]" />
@@ -137,7 +137,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
         )}
         {children}
 
-        <div className="flex items-center justify-end gap-3 pt-2">
+        <div className="flex flex-wrap items-center justify-end gap-2.5 sm:gap-3 pt-2">
           <button
             type="button"
             onClick={handleClose}

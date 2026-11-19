@@ -160,9 +160,13 @@ namespace SMS.Api.Controllers
                 ay.IsCurrent = true;
                 ay.IsActive = true;
             }
-            else if (!string.IsNullOrWhiteSpace(dto.Status))
+            else
             {
-                ay.IsActive = dto.Status != "Closed";
+                ay.IsCurrent = false;
+                if (!string.IsNullOrWhiteSpace(dto.Status))
+                {
+                    ay.IsActive = dto.Status != "Closed";
+                }
             }
 
             ay.UpdatedAt = DateTime.UtcNow;
@@ -176,11 +180,52 @@ namespace SMS.Api.Controllers
                 StartDate = ay.StartDate.ToString("yyyy-MM-dd"),
                 EndDate = ay.EndDate.ToString("yyyy-MM-dd"),
                 Status = ay.IsCurrent ? "Active" : (ay.IsActive ? "Upcoming" : "Closed"),
-                Description = dto.Description ?? "",
+                Description = dto.Description ?? (ay.IsCurrent ? "Current active academic session" : ""),
                 IsCurrentAcademicYear = ay.IsCurrent
             };
 
             return Ok(new { success = true, message = "Academic year updated successfully.", data = result });
+        }
+
+        // PUT: api/AcademicYears/{id}/set-current
+        // PATCH: api/AcademicYears/{id}/set-current
+        [HttpPut("{id}/set-current")]
+        [HttpPatch("{id}/set-current")]
+        public async Task<IActionResult> SetCurrentAcademicYear(string id)
+        {
+            int numId = 0;
+            if (int.TryParse(id, out var parsed)) numId = parsed;
+            else if (id.StartsWith("AY-") && int.TryParse(id.Replace("AY-", ""), out var parsedAy)) numId = parsedAy;
+
+            var ay = await _context.AcademicYears
+                .IgnoreQueryFilters()
+                .FirstOrDefaultAsync(x => x.AcademicYearId == numId || x.AcademicYearName.ToLower() == id.ToLower());
+            if (ay == null) return NotFound("Academic year not found.");
+
+            ay.IsDeleted = false;
+            var allYears = await _context.AcademicYears.ToListAsync();
+            foreach (var y in allYears)
+            {
+                y.IsCurrent = (y.AcademicYearId == ay.AcademicYearId);
+            }
+            ay.IsCurrent = true;
+            ay.IsActive = true;
+            ay.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+
+            var result = new AcademicYearDto
+            {
+                Id = $"AY-{ay.AcademicYearId}",
+                AcademicYearId = ay.AcademicYearId,
+                AcademicYear = ay.AcademicYearName,
+                StartDate = ay.StartDate.ToString("yyyy-MM-dd"),
+                EndDate = ay.EndDate.ToString("yyyy-MM-dd"),
+                Status = "Active",
+                Description = "Current active academic session",
+                IsCurrentAcademicYear = true
+            };
+
+            return Ok(new { success = true, message = $"Academic year {ay.AcademicYearName} set as active.", data = result });
         }
 
         // DELETE: api/AcademicYears/{id}

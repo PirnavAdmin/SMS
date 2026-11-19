@@ -38,6 +38,7 @@ import {
 import {
   createAcademicYearApi,
   updateAcademicYearApi,
+  setActiveAcademicYearApi,
   deleteAcademicYearApi,
   fetchAcademicYearsApi,
 } from "../api/settings";
@@ -678,9 +679,9 @@ interface DataContextType {
   updateAcademicYear: (
     id: string,
     updates: Partial<AcademicYearMaster>,
-  ) => void;
-  deleteAcademicYear: (id: string) => void;
-  setCurrentAcademicYear: (id: string) => void;
+  ) => Promise<any> | void;
+  deleteAcademicYear: (id: string) => Promise<void> | void;
+  setCurrentAcademicYear: (id: string) => Promise<void> | void;
   students: Student[];
   totalStudentCount: number;
   addStudent: (student: Omit<Student, "id">) => Student;
@@ -2359,14 +2360,42 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         isCurrentAcademicYear: Boolean(data?.isCurrentAcademicYear ?? (ayData.status === "Active")),
       };
 
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const isNowActive = created.isCurrentAcademicYear || created.status === "Active";
+
       setAcademicYears((prev) => {
-        let updated = prev.filter((a) => a.id !== created.id && a.academicYear.toLowerCase() !== created.academicYear.toLowerCase());
-        if (created.isCurrentAcademicYear) {
-          updated = updated.map((a) => ({ ...a, isCurrentAcademicYear: false }));
+        let updated = prev.filter(
+          (a) =>
+            a.id !== created.id &&
+            a.academicYear.toLowerCase() !== created.academicYear.toLowerCase()
+        );
+        if (isNowActive) {
+          // Enforce single active session: deactivate all other sessions
+          updated = updated.map((a) => {
+            const aEnd = a.endDate ? new Date(a.endDate) : null;
+            const aIsPast = aEnd && !isNaN(aEnd.getTime()) && aEnd < today;
+            return {
+              ...a,
+              isCurrentAcademicYear: false,
+              status: (a.status === "Active" ? (aIsPast ? ("Closed" as const) : ("Upcoming" as const)) : a.status) as "Upcoming" | "Active" | "Closed",
+            };
+          });
           setSelectedAcademicYear(created.academicYear);
+          try {
+            localStorage.setItem("selected_academic_year", created.academicYear);
+          } catch {}
         }
         return [...updated, created];
       });
+
+      // Sync fresh list from backend
+      try {
+        const freshRes: any = await fetchAcademicYearsApi();
+        if (freshRes?.success && Array.isArray(freshRes.data)) {
+          setAcademicYears(freshRes.data);
+        }
+      } catch {}
 
       window.dispatchEvent(new Event("academic_years_updated"));
       return created;
@@ -2381,45 +2410,88 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     updates: Partial<AcademicYearMaster>,
   ) => {
     try {
-      const res: any = await updateAcademicYearApi(id, updates);
-      const data = res?.data || updates;
-      const effectiveStatus = (data.status || updates.status) as "Active" | "Closed" | "Upcoming" | undefined;
-      const isNowActive = effectiveStatus === "Active" || (updates.isCurrentAcademicYear === true && effectiveStatus !== "Upcoming" && effectiveStatus !== "Closed");
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
 
+      const effectiveStatus = updates.status;
+      const isNowActive =
+        effectiveStatus === "Active" ||
+        (updates.isCurrentAcademicYear === true &&
+          effectiveStatus !== "Upcoming" &&
+          effectiveStatus !== "Closed");
+
+      // 1. Immediate optimistic update so UI changes INSTANTLY
       setAcademicYears((prev) => {
-        let updated = prev.map((a) => {
-          if (a.id === id || a.academicYear === id) {
+        const next = prev.map((a) => {
+          const isTarget = a.id === id || a.academicYear === id;
+          if (isTarget) {
             return {
               ...a,
-              ...data,
-              status: effectiveStatus || a.status,
+              ...updates,
+              status: (isNowActive ? "Active" : effectiveStatus || a.status) as "Upcoming" | "Active" | "Closed",
               isCurrentAcademicYear: isNowActive,
               updatedAt: new Date().toISOString(),
             };
           }
+          // Only one should be active for that branch/school: deactivate any other active session
+          if (isNowActive) {
+            const aEnd = a.endDate ? new Date(a.endDate) : null;
+            const aIsPast = aEnd && !isNaN(aEnd.getTime()) && aEnd < today;
+            return {
+              ...a,
+              isCurrentAcademicYear: false,
+              status: (a.status === "Active" ? (aIsPast ? "Closed" : "Upcoming") : a.status) as "Upcoming" | "Active" | "Closed",
+            };
+          }
           return a;
         });
-        if (isNowActive) {
-          const target = updated.find((a) => a.id === id || a.academicYear === id);
-          updated = updated.map((a) =>
-            a.id === id || a.academicYear === id
-              ? { ...a, isCurrentAcademicYear: true }
-              : { ...a, isCurrentAcademicYear: false },
-          );
-          if (target) setSelectedAcademicYear(target.academicYear);
-        } else {
-          updated = updated.map((a) =>
-            a.id === id || a.academicYear === id
-              ? { ...a, isCurrentAcademicYear: false }
-              : a,
+        return next;
+      });
+
+      if (isNowActive) {
+        const targetAyName = updates.academicYear || id;
+        setSelectedAcademicYear(targetAyName);
+        try {
+          localStorage.setItem("selected_academic_year", targetAyName);
+        } catch {}
+      }
+
+      window.dispatchEvent(new Event("academic_years_updated"));
+
+      // 2. Persist to Backend API
+      const res: any = await updateAcademicYearApi(id, {
+        ...updates,
+        isCurrentAcademicYear: isNowActive,
+        status: isNowActive ? "Active" : effectiveStatus,
+      });
+
+      // 3. Re-sync from backend to confirm database state
+      try {
+        const freshRes: any = await fetchAcademicYearsApi();
+        if (freshRes?.success && Array.isArray(freshRes.data)) {
+          setAcademicYears(freshRes.data);
+        } else if (res?.data) {
+          setAcademicYears((prev) =>
+            prev.map((a) =>
+              a.id === id || a.academicYear === id
+                ? { ...a, ...res.data, status: res.data.status || updates.status || a.status }
+                : a
+            )
           );
         }
-        return updated;
-      });
+      } catch {}
+
       window.dispatchEvent(new Event("academic_years_updated"));
       return res?.data;
     } catch (err: any) {
       console.error("Failed to update academic year on backend:", err);
+      // Re-sync on error to restore valid state
+      try {
+        const freshRes: any = await fetchAcademicYearsApi();
+        if (freshRes?.success && Array.isArray(freshRes.data)) {
+          setAcademicYears(freshRes.data);
+        }
+      } catch {}
       throw err;
     }
   };
@@ -2438,37 +2510,83 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  const setCurrentAcademicYear = (id: string) => {
+  const setCurrentAcademicYear = async (id: string) => {
+    const target = academicYears.find((a) => a.id === id || a.academicYear === id);
+    if (!target) return;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const end = target.endDate ? new Date(target.endDate) : null;
+    const isCompleted =
+      target.status === "Closed" ||
+      (end && !isNaN(end.getTime()) && end < today);
+    if (isCompleted) {
+      addToast(
+        "error",
+        "Action Not Allowed",
+        "Completed academic year cannot be set as active session.",
+      );
+      return;
+    }
+
+    // 1. Optimistic immediate state update so UI switches INSTANTLY with zero lag
+    setSelectedAcademicYear(target.academicYear);
+    try {
+      localStorage.setItem("selected_academic_year", target.academicYear);
+    } catch {}
+
     setAcademicYears((prev) => {
-      const target = prev.find((a) => a.id === id);
-      if (!target) return prev;
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const end = target.endDate ? new Date(target.endDate) : null;
-      const isCompleted =
-        target.status === "Closed" ||
-        (end && !isNaN(end.getTime()) && end < today);
-      if (isCompleted) {
-        addToast(
-          "error",
-          "Action Not Allowed",
-          "Completed academic year cannot be set as active session.",
-        );
-        return prev;
-      }
-      setSelectedAcademicYear(target.academicYear);
-      const next: AcademicYearMaster[] = prev.map((a) => ({
-        ...a,
-        isCurrentAcademicYear: a.id === id,
-        status: (a.id === id
-          ? "Active"
-          : a.status === "Active"
-            ? "Closed"
-            : a.status) as "Upcoming" | "Active" | "Closed",
-      }));
-      window.dispatchEvent(new Event("academic_years_updated"));
-      return next;
+      return prev.map((a) => {
+        const isMatch = a.id === id || a.academicYear === id;
+        if (isMatch) {
+          return {
+            ...a,
+            status: "Active" as const,
+            isCurrentAcademicYear: true,
+            description: a.description || "Current active academic session",
+          };
+        }
+        // Only ONE should be active for that branch/school - deactivate any other active session
+        const wasActive = a.status === "Active" || a.isCurrentAcademicYear;
+        const aEnd = a.endDate ? new Date(a.endDate) : null;
+        const aIsPast = aEnd && !isNaN(aEnd.getTime()) && aEnd < today;
+        return {
+          ...a,
+          isCurrentAcademicYear: false,
+          status: wasActive ? (aIsPast ? ("Closed" as const) : ("Upcoming" as const)) : a.status,
+        };
+      });
     });
+    window.dispatchEvent(new Event("academic_years_updated"));
+
+    // 2. Persist to Backend API immediately
+    try {
+      try {
+        await setActiveAcademicYearApi(target.id);
+      } catch {
+        // Fallback to updateAcademicYearApi
+        await updateAcademicYearApi(target.id, {
+          ...target,
+          status: "Active",
+          isCurrentAcademicYear: true,
+        });
+      }
+      // 3. Re-sync from backend to guarantee exact consistency
+      const res: any = await fetchAcademicYearsApi();
+      if (res?.success && Array.isArray(res.data)) {
+        setAcademicYears(res.data);
+      }
+      window.dispatchEvent(new Event("academic_years_updated"));
+    } catch (err) {
+      console.error("Failed to persist active academic year to backend:", err);
+      // Re-sync on error to restore valid state
+      try {
+        const freshRes: any = await fetchAcademicYearsApi();
+        if (freshRes?.success && Array.isArray(freshRes.data)) {
+          setAcademicYears(freshRes.data);
+        }
+      } catch {}
+      throw err;
+    }
   };
 
 
@@ -4348,7 +4466,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               return {
                 id: item.applicationId
                   ? item.applicationId.toString()
-                  : existing?.id || Math.random().toString(),
+                  : item.id
+                    ? item.id.toString()
+                    : existing?.id || Math.random().toString(),
                 studentId:
                   item.studentId ||
                   item.registrationNo ||
@@ -7361,8 +7481,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const updateStudent = (id: string, updates: Partial<Student>) => {
-    const oldStudent = students.find((s) => s.id === id);
-    const numericId = parseInt(id, 10);
+    const oldStudent = students.find(
+      (s) =>
+        s.id === id ||
+        (s.admissionNo && String(s.admissionNo).toLowerCase() === String(id).toLowerCase()) ||
+        ((s as any).studentId && String((s as any).studentId).toLowerCase() === String(id).toLowerCase())
+    );
+    const numericId = parseInt(oldStudent?.id || id, 10);
 
     const targetClassName = updates.className || oldStudent?.className || "";
     if (

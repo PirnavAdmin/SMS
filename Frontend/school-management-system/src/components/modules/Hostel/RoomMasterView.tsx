@@ -588,7 +588,7 @@ export const RoomMasterView: React.FC<RoomMasterViewProps> = ({ selectedHostelFi
 
               <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800">
                 <button type="button" onClick={() => setIsModalOpen(false)} disabled={isSubmitting} className="px-4 py-2 text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">Cancel</button>
-                <button type="submit" disabled={isSubmitting} className="px-5 py-2 text-xs font-bold bg-sky-600 hover:bg-sky-500 text-white rounded-xl shadow-lg shadow-sky-500/20 disabled:opacity-50">
+                <button type="submit" disabled={isSubmitting} className="btn-glass-primary px-5 py-2 text-xs font-bold text-white rounded-xl shadow-lg disabled:opacity-50">
                   {isSubmitting ? 'Saving...' : 'Save'}
                 </button>
               </div>

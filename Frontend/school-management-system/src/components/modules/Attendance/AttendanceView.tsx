@@ -651,7 +651,7 @@ export const AttendanceView = () => {
       setLoading(false);
     }, 250);
     return () => clearTimeout(timer);
-  }, [selectedClassId, selectedSection, date]);
+  }, [selectedClass, selectedSection, date]);
  
   useEffect(() => {
     if (fetchStudents && (!allStudents || allStudents.length === 0)) {

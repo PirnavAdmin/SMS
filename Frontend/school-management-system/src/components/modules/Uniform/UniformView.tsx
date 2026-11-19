@@ -778,7 +778,7 @@ export const UniformView: React.FC<{tabs?: React.ReactNode}> = ({ tabs }) => {
 
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <button type="button" onClick={() => setIsFormOpen(false)} className="px-4 py-2 font-semibold bg-slate-100 dark:bg-slate-800 rounded-xl">Cancel</button>
-                <button type="submit" className="px-4.5 py-2 font-bold bg-sky-600 hover:bg-sky-500 text-white rounded-xl shadow-lg shadow-sky-500/20 transition-all">
+                <button type="submit" className="btn-glass-primary px-4.5 py-2 font-bold text-white rounded-xl shadow-lg transition-all">
                   Save Uniform Type
                 </button>
               </div>

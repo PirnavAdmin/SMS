@@ -139,15 +139,6 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
   }, [fetchDepartments, fetchDesignations]);
 
   const todayStr = new Date().toLocaleDateString('en-CA');
-  const [loading, setLoading] = useState<boolean>(true);
-
-  useEffect(() => {
-    setLoading(true);
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 250);
-    return () => clearTimeout(timer);
-  }, [activeTab, selectedBranch, selectedDate]);
 
   const getLeaveTypeAllowance = (codeOrName: string): number => {
     const q = codeOrName.toLowerCase();
@@ -2351,6 +2342,16 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
   const [regToDate, setRegToDate] = useState("");
 
   const [dateMode, setDateMode] = useState<'Daily' | 'Monthly' | 'Custom Range' | 'Select' | ''>('');
+
+  const [loading, setLoading] = useState<boolean>(true);
+
+  useEffect(() => {
+    setLoading(true);
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [activeTab, selectedBranch, attendanceDate]);
 
   const prevAYRef = useRef(selectedAcademicYear);
   useEffect(() => {

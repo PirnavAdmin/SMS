@@ -1,30 +1,64 @@
-:root {
+:root,
+html {
   --primary-color: #0284c7;
   --secondary-color: #f59e0b;
 
   --color-primary: var(--primary-color);
   --color-secondary: var(--secondary-color);
 
+  /* Dynamically map Tailwind sky palette to --primary-color */
+  --color-sky-50: color-mix(in srgb, var(--primary-color) 8%, #ffffff);
+  --color-sky-100: color-mix(in srgb, var(--primary-color) 16%, #ffffff);
+  --color-sky-200: color-mix(in srgb, var(--primary-color) 28%, #ffffff);
+  --color-sky-300: color-mix(in srgb, var(--primary-color) 45%, #ffffff);
+  --color-sky-400: color-mix(in srgb, var(--primary-color) 70%, #ffffff);
+  --color-sky-500: var(--primary-color);
+  --color-sky-600: color-mix(in srgb, var(--primary-color) 88%, #000000);
+  --color-sky-700: color-mix(in srgb, var(--primary-color) 74%, #000000);
+  --color-sky-800: color-mix(in srgb, var(--primary-color) 60%, #000000);
+  --color-sky-900: color-mix(in srgb, var(--primary-color) 45%, #000000);
+  --color-sky-950: color-mix(in srgb, var(--primary-color) 30%, #000000);
+
   /* Dynamically map Tailwind brand palette to --primary-color */
-  --color-brand-50: color-mix(in srgb, var(--primary-color) 8%, #ffffff);
-  --color-brand-100: color-mix(in srgb, var(--primary-color) 16%, #ffffff);
-  --color-brand-200: color-mix(in srgb, var(--primary-color) 28%, #ffffff);
-  --color-brand-300: color-mix(in srgb, var(--primary-color) 45%, #ffffff);
-  --color-brand-400: color-mix(in srgb, var(--primary-color) 70%, #ffffff);
-  --color-brand-500: var(--primary-color);
-  --color-brand-600: color-mix(in srgb, var(--primary-color) 88%, #000000);
-  --color-brand-700: color-mix(in srgb, var(--primary-color) 74%, #000000);
-  --color-brand-800: color-mix(in srgb, var(--primary-color) 60%, #000000);
-  --color-brand-900: color-mix(in srgb, var(--primary-color) 45%, #000000);
-  --color-brand-950: color-mix(in srgb, var(--primary-color) 30%, #000000);
+  --color-brand-50: var(--color-sky-50);
+  --color-brand-100: var(--color-sky-100);
+  --color-brand-200: var(--color-sky-200);
+  --color-brand-300: var(--color-sky-300);
+  --color-brand-400: var(--color-sky-400);
+  --color-brand-500: var(--color-sky-500);
+  --color-brand-600: var(--color-sky-600);
+  --color-brand-700: var(--color-sky-700);
+  --color-brand-800: var(--color-sky-800);
+  --color-brand-900: var(--color-sky-900);
+  --color-brand-950: var(--color-sky-950);
+
+  /* Dynamically map Tailwind amber palette to --secondary-color */
+  --color-amber-50: color-mix(in srgb, var(--secondary-color) 8%, #ffffff);
+  --color-amber-100: color-mix(in srgb, var(--secondary-color) 16%, #ffffff);
+  --color-amber-200: color-mix(in srgb, var(--secondary-color) 28%, #ffffff);
+  --color-amber-300: color-mix(in srgb, var(--secondary-color) 45%, #ffffff);
+  --color-amber-400: color-mix(in srgb, var(--secondary-color) 70%, #ffffff);
+  --color-amber-500: var(--secondary-color);
+  --color-amber-600: color-mix(in srgb, var(--secondary-color) 88%, #000000);
+  --color-amber-700: color-mix(in srgb, var(--secondary-color) 74%, #000000);
+  --color-amber-800: color-mix(in srgb, var(--secondary-color) 60%, #000000);
+  --color-amber-900: color-mix(in srgb, var(--secondary-color) 45%, #000000);
+  --color-amber-950: color-mix(in srgb, var(--secondary-color) 30%, #000000);
 }
 
 html.dark,
 :root.dark,
 .dark {
-  --color-brand-950: color-mix(in srgb, var(--primary-color) 20%, #020617);
-  --color-brand-900: color-mix(in srgb, var(--primary-color) 32%, #020617);
-  --color-brand-800: color-mix(in srgb, var(--primary-color) 48%, #020617);
+  --color-sky-950: color-mix(in srgb, var(--primary-color) 20%, #020617);
+  --color-sky-900: color-mix(in srgb, var(--primary-color) 32%, #020617);
+  --color-sky-800: color-mix(in srgb, var(--primary-color) 48%, #020617);
+  --color-brand-950: var(--color-sky-950);
+  --color-brand-900: var(--color-sky-900);
+  --color-brand-800: var(--color-sky-800);
+
+  --color-amber-950: color-mix(in srgb, var(--secondary-color) 20%, #020617);
+  --color-amber-900: color-mix(in srgb, var(--secondary-color) 32%, #020617);
+  --color-amber-800: color-mix(in srgb, var(--secondary-color) 48%, #020617);
 }
 
 /* ========================================================

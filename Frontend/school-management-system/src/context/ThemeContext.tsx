@@ -154,6 +154,44 @@ export const applyThemeToDocument = (primaryColor: string, secondaryColor: strin
   root.style.setProperty('--secondary-color', secondaryColor);
   root.style.setProperty('--color-primary', primaryColor);
   root.style.setProperty('--color-secondary', secondaryColor);
+
+  // Directly set sky and brand scales on root element for guaranteed dynamic reactivity
+  root.style.setProperty('--color-sky-50', `color-mix(in srgb, ${primaryColor} 8%, #ffffff)`);
+  root.style.setProperty('--color-sky-100', `color-mix(in srgb, ${primaryColor} 16%, #ffffff)`);
+  root.style.setProperty('--color-sky-200', `color-mix(in srgb, ${primaryColor} 28%, #ffffff)`);
+  root.style.setProperty('--color-sky-300', `color-mix(in srgb, ${primaryColor} 45%, #ffffff)`);
+  root.style.setProperty('--color-sky-400', `color-mix(in srgb, ${primaryColor} 70%, #ffffff)`);
+  root.style.setProperty('--color-sky-500', primaryColor);
+  root.style.setProperty('--color-sky-600', `color-mix(in srgb, ${primaryColor} 88%, #000000)`);
+  root.style.setProperty('--color-sky-700', `color-mix(in srgb, ${primaryColor} 74%, #000000)`);
+  root.style.setProperty('--color-sky-800', `color-mix(in srgb, ${primaryColor} 60%, #000000)`);
+  root.style.setProperty('--color-sky-900', `color-mix(in srgb, ${primaryColor} 45%, #000000)`);
+  root.style.setProperty('--color-sky-950', `color-mix(in srgb, ${primaryColor} 30%, #000000)`);
+
+  root.style.setProperty('--color-brand-50', `color-mix(in srgb, ${primaryColor} 8%, #ffffff)`);
+  root.style.setProperty('--color-brand-100', `color-mix(in srgb, ${primaryColor} 16%, #ffffff)`);
+  root.style.setProperty('--color-brand-200', `color-mix(in srgb, ${primaryColor} 28%, #ffffff)`);
+  root.style.setProperty('--color-brand-300', `color-mix(in srgb, ${primaryColor} 45%, #ffffff)`);
+  root.style.setProperty('--color-brand-400', `color-mix(in srgb, ${primaryColor} 70%, #ffffff)`);
+  root.style.setProperty('--color-brand-500', primaryColor);
+  root.style.setProperty('--color-brand-600', `color-mix(in srgb, ${primaryColor} 88%, #000000)`);
+  root.style.setProperty('--color-brand-700', `color-mix(in srgb, ${primaryColor} 74%, #000000)`);
+  root.style.setProperty('--color-brand-800', `color-mix(in srgb, ${primaryColor} 60%, #000000)`);
+  root.style.setProperty('--color-brand-900', `color-mix(in srgb, ${primaryColor} 45%, #000000)`);
+  root.style.setProperty('--color-brand-950', `color-mix(in srgb, ${primaryColor} 30%, #000000)`);
+
+  // Directly set amber scale on root element
+  root.style.setProperty('--color-amber-50', `color-mix(in srgb, ${secondaryColor} 8%, #ffffff)`);
+  root.style.setProperty('--color-amber-100', `color-mix(in srgb, ${secondaryColor} 16%, #ffffff)`);
+  root.style.setProperty('--color-amber-200', `color-mix(in srgb, ${secondaryColor} 28%, #ffffff)`);
+  root.style.setProperty('--color-amber-300', `color-mix(in srgb, ${secondaryColor} 45%, #ffffff)`);
+  root.style.setProperty('--color-amber-400', `color-mix(in srgb, ${secondaryColor} 70%, #ffffff)`);
+  root.style.setProperty('--color-amber-500', secondaryColor);
+  root.style.setProperty('--color-amber-600', `color-mix(in srgb, ${secondaryColor} 88%, #000000)`);
+  root.style.setProperty('--color-amber-700', `color-mix(in srgb, ${secondaryColor} 74%, #000000)`);
+  root.style.setProperty('--color-amber-800', `color-mix(in srgb, ${secondaryColor} 60%, #000000)`);
+  root.style.setProperty('--color-amber-900', `color-mix(in srgb, ${secondaryColor} 45%, #000000)`);
+  root.style.setProperty('--color-amber-950', `color-mix(in srgb, ${secondaryColor} 30%, #000000)`);
 };
 
 export interface ThemeContextType {

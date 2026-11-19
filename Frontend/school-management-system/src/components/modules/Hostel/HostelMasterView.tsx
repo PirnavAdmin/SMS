@@ -606,7 +606,7 @@ export const HostelMasterView: React.FC<HostelMasterViewProps> = ({
 
               <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800">
                 <button type="button" onClick={() => !isSubmitting && setIsModalOpen(false)} className="px-4 py-2 text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" disabled={isSubmitting}>Cancel</button>
-                <button type="submit" disabled={isSubmitting} className="px-5 py-2 text-xs font-bold bg-sky-600 text-white rounded-xl shadow-lg shadow-sky-500/20 hover:bg-sky-500 transition-all disabled:opacity-50">
+                <button type="submit" disabled={isSubmitting} className="btn-glass-primary px-5 py-2 text-xs font-bold text-white rounded-xl shadow-lg transition-all disabled:opacity-50">
                   {isSubmitting ? 'Saving...' : 'Save'}
                 </button>
               </div>

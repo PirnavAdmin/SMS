@@ -42,6 +42,7 @@ import {
   Send,
   ShieldCheck,
   CreditCard,
+  AlertTriangle,
 } from "lucide-react";
 import {
   AdmissionApplication,
@@ -4202,8 +4203,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
                 {/* Popup Modal for Late Admission Fee Calculation */}
                 {isMidYearFeeModalOpen && (
-                  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in">
-                    <div className="w-full max-w-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl p-6 space-y-5 animate-in zoom-in-95 text-slate-900 dark:text-white">
+                  <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in">
+                    <div className="w-full max-w-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-3xl shadow-2xl p-4 sm:p-6 space-y-5 animate-in zoom-in-95 text-slate-900 dark:text-white max-h-[92vh] overflow-y-auto">
                       <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
                         <h3 className="font-extrabold text-slate-900 dark:text-white text-base">
                           Fee Calculation Method (Late Admission) <span className="text-rose-500 font-bold ml-0.5">*</span>
@@ -4294,7 +4295,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                         <button
                           type="button"
                           onClick={() => setIsMidYearFeeModalOpen(false)}
-                          className="px-6 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs shadow-lg shadow-sky-600/20 transition-all cursor-pointer"
+                          className="btn-glass-primary px-6 py-2.5 rounded-xl text-white font-extrabold text-xs shadow-lg transition-all cursor-pointer"
                         >
                           Confirm & Apply Method
                         </button>
@@ -5440,7 +5441,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                 <button
                   type="submit"
                   disabled={isSubmitting || isSubmittingForm}
-                  className="px-6 py-2.5 text-xs font-bold text-white bg-sky-600 hover:bg-sky-500 rounded-xl shadow-lg shadow-brand-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer"
+                  className="btn-glass-primary px-6 py-2.5 text-xs font-bold text-white rounded-xl shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 cursor-pointer"
                 >
                   {(isSubmitting || isSubmittingForm) ? (
                     <>
@@ -5661,7 +5662,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           </button>
           <button
             onClick={handleOpenAdd}
-            className="inline-flex py-2 px-4 items-center gap-2 rounded-xl bg-sky-600 text-[11px] font-black text-white hover:bg-sky-700 shadow-lg shadow-sky-500/20"
+            className="btn-glass-primary inline-flex py-2 px-4 items-center gap-2 rounded-xl text-[11px] font-black text-white shadow-lg cursor-pointer active:scale-95 transition-all"
           >
             <Plus className="w-4 h-4" /> New Admission
           </button>
@@ -6070,8 +6071,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
       {/* View Application Details Modal */}
       {selectedAppForView && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col shadow-2xl animate-in slide-in-from-bottom-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-2xl sm:rounded-3xl max-w-3xl w-full max-h-[92vh] overflow-hidden flex flex-col shadow-2xl animate-in slide-in-from-bottom-4">
             {/* Header with Pirnav Sky Theme Styling */}
             <div className="p-5 sm:p-6 bg-sky-50 dark:bg-sky-950/40 border-b border-sky-200 dark:border-sky-800 text-slate-900 dark:text-white relative overflow-hidden shrink-0">
               <div className="relative z-10 flex items-start justify-between gap-4">
@@ -6690,8 +6691,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           );
 
           return (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
-              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
+              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-3xl max-w-lg w-full p-4 sm:p-6 shadow-2xl space-y-5 max-h-[92vh] overflow-y-auto">
                 {/* Header */}
                 <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                   <div>
@@ -7036,8 +7037,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
       {/* ENTERPRISE BULK UPLOAD ADMISSION APPLICATIONS MODAL */}
       {isBulkModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="relative w-full max-w-lg rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-6 shadow-2xl animate-in zoom-in-95 duration-200 space-y-5">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="relative w-full max-w-lg rounded-2xl sm:rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-4 sm:p-6 shadow-2xl animate-in zoom-in-95 duration-200 space-y-5 max-h-[92vh] overflow-y-auto">
             {/* Close Button */}
             <button
               onClick={closeBulkModal}
@@ -7062,7 +7063,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
               <button
                 type="button"
                 onClick={handleDownloadTemplate}
-                className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-extrabold shadow-md flex items-center gap-2 transition-all cursor-pointer"
+                className="btn-glass-primary px-4 py-2 rounded-xl text-white text-xs font-extrabold shadow-md flex items-center gap-2 transition-all cursor-pointer"
               >
                 <Download className="w-4 h-4" /> Download Template
               </button>
@@ -7156,7 +7157,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                 type="button"
                 onClick={handleStartBulkUpload}
                 disabled={!selectedFile || isUploading}
-                className="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 disabled:bg-slate-200 dark:disabled:bg-slate-800 text-white disabled:text-slate-400 text-xs font-extrabold shadow-lg shadow-sky-600/20 transition-all disabled:shadow-none cursor-pointer flex items-center gap-2"
+                className="btn-glass-primary px-5 py-2.5 rounded-xl disabled:bg-slate-200 dark:disabled:bg-slate-800 text-white disabled:text-slate-400 text-xs font-extrabold shadow-lg transition-all disabled:shadow-none cursor-pointer flex items-center gap-2"
               >
                 {isUploading ? "Uploading..." : "Upload Applications"}
               </button>

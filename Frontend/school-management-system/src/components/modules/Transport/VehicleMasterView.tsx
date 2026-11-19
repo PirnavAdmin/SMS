@@ -343,8 +343,8 @@ export const VehicleMasterView: React.FC = () => {
 
       {/* Edit/Add Vehicle Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl flex flex-col max-h-[90vh] space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-3xl max-w-lg w-full p-4 sm:p-6 shadow-2xl flex flex-col max-h-[92vh] space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 shrink-0">
               <h3 className="text-base font-bold text-slate-900 dark:text-white">
                 {editingVehicle ? 'Edit Vehicle Master' : 'Register Vehicle Master'}
@@ -354,7 +354,7 @@ export const VehicleMasterView: React.FC = () => {
 
             <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 space-y-4 text-xs">
               <div className="flex-1 overflow-y-auto space-y-3.5 pr-2 pb-4 scrollbar-thin">
-                <div className="grid grid-cols-2 gap-3.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                   <div>
                     <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Vehicle Number <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                     <input
@@ -379,7 +379,7 @@ export const VehicleMasterView: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                   <div>
                     <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Vehicle Type</label>
                     <select
@@ -404,7 +404,7 @@ export const VehicleMasterView: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                   <div>
                     <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Seating Capacity <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                     <input
@@ -436,7 +436,7 @@ export const VehicleMasterView: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                   <div>
                     <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Chassis Number</label>
                     <input
@@ -459,7 +459,7 @@ export const VehicleMasterView: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                   <div>
                     <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">GPS Device ID</label>
                     <input
@@ -481,7 +481,7 @@ export const VehicleMasterView: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                   <div>
                     <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">Pollution (PUC) Expiry</label>
                     <input
@@ -505,7 +505,7 @@ export const VehicleMasterView: React.FC = () => {
 
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800 shrink-0">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 font-semibold bg-slate-100 dark:bg-slate-800 rounded-xl">Cancel</button>
-                <button type="submit" className="px-5 py-2 font-bold bg-sky-600 text-white rounded-xl shadow-lg shadow-sky-500/20">Save</button>
+                <button type="submit" className="btn-glass-primary px-5 py-2 font-bold text-white rounded-xl shadow-lg">Save</button>
               </div>
             </form>
           </div>
@@ -514,8 +514,8 @@ export const VehicleMasterView: React.FC = () => {
 
       {/* VEHICLE DOCUMENTS MODAL */}
       {docModalVehicle && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-xl w-full p-6 shadow-2xl flex flex-col max-h-[90vh] space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2.5 sm:p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-3xl max-w-xl w-full p-4 sm:p-6 shadow-2xl flex flex-col max-h-[92vh] space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 shrink-0">
               <div>
                 <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
