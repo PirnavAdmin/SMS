@@ -311,23 +311,6 @@ export const TransactionsMasterLedgerView: React.FC<TransactionsMasterLedgerView
     return (financeTransactions || []).filter((t) => {
       const ref = (t.referenceNumber || '').trim();
       const tid = (t.transactionId || t.id || '').trim();
-      const isMock =
-        ref === "REC-2026-2463" ||
-        ref === "REC-2026-7360" ||
-        ref === "REC-2026-1469" ||
-        ref === "REC-2026-7198" ||
-        tid === "TXN-LED-0001" ||
-        tid === "TXN-LED-0002" ||
-        tid === "TXN-LED-0003" ||
-        tid === "TXN-LED-0004" ||
-        ref.includes("2463") ||
-        ref.includes("7360") ||
-        ref.includes("1469") ||
-        ref.includes("7198") ||
-        tid.includes("2463") ||
-        tid.includes("7360") ||
-        (t.description && t.description.includes("ADM-179"));
-      if (isMock) return false;
       if (ref && seenRefs.has(ref)) return false;
       if (tid && seenIds.has(tid)) return false;
       if (ref) seenRefs.add(ref);

@@ -234,21 +234,13 @@ public class FinanceMasterRepository : IFinanceMasterRepository
             {
                 if (feeReceiptNos.Contains(l.ReferenceNo)) continue;
                 if (expenseRefs.Contains(l.ReferenceNo)) continue;
-                if (l.ReferenceNo.Equals("REC-2026-2463", StringComparison.OrdinalIgnoreCase) ||
-                    l.ReferenceNo.Equals("REC-2026-7360", StringComparison.OrdinalIgnoreCase) ||
-                    l.ReferenceNo.Equals("REC-2026-1469", StringComparison.OrdinalIgnoreCase) ||
-                    l.ReferenceNo.Equals("REC-2026-7198", StringComparison.OrdinalIgnoreCase) ||
-                    l.ReferenceNo.Contains("2463") ||
-                    l.ReferenceNo.Contains("7360") ||
-                    l.ReferenceNo.Contains("1469") ||
-                    l.ReferenceNo.Contains("7198"))
-                    continue;
             }
-            if (l.Category == "Fee Refund") continue; // Pending refund requests live in FeeRefundRequests until disbursed
-
-            // Skip legacy mock test transactions with dummy admission numbers
-            if (!string.IsNullOrWhiteSpace(l.AdmissionNo) && (l.AdmissionNo.StartsWith("ADM-179", StringComparison.OrdinalIgnoreCase) || l.AdmissionNo.Contains("2463")))
+            if (string.Equals(l.TransactionType, "Fee Collection", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(l.TransactionType, "Expense", StringComparison.OrdinalIgnoreCase))
+            {
                 continue;
+            }
+            if (string.Equals(l.Category, "Fee Refund", StringComparison.OrdinalIgnoreCase)) continue; // Pending refund requests live in FeeRefundRequests until disbursed
 
             bool isReversed = (l.Particulars ?? "").Contains("[Reversed", StringComparison.OrdinalIgnoreCase);
             string acctName = l.FinancialAccountId.HasValue && accountNameById.TryGetValue(l.FinancialAccountId.Value, out var an)
@@ -377,21 +369,17 @@ public class FinanceMasterRepository : IFinanceMasterRepository
             .ToListAsync();
 
         var excludedRefs = new HashSet<string>(feeReceipts.Concat(expenseRefs), StringComparer.OrdinalIgnoreCase);
-        excludedRefs.Add("REC-2026-2463");
-        excludedRefs.Add("REC-2026-7360");
-        excludedRefs.Add("REC-2026-1469");
-        excludedRefs.Add("REC-2026-7198");
 
         var ledgers = await _context.LedgerEntries.AsNoTracking()
             .Where(l => l.Category != "Fee Refund")
-            .Select(l => new { l.ReferenceNo, l.Credit, l.Debit, l.TransactionDate, l.Particulars, l.AdmissionNo })
+            .Select(l => new { l.ReferenceNo, l.TransactionType, l.Credit, l.Debit, l.TransactionDate, l.Particulars, l.AdmissionNo })
             .ToListAsync();
 
         var standaloneLedgers = ledgers
-            .Where(l => (string.IsNullOrWhiteSpace(l.ReferenceNo) || (!excludedRefs.Contains(l.ReferenceNo) && !l.ReferenceNo.Contains("2463") && !l.ReferenceNo.Contains("7360") && !l.ReferenceNo.Contains("1469") && !l.ReferenceNo.Contains("7198"))) &&
-                        !(l.Particulars ?? "").Contains("[Reversed", StringComparison.OrdinalIgnoreCase) &&
-                        !((l.AdmissionNo ?? "").StartsWith("ADM-179", StringComparison.OrdinalIgnoreCase)) &&
-                        !((l.AdmissionNo ?? "").Contains("2463")))
+            .Where(l => (string.IsNullOrWhiteSpace(l.ReferenceNo) || !excludedRefs.Contains(l.ReferenceNo)) &&
+                        !string.Equals(l.TransactionType, "Fee Collection", StringComparison.OrdinalIgnoreCase) &&
+                        !string.Equals(l.TransactionType, "Expense", StringComparison.OrdinalIgnoreCase) &&
+                        !(l.Particulars ?? "").Contains("[Reversed", StringComparison.OrdinalIgnoreCase))
             .ToList();
 
         decimal manualInflow = standaloneLedgers.Sum(l => l.Credit);
