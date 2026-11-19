@@ -27,10 +27,10 @@ export const PendingApprovalsCard: React.FC<PendingApprovalsCardProps> = ({
   const animProgress = useEaseProgress(1300, 0, `${admissionsCount}-${staffCount}-${leavesCount}-${feeCount}`);
 
   // Percentage calculations
-  const admissionsPct = total > 0 ? Math.round((admissionsCount / total) * 100) : 0;
-  const staffPct = total > 0 ? Math.round((staffCount / total) * 100) : 0;
-  const leavesPct = total > 0 ? Math.round((leavesCount / total) * 100) : 0;
-  const feePct = total > 0 ? Math.max(0, 100 - admissionsPct - staffPct - leavesPct) : 0;
+  const admissionsPct = total > 0 && admissionsCount > 0 ? Math.round((admissionsCount / total) * 100) : 0;
+  const staffPct = total > 0 && staffCount > 0 ? Math.round((staffCount / total) * 100) : 0;
+  const leavesPct = total > 0 && leavesCount > 0 ? Math.round((leavesCount / total) * 100) : 0;
+  const feePct = total > 0 && feeCount > 0 ? Math.round((feeCount / total) * 100) : 0;
 
   const formatCount = (count: number): string => {
     return count < 10 && count >= 0 ? `0${count}` : `${count}`;

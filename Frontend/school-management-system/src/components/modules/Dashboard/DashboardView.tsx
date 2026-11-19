@@ -57,10 +57,10 @@ const PremiumDonutChart: React.FC<{
   const lateVal = stats.late;
   const halfDayVal = stats.halfDay;
 
-  const presentPct = Math.round((presentVal / total) * 100);
-  const absentPct = Math.round((absentVal / total) * 100);
-  const latePct = Math.round((lateVal / total) * 100);
-  const halfDayPct = Math.max(0, 100 - presentPct - absentPct - latePct);
+  const presentPct = total > 0 && presentVal > 0 ? Math.round((presentVal / total) * 100) : 0;
+  const absentPct = total > 0 && absentVal > 0 ? Math.round((absentVal / total) * 100) : 0;
+  const latePct = total > 0 && lateVal > 0 ? Math.round((lateVal / total) * 100) : 0;
+  const halfDayPct = total > 0 && halfDayVal > 0 ? Math.round((halfDayVal / total) * 100) : 0;
 
   const rotPresent = -90;
   const rotAbsent = rotPresent + (presentVal / total) * 360;
@@ -442,32 +442,32 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
 
   // Real-Time Student Attendance from Backend Summary
   const attendanceStats = useMemo(() => {
+    let present = 0;
+    let absent = 0;
+    let late = 0;
+    let halfDay = 0;
+    let total = 0;
+
     if (summaryData?.studentAttendance && summaryData.studentAttendance.total > 0) {
-      const { present, absent, late, halfDay, total, presentPct } = summaryData.studentAttendance;
-      const latePct = Math.round((late / total) * 100);
-      const halfDayPct = Math.round((halfDay / total) * 100);
-      const absentPct = Math.max(0, 100 - presentPct - latePct - halfDayPct);
-      return {
-        present, absent, late, halfDay, total,
-        presentPct, latePct, halfDayPct, absentPct,
-        pEnd: presentPct, lEnd: presentPct + latePct, hdEnd: presentPct + latePct + halfDayPct
-      };
+      present = summaryData.studentAttendance.present || 0;
+      absent = summaryData.studentAttendance.absent || 0;
+      late = summaryData.studentAttendance.late || 0;
+      halfDay = summaryData.studentAttendance.halfDay || 0;
+      total = summaryData.studentAttendance.total;
+    } else if (todayStudentAttendanceSummary && todayStudentAttendanceSummary.totalDays > 0) {
+      present = todayStudentAttendanceSummary.present || 0;
+      absent = todayStudentAttendanceSummary.absent || 0;
+      late = todayStudentAttendanceSummary.late || 0;
+      halfDay = todayStudentAttendanceSummary.halfDay || 0;
+      total = (present + absent + late + halfDay) || (summaryData?.totalStudents ?? students.length ?? 0);
+    } else {
+      total = summaryData?.totalStudents ?? students.length ?? 0;
     }
-    
-    // Live attendance summary from attendance session records
-    let present = 0; let absent = 0; let late = 0; let halfDay = 0;
-    if (todayStudentAttendanceSummary && todayStudentAttendanceSummary.totalDays > 0) {
-      present = todayStudentAttendanceSummary.present;
-      absent = todayStudentAttendanceSummary.absent;
-      late = todayStudentAttendanceSummary.late;
-      halfDay = todayStudentAttendanceSummary.halfDay;
-    }
-    const rawTotal = present + absent + late + halfDay || (summaryData?.totalStudents ?? students.length ?? 0);
-    const total = rawTotal > 0 ? rawTotal : 0;
-    const presentPct = total > 0 ? Math.round((present / total) * 100) : 0;
-    const latePct = total > 0 ? Math.round((late / total) * 100) : 0;
-    const halfDayPct = total > 0 ? Math.round((halfDay / total) * 100) : 0;
-    const absentPct = total > 0 ? Math.max(0, 100 - presentPct - latePct - halfDayPct) : 0;
+
+    const presentPct = total > 0 && present > 0 ? Math.round((present / total) * 100) : 0;
+    const latePct = total > 0 && late > 0 ? Math.round((late / total) * 100) : 0;
+    const halfDayPct = total > 0 && halfDay > 0 ? Math.round((halfDay / total) * 100) : 0;
+    const absentPct = total > 0 && absent > 0 ? Math.round((absent / total) * 100) : 0;
 
     return { 
       present, absent, late, halfDay, total, 
@@ -480,91 +480,87 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
   const [staffAttendanceTab, setStaffAttendanceTab] = useState<'Teaching' | 'Non-Teaching'>('Teaching');
   
   const teacherAttendanceStats = useMemo(() => {
-    if (summaryData?.teachingStaffAttendance && summaryData.teachingStaffAttendance.total > 0) {
-      const { present, absent, late, halfDay = 0, total, presentPct } = summaryData.teachingStaffAttendance;
-      const latePct = Math.round((late / total) * 100);
-      const halfDayPct = Math.round((halfDay / total) * 100);
-      const absentPct = Math.max(0, 100 - presentPct - latePct - halfDayPct);
-      return {
-        present, absent, late, halfDay, total,
-        presentPct, latePct, halfDayPct, absentPct,
-        pEnd: presentPct, lEnd: presentPct + latePct, hdEnd: presentPct + latePct + halfDayPct
-      };
-    }
-
-    const todayStr = new Date().toLocaleDateString('en-CA');
-    const teacherInTime = localStorage.getItem('teacher_check_in_time');
-    const teacherAttDate = localStorage.getItem('teacher_attendance_date');
-
     let present = 0;
     let absent = 0;
     let late = 0;
     let halfDay = 0;
+    let total = 0;
 
-    teachingStaff.forEach((s) => {
-      // 1. Check Approved Leave
-      const isApprovedLeave = (leaveApplications || []).find((app) => {
-        const isEmp =
-          String(app.employeeId) === String(s.id) ||
-          String(app.empId) === String(s.id) ||
-          (s.empId && (String(app.employeeId) === String(s.empId) || String(app.empId) === String(s.empId)));
-        const isApproved = (app.status || '').toLowerCase() === 'approved';
-        const fromStr = String(app.fromDate || '').split('T')[0];
-        const toStr = String(app.toDate || '').split('T')[0];
-        return isEmp && isApproved && todayStr >= fromStr && todayStr <= toStr;
+    if (summaryData?.teachingStaffAttendance && summaryData.teachingStaffAttendance.total > 0) {
+      present = summaryData.teachingStaffAttendance.present || 0;
+      absent = summaryData.teachingStaffAttendance.absent || 0;
+      late = summaryData.teachingStaffAttendance.late || 0;
+      halfDay = summaryData.teachingStaffAttendance.halfDay || 0;
+      total = summaryData.teachingStaffAttendance.total;
+    } else {
+      const todayStr = new Date().toLocaleDateString('en-CA');
+      const teacherInTime = localStorage.getItem('teacher_check_in_time');
+      const teacherAttDate = localStorage.getItem('teacher_attendance_date');
+
+      teachingStaff.forEach((s) => {
+        // 1. Check Approved Leave
+        const isApprovedLeave = (leaveApplications || []).find((app) => {
+          const isEmp =
+            String(app.employeeId) === String(s.id) ||
+            String(app.empId) === String(s.id) ||
+            (s.empId && (String(app.employeeId) === String(s.empId) || String(app.empId) === String(s.empId)));
+          const isApproved = (app.status || '').toLowerCase() === 'approved';
+          const fromStr = String(app.fromDate || '').split('T')[0];
+          const toStr = String(app.toDate || '').split('T')[0];
+          return isEmp && isApproved && todayStr >= fromStr && todayStr <= toStr;
+        });
+
+        // 2. Check Recorded Attendance in DataContext
+        const record = (attendance || []).find((a) => {
+          const isStaff = !a.entityType || a.entityType.toLowerCase() === 'staff';
+          const isDate = String(a.date || '').split('T')[0] === todayStr;
+          const isId =
+            String(a.entityId) === String(s.id) ||
+            String(a.entityId) === String(s.empId) ||
+            String((a as any).staffId) === String(s.id) ||
+            String((a as any).staffId) === String(s.empId) ||
+            String((a as any).employeeId) === String(s.id) ||
+            String((a as any).employeeId) === String(s.empId);
+          return isStaff && isDate && isId;
+        });
+
+        // 3. Check Logged-in Teacher Check-in in LocalStorage
+        const isCurrentLoggedInUser =
+          (user?.id && (String(user.id) === String(s.id) || String(user.id) === String(s.empId))) ||
+          (user?.email && s.email && user.email.toLowerCase().trim() === s.email.toLowerCase().trim());
+        const hasLocalCheckIn = isCurrentLoggedInUser && teacherAttDate === todayStr && !!teacherInTime;
+
+        if (isApprovedLeave) {
+          if (isApprovedLeave.isHalfDay) {
+            halfDay++;
+          } else {
+            absent++;
+          }
+        } else if (record) {
+          const st = (record.status || '').toLowerCase();
+          if (st === 'present') present++;
+          else if (st === 'late') late++;
+          else if (st === 'halfday' || st === 'half day') halfDay++;
+          else absent++;
+        } else if (hasLocalCheckIn) {
+          const checkInDate = new Date(teacherInTime!);
+          const checkInHour = checkInDate.getHours();
+          const checkInMin = checkInDate.getMinutes();
+          if (checkInHour > 9 || (checkInHour === 9 && checkInMin > 0)) {
+            late++;
+          } else {
+            present++;
+          }
+        }
       });
 
-      // 2. Check Recorded Attendance in DataContext
-      const record = (attendance || []).find((a) => {
-        const isStaff = !a.entityType || a.entityType.toLowerCase() === 'staff';
-        const isDate = String(a.date || '').split('T')[0] === todayStr;
-        const isId =
-          String(a.entityId) === String(s.id) ||
-          String(a.entityId) === String(s.empId) ||
-          String((a as any).staffId) === String(s.id) ||
-          String((a as any).staffId) === String(s.empId) ||
-          String((a as any).employeeId) === String(s.id) ||
-          String((a as any).employeeId) === String(s.empId);
-        return isStaff && isDate && isId;
-      });
+      total = teachingStaff.length > 0 ? teachingStaff.length : (present + absent + late + halfDay);
+    }
 
-      // 3. Check Logged-in Teacher Check-in in LocalStorage
-      const isCurrentLoggedInUser =
-        (user?.id && (String(user.id) === String(s.id) || String(user.id) === String(s.empId))) ||
-        (user?.email && s.email && user.email.toLowerCase().trim() === s.email.toLowerCase().trim());
-      const hasLocalCheckIn = isCurrentLoggedInUser && teacherAttDate === todayStr && !!teacherInTime;
-
-      if (isApprovedLeave) {
-        if (isApprovedLeave.isHalfDay) {
-          halfDay++;
-        } else {
-          absent++;
-        }
-      } else if (record) {
-        const st = (record.status || '').toLowerCase();
-        if (st === 'present') present++;
-        else if (st === 'late') late++;
-        else if (st === 'halfday' || st === 'half day') halfDay++;
-        else absent++;
-      } else if (hasLocalCheckIn) {
-        const checkInDate = new Date(teacherInTime!);
-        const checkInHour = checkInDate.getHours();
-        const checkInMin = checkInDate.getMinutes();
-        if (checkInHour > 9 || (checkInHour === 9 && checkInMin > 0)) {
-          late++;
-        } else {
-          present++;
-        }
-      } else {
-        absent++;
-      }
-    });
-
-    const total = teachingStaff.length > 0 ? teachingStaff.length : 0;
-    const presentPct = total > 0 ? Math.round((present / total) * 100) : 0;
-    const latePct = total > 0 ? Math.round((late / total) * 100) : 0;
-    const halfDayPct = total > 0 ? Math.round((halfDay / total) * 100) : 0;
-    const absentPct = total > 0 ? Math.max(0, 100 - presentPct - latePct - halfDayPct) : 0;
+    const presentPct = total > 0 && present > 0 ? Math.round((present / total) * 100) : 0;
+    const latePct = total > 0 && late > 0 ? Math.round((late / total) * 100) : 0;
+    const halfDayPct = total > 0 && halfDay > 0 ? Math.round((halfDay / total) * 100) : 0;
+    const absentPct = total > 0 && absent > 0 ? Math.round((absent / total) * 100) : 0;
 
     return { 
       present, absent, late, halfDay, total, 
@@ -575,74 +571,70 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
 
   // Section 2: Non-Teaching Staff Attendance calculation
   const nonTeachingAttendanceStats = useMemo(() => {
-    if (summaryData?.nonTeachingStaffAttendance && summaryData.nonTeachingStaffAttendance.total > 0) {
-      const { present, absent, late, halfDay = 0, total, presentPct } = summaryData.nonTeachingStaffAttendance;
-      const latePct = Math.round((late / total) * 100);
-      const halfDayPct = Math.round((halfDay / total) * 100);
-      const absentPct = Math.max(0, 100 - presentPct - latePct - halfDayPct);
-      return {
-        present, absent, late, halfDay, total,
-        presentPct, latePct, halfDayPct, absentPct,
-        pEnd: presentPct, lEnd: presentPct + latePct, hdEnd: presentPct + latePct + halfDayPct
-      };
-    }
-
-    const todayStr = new Date().toLocaleDateString('en-CA');
-
     let present = 0;
     let absent = 0;
     let late = 0;
     let halfDay = 0;
+    let total = 0;
 
-    nonTeachingStaff.forEach((s) => {
-      // 1. Check Approved Leave
-      const isApprovedLeave = (leaveApplications || []).find((app) => {
-        const isEmp =
-          String(app.employeeId) === String(s.id) ||
-          String(app.empId) === String(s.id) ||
-          (s.empId && (String(app.employeeId) === String(s.empId) || String(app.empId) === String(s.empId)));
-        const isApproved = (app.status || '').toLowerCase() === 'approved';
-        const fromStr = String(app.fromDate || '').split('T')[0];
-        const toStr = String(app.toDate || '').split('T')[0];
-        return isEmp && isApproved && todayStr >= fromStr && todayStr <= toStr;
-      });
+    if (summaryData?.nonTeachingStaffAttendance && summaryData.nonTeachingStaffAttendance.total > 0) {
+      present = summaryData.nonTeachingStaffAttendance.present || 0;
+      absent = summaryData.nonTeachingStaffAttendance.absent || 0;
+      late = summaryData.nonTeachingStaffAttendance.late || 0;
+      halfDay = summaryData.nonTeachingStaffAttendance.halfDay || 0;
+      total = summaryData.nonTeachingStaffAttendance.total;
+    } else {
+      const todayStr = new Date().toLocaleDateString('en-CA');
 
-      // 2. Check Recorded Attendance in DataContext
-      const record = (attendance || []).find((a) => {
-        const isStaff = !a.entityType || a.entityType.toLowerCase() === 'staff';
-        const isDate = String(a.date || '').split('T')[0] === todayStr;
-        const isId =
-          String(a.entityId) === String(s.id) ||
-          String(a.entityId) === String(s.empId) ||
-          String((a as any).staffId) === String(s.id) ||
-          String((a as any).staffId) === String(s.empId) ||
-          String((a as any).employeeId) === String(s.id) ||
-          String((a as any).employeeId) === String(s.empId);
-        return isStaff && isDate && isId;
-      });
+      nonTeachingStaff.forEach((s) => {
+        // 1. Check Approved Leave
+        const isApprovedLeave = (leaveApplications || []).find((app) => {
+          const isEmp =
+            String(app.employeeId) === String(s.id) ||
+            String(app.empId) === String(s.id) ||
+            (s.empId && (String(app.employeeId) === String(s.empId) || String(app.empId) === String(s.empId)));
+          const isApproved = (app.status || '').toLowerCase() === 'approved';
+          const fromStr = String(app.fromDate || '').split('T')[0];
+          const toStr = String(app.toDate || '').split('T')[0];
+          return isEmp && isApproved && todayStr >= fromStr && todayStr <= toStr;
+        });
 
-      if (isApprovedLeave) {
-        if (isApprovedLeave.isHalfDay) {
-          halfDay++;
-        } else {
-          absent++;
+        // 2. Check Recorded Attendance in DataContext
+        const record = (attendance || []).find((a) => {
+          const isStaff = !a.entityType || a.entityType.toLowerCase() === 'staff';
+          const isDate = String(a.date || '').split('T')[0] === todayStr;
+          const isId =
+            String(a.entityId) === String(s.id) ||
+            String(a.entityId) === String(s.empId) ||
+            String((a as any).staffId) === String(s.id) ||
+            String((a as any).staffId) === String(s.empId) ||
+            String((a as any).employeeId) === String(s.id) ||
+            String((a as any).employeeId) === String(s.empId);
+          return isStaff && isDate && isId;
+        });
+
+        if (isApprovedLeave) {
+          if (isApprovedLeave.isHalfDay) {
+            halfDay++;
+          } else {
+            absent++;
+          }
+        } else if (record) {
+          const st = (record.status || '').toLowerCase();
+          if (st === 'present') present++;
+          else if (st === 'late') late++;
+          else if (st === 'halfday' || st === 'half day') halfDay++;
+          else absent++;
         }
-      } else if (record) {
-        const st = (record.status || '').toLowerCase();
-        if (st === 'present') present++;
-        else if (st === 'late') late++;
-        else if (st === 'halfday' || st === 'half day') halfDay++;
-        else absent++;
-      } else {
-        absent++;
-      }
-    });
+      });
 
-    const total = nonTeachingStaff.length > 0 ? nonTeachingStaff.length : 0;
-    const presentPct = total > 0 ? Math.round((present / total) * 100) : 0;
-    const latePct = total > 0 ? Math.round((late / total) * 100) : 0;
-    const halfDayPct = total > 0 ? Math.round((halfDay / total) * 100) : 0;
-    const absentPct = total > 0 ? Math.max(0, 100 - presentPct - latePct - halfDayPct) : 0;
+      total = nonTeachingStaff.length > 0 ? nonTeachingStaff.length : (present + absent + late + halfDay);
+    }
+
+    const presentPct = total > 0 && present > 0 ? Math.round((present / total) * 100) : 0;
+    const latePct = total > 0 && late > 0 ? Math.round((late / total) * 100) : 0;
+    const halfDayPct = total > 0 && halfDay > 0 ? Math.round((halfDay / total) * 100) : 0;
+    const absentPct = total > 0 && absent > 0 ? Math.round((absent / total) * 100) : 0;
 
     return { 
       present, absent, late, halfDay, total, 

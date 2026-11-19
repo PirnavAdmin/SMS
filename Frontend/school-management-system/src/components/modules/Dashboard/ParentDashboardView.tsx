@@ -45,10 +45,10 @@ const ParentPremiumDonutChart: React.FC<{
   const lateVal = stats.late;
   const halfDayVal = stats.halfDay;
 
-  const presentPct = Math.round((presentVal / total) * 100);
-  const absentPct = Math.round((absentVal / total) * 100);
-  const latePct = Math.round((lateVal / total) * 100);
-  const halfDayPct = Math.max(0, 100 - presentPct - absentPct - latePct);
+  const presentPct = total > 0 && presentVal > 0 ? Math.round((presentVal / total) * 100) : 0;
+  const absentPct = total > 0 && absentVal > 0 ? Math.round((absentVal / total) * 100) : 0;
+  const latePct = total > 0 && lateVal > 0 ? Math.round((lateVal / total) * 100) : 0;
+  const halfDayPct = total > 0 && halfDayVal > 0 ? Math.round((halfDayVal / total) * 100) : 0;
   const overallAvg = typeof stats.overallPct === 'number' ? stats.overallPct : presentPct;
 
   const rotPresent = -90;
@@ -412,11 +412,11 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
       else if (a.status === 'HalfDay' || a.status === 'Half Day') halfDay++;
     });
     
-    const total = present + absent + late + halfDay || 1;
-    const presentPct = Math.round((present / total) * 100);
-    const latePct = Math.round((late / total) * 100);
-    const halfDayPct = Math.round((halfDay / total) * 100);
-    const absentPct = 100 - presentPct - latePct - halfDayPct;
+    const total = present + absent + late + halfDay;
+    const presentPct = total > 0 && present > 0 ? Math.round((present / total) * 100) : 0;
+    const latePct = total > 0 && late > 0 ? Math.round((late / total) * 100) : 0;
+    const halfDayPct = total > 0 && halfDay > 0 ? Math.round((halfDay / total) * 100) : 0;
+    const absentPct = total > 0 && absent > 0 ? Math.round((absent / total) * 100) : 0;
 
     const pEnd = presentPct;
     const lEnd = pEnd + latePct;

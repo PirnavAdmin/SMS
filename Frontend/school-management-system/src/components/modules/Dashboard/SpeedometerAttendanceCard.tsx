@@ -95,15 +95,28 @@ export const SpeedometerAttendanceCard: React.FC<
 
   // Percentage calculations
   const presentPct =
-    total > 0 ? (stats.presentPct ?? Math.round((present / total) * 100)) : 0;
+    total > 0 && present > 0
+      ? (stats.presentPct && stats.presentPct > 0
+          ? stats.presentPct
+          : Math.round((present / total) * 100))
+      : 0;
   const absentPct =
-    total > 0 ? (stats.absentPct ?? Math.round((absent / total) * 100)) : 0;
+    total > 0 && absent > 0
+      ? (stats.absentPct && stats.absentPct > 0
+          ? stats.absentPct
+          : Math.round((absent / total) * 100))
+      : 0;
   const latePct =
-    total > 0 ? (stats.latePct ?? Math.round((late / total) * 100)) : 0;
+    total > 0 && late > 0
+      ? (stats.latePct && stats.latePct > 0
+          ? stats.latePct
+          : Math.round((late / total) * 100))
+      : 0;
   const halfDayPct =
-    total > 0
-      ? (stats.halfDayPct ??
-        Math.max(0, 100 - presentPct - absentPct - latePct))
+    total > 0 && halfDay > 0
+      ? (stats.halfDayPct && stats.halfDayPct > 0
+          ? stats.halfDayPct
+          : Math.round((halfDay / total) * 100))
       : 0;
 
   // Status configuration - Order: Present, Absent, Late, Half Day
