@@ -386,27 +386,72 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
 
   // Validation helpers
   const getIdentifierError = () => {
-    if (!identifier.trim()) {
+    const clean = identifier.trim();
+    if (!clean) {
       return (identifierTouched || loginSubmitted)
-        ? (initialRole === 'Super Admin' ? 'Super Admin email or username is required' : 'Email, mobile or Student ID is required')
+        ? (initialRole === 'Super Admin' ? 'Super Admin email or username is required' : 'Email, mobile number or Student ID is required')
         : '';
     }
-    const clean = identifier.trim();
-    if (initialRole === 'Super Admin') {
+
+    if (!(identifierTouched || loginSubmitted)) {
       return '';
     }
-    if (clean.includes('@')) {
-      const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailPattern.test(clean) && (identifierTouched || loginSubmitted)) {
-        return 'Invalid email address';
+
+    // 1. Super Admin Validation
+    if (initialRole === 'Super Admin') {
+      if (clean.includes('@')) {
+        const emailPattern = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/;
+        if (!emailPattern.test(clean)) {
+          return 'Please enter a valid email address';
+        }
+        return '';
       }
-    } else {
-      const isPureDigitsOrPhone = /^[0-9+\-\s()]+$/.test(clean);
-      const digits = clean.replace(/\D/g, '');
-      if (isPureDigitsOrPhone && digits.length > 0 && digits.length < 8 && (identifierTouched || loginSubmitted)) {
-        return 'Invalid phone number';
+      const usernamePattern = /^[a-zA-Z0-9_\-]{3,20}$/;
+      if (!usernamePattern.test(clean)) {
+        return 'Please enter a valid email address or username (3-20 characters)';
       }
+      return '';
     }
+
+    // 2. Email Address Format Validation
+    if (clean.includes('@')) {
+      const emailPattern = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/;
+      if (!emailPattern.test(clean)) {
+        return 'Please enter a valid email address';
+      }
+      return '';
+    }
+
+    // 3. Mobile / Phone Number Format Validation (digits with optional +, spaces, dashes, parentheses)
+    const isPhoneLike = /^(\+)?[0-9\s\-()]+$/.test(clean);
+    if (isPhoneLike) {
+      const digits = clean.replace(/\D/g, '');
+      if (digits.length < 10) {
+        return 'Mobile number must be at least 10 digits';
+      }
+      if (digits.length > 15) {
+        return 'Mobile number cannot exceed 15 digits';
+      }
+      return '';
+    }
+
+    // 4. Student ID / Admission Number / Username Format Validation
+    // Valid formats:
+    // - Between 3 and 20 characters
+    // - Starts with alphanumeric, can contain standard separators (-, /, _, .)
+    // - Rejects random long character strings or invalid symbols
+    const idPattern = /^[a-zA-Z0-9][a-zA-Z0-9_\-\.\/]{1,19}$/;
+    if (!idPattern.test(clean)) {
+      return 'Invalid format. Please enter a valid email, mobile number, or Student ID';
+    }
+
+    // If string is purely alphabetic without digits or standard ID delimiters and longer than 12 characters,
+    // it does not conform to a valid username or student ID
+    const hasDigitsOrSeparators = /[0-9_\-\.\/]/.test(clean);
+    if (!hasDigitsOrSeparators && clean.length > 12) {
+      return 'Invalid format. Please enter a valid email, mobile number, or Student ID';
+    }
+
     return '';
   };
 
@@ -418,6 +463,35 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
       return 'Password must be at least 4 characters';
     }
     return '';
+  };
+
+  const getForgotIdentifierError = () => {
+    const clean = forgotIdentifier.trim();
+    if (!clean) {
+      return (forgotIdentifierTouched || forgotSubmitted) ? 'Email or mobile number is required' : '';
+    }
+    if (!(forgotIdentifierTouched || forgotSubmitted)) {
+      return '';
+    }
+    if (clean.includes('@')) {
+      const emailPattern = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/;
+      if (!emailPattern.test(clean)) {
+        return 'Please enter a valid email address';
+      }
+      return '';
+    }
+    const isPhoneLike = /^(\+)?[0-9\s\-()]+$/.test(clean);
+    if (isPhoneLike) {
+      const digits = clean.replace(/\D/g, '');
+      if (digits.length < 10) {
+        return 'Mobile number must be at least 10 digits';
+      }
+      if (digits.length > 15) {
+        return 'Mobile number cannot exceed 15 digits';
+      }
+      return '';
+    }
+    return 'Please enter a valid email address or 10-digit mobile number';
   };
 
   const handleLoginSubmit = async (e: React.SyntheticEvent) => {
@@ -497,7 +571,8 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
   const handleForgotSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     setForgotSubmitted(true);
-    if (!forgotIdentifier.trim()) return;
+    const forgotErr = getForgotIdentifierError();
+    if (forgotErr || !forgotIdentifier.trim()) return;
     setError('');
     setLoading(true);
     try {
@@ -565,6 +640,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
 
   const identifierError = getIdentifierError();
   const passwordError = getPasswordError();
+  const forgotError = getForgotIdentifierError();
 
   return (
     <div className="min-h-screen w-full flex flex-col font-sans overflow-x-hidden relative text-slate-900 dark:text-slate-100 selection:bg-sky-500 selection:text-white">
@@ -823,11 +899,11 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
             <div className="p-5 sm:p-6">
               
               {/* Header: School Logo & Title */}
-              <div className="mb-4 flex flex-col items-center text-center space-y-2">
+              <div className="mb-3 flex flex-col items-center text-center space-y-1.5">
                 
                 {/* School / Company Logo */}
                 {effectiveLogo ? (
-                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-white dark:bg-slate-950 p-2 shadow-lg ring-3 ring-sky-500/20 shrink-0 flex items-center justify-center overflow-hidden transition-transform hover:scale-105 duration-300">
+                  <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-white dark:bg-slate-950 p-1.5 shadow-md ring-2 ring-sky-500/20 shrink-0 flex items-center justify-center overflow-hidden transition-transform hover:scale-105 duration-300">
                     <img
                       src={resolveMediaUrl(effectiveLogo)}
                       alt={effectiveName || 'Company Logo'}
@@ -842,12 +918,12 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
                     />
                   </div>
                 ) : isSuperAdminLogin ? (
-                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-tr from-sky-500 to-blue-600 p-2 shadow-lg ring-3 ring-sky-500/20 shrink-0 flex items-center justify-center text-white transition-transform hover:scale-105 duration-300">
-                    <ShieldCheck className="w-8 h-8" />
+                  <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-tr from-sky-500 to-blue-600 p-1.5 shadow-md ring-2 ring-sky-500/20 shrink-0 flex items-center justify-center text-white transition-transform hover:scale-105 duration-300">
+                    <ShieldCheck className="w-6 h-6" />
                   </div>
                 ) : (
-                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-tr from-sky-500 to-blue-600 p-2 shadow-lg ring-3 ring-sky-500/20 shrink-0 flex items-center justify-center text-white transition-transform hover:scale-105 duration-300">
-                    <GraduationCap className="w-8 h-8" />
+                  <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-tr from-sky-500 to-blue-600 p-1.5 shadow-md ring-2 ring-sky-500/20 shrink-0 flex items-center justify-center text-white transition-transform hover:scale-105 duration-300">
+                    <GraduationCap className="w-6 h-6" />
                   </div>
                 )}
 
@@ -1231,16 +1307,16 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
                         onBlur={() => setForgotIdentifierTouched(true)}
                         placeholder="Enter registered email or phone"
                         className={`w-full pl-11 pr-4 py-2.5 rounded-xl bg-slate-50/70 dark:bg-slate-950/80 border text-slate-900 dark:text-white text-sm placeholder-slate-400 focus:outline-none focus:ring-4 transition-all font-medium ${
-                          (!forgotIdentifier.trim() && (forgotIdentifierTouched || forgotSubmitted))
+                          forgotError
                             ? 'border-rose-500 focus:ring-rose-500/20 focus:border-rose-500 bg-rose-50/20'
                             : 'border-slate-200 dark:border-slate-800 focus:border-sky-500 dark:focus:border-sky-400 focus:ring-sky-500/20 focus:bg-white dark:focus:bg-slate-950'
                         }`}
                       />
                     </div>
-                    {(!forgotIdentifier.trim() && (forgotIdentifierTouched || forgotSubmitted)) && (
+                    {forgotError && (
                       <div className="flex items-center gap-1.5 text-xs text-rose-600 dark:text-rose-400 font-medium mt-1 animate-in fade-in">
                         <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                        <span>Email or phone is required</span>
+                        <span>{forgotError}</span>
                       </div>
                     )}
                   </div>

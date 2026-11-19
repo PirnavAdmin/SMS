@@ -1381,7 +1381,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
             </div>
             <button 
               onClick={() => onNavigate('events')} 
-              className="btn-glass-pill flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold text-sky-600 dark:text-sky-400 shrink-0 cursor-pointer active:scale-95"
+              className="btn-glass-pill btn-quick-action flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold text-sky-600 dark:text-sky-400 shrink-0 cursor-pointer active:scale-95"
             >
               <Calendar className="w-3.5 h-3.5 text-sky-500 stroke-[2.2]" />
               <span>View Calendar</span>
@@ -1391,7 +1391,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 sm:gap-2.5">
             <button 
               onClick={() => onNavigate('students')} 
-              className="btn-glass-pill flex flex-col sm:flex-row items-center justify-center gap-2 px-2.5 py-2 sm:py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 group active:scale-95 transition-all cursor-pointer min-w-0"
+              className="btn-glass-pill btn-quick-action flex flex-col sm:flex-row items-center justify-center gap-2 px-2.5 py-2 sm:py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 group active:scale-95 transition-all cursor-pointer min-w-0"
             >
               <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-blue-500/12 text-blue-600 dark:text-blue-400 border border-blue-500/20 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
                 <UserPlus className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.2]" />
@@ -1400,7 +1400,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
             </button>
             <button 
               onClick={() => onNavigate('staff')} 
-              className="btn-glass-pill flex flex-col sm:flex-row items-center justify-center gap-2 px-2.5 py-2 sm:py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 group active:scale-95 transition-all cursor-pointer min-w-0"
+              className="btn-glass-pill btn-quick-action flex flex-col sm:flex-row items-center justify-center gap-2 px-2.5 py-2 sm:py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 group active:scale-95 transition-all cursor-pointer min-w-0"
             >
               <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-emerald-500/12 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
                 <UserPlus className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.2]" />
@@ -1409,7 +1409,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
             </button>
             <button 
               onClick={() => onNavigate('academics')} 
-              className="btn-glass-pill flex flex-col sm:flex-row items-center justify-center gap-2 px-2.5 py-2 sm:py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 group active:scale-95 transition-all cursor-pointer min-w-0"
+              className="btn-glass-pill btn-quick-action flex flex-col sm:flex-row items-center justify-center gap-2 px-2.5 py-2 sm:py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 group active:scale-95 transition-all cursor-pointer min-w-0"
             >
               <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-amber-500/12 text-amber-600 dark:text-amber-400 border border-amber-500/20 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
                 <BookOpen className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.2]" />
@@ -1418,7 +1418,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
             </button>
             <button 
               onClick={() => onNavigate('examination')} 
-              className="btn-glass-pill flex flex-col sm:flex-row items-center justify-center gap-2 px-2.5 py-2 sm:py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 group active:scale-95 transition-all cursor-pointer min-w-0"
+              className="btn-glass-pill btn-quick-action flex flex-col sm:flex-row items-center justify-center gap-2 px-2.5 py-2 sm:py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 group active:scale-95 transition-all cursor-pointer min-w-0"
             >
               <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-rose-500/12 text-rose-600 dark:text-rose-400 border border-rose-500/20 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
                 <ClipboardList className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.2]" />
@@ -1427,7 +1427,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
             </button>
             <button 
               onClick={() => onNavigate('attendance')} 
-              className="btn-glass-pill flex flex-col sm:flex-row items-center justify-center gap-2 px-2.5 py-2 sm:py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 group active:scale-95 transition-all cursor-pointer min-w-0"
+              className="btn-glass-pill btn-quick-action flex flex-col sm:flex-row items-center justify-center gap-2 px-2.5 py-2 sm:py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 group active:scale-95 transition-all cursor-pointer min-w-0"
             >
               <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-indigo-500/12 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
                 <UserCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.2]" />
@@ -1436,7 +1436,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
             </button>
             <button 
               onClick={() => onNavigate('communication')} 
-              className="btn-glass-pill flex flex-col sm:flex-row items-center justify-center gap-2 px-2.5 py-2 sm:py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 group active:scale-95 transition-all cursor-pointer min-w-0"
+              className="btn-glass-pill btn-quick-action flex flex-col sm:flex-row items-center justify-center gap-2 px-2.5 py-2 sm:py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 group active:scale-95 transition-all cursor-pointer min-w-0"
             >
               <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-purple-500/12 text-purple-600 dark:text-purple-400 border border-purple-500/20 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
                 <Megaphone className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.2]" />

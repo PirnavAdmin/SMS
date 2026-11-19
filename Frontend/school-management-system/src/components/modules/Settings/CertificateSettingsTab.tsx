@@ -1025,12 +1025,14 @@ export const CertificateSettingsTab: React.FC = () => {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">Active Certificate Types</h4>
-            <button
-              onClick={handleOpenAddType}
-              className="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-md shadow-sky-600/20 flex items-center gap-2 cursor-pointer transition-all"
-            >
-              <Plus className="w-4 h-4" /> Add Certificate Type
-            </button>
+            {types.length > 0 && (
+              <button
+                onClick={handleOpenAddType}
+                className="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-md shadow-sky-600/20 flex items-center gap-2 cursor-pointer transition-all"
+              >
+                <Plus className="w-4 h-4" /> Add Certificate Type
+              </button>
+            )}
           </div>
 
           {types.length === 0 ? (
@@ -1462,14 +1464,18 @@ export const CertificateSettingsTab: React.FC = () => {
               return (
                 <div
                   key={t.id}
-                  className="py-4 flex flex-col lg:flex-row lg:items-start justify-between gap-4 transition-all"
+                  className="py-4 flex flex-col xl:flex-row xl:items-start gap-4 xl:gap-6 transition-all"
                 >
-                  <div className="min-w-[170px] pt-1">
-                    <h4 className="font-bold text-xs text-slate-900 dark:text-white">{t.name}</h4>
-                    <p className="text-[11px] text-slate-400 font-mono mt-0.5">Code: {t.code}</p>
+                  <div className="w-full xl:w-56 shrink-0 pt-0.5">
+                    <h4 className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white leading-snug break-words" title={t.name}>
+                      {t.name}
+                    </h4>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 font-mono mt-0.5">
+                      Code: <span className="font-semibold text-slate-700 dark:text-slate-300">{t.code}</span>
+                    </p>
                   </div>
 
-                  <div className="flex flex-wrap items-start gap-4 sm:gap-5 flex-1 justify-start lg:justify-end">
+                  <div className="flex flex-wrap items-start gap-3.5 sm:gap-4 flex-1">
                     {/* Prefix Field */}
                     <div className="flex flex-col min-w-[95px] max-w-[130px]">
                       <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">
@@ -1567,21 +1573,27 @@ export const CertificateSettingsTab: React.FC = () => {
                     </div>
 
                     {/* Include Year Checkbox */}
-                    <div className="flex flex-col pt-6">
-                      <label className="flex items-center gap-1.5 text-xs text-slate-700 dark:text-slate-300 font-medium select-none cursor-pointer">
+                    <div className="flex flex-col">
+                      <span className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">
+                        Academic Year
+                      </span>
+                      <label className="flex items-center gap-1.5 py-1.5 text-xs text-slate-700 dark:text-slate-300 font-medium select-none cursor-pointer">
                         <input
                           type="checkbox"
                           checked={Boolean(t.includeAcademicYearInNo)}
                           onChange={e => setTypes(prev => prev.map(x => x.id === t.id ? { ...x, includeAcademicYearInNo: e.target.checked } : x))}
                           className="w-4 h-4 rounded text-sky-600 cursor-pointer accent-sky-600"
                         />
-                        <span>Include Year</span>
+                        <span className="font-semibold text-xs">Include Year</span>
                       </label>
                     </div>
 
                     {/* Preview Badge */}
-                    <div className="flex flex-col pt-5">
-                      <div className="px-3.5 py-1.5 bg-sky-50 dark:bg-sky-950/40 rounded-xl text-xs font-mono font-bold text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800/60 shadow-2xs whitespace-nowrap">
+                    <div className="flex flex-col">
+                      <span className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">
+                        Sample Preview
+                      </span>
+                      <div className="px-3 py-1.5 bg-sky-50 dark:bg-sky-950/40 rounded-xl text-xs font-mono font-bold text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800/60 shadow-2xs whitespace-nowrap">
                         {formatCertificateNumberPreview(t.numberingPrefix, t.numberingStart, t.numberingLength, Boolean(t.includeAcademicYearInNo), activeYearPrefix)}
                       </div>
                     </div>
@@ -2300,10 +2312,10 @@ export const CertificateSettingsTab: React.FC = () => {
                         ? 'border-rose-500 focus:ring-rose-500/20 bg-rose-50/20'
                         : 'border-slate-200 dark:border-slate-700'
                     } ${
-                      !typeForm.status ? 'text-slate-400 dark:text-slate-500' : 'text-slate-900 dark:text-white'
+                      !typeForm.status ? 'text-slate-700 dark:text-slate-200' : 'text-slate-900 dark:text-white'
                     }`}
                   >
-                    <option value="" disabled>Select Status</option>
+                    <option value="" disabled className="text-slate-700 dark:text-slate-200 font-semibold">Select Status</option>
                     <option value="Active">Active</option>
                     <option value="Inactive">Inactive</option>
                   </select>
@@ -2394,10 +2406,10 @@ export const CertificateSettingsTab: React.FC = () => {
                       ? 'border-rose-500 focus:ring-rose-500/20 bg-rose-50/20'
                       : 'border-slate-200 dark:border-slate-700'
                   } ${
-                    !placeholderForm.category ? 'text-slate-400 dark:text-slate-500' : 'text-slate-900 dark:text-white'
+                    !placeholderForm.category ? 'text-slate-700 dark:text-slate-200' : 'text-slate-900 dark:text-white'
                   }`}
                 >
-                  <option value="" disabled>Select Category</option>
+                  <option value="" disabled className="text-slate-700 dark:text-slate-200 font-semibold">Select Category</option>
                   <option value="Student Info">Student Info</option>
                   <option value="Academic">Academic</option>
                   <option value="School Details">School Details</option>

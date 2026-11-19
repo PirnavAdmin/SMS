@@ -267,7 +267,7 @@ export const SettingsView: React.FC = () => {
       if (saved && validTabs.includes(saved)) {
         return saved as any;
       }
-    } catch {}
+    } catch { }
     return "my-profile";
   });
 
@@ -276,7 +276,7 @@ export const SettingsView: React.FC = () => {
     try {
       localStorage.setItem("settings_active_tab", tab);
       sessionStorage.setItem("settings_active_tab", tab);
-    } catch {}
+    } catch { }
   };
 
   useEffect(() => {
@@ -919,13 +919,13 @@ export const SettingsView: React.FC = () => {
 
         customSequences: Array.isArray((idForm as any).customSequences)
           ? (idForm as any).customSequences.map((c: any) => ({
-              ...c,
-              startNo: toSafeInt(c?.startNo, 101),
-              padding: toSafeInt(c?.padding, 4),
-              includeYear: Boolean(c?.includeYear),
-              separator: c?.separator ?? "-",
-              position: c?.position || "start",
-            }))
+            ...c,
+            startNo: toSafeInt(c?.startNo, 101),
+            padding: toSafeInt(c?.padding, 4),
+            includeYear: Boolean(c?.includeYear),
+            separator: c?.separator ?? "-",
+            position: c?.position || "start",
+          }))
           : [],
       };
       const res = await updateIdSequenceSettingsApi(apiPayload);
@@ -1139,7 +1139,7 @@ export const SettingsView: React.FC = () => {
           return parsed;
         }
       }
-    } catch (e) {}
+    } catch (e) { }
     return defaultCertificateTemplates;
   }, [contextTemplates]);
 
@@ -1256,7 +1256,7 @@ export const SettingsView: React.FC = () => {
         localStorage.setItem("school_logo", logoVal);
         localStorage.setItem("logoUrl", logoVal);
         localStorage.setItem("schoolLogo", logoVal);
-      } catch (err) {}
+      } catch (err) { }
 
       if (refreshTenant) {
         await refreshTenant();
@@ -1529,7 +1529,7 @@ export const SettingsView: React.FC = () => {
       endDate: ay.endDate || "",
       status: ay.status,
       description: ay.description || "",
-      isCurrentAcademicYear: ay.isCurrentAcademicYear || false,
+      isCurrentAcademicYear: ay.status === "Active" || (Boolean(ay.isCurrentAcademicYear) && ay.status !== "Upcoming" && ay.status !== "Closed"),
     });
     setAyErrors({});
     setIsAYModalOpen(true);
@@ -1627,10 +1627,12 @@ export const SettingsView: React.FC = () => {
     }
 
     const formattedAY = formatAcademicYear(trimmedAY);
+    const isCurrent = ayForm.status === "Active";
     const payload = {
       ...ayForm,
       academicYear: formattedAY || trimmedAY,
       status: ayForm.status as "Active" | "Closed" | "Upcoming",
+      isCurrentAcademicYear: isCurrent,
     };
 
     setIsSavingAY(true);
@@ -1747,9 +1749,8 @@ export const SettingsView: React.FC = () => {
       <div className="relative group w-full">
         {/* Left Scroll Navigation Button & Fade Mask */}
         <div
-          className={`absolute left-0 top-0 bottom-0 z-10 flex items-center pr-2 bg-gradient-to-r from-white via-white/95 to-transparent dark:from-slate-900 dark:via-slate-900/95 rounded-l-2xl transition-opacity duration-200 pointer-events-none ${
-            canScrollLeft ? "opacity-100" : "opacity-0"
-          }`}
+          className={`absolute left-0 top-0 bottom-0 z-10 flex items-center pr-2 bg-gradient-to-r from-white via-white/95 to-transparent dark:from-slate-900 dark:via-slate-900/95 rounded-l-2xl transition-opacity duration-200 pointer-events-none ${canScrollLeft ? "opacity-100" : "opacity-0"
+            }`}
         >
           <button
             type="button"
@@ -1769,9 +1770,8 @@ export const SettingsView: React.FC = () => {
           onMouseMove={handleTabsMouseMove}
           onMouseUp={handleTabsMouseUpOrLeave}
           onMouseLeave={handleTabsMouseUpOrLeave}
-          className={`p-1.5 bg-white/95 dark:bg-slate-900/95 rounded-2xl flex items-center gap-1.5 overflow-x-auto border border-slate-200/90 dark:border-slate-800 shadow-xs select-none no-scrollbar ${
-            isDraggingTabs ? "cursor-grabbing" : "cursor-grab"
-          }`}
+          className={`p-1.5 bg-white/95 dark:bg-slate-900/95 rounded-2xl flex items-center gap-1.5 overflow-x-auto border border-slate-200/90 dark:border-slate-800 shadow-xs select-none no-scrollbar ${isDraggingTabs ? "cursor-grabbing" : "cursor-grab"
+            }`}
           style={{
             scrollbarWidth: "none",
             msOverflowStyle: "none",
@@ -1840,11 +1840,10 @@ export const SettingsView: React.FC = () => {
                     if (hasDraggedRef.current) return;
                     setActiveTab(tab.id as any);
                   }}
-                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all duration-150 cursor-pointer whitespace-nowrap shrink-0 text-center select-none ${
-                    isActive
+                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all duration-150 cursor-pointer whitespace-nowrap shrink-0 text-center select-none ${isActive
                       ? "bg-brand-600 text-white shadow-xs font-extrabold border border-brand-600"
                       : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100/70 dark:hover:bg-slate-800/60 font-semibold border border-transparent"
-                  }`}
+                    }`}
                 >
                   <Icon className={`w-3.5 h-3.5 shrink-0 transition-transform ${isActive ? "scale-105 text-white" : "text-slate-500 dark:text-slate-400"}`} />
                   <span>{tab.label}</span>
@@ -1855,9 +1854,8 @@ export const SettingsView: React.FC = () => {
 
         {/* Right Scroll Navigation Button & Fade Mask */}
         <div
-          className={`absolute right-0 top-0 bottom-0 z-10 flex items-center pl-2 bg-gradient-to-l from-white via-white/95 to-transparent dark:from-slate-900 dark:via-slate-900/95 rounded-r-2xl transition-opacity duration-200 pointer-events-none ${
-            canScrollRight ? "opacity-100" : "opacity-0"
-          }`}
+          className={`absolute right-0 top-0 bottom-0 z-10 flex items-center pl-2 bg-gradient-to-l from-white via-white/95 to-transparent dark:from-slate-900 dark:via-slate-900/95 rounded-r-2xl transition-opacity duration-200 pointer-events-none ${canScrollRight ? "opacity-100" : "opacity-0"
+            }`}
         >
           <button
             type="button"
@@ -1895,11 +1893,10 @@ export const SettingsView: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleToggleEditProfile}
-                  className={`px-3.5 py-1.5 rounded-xl border flex items-center gap-1.5 text-xs font-extrabold transition cursor-pointer active:scale-95 shadow-xs ${
-                    isEditingProfile
+                  className={`px-3.5 py-1.5 rounded-xl border flex items-center gap-1.5 text-xs font-extrabold transition cursor-pointer active:scale-95 shadow-xs ${isEditingProfile
                       ? "bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 border-rose-200 dark:border-rose-800 hover:bg-rose-100 dark:hover:bg-rose-900/50"
                       : "bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700"
-                  }`}
+                    }`}
                   title={isEditingProfile ? "Cancel Editing" : "Edit Profile"}
                 >
                   {isEditingProfile ? (
@@ -1930,9 +1927,8 @@ export const SettingsView: React.FC = () => {
 
                   <div
                     onClick={isEditingProfile ? () => avatarFileInputRef.current?.click() : undefined}
-                    className={`relative rounded-2xl overflow-hidden ring-4 ring-white dark:ring-slate-800 shadow-md ${
-                      isEditingProfile ? "cursor-pointer group" : ""
-                    }`}
+                    className={`relative rounded-2xl overflow-hidden ring-4 ring-white dark:ring-slate-800 shadow-md ${isEditingProfile ? "cursor-pointer group" : ""
+                      }`}
                     title={isEditingProfile ? "Click to change photo" : undefined}
                   >
                     {Boolean(myProfileForm.avatar && myProfileForm.avatar !== DEFAULT_USER_AVATAR) ? (
@@ -2058,13 +2054,12 @@ export const SettingsView: React.FC = () => {
                           const res = validateFullName(val, true);
                           setProfileErrors((prev) => ({ ...prev, name: res.error }));
                         }}
-                        className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm font-semibold transition ${
-                          !isEditingProfile
+                        className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm font-semibold transition ${!isEditingProfile
                             ? "bg-slate-50/80 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/80 text-slate-800 dark:text-slate-200 cursor-not-allowed"
                             : profileErrors.name
-                            ? "bg-rose-50/30 border-rose-400 text-slate-900 dark:text-white focus:ring-2 focus:ring-rose-500/20"
-                            : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
-                        }`}
+                              ? "bg-rose-50/30 border-rose-400 text-slate-900 dark:text-white focus:ring-2 focus:ring-rose-500/20"
+                              : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                          }`}
                       />
                     </div>
                     {profileErrors.name && (
@@ -2095,13 +2090,12 @@ export const SettingsView: React.FC = () => {
                           const res = validateEmail(sanitized, true);
                           setProfileErrors((prev) => ({ ...prev, email: res.error }));
                         }}
-                        className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm font-semibold transition ${
-                          !isEditingProfile
+                        className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm font-semibold transition ${!isEditingProfile
                             ? "bg-slate-50/80 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/80 text-slate-800 dark:text-slate-200 cursor-not-allowed"
                             : profileErrors.email
-                            ? "bg-rose-50/30 border-rose-400 text-slate-900 dark:text-white focus:ring-2 focus:ring-rose-500/20"
-                            : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
-                        }`}
+                              ? "bg-rose-50/30 border-rose-400 text-slate-900 dark:text-white focus:ring-2 focus:ring-rose-500/20"
+                              : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                          }`}
                       />
                     </div>
                     {profileErrors.email && (
@@ -2132,13 +2126,12 @@ export const SettingsView: React.FC = () => {
                           const res = validatePhoneNumber(cleaned, false);
                           setProfileErrors((prev) => ({ ...prev, phone: cleaned ? res.error : undefined }));
                         }}
-                        className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm font-semibold transition ${
-                          !isEditingProfile
+                        className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm font-semibold transition ${!isEditingProfile
                             ? "bg-slate-50/80 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/80 text-slate-800 dark:text-slate-200 cursor-not-allowed"
                             : profileErrors.phone
-                            ? "bg-rose-50/30 border-rose-400 text-slate-900 dark:text-white focus:ring-2 focus:ring-rose-500/20"
-                            : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
-                        }`}
+                              ? "bg-rose-50/30 border-rose-400 text-slate-900 dark:text-white focus:ring-2 focus:ring-rose-500/20"
+                              : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                          }`}
                       />
                     </div>
                     {profileErrors.phone && (
@@ -2166,11 +2159,10 @@ export const SettingsView: React.FC = () => {
                             branch: e.target.value,
                           })
                         }
-                        className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm font-semibold transition ${
-                          !isEditingProfile
+                        className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm font-semibold transition ${!isEditingProfile
                             ? "bg-slate-50/80 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/80 text-slate-800 dark:text-slate-200 cursor-not-allowed"
                             : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 cursor-pointer"
-                        }`}
+                          }`}
                       >
                         <option value="" disabled>Select Campus</option>
                         {configuredBranches.map((bName: string) => (
@@ -2439,13 +2431,12 @@ export const SettingsView: React.FC = () => {
                       const res = validateFullName(val, true);
                       setSchoolProfileErrors((prev) => ({ ...prev, name: val ? res.error : undefined }));
                     }}
-                    className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm font-semibold transition ${
-                      !isEditingSchoolProfile
+                    className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm font-semibold transition ${!isEditingSchoolProfile
                         ? "bg-slate-50/80 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/80 text-slate-800 dark:text-slate-200 cursor-not-allowed"
                         : schoolProfileErrors.name
-                        ? "bg-rose-50/30 border-rose-400 text-slate-900 dark:text-white focus:ring-2 focus:ring-rose-500/20"
-                        : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
-                    }`}
+                          ? "bg-rose-50/30 border-rose-400 text-slate-900 dark:text-white focus:ring-2 focus:ring-rose-500/20"
+                          : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                      }`}
                   />
                 </div>
                 {schoolProfileErrors.name && (
@@ -2473,11 +2464,10 @@ export const SettingsView: React.FC = () => {
                     onChange={(e) =>
                       setProfileForm((prev) => ({ ...prev, tagline: e.target.value }))
                     }
-                    className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm font-semibold transition ${
-                      !isEditingSchoolProfile
+                    className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm font-semibold transition ${!isEditingSchoolProfile
                         ? "bg-slate-50/80 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/80 text-slate-800 dark:text-slate-200 cursor-not-allowed"
                         : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
-                    }`}
+                      }`}
                   />
                 </div>
               </div>
@@ -2501,11 +2491,10 @@ export const SettingsView: React.FC = () => {
                     onChange={(e) =>
                       setProfileForm((prev) => ({ ...prev, address: e.target.value }))
                     }
-                    className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm font-semibold transition ${
-                      !isEditingSchoolProfile
+                    className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm font-semibold transition ${!isEditingSchoolProfile
                         ? "bg-slate-50/80 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/80 text-slate-800 dark:text-slate-200 cursor-not-allowed"
                         : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
-                    }`}
+                      }`}
                   />
                 </div>
               </div>
@@ -2529,11 +2518,10 @@ export const SettingsView: React.FC = () => {
                     onChange={(e) =>
                       setProfileForm((prev) => ({ ...prev, phone: sanitizePhoneInput(e.target.value) }))
                     }
-                    className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm font-semibold transition ${
-                      !isEditingSchoolProfile
+                    className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm font-semibold transition ${!isEditingSchoolProfile
                         ? "bg-slate-50/80 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/80 text-slate-800 dark:text-slate-200 cursor-not-allowed"
                         : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
-                    }`}
+                      }`}
                   />
                 </div>
               </div>
@@ -2564,13 +2552,12 @@ export const SettingsView: React.FC = () => {
                       const res = validateEmail(profileForm.email, true);
                       setSchoolProfileErrors((prev) => ({ ...prev, email: res.error }));
                     }}
-                    className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm font-semibold transition ${
-                      !isEditingSchoolProfile
+                    className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm font-semibold transition ${!isEditingSchoolProfile
                         ? "bg-slate-50/80 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/80 text-slate-800 dark:text-slate-200 cursor-not-allowed"
                         : schoolProfileErrors.email
-                        ? "bg-rose-50/30 border-rose-400 text-slate-900 dark:text-white focus:ring-2 focus:ring-rose-500/20"
-                        : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
-                    }`}
+                          ? "bg-rose-50/30 border-rose-400 text-slate-900 dark:text-white focus:ring-2 focus:ring-rose-500/20"
+                          : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                      }`}
                   />
                 </div>
                 {schoolProfileErrors.email && (
@@ -2598,11 +2585,10 @@ export const SettingsView: React.FC = () => {
                     onChange={(e) =>
                       setProfileForm((prev) => ({ ...prev, website: e.target.value }))
                     }
-                    className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm font-semibold transition ${
-                      !isEditingSchoolProfile
+                    className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm font-semibold transition ${!isEditingSchoolProfile
                         ? "bg-slate-50/80 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/80 text-slate-800 dark:text-slate-200 cursor-not-allowed"
                         : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
-                    }`}
+                      }`}
                   />
                 </div>
               </div>
@@ -2632,13 +2618,12 @@ export const SettingsView: React.FC = () => {
                       const res = validateFullName(val, true);
                       setSchoolProfileErrors((prev) => ({ ...prev, principalName: val ? res.error : undefined }));
                     }}
-                    className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm font-semibold transition ${
-                      !isEditingSchoolProfile
+                    className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm font-semibold transition ${!isEditingSchoolProfile
                         ? "bg-slate-50/80 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/80 text-slate-800 dark:text-slate-200 cursor-not-allowed"
                         : schoolProfileErrors.principalName
-                        ? "bg-rose-50/30 border-rose-400 text-slate-900 dark:text-white focus:ring-2 focus:ring-rose-500/20"
-                        : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
-                    }`}
+                          ? "bg-rose-50/30 border-rose-400 text-slate-900 dark:text-white focus:ring-2 focus:ring-rose-500/20"
+                          : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
+                      }`}
                   />
                 </div>
                 {schoolProfileErrors.principalName && (
@@ -2670,15 +2655,14 @@ export const SettingsView: React.FC = () => {
                         setSchoolProfileErrors((prev) => ({ ...prev, boardType: undefined }));
                       }
                     }}
-                    className={`w-full px-3 py-2.5 rounded-xl font-bold transition border ${
-                      !isEditingSchoolProfile
+                    className={`w-full px-3 py-2.5 rounded-xl font-bold transition border ${!isEditingSchoolProfile
                         ? "bg-slate-50/80 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/80 text-slate-800 dark:text-slate-200 cursor-not-allowed"
                         : schoolProfileErrors.boardType
-                        ? "border-rose-500 focus:border-rose-500 focus:ring-rose-500/20 bg-rose-50/20 text-slate-900 dark:text-white"
-                        : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white cursor-pointer"
-                    } ${!profileForm.boardType ? "text-slate-400 dark:text-slate-500" : ""}`}
+                          ? "border-rose-500 focus:border-rose-500 focus:ring-rose-500/20 bg-rose-50/20 text-slate-900 dark:text-white"
+                          : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white cursor-pointer"
+                      } ${!profileForm.boardType ? "text-slate-700 dark:text-slate-200" : ""}`}
                   >
-                    <option value="" disabled className="text-slate-400 dark:text-slate-500">Select Educational Board</option>
+                    <option value="" disabled className="text-slate-700 dark:text-slate-200 font-semibold">Select Educational Board</option>
                     <option value="CBSE" className="text-slate-900 dark:text-white">CBSE (Central Board of Secondary Education)</option>
                     <option value="ICSE" className="text-slate-900 dark:text-white">ICSE / CISCE Board</option>
                     <option value="State Board (SSC)" className="text-slate-900 dark:text-white">State Board (SSC / Matriculation)</option>
@@ -2708,11 +2692,10 @@ export const SettingsView: React.FC = () => {
                         staffCheckInTime: e.target.value ? time24To12(e.target.value) : "08:30 AM",
                       }))
                     }
-                    className={`w-full px-3 py-2 rounded-xl border font-mono font-bold text-slate-900 dark:text-white outline-none transition ${
-                      !isEditingSchoolProfile
+                    className={`w-full px-3 py-2 rounded-xl border font-mono font-bold text-slate-900 dark:text-white outline-none transition ${!isEditingSchoolProfile
                         ? "bg-slate-50/80 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/80 text-slate-800 dark:text-slate-200 cursor-not-allowed"
                         : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:border-brand-500 cursor-pointer"
-                    }`}
+                      }`}
                   />
                 </div>
 
@@ -2731,11 +2714,10 @@ export const SettingsView: React.FC = () => {
                         staffCheckOutTime: e.target.value ? time24To12(e.target.value) : "05:00 PM",
                       }))
                     }
-                    className={`w-full px-3 py-2 rounded-xl border font-mono font-bold text-slate-900 dark:text-white outline-none transition ${
-                      !isEditingSchoolProfile
+                    className={`w-full px-3 py-2 rounded-xl border font-mono font-bold text-slate-900 dark:text-white outline-none transition ${!isEditingSchoolProfile
                         ? "bg-slate-50/80 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/80 text-slate-800 dark:text-slate-200 cursor-not-allowed"
                         : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:border-brand-500 cursor-pointer"
-                    }`}
+                      }`}
                   />
                 </div>
               </div>
@@ -2756,11 +2738,10 @@ export const SettingsView: React.FC = () => {
                         schoolStartTime: e.target.value ? time24To12(e.target.value) : "08:30 AM",
                       }))
                     }
-                    className={`w-full px-3 py-2 rounded-xl border font-mono font-bold text-slate-900 dark:text-white outline-none transition ${
-                      !isEditingSchoolProfile
+                    className={`w-full px-3 py-2 rounded-xl border font-mono font-bold text-slate-900 dark:text-white outline-none transition ${!isEditingSchoolProfile
                         ? "bg-slate-50/80 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/80 text-slate-800 dark:text-slate-200 cursor-not-allowed"
                         : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:border-brand-500 cursor-pointer"
-                    }`}
+                      }`}
                   />
                 </div>
 
@@ -2779,11 +2760,10 @@ export const SettingsView: React.FC = () => {
                         schoolEndTime: e.target.value ? time24To12(e.target.value) : "03:30 PM",
                       }))
                     }
-                    className={`w-full px-3 py-2 rounded-xl border font-mono font-bold text-slate-900 dark:text-white outline-none transition ${
-                      !isEditingSchoolProfile
+                    className={`w-full px-3 py-2 rounded-xl border font-mono font-bold text-slate-900 dark:text-white outline-none transition ${!isEditingSchoolProfile
                         ? "bg-slate-50/80 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/80 text-slate-800 dark:text-slate-200 cursor-not-allowed"
                         : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:border-brand-500 cursor-pointer"
-                    }`}
+                      }`}
                   />
                 </div>
 
@@ -2800,11 +2780,10 @@ export const SettingsView: React.FC = () => {
                         staffGracePeriodMinutes: e.target.value ? parseInt(e.target.value, 10) : ("" as any),
                       }))
                     }
-                    className={`w-full px-3 py-2 rounded-xl border font-bold transition ${
-                      !isEditingSchoolProfile
+                    className={`w-full px-3 py-2 rounded-xl border font-bold transition ${!isEditingSchoolProfile
                         ? "bg-slate-50/80 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/80 text-slate-800 dark:text-slate-200 cursor-not-allowed"
                         : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-amber-700 dark:text-amber-300 cursor-pointer"
-                    }`}
+                      }`}
                   >
                     <option value="" disabled>Select Grace Buffer</option>
                     <option value={5}>5 Mins (Strict)</option>
@@ -2890,15 +2869,14 @@ export const SettingsView: React.FC = () => {
                     {campus.code}
                   </span>
                   <span
-                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                      campus.status === "Active"
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${campus.status === "Active"
                         ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
                         : campus.status === "Inactive"
                           ? "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"
                           : campus.status === "Closed"
                             ? "bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300"
                             : "bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400"
-                    }`}
+                      }`}
                   >
                     {campus.status}
                   </span>
@@ -2980,89 +2958,87 @@ export const SettingsView: React.FC = () => {
                     : "Upcoming";
 
               return (
-              <div
-                key={ay.id}
-                className="glass-card p-5 rounded-3xl space-y-3 border border-slate-200 dark:border-slate-800 relative"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-mono font-bold text-[10px] text-sky-600 bg-sky-50 dark:bg-sky-950 px-2 py-0.5 rounded-md">
-                    {formatAcademicYear(ay.academicYear) || ay.academicYear || (ay as any).academicYearName || '—'}
-                  </span>
-                  <span
-                    className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase border ${
-                      displayStatus === "Active"
-                        ? "bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/80 dark:text-emerald-300 dark:border-emerald-800"
-                        : displayStatus === "Closed"
-                          ? "bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-950/80 dark:text-rose-300 dark:border-rose-800"
-                          : "bg-indigo-100 text-indigo-800 border-indigo-300 dark:bg-indigo-950/80 dark:text-indigo-300 dark:border-indigo-800"
-                    }`}
-                  >
+                <div
+                  key={ay.id}
+                  className="glass-card p-5 rounded-3xl space-y-3 border border-slate-200 dark:border-slate-800 relative"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono font-bold text-[10px] text-sky-600 bg-sky-50 dark:bg-sky-950 px-2 py-0.5 rounded-md">
+                      {formatAcademicYear(ay.academicYear) || ay.academicYear || (ay as any).academicYearName || '—'}
+                    </span>
                     <span
-                      className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                        displayStatus === "Active"
-                          ? "bg-emerald-600 dark:bg-emerald-400"
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase border ${displayStatus === "Active"
+                          ? "bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/80 dark:text-emerald-300 dark:border-emerald-800"
                           : displayStatus === "Closed"
-                            ? "bg-rose-600 dark:bg-rose-400"
-                            : "bg-indigo-600 dark:bg-indigo-400"
-                      }`}
-                    />
-                    {displayStatus}
-                  </span>
-                </div>
+                            ? "bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-950/80 dark:text-rose-300 dark:border-rose-800"
+                            : "bg-indigo-100 text-indigo-800 border-indigo-300 dark:bg-indigo-950/80 dark:text-indigo-300 dark:border-indigo-800"
+                        }`}
+                    >
+                      <span
+                        className={`w-1.5 h-1.5 rounded-full shrink-0 ${displayStatus === "Active"
+                            ? "bg-emerald-600 dark:bg-emerald-400"
+                            : displayStatus === "Closed"
+                              ? "bg-rose-600 dark:bg-rose-400"
+                              : "bg-indigo-600 dark:bg-indigo-400"
+                          }`}
+                      />
+                      {displayStatus}
+                    </span>
+                  </div>
 
-                <div className="space-y-1 text-xs text-slate-600 dark:text-slate-300">
-                  <p>
-                    Start Date:{" "}
-                    <strong>{formatDateDDMMYYYY(ay.startDate)}</strong>
-                  </p>
-                  <p>
-                    End Date: <strong>{formatDateDDMMYYYY(ay.endDate)}</strong>
-                  </p>
-                  {ay.description && (
-                    <p className="text-slate-400 text-[11px]">
-                      {ay.description}
+                  <div className="space-y-1 text-xs text-slate-600 dark:text-slate-300">
+                    <p>
+                      Start Date:{" "}
+                      <strong>{formatDateDDMMYYYY(ay.startDate)}</strong>
                     </p>
-                  )}
-                </div>
+                    <p>
+                      End Date: <strong>{formatDateDDMMYYYY(ay.endDate)}</strong>
+                    </p>
+                    {ay.description && (
+                      <p className="text-slate-400 text-[11px]">
+                        {ay.description}
+                      </p>
+                    )}
+                  </div>
 
-                <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                  {ay.status === "Active" ? (
-                    <span className="text-[11px] font-black text-emerald-600 flex items-center gap-1">
-                      <CheckCircle2 className="w-3.5 h-3.5" /> Current Active
-                      Session
-                    </span>
-                  ) : ay.status === "Closed" || (ay.endDate && new Date(ay.endDate) < new Date(new Date().setHours(0, 0, 0, 0))) ? (
-                    <span
-                      className="text-xs font-bold text-slate-400 dark:text-slate-500 flex items-center gap-1"
-                      title="Completed academic year cannot be set as active session"
-                    >
-                      <Lock className="w-3.5 h-3.5 text-slate-400" /> Completed Session
-                    </span>
-                  ) : (
-                    <button
-                      onClick={() => handleSetActiveSession(ay)}
-                      className="text-xs font-bold text-emerald-600 hover:text-emerald-500 cursor-pointer"
-                    >
-                      Set as Active Session
-                    </button>
-                  )}
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                    {ay.status === "Active" ? (
+                      <span className="text-[11px] font-black text-emerald-600 flex items-center gap-1">
+                        <CheckCircle2 className="w-3.5 h-3.5" /> Current Active
+                        Session
+                      </span>
+                    ) : ay.status === "Closed" || (ay.endDate && new Date(ay.endDate) < new Date(new Date().setHours(0, 0, 0, 0))) ? (
+                      <span
+                        className="text-xs font-bold text-slate-400 dark:text-slate-500 flex items-center gap-1"
+                        title="Completed academic year cannot be set as active session"
+                      >
+                        <Lock className="w-3.5 h-3.5 text-slate-400" /> Completed Session
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => handleSetActiveSession(ay)}
+                        className="text-xs font-bold text-emerald-600 hover:text-emerald-500 cursor-pointer"
+                      >
+                        Set as Active Session
+                      </button>
+                    )}
 
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => handleOpenEditAY(ay)}
-                      className="p-1.5 text-slate-500 hover:text-sky-600 rounded-lg"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => setDeletingAY(ay)}
-                      className="p-1.5 text-slate-500 hover:text-rose-600 rounded-lg"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleOpenEditAY(ay)}
+                        className="p-1.5 text-slate-500 hover:text-sky-600 rounded-lg"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => setDeletingAY(ay)}
+                        className="p-1.5 text-slate-500 hover:text-rose-600 rounded-lg"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
               );
             })}
           </div>
@@ -3092,11 +3068,10 @@ export const SettingsView: React.FC = () => {
           {/* 2 Cards Per Row Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Card 1: Student ID */}
-            <div className={`group relative p-6 rounded-2xl bg-white dark:bg-slate-900 border transition-all duration-300 ease-out space-y-4 ${
-              editingIdCards.student
+            <div className={`group relative p-6 rounded-2xl bg-white dark:bg-slate-900 border transition-all duration-300 ease-out space-y-4 ${editingIdCards.student
                 ? "ring-2 ring-sky-500/30 border-sky-400 dark:border-sky-500 shadow-md shadow-sky-500/10"
                 : "border-slate-200 dark:border-slate-800 shadow-xs"
-            }`}>
+              }`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
                   <div className="w-9 h-9 rounded-xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 flex items-center justify-center border border-sky-100 dark:border-sky-900/40 group-hover:scale-110 transition-transform duration-200">
@@ -3163,11 +3138,10 @@ export const SettingsView: React.FC = () => {
                         setIdForm(next);
                         saveIdSequenceSettings(next);
                       }}
-                      className={`w-full px-3 py-2 rounded-xl border font-mono font-bold text-xs transition ${
-                        !editingIdCards.student
+                      className={`w-full px-3 py-2 rounded-xl border font-mono font-bold text-xs transition ${!editingIdCards.student
                           ? "bg-slate-100/70 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 cursor-not-allowed select-none"
                           : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 hover:border-slate-300 dark:hover:border-slate-600"
-                      }`}
+                        }`}
                     />
                   </div>
                   <div>
@@ -3180,11 +3154,10 @@ export const SettingsView: React.FC = () => {
                         setIdForm(next);
                         saveIdSequenceSettings(next);
                       }}
-                      className={`w-full px-3 py-2 rounded-xl border font-semibold text-xs transition ${
-                        !editingIdCards.student
+                      className={`w-full px-3 py-2 rounded-xl border font-semibold text-xs transition ${!editingIdCards.student
                           ? "bg-slate-100/70 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 cursor-not-allowed select-none"
                           : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer"
-                      }`}
+                        }`}
                     >
                       <option value="" disabled>Select Tag Placement</option>
                       <option value="start">Start (Prefix - Year - Number)</option>
@@ -3208,11 +3181,10 @@ export const SettingsView: React.FC = () => {
                         setIdForm(next);
                         saveIdSequenceSettings(next);
                       }}
-                      className={`w-full px-3 py-2 rounded-xl border font-mono font-bold text-xs transition ${
-                        !editingIdCards.student
+                      className={`w-full px-3 py-2 rounded-xl border font-mono font-bold text-xs transition ${!editingIdCards.student
                           ? "bg-slate-100/70 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 cursor-not-allowed select-none"
                           : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 hover:border-slate-300 dark:hover:border-slate-600"
-                      }`}
+                        }`}
                     />
                   </div>
                   <div>
@@ -3225,11 +3197,10 @@ export const SettingsView: React.FC = () => {
                         setIdForm(next);
                         saveIdSequenceSettings(next);
                       }}
-                      className={`w-full px-3 py-2 rounded-xl border font-semibold text-xs transition ${
-                        !editingIdCards.student
+                      className={`w-full px-3 py-2 rounded-xl border font-semibold text-xs transition ${!editingIdCards.student
                           ? "bg-slate-100/70 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 cursor-not-allowed select-none"
                           : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer"
-                      }`}
+                        }`}
                     >
                       <option value="" disabled>Select Digit Padding</option>
                       <option value={3}>3 Digits (001)</option>
@@ -3251,11 +3222,10 @@ export const SettingsView: React.FC = () => {
                         setIdForm(next);
                         saveIdSequenceSettings(next);
                       }}
-                      className={`w-full px-3 py-2 rounded-xl border font-semibold text-xs transition ${
-                        !editingIdCards.student
+                      className={`w-full px-3 py-2 rounded-xl border font-semibold text-xs transition ${!editingIdCards.student
                           ? "bg-slate-100/70 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 cursor-not-allowed select-none"
                           : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer"
-                      }`}
+                        }`}
                     >
                       <option value="" disabled>Select Separator Symbol</option>
                       <option value="-">Hyphen (-)</option>
@@ -3267,11 +3237,10 @@ export const SettingsView: React.FC = () => {
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">Include Year</label>
-                    <label className={`flex items-center gap-2 px-3 py-2 rounded-xl border font-semibold text-xs transition ${
-                      !editingIdCards.student
+                    <label className={`flex items-center gap-2 px-3 py-2 rounded-xl border font-semibold text-xs transition ${!editingIdCards.student
                         ? "bg-slate-100/70 dark:bg-slate-800/40 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 cursor-not-allowed select-none"
                         : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer"
-                    }`}>
+                      }`}>
                       <input
                         type="checkbox"
                         disabled={!editingIdCards.student}
@@ -3291,11 +3260,10 @@ export const SettingsView: React.FC = () => {
             </div>
 
             {/* Card 2: Teaching Staff ID */}
-            <div className={`group relative p-6 rounded-2xl bg-white dark:bg-slate-900 border transition-all duration-300 ease-out space-y-4 ${
-              editingIdCards.teaching
+            <div className={`group relative p-6 rounded-2xl bg-white dark:bg-slate-900 border transition-all duration-300 ease-out space-y-4 ${editingIdCards.teaching
                 ? "ring-2 ring-indigo-500/30 border-indigo-400 dark:border-indigo-500 shadow-md shadow-indigo-500/10"
                 : "border-slate-200 dark:border-slate-800 shadow-xs"
-            }`}>
+              }`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
                   <div className="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center border border-indigo-100 dark:border-indigo-900/40 group-hover:scale-110 transition-transform duration-200">
@@ -3362,11 +3330,10 @@ export const SettingsView: React.FC = () => {
                         setIdForm(next);
                         saveIdSequenceSettings(next);
                       }}
-                      className={`w-full px-3 py-2 rounded-xl border font-mono font-bold text-xs transition ${
-                        !editingIdCards.teaching
+                      className={`w-full px-3 py-2 rounded-xl border font-mono font-bold text-xs transition ${!editingIdCards.teaching
                           ? "bg-slate-100/70 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 cursor-not-allowed select-none"
                           : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 hover:border-slate-300 dark:hover:border-slate-600"
-                      }`}
+                        }`}
                     />
                   </div>
                   <div>
@@ -3379,11 +3346,10 @@ export const SettingsView: React.FC = () => {
                         setIdForm(next);
                         saveIdSequenceSettings(next);
                       }}
-                      className={`w-full px-3 py-2 rounded-xl border font-semibold text-xs transition ${
-                        !editingIdCards.teaching
+                      className={`w-full px-3 py-2 rounded-xl border font-semibold text-xs transition ${!editingIdCards.teaching
                           ? "bg-slate-100/70 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 cursor-not-allowed select-none"
                           : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer"
-                      }`}
+                        }`}
                     >
                       <option value="" disabled>Select Tag Placement</option>
                       <option value="start">Start (Prefix - Year - Number)</option>
@@ -3407,11 +3373,10 @@ export const SettingsView: React.FC = () => {
                         setIdForm(next);
                         saveIdSequenceSettings(next);
                       }}
-                      className={`w-full px-3 py-2 rounded-xl border font-mono font-bold text-xs transition ${
-                        !editingIdCards.teaching
+                      className={`w-full px-3 py-2 rounded-xl border font-mono font-bold text-xs transition ${!editingIdCards.teaching
                           ? "bg-slate-100/70 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 cursor-not-allowed select-none"
                           : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 hover:border-slate-300 dark:hover:border-slate-600"
-                      }`}
+                        }`}
                     />
                   </div>
                   <div>
@@ -3424,11 +3389,10 @@ export const SettingsView: React.FC = () => {
                         setIdForm(next);
                         saveIdSequenceSettings(next);
                       }}
-                      className={`w-full px-3 py-2 rounded-xl border font-semibold text-xs transition ${
-                        !editingIdCards.teaching
+                      className={`w-full px-3 py-2 rounded-xl border font-semibold text-xs transition ${!editingIdCards.teaching
                           ? "bg-slate-100/70 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 cursor-not-allowed select-none"
                           : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer"
-                      }`}
+                        }`}
                     >
                       <option value="" disabled>Select Digit Padding</option>
                       <option value={3}>3 Digits (001)</option>
@@ -3450,11 +3414,10 @@ export const SettingsView: React.FC = () => {
                         setIdForm(next);
                         saveIdSequenceSettings(next);
                       }}
-                      className={`w-full px-3 py-2 rounded-xl border font-semibold text-xs transition ${
-                        !editingIdCards.teaching
+                      className={`w-full px-3 py-2 rounded-xl border font-semibold text-xs transition ${!editingIdCards.teaching
                           ? "bg-slate-100/70 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 cursor-not-allowed select-none"
                           : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer"
-                      }`}
+                        }`}
                     >
                       <option value="" disabled>Select Separator Symbol</option>
                       <option value="-">Hyphen (-)</option>
@@ -3466,11 +3429,10 @@ export const SettingsView: React.FC = () => {
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">Include Year</label>
-                    <label className={`flex items-center gap-2 px-3 py-2 rounded-xl border font-semibold text-xs transition ${
-                      !editingIdCards.teaching
+                    <label className={`flex items-center gap-2 px-3 py-2 rounded-xl border font-semibold text-xs transition ${!editingIdCards.teaching
                         ? "bg-slate-100/70 dark:bg-slate-800/40 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 cursor-not-allowed select-none"
                         : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer"
-                    }`}>
+                      }`}>
                       <input
                         type="checkbox"
                         disabled={!editingIdCards.teaching}
@@ -3490,11 +3452,10 @@ export const SettingsView: React.FC = () => {
             </div>
 
             {/* Card 3: Non-Teaching Staff ID */}
-            <div className={`group relative p-6 rounded-2xl bg-white dark:bg-slate-900 border transition-all duration-300 ease-out space-y-4 ${
-              editingIdCards.nonTeaching
+            <div className={`group relative p-6 rounded-2xl bg-white dark:bg-slate-900 border transition-all duration-300 ease-out space-y-4 ${editingIdCards.nonTeaching
                 ? "ring-2 ring-fuchsia-500/30 border-fuchsia-400 dark:border-fuchsia-500 shadow-md shadow-fuchsia-500/10"
                 : "border-slate-200 dark:border-slate-800 shadow-xs"
-            }`}>
+              }`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
                   <div className="w-9 h-9 rounded-xl bg-fuchsia-50 dark:bg-fuchsia-950/60 text-fuchsia-600 dark:text-fuchsia-400 flex items-center justify-center border border-fuchsia-100 dark:border-fuchsia-900/40 group-hover:scale-110 transition-transform duration-200">
@@ -3561,11 +3522,10 @@ export const SettingsView: React.FC = () => {
                         setIdForm(next);
                         saveIdSequenceSettings(next);
                       }}
-                      className={`w-full px-3 py-2 rounded-xl border font-mono font-bold text-xs transition ${
-                        !editingIdCards.nonTeaching
+                      className={`w-full px-3 py-2 rounded-xl border font-mono font-bold text-xs transition ${!editingIdCards.nonTeaching
                           ? "bg-slate-100/70 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 cursor-not-allowed select-none"
                           : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-fuchsia-500 focus:ring-2 focus:ring-fuchsia-500/20 hover:border-slate-300 dark:hover:border-slate-600"
-                      }`}
+                        }`}
                     />
                   </div>
                   <div>
@@ -3578,11 +3538,10 @@ export const SettingsView: React.FC = () => {
                         setIdForm(next);
                         saveIdSequenceSettings(next);
                       }}
-                      className={`w-full px-3 py-2 rounded-xl border font-semibold text-xs transition ${
-                        !editingIdCards.nonTeaching
+                      className={`w-full px-3 py-2 rounded-xl border font-semibold text-xs transition ${!editingIdCards.nonTeaching
                           ? "bg-slate-100/70 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 cursor-not-allowed select-none"
                           : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-fuchsia-500 focus:ring-2 focus:ring-fuchsia-500/20 hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer"
-                      }`}
+                        }`}
                     >
                       <option value="" disabled>Select Tag Placement</option>
                       <option value="start">Start (Prefix - Year - Number)</option>
@@ -3606,11 +3565,10 @@ export const SettingsView: React.FC = () => {
                         setIdForm(next);
                         saveIdSequenceSettings(next);
                       }}
-                      className={`w-full px-3 py-2 rounded-xl border font-mono font-bold text-xs transition ${
-                        !editingIdCards.nonTeaching
+                      className={`w-full px-3 py-2 rounded-xl border font-mono font-bold text-xs transition ${!editingIdCards.nonTeaching
                           ? "bg-slate-100/70 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 cursor-not-allowed select-none"
                           : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-fuchsia-500 focus:ring-2 focus:ring-fuchsia-500/20 hover:border-slate-300 dark:hover:border-slate-600"
-                      }`}
+                        }`}
                     />
                   </div>
                   <div>
@@ -3623,11 +3581,10 @@ export const SettingsView: React.FC = () => {
                         setIdForm(next);
                         saveIdSequenceSettings(next);
                       }}
-                      className={`w-full px-3 py-2 rounded-xl border font-semibold text-xs transition ${
-                        !editingIdCards.nonTeaching
+                      className={`w-full px-3 py-2 rounded-xl border font-semibold text-xs transition ${!editingIdCards.nonTeaching
                           ? "bg-slate-100/70 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 cursor-not-allowed select-none"
                           : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-fuchsia-500 focus:ring-2 focus:ring-fuchsia-500/20 hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer"
-                      }`}
+                        }`}
                     >
                       <option value="" disabled>Select Digit Padding</option>
                       <option value={3}>3 Digits (001)</option>
@@ -3649,11 +3606,10 @@ export const SettingsView: React.FC = () => {
                         setIdForm(next);
                         saveIdSequenceSettings(next);
                       }}
-                      className={`w-full px-3 py-2 rounded-xl border font-semibold text-xs transition ${
-                        !editingIdCards.nonTeaching
+                      className={`w-full px-3 py-2 rounded-xl border font-semibold text-xs transition ${!editingIdCards.nonTeaching
                           ? "bg-slate-100/70 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 cursor-not-allowed select-none"
                           : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-fuchsia-500 focus:ring-2 focus:ring-fuchsia-500/20 hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer"
-                      }`}
+                        }`}
                     >
                       <option value="" disabled>Select Separator Symbol</option>
                       <option value="-">Hyphen (-)</option>
@@ -3665,11 +3621,10 @@ export const SettingsView: React.FC = () => {
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">Include Year</label>
-                    <label className={`flex items-center gap-2 px-3 py-2 rounded-xl border font-semibold text-xs transition ${
-                      !editingIdCards.nonTeaching
+                    <label className={`flex items-center gap-2 px-3 py-2 rounded-xl border font-semibold text-xs transition ${!editingIdCards.nonTeaching
                         ? "bg-slate-100/70 dark:bg-slate-800/40 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 cursor-not-allowed select-none"
                         : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer"
-                    }`}>
+                      }`}>
                       <input
                         type="checkbox"
                         disabled={!editingIdCards.nonTeaching}
@@ -3689,11 +3644,10 @@ export const SettingsView: React.FC = () => {
             </div>
 
             {/* Card 4: Admission No */}
-            <div className={`group relative p-6 rounded-2xl bg-white dark:bg-slate-900 border transition-all duration-300 ease-out space-y-4 ${
-              editingIdCards.admission
+            <div className={`group relative p-6 rounded-2xl bg-white dark:bg-slate-900 border transition-all duration-300 ease-out space-y-4 ${editingIdCards.admission
                 ? "ring-2 ring-emerald-500/30 border-emerald-400 dark:border-emerald-500 shadow-md shadow-emerald-500/10"
                 : "border-slate-200 dark:border-slate-800 shadow-xs"
-            }`}>
+              }`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
                   <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-100 dark:border-emerald-900/40 group-hover:scale-110 transition-transform duration-200">
@@ -3760,11 +3714,10 @@ export const SettingsView: React.FC = () => {
                         setIdForm(next);
                         saveIdSequenceSettings(next);
                       }}
-                      className={`w-full px-3 py-2 rounded-xl border font-mono font-bold text-xs transition ${
-                        !editingIdCards.admission
+                      className={`w-full px-3 py-2 rounded-xl border font-mono font-bold text-xs transition ${!editingIdCards.admission
                           ? "bg-slate-100/70 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 cursor-not-allowed select-none"
                           : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 hover:border-slate-300 dark:hover:border-slate-600"
-                      }`}
+                        }`}
                     />
                   </div>
                   <div>
@@ -3777,11 +3730,10 @@ export const SettingsView: React.FC = () => {
                         setIdForm(next);
                         saveIdSequenceSettings(next);
                       }}
-                      className={`w-full px-3 py-2 rounded-xl border font-semibold text-xs transition ${
-                        !editingIdCards.admission
+                      className={`w-full px-3 py-2 rounded-xl border font-semibold text-xs transition ${!editingIdCards.admission
                           ? "bg-slate-100/70 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 cursor-not-allowed select-none"
                           : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer"
-                      }`}
+                        }`}
                     >
                       <option value="" disabled>Select Tag Placement</option>
                       <option value="start">Start (Prefix - Year - Number)</option>
@@ -3805,11 +3757,10 @@ export const SettingsView: React.FC = () => {
                         setIdForm(next);
                         saveIdSequenceSettings(next);
                       }}
-                      className={`w-full px-3 py-2 rounded-xl border font-mono font-bold text-xs transition ${
-                        !editingIdCards.admission
+                      className={`w-full px-3 py-2 rounded-xl border font-mono font-bold text-xs transition ${!editingIdCards.admission
                           ? "bg-slate-100/70 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 cursor-not-allowed select-none"
                           : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 hover:border-slate-300 dark:hover:border-slate-600"
-                      }`}
+                        }`}
                     />
                   </div>
                   <div>
@@ -3822,11 +3773,10 @@ export const SettingsView: React.FC = () => {
                         setIdForm(next);
                         saveIdSequenceSettings(next);
                       }}
-                      className={`w-full px-3 py-2 rounded-xl border font-semibold text-xs transition ${
-                        !editingIdCards.admission
+                      className={`w-full px-3 py-2 rounded-xl border font-semibold text-xs transition ${!editingIdCards.admission
                           ? "bg-slate-100/70 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 cursor-not-allowed select-none"
                           : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer"
-                      }`}
+                        }`}
                     >
                       <option value="" disabled>Select Digit Padding</option>
                       <option value={3}>3 Digits (001)</option>
@@ -3848,11 +3798,10 @@ export const SettingsView: React.FC = () => {
                         setIdForm(next);
                         saveIdSequenceSettings(next);
                       }}
-                      className={`w-full px-3 py-2 rounded-xl border font-semibold text-xs transition ${
-                        !editingIdCards.admission
+                      className={`w-full px-3 py-2 rounded-xl border font-semibold text-xs transition ${!editingIdCards.admission
                           ? "bg-slate-100/70 dark:bg-slate-800/40 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 cursor-not-allowed select-none"
                           : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:bg-white dark:focus:bg-slate-900 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer"
-                      }`}
+                        }`}
                     >
                       <option value="" disabled>Select Separator Symbol</option>
                       <option value="-">Hyphen (-)</option>
@@ -3864,11 +3813,10 @@ export const SettingsView: React.FC = () => {
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1.5">Include Year</label>
-                    <label className={`flex items-center gap-2 px-3 py-2 rounded-xl border font-semibold text-xs transition ${
-                      !editingIdCards.admission
+                    <label className={`flex items-center gap-2 px-3 py-2 rounded-xl border font-semibold text-xs transition ${!editingIdCards.admission
                         ? "bg-slate-100/70 dark:bg-slate-800/40 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 cursor-not-allowed select-none"
                         : "bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer"
-                    }`}>
+                      }`}>
                       <input
                         type="checkbox"
                         disabled={!editingIdCards.admission}
@@ -4400,15 +4348,14 @@ export const SettingsView: React.FC = () => {
                               {log.userName || "Administrator"}
                             </span>
                             <span
-                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                                (log.userRole || "").toLowerCase().includes("super")
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${(log.userRole || "").toLowerCase().includes("super")
                                   ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300"
                                   : (log.userRole || "").toLowerCase().includes("admin")
-                                  ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
-                                  : (log.userRole || "").toLowerCase().includes("teacher")
-                                  ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
-                                  : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300"
-                              }`}
+                                    ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
+                                    : (log.userRole || "").toLowerCase().includes("teacher")
+                                      ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+                                      : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                                }`}
                             >
                               {log.userRole || "Admin"}
                             </span>
@@ -4518,11 +4465,10 @@ export const SettingsView: React.FC = () => {
                       }));
                     }
                   }}
-                  className={`w-full px-3 py-2 rounded-xl border transition ${
-                    campusErrors.name
+                  className={`w-full px-3 py-2 rounded-xl border transition ${campusErrors.name
                       ? "border-rose-500 focus:border-rose-500 focus:ring-rose-500/20 bg-rose-50/20"
                       : "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700"
-                  }`}
+                    }`}
                 />
                 {campusErrors.name && (
                   <p className="mt-1 text-xs font-bold text-rose-500 flex items-center gap-1">
@@ -4558,11 +4504,10 @@ export const SettingsView: React.FC = () => {
                       code: isDup ? "Campus code already exists." : (val ? res.error : undefined),
                     }));
                   }}
-                  className={`w-full px-3 py-2 rounded-xl border font-mono font-bold transition ${
-                    campusErrors.code
+                  className={`w-full px-3 py-2 rounded-xl border font-mono font-bold transition ${campusErrors.code
                       ? "border-rose-500 focus:border-rose-500 focus:ring-rose-500/20 bg-rose-50/20"
                       : "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700"
-                  }`}
+                    }`}
                 />
                 {campusErrors.code && (
                   <p className="mt-1 text-xs font-bold text-rose-500 flex items-center gap-1">
@@ -4598,11 +4543,10 @@ export const SettingsView: React.FC = () => {
                     const res = validateCampusAddress(trimmed, true);
                     setCampusErrors((prev) => ({ ...prev, address: res.error }));
                   }}
-                  className={`w-full px-3 py-2 rounded-xl border transition ${
-                    campusErrors.address
+                  className={`w-full px-3 py-2 rounded-xl border transition ${campusErrors.address
                       ? "border-rose-500 focus:border-rose-500 focus:ring-rose-500/20 bg-rose-50/20"
                       : "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700"
-                  }`}
+                    }`}
                 />
                 {campusErrors.address && (
                   <p className="mt-1 text-xs font-bold text-rose-500 flex items-center gap-1">
@@ -4626,9 +4570,8 @@ export const SettingsView: React.FC = () => {
                       setCampusForm({ ...campusForm, phone: val });
                       if (campusErrors.phone) setCampusErrors((prev) => ({ ...prev, phone: undefined }));
                     }}
-                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border ${
-                      campusErrors.phone ? "border-rose-500 focus:ring-rose-500" : ""
-                    }`}
+                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border ${campusErrors.phone ? "border-rose-500 focus:ring-rose-500" : ""
+                      }`}
                   />
                   {campusErrors.phone && (
                     <p className="text-xs text-rose-500 mt-1 font-semibold flex items-center gap-1">
@@ -4656,9 +4599,8 @@ export const SettingsView: React.FC = () => {
                         setCampusErrors((prev) => ({ ...prev, email: res.error }));
                       }
                     }}
-                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border ${
-                      campusErrors.email ? "border-rose-500 focus:ring-rose-500" : ""
-                    }`}
+                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border ${campusErrors.email ? "border-rose-500 focus:ring-rose-500" : ""
+                      }`}
                   />
                   {campusErrors.email && (
                     <p className="text-xs text-rose-500 mt-1 font-semibold flex items-center gap-1">
@@ -4685,11 +4627,10 @@ export const SettingsView: React.FC = () => {
                       setCampusErrors((prev) => ({ ...prev, status: undefined }));
                     }
                   }}
-                  className={`w-full px-3 py-2 rounded-xl border font-bold transition ${
-                    campusErrors.status
+                  className={`w-full px-3 py-2 rounded-xl border font-bold transition ${campusErrors.status
                       ? "border-rose-500 focus:border-rose-500 focus:ring-rose-500/20 bg-rose-50/20 text-rose-600"
                       : "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white"
-                  }`}
+                    }`}
                 >
                   <option value="" disabled>Select Status</option>
                   <option value="Active">Active</option>
@@ -4787,9 +4728,8 @@ export const SettingsView: React.FC = () => {
                       }));
                     }
                   }}
-                  className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono font-bold ${
-                    ayErrors.academicYear ? "border-rose-500 focus:ring-rose-500" : ""
-                  }`}
+                  className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-mono font-bold ${ayErrors.academicYear ? "border-rose-500 focus:ring-rose-500" : ""
+                    }`}
                 />
                 {ayErrors.academicYear && (
                   <p className="text-xs text-rose-500 mt-1 font-semibold flex items-center gap-1">
@@ -4817,9 +4757,8 @@ export const SettingsView: React.FC = () => {
                         dateRange: validateAYDateRange(val, ayForm.endDate)
                       }));
                     }}
-                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border cursor-pointer ${
-                      ayErrors.dateRange || ayErrors.startDate ? "border-rose-500 focus:ring-rose-500" : ""
-                    }`}
+                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border cursor-pointer ${ayErrors.dateRange || ayErrors.startDate ? "border-rose-500 focus:ring-rose-500" : ""
+                      }`}
                   />
                 </div>
                 <div>
@@ -4840,9 +4779,8 @@ export const SettingsView: React.FC = () => {
                         dateRange: validateAYDateRange(ayForm.startDate, val)
                       }));
                     }}
-                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border cursor-pointer ${
-                      ayErrors.dateRange || ayErrors.endDate ? "border-rose-500 focus:ring-rose-500" : ""
-                    }`}
+                    className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border cursor-pointer ${ayErrors.dateRange || ayErrors.endDate ? "border-rose-500 focus:ring-rose-500" : ""
+                      }`}
                   />
                 </div>
                 {ayErrors.dateRange && (
@@ -4866,7 +4804,11 @@ export const SettingsView: React.FC = () => {
                   value={ayForm.status}
                   onChange={(e) => {
                     const val = e.target.value as "Active" | "Closed" | "Upcoming" | "";
-                    setAyForm({ ...ayForm, status: val });
+                    setAyForm({
+                      ...ayForm,
+                      status: val,
+                      isCurrentAcademicYear: val === "Active"
+                    });
                     const today = new Date();
                     today.setHours(0, 0, 0, 0);
                     const isPast = ayForm.endDate && new Date(ayForm.endDate) < today;
@@ -4876,11 +4818,10 @@ export const SettingsView: React.FC = () => {
                       setAyErrors((prev) => ({ ...prev, status: undefined }));
                     }
                   }}
-                  className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-bold cursor-pointer ${
-                    ayErrors.status ? "border-rose-500 focus:ring-rose-500" : ""
-                  }`}
+                  className={`w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-bold cursor-pointer ${ayErrors.status ? "border-rose-500 focus:ring-rose-500" : ""
+                    }`}
                 >
-                  <option value="" disabled hidden>
+                  <option value="" disabled hidden className="text-slate-700 dark:text-slate-200 font-semibold">
                     Select Session Status
                   </option>
                   <option

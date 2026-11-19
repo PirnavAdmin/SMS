@@ -32,7 +32,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const addToast = useCallback((arg1: any, arg2?: any, arg3?: string) => {
     const id = Math.random().toString(36).substring(2, 9);
-    
+
     let type: ToastType = 'info';
     let title = '';
     let message = arg3;
@@ -177,8 +177,8 @@ const defaultToastContext: ToastContextType = {
   addToast: (typeOrTitle: any, titleOrMessage?: any, message?: string) => {
     console.debug('[Toast Notice]', typeOrTitle, titleOrMessage, message);
   },
-  removeToast: () => {},
-  clearToasts: () => {}
+  removeToast: () => { },
+  clearToasts: () => { }
 };
 
 export const useToast = () => {

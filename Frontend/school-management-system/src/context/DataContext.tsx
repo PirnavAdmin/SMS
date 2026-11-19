@@ -2383,13 +2383,23 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       const res: any = await updateAcademicYearApi(id, updates);
       const data = res?.data || updates;
+      const effectiveStatus = (data.status || updates.status) as "Active" | "Closed" | "Upcoming" | undefined;
+      const isNowActive = effectiveStatus === "Active" || (updates.isCurrentAcademicYear === true && effectiveStatus !== "Upcoming" && effectiveStatus !== "Closed");
+
       setAcademicYears((prev) => {
-        let updated = prev.map((a) =>
-          a.id === id || a.academicYear === id
-            ? { ...a, ...data, updatedAt: new Date().toISOString() }
-            : a,
-        );
-        if (updates.isCurrentAcademicYear || updates.status === "Active") {
+        let updated = prev.map((a) => {
+          if (a.id === id || a.academicYear === id) {
+            return {
+              ...a,
+              ...data,
+              status: effectiveStatus || a.status,
+              isCurrentAcademicYear: isNowActive,
+              updatedAt: new Date().toISOString(),
+            };
+          }
+          return a;
+        });
+        if (isNowActive) {
           const target = updated.find((a) => a.id === id || a.academicYear === id);
           updated = updated.map((a) =>
             a.id === id || a.academicYear === id
@@ -2397,6 +2407,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               : { ...a, isCurrentAcademicYear: false },
           );
           if (target) setSelectedAcademicYear(target.academicYear);
+        } else {
+          updated = updated.map((a) =>
+            a.id === id || a.academicYear === id
+              ? { ...a, isCurrentAcademicYear: false }
+              : a,
+          );
         }
         return updated;
       });

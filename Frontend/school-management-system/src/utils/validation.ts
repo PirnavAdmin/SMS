@@ -1473,7 +1473,7 @@ export function validateDrivingLicense(
 export function validateSearchQuery(query: string, maxLength: number = 30): { isValid: boolean; error?: string } {
   if (!query || typeof query !== 'string') return { isValid: true };
   if (query.length > 0 && !query.trim()) {
-    return { isValid: false, error: 'Enter a valid search term.' };
+    return { isValid: false, error: 'Please enter a valid search keyword.' };
   }
   const trimmed = query.trim();
   if (!trimmed) return { isValid: true };
@@ -1488,17 +1488,17 @@ export function validateSearchQuery(query: string, maxLength: number = 30): { is
     return { isValid: false, error: 'Special characters are not allowed.' };
   }
   if (!/[a-zA-Z0-9]/.test(trimmed) || /[\-\/\.\_\&\']{2,}/.test(trimmed) || /(\d)\1{4,}/.test(trimmed)) {
-    return { isValid: false, error: 'Enter a valid search term.' };
+    return { isValid: false, error: 'Please enter a valid search keyword.' };
   }
   if (/([a-zA-Z])\1{2,}/i.test(trimmed) || /([a-zA-Z]{2,4})\1{2,}/i.test(trimmed) || KEYBOARD_MASH_REGEX.test(trimmed)) {
-    return { isValid: false, error: 'Enter a valid search term.' };
+    return { isValid: false, error: 'Please enter a valid search keyword.' };
   }
   const tokens = trimmed.split(/[\s\-\/\.\_\&\']+/).filter(Boolean);
   for (const token of tokens) {
     const alphaSegments = token.match(/[a-zA-Z]+/g) || [];
     for (const seg of alphaSegments) {
       if (isGibberishSegment(seg)) {
-        return { isValid: false, error: 'Enter a valid search term.' };
+        return { isValid: false, error: 'Please enter a valid search keyword.' };
       }
     }
   }
