@@ -16,6 +16,8 @@ namespace SMS.Api.Dtos.Transport.VehicleAssignment
 
         public long? AttendantId { get; set; }
         public string? AttendantName { get; set; }
+        public string? AttendantEmployeeId { get; set; }
+        public string? AttendantMobile { get; set; }
 
         public string? MorningTripTime { get; set; }
         public string? EveningTripTime { get; set; }

@@ -58,6 +58,12 @@ namespace SMS.Api.Dtos.Transport.VehicleAssignment
         [JsonPropertyName("attendantName")]
         public string? AttendantName { get; set; }
 
+        [JsonPropertyName("attendantEmployeeId")]
+        public string? AttendantEmployeeId { get; set; }
+
+        [JsonPropertyName("attendantMobile")]
+        public string? AttendantMobile { get; set; }
+
         [JsonPropertyName("busAttendant")]
         public string BusAttendant => !string.IsNullOrWhiteSpace(AttendantName) ? AttendantName : "Unassigned";
 

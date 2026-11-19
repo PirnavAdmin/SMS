@@ -82,6 +82,8 @@ namespace SMS.Api.Repositories.Implementations
 
                     AttendantId = x.AttendantId,
                     AttendantName = x.Attendant != null ? x.Attendant.AttendantName : null,
+                    AttendantEmployeeId = x.Attendant != null ? x.Attendant.EmployeeId : null,
+                    AttendantMobile = x.Attendant != null ? x.Attendant.MobileNumber : null,
 
                     BranchName = x.BranchName ?? string.Empty,
                     AcademicYear = x.AcademicYear ?? string.Empty,
@@ -395,6 +397,8 @@ namespace SMS.Api.Repositories.Implementations
                     DriverEmployeeId = x.Driver != null && x.Driver.EmployeeId != null ? x.Driver.EmployeeId : string.Empty,
                     AttendantId = x.AttendantId,
                     AttendantName = x.Attendant != null ? x.Attendant.AttendantName : null,
+                    AttendantEmployeeId = x.Attendant != null ? x.Attendant.EmployeeId : null,
+                    AttendantMobile = x.Attendant != null ? x.Attendant.MobileNumber : null,
                     MorningTripTime = x.MorningTripTime,
                     EveningTripTime = x.EveningTripTime,
                     BranchName = x.BranchName,
