@@ -22,7 +22,17 @@ import {
   uploadCompanyLogoFileApi,
 } from '../../../api/superadmin';
 import { createOptimizedLogoDataUrl, resolveMediaUrl } from '../../../utils/mediaUtils';
-import { validateEmail, validateFullName, validatePhoneNumber, sanitizeEmailInput, sanitizePhoneInput } from '../../../utils/validation';
+import {
+  validateEmail,
+  validateFullName,
+  validatePhoneNumber,
+  sanitizeEmailInput,
+  sanitizePhoneInput,
+  validateAddress,
+  validateOrganizationName,
+  validateTextName,
+  validateWebsiteUrl,
+} from '../../../utils/validation';
 
 interface SuperAdminProfileViewProps {
   onNavigate?: (module: string) => void;
@@ -69,6 +79,16 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
   const [logoUrlInput, setLogoUrlInput] = useState('');
   const [isUploadingCompanyLogo, setIsUploadingCompanyLogo] = useState(false);
 
+  // Company Branding Form Validation Errors
+  const [brandingErrors, setBrandingErrors] = useState<{
+    name?: string;
+    tagline?: string;
+    address?: string;
+    supportEmail?: string;
+    supportPhone?: string;
+    websiteUrl?: string;
+  }>({});
+
   // Personal Profile State
   const [profileForm, setProfileForm] = useState({
     name: user?.name || '',
@@ -92,6 +112,11 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordFieldErrors, setPasswordFieldErrors] = useState<{
+    current?: string;
+    new?: string;
+    confirm?: string;
+  }>({});
 
   // Platform Telemetry
   const [stats, setStats] = useState({
@@ -218,6 +243,11 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
       addToast('error', 'URL Required', 'Please enter a valid image URL.');
       return;
     }
+    const urlRes = validateWebsiteUrl(logoUrlInput.trim(), true);
+    if (!urlRes.isValid) {
+      addToast('error', 'Invalid URL', urlRes.error || 'Please enter a valid image URL.');
+      return;
+    }
     setCompanyBranding(prev => ({ ...prev, logo: logoUrlInput.trim() }));
     addToast('success', 'URL Applied', 'Logo preview updated.');
   };
@@ -249,31 +279,97 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
   const handleSaveAll = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // 1. Personal Profile Validation
+    const pErrors: { name?: string; email?: string; phone?: string } = {};
     const nameRes = validateFullName(profileForm.name, true);
     if (!nameRes.isValid) {
-      setFormErrors(prev => ({ ...prev, name: nameRes.error }));
-      addToast('error', 'Invalid Name', nameRes.error || 'Please enter a valid full name.');
-      return;
+      pErrors.name = nameRes.error || 'Please enter a valid full name.';
     }
 
     const emailRes = validateEmail(profileForm.email, true);
     if (!emailRes.isValid) {
-      setFormErrors(prev => ({ ...prev, email: emailRes.error }));
-      addToast('error', 'Invalid Email', emailRes.error || 'Please enter a valid email address.');
-      return;
+      pErrors.email = emailRes.error || 'Please enter a valid email address.';
     }
 
     if (profileForm.phone) {
       const phoneRes = validatePhoneNumber(profileForm.phone, false);
       if (!phoneRes.isValid) {
-        setFormErrors(prev => ({ ...prev, phone: phoneRes.error }));
-        addToast('error', 'Invalid Phone', phoneRes.error || 'Phone must be exactly 10 digits.');
-        return;
+        pErrors.phone = phoneRes.error || 'Phone must be exactly 10 digits.';
       }
     }
 
-    if (!companyBranding.name.trim()) {
-      addToast('error', 'Company Name Required', 'Please enter a platform / company name.');
+    // 2. Company / Platform Branding Validation
+    const bErrors: {
+      name?: string;
+      tagline?: string;
+      address?: string;
+      supportEmail?: string;
+      supportPhone?: string;
+      websiteUrl?: string;
+    } = {};
+
+    const companyNameRes = validateOrganizationName(companyBranding.name, true);
+    if (!companyNameRes.isValid) {
+      bErrors.name = companyNameRes.error || 'Please enter a valid platform / company name.';
+    }
+
+    if (companyBranding.tagline?.trim()) {
+      const taglineRes = validateTextName(companyBranding.tagline, {
+        label: 'platform tagline',
+        required: false,
+        minLength: 2,
+        maxLength: 150,
+        allowNumbers: true,
+      });
+      if (!taglineRes.isValid) {
+        bErrors.tagline = taglineRes.error;
+      }
+    }
+
+    if (companyBranding.address?.trim()) {
+      const addressRes = validateAddress(companyBranding.address, false);
+      if (!addressRes.isValid) {
+        bErrors.address = addressRes.error;
+      }
+    }
+
+    if (companyBranding.supportEmail?.trim()) {
+      const sEmailRes = validateEmail(companyBranding.supportEmail, false);
+      if (!sEmailRes.isValid) {
+        bErrors.supportEmail = sEmailRes.error;
+      }
+    }
+
+    if (companyBranding.supportPhone?.trim()) {
+      const sPhoneRes = validatePhoneNumber(companyBranding.supportPhone, false);
+      if (!sPhoneRes.isValid) {
+        bErrors.supportPhone = sPhoneRes.error;
+      }
+    }
+
+    if (companyBranding.websiteUrl?.trim()) {
+      const sUrlRes = validateWebsiteUrl(companyBranding.websiteUrl, false);
+      if (!sUrlRes.isValid) {
+        bErrors.websiteUrl = sUrlRes.error;
+      }
+    }
+
+    setFormErrors(pErrors);
+    setBrandingErrors(bErrors);
+
+    if (Object.keys(pErrors).length > 0 || Object.keys(bErrors).length > 0) {
+      const firstError =
+        bErrors.name ||
+        bErrors.address ||
+        bErrors.supportEmail ||
+        bErrors.supportPhone ||
+        bErrors.websiteUrl ||
+        bErrors.tagline ||
+        pErrors.name ||
+        pErrors.email ||
+        pErrors.phone ||
+        'Please correct highlighted validation errors.';
+      addToast('error', 'Validation Error', firstError);
       return;
     }
 
@@ -330,6 +426,7 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
       });
       setProfileForm(prev => ({ ...prev, organization: finalCompanyName }));
       setFormErrors({});
+      setBrandingErrors({});
       setIsEditing(false);
 
       window.dispatchEvent(new Event('superadmin_profile_updated'));
@@ -349,19 +446,33 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
     e.preventDefault();
     setPasswordError(null);
 
+    const errors: { current?: string; new?: string; confirm?: string } = {};
+
     if (!currentPassword) {
-      setPasswordError('Current password is required.');
-      return;
+      errors.current = 'Current master password is required.';
     }
-    if (!newPassword || newPassword.length < 6) {
-      setPasswordError('New password must be at least 6 characters.');
-      return;
+    if (!newPassword) {
+      errors.new = 'New password is required.';
+    } else if (newPassword.length < 6) {
+      errors.new = 'New password must be at least 6 characters.';
+    } else if (currentPassword && newPassword === currentPassword) {
+      errors.new = 'New password cannot be the same as current password.';
     }
-    if (newPassword !== confirmPassword) {
-      setPasswordError('New password and confirmation do not match.');
+    if (!confirmPassword) {
+      errors.confirm = 'Please confirm your new password.';
+    } else if (newPassword && confirmPassword && newPassword !== confirmPassword) {
+      errors.confirm = 'New password and confirmation do not match.';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setPasswordFieldErrors(errors);
+      const firstError = errors.current || errors.new || errors.confirm || 'Please resolve password errors.';
+      setPasswordError(firstError);
+      addToast('error', 'Password Validation Failed', firstError);
       return;
     }
 
+    setPasswordFieldErrors({});
     setIsUpdatingPassword(true);
     try {
       if (changePassword) {
@@ -370,6 +481,8 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
+      setPasswordFieldErrors({});
+      setPasswordError(null);
       addToast('success', 'Password Changed', 'Super Admin master password updated successfully.');
     } catch (err: any) {
       const msg = err?.message || 'Failed to change password. Please verify current credentials.';
@@ -446,6 +559,7 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
                   onClick={() => {
                     setIsEditing(false);
                     setFormErrors({});
+                    setBrandingErrors({});
                   }}
                   className="px-3 py-1.5 rounded-xl bg-white/20 hover:bg-white/30 text-white font-extrabold text-xs shadow-sm flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
                 >
@@ -643,16 +757,33 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
                       type="text"
                       required
                       disabled={!isEditing}
+                      maxLength={100}
                       placeholder="e.g. SMS Enterprise Cloud"
                       value={companyBranding.name}
-                      onChange={(e) => setCompanyBranding(prev => ({ ...prev, name: e.target.value }))}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setCompanyBranding(prev => ({ ...prev, name: val }));
+                        const res = validateOrganizationName(val, true);
+                        setBrandingErrors(prev => ({ ...prev, name: res.error }));
+                      }}
+                      onBlur={() => {
+                        const res = validateOrganizationName(companyBranding.name, true);
+                        setBrandingErrors(prev => ({ ...prev, name: res.error }));
+                      }}
                       className={`w-full pl-9 pr-3 py-2 rounded-xl border text-xs font-semibold transition ${
                         !isEditing
                           ? 'bg-slate-50/80 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 cursor-not-allowed'
+                          : brandingErrors.name
+                          ? 'bg-rose-50/20 border-rose-400 focus:ring-2 focus:ring-rose-500/20 text-slate-900 dark:text-white'
                           : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20'
                       }`}
                     />
                   </div>
+                  {brandingErrors.name && (
+                    <p className="mt-1 text-[10px] font-bold text-rose-500 flex items-center gap-1">
+                      <span>⚠️</span> {brandingErrors.name}
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -664,16 +795,41 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
                     <input
                       type="text"
                       disabled={!isEditing}
+                      maxLength={150}
                       placeholder="e.g. Multi-Tenant Educational Cloud"
                       value={companyBranding.tagline}
-                      onChange={(e) => setCompanyBranding(prev => ({ ...prev, tagline: e.target.value }))}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setCompanyBranding(prev => ({ ...prev, tagline: val }));
+                        if (val.trim()) {
+                          const res = validateTextName(val, { label: 'tagline', required: false, minLength: 2, maxLength: 150, allowNumbers: true });
+                          setBrandingErrors(prev => ({ ...prev, tagline: res.error }));
+                        } else {
+                          setBrandingErrors(prev => ({ ...prev, tagline: undefined }));
+                        }
+                      }}
+                      onBlur={() => {
+                        if (companyBranding.tagline.trim()) {
+                          const res = validateTextName(companyBranding.tagline, { label: 'tagline', required: false, minLength: 2, maxLength: 150, allowNumbers: true });
+                          setBrandingErrors(prev => ({ ...prev, tagline: res.error }));
+                        } else {
+                          setBrandingErrors(prev => ({ ...prev, tagline: undefined }));
+                        }
+                      }}
                       className={`w-full pl-9 pr-3 py-2 rounded-xl border text-xs font-semibold transition ${
                         !isEditing
                           ? 'bg-slate-50/80 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 cursor-not-allowed'
+                          : brandingErrors.tagline
+                          ? 'bg-rose-50/20 border-rose-400 focus:ring-2 focus:ring-rose-500/20 text-slate-900 dark:text-white'
                           : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20'
                       }`}
                     />
                   </div>
+                  {brandingErrors.tagline && (
+                    <p className="mt-1 text-[10px] font-bold text-rose-500 flex items-center gap-1">
+                      <span>⚠️</span> {brandingErrors.tagline}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -687,16 +843,41 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
                   <input
                     type="text"
                     disabled={!isEditing}
+                    maxLength={200}
                     placeholder="e.g. 158, Kalina Santa Cruz CST Road, Santacruz East, Mumbai"
                     value={companyBranding.address}
-                    onChange={(e) => setCompanyBranding(prev => ({ ...prev, address: e.target.value }))}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setCompanyBranding(prev => ({ ...prev, address: val }));
+                      if (val.trim()) {
+                        const res = validateAddress(val, false);
+                        setBrandingErrors(prev => ({ ...prev, address: res.error }));
+                      } else {
+                        setBrandingErrors(prev => ({ ...prev, address: undefined }));
+                      }
+                    }}
+                    onBlur={() => {
+                      if (companyBranding.address.trim()) {
+                        const res = validateAddress(companyBranding.address, false);
+                        setBrandingErrors(prev => ({ ...prev, address: res.error }));
+                      } else {
+                        setBrandingErrors(prev => ({ ...prev, address: undefined }));
+                      }
+                    }}
                     className={`w-full pl-9 pr-3 py-2 rounded-xl border text-xs font-semibold transition ${
                       !isEditing
                         ? 'bg-slate-50/80 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 cursor-not-allowed'
+                        : brandingErrors.address
+                        ? 'bg-rose-50/20 border-rose-400 focus:ring-2 focus:ring-rose-500/20 text-slate-900 dark:text-white'
                         : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20'
                     }`}
                   />
                 </div>
+                {brandingErrors.address && (
+                  <p className="mt-1 text-[10px] font-bold text-rose-500 flex items-center gap-1">
+                    <span>⚠️</span> {brandingErrors.address}
+                  </p>
+                )}
               </div>
 
               {/* Support Email & Phone */}
@@ -712,14 +893,38 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
                       disabled={!isEditing}
                       placeholder="support@saascloud.com"
                       value={companyBranding.supportEmail}
-                      onChange={(e) => setCompanyBranding(prev => ({ ...prev, supportEmail: e.target.value }))}
+                      onChange={(e) => {
+                        const val = sanitizeEmailInput(e.target.value);
+                        setCompanyBranding(prev => ({ ...prev, supportEmail: val }));
+                        if (val.trim()) {
+                          const res = validateEmail(val, false);
+                          setBrandingErrors(prev => ({ ...prev, supportEmail: res.error }));
+                        } else {
+                          setBrandingErrors(prev => ({ ...prev, supportEmail: undefined }));
+                        }
+                      }}
+                      onBlur={() => {
+                        if (companyBranding.supportEmail.trim()) {
+                          const res = validateEmail(companyBranding.supportEmail, false);
+                          setBrandingErrors(prev => ({ ...prev, supportEmail: res.error }));
+                        } else {
+                          setBrandingErrors(prev => ({ ...prev, supportEmail: undefined }));
+                        }
+                      }}
                       className={`w-full pl-9 pr-3 py-2 rounded-xl border text-xs font-semibold transition ${
                         !isEditing
                           ? 'bg-slate-50/80 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 cursor-not-allowed'
+                          : brandingErrors.supportEmail
+                          ? 'bg-rose-50/20 border-rose-400 focus:ring-2 focus:ring-rose-500/20 text-slate-900 dark:text-white'
                           : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20'
                       }`}
                     />
                   </div>
+                  {brandingErrors.supportEmail && (
+                    <p className="mt-1 text-[10px] font-bold text-rose-500 flex items-center gap-1">
+                      <span>⚠️</span> {brandingErrors.supportEmail}
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -729,18 +934,43 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
                   <div className="relative">
                     <Phone className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
                     <input
-                      type="text"
+                      type="tel"
+                      maxLength={10}
                       disabled={!isEditing}
-                      placeholder="+91 98765 43210"
+                      placeholder="e.g. 9876543210"
                       value={companyBranding.supportPhone}
-                      onChange={(e) => setCompanyBranding(prev => ({ ...prev, supportPhone: e.target.value }))}
+                      onChange={(e) => {
+                        const val = sanitizePhoneInput(e.target.value, 10);
+                        setCompanyBranding(prev => ({ ...prev, supportPhone: val }));
+                        if (val) {
+                          const res = validatePhoneNumber(val, false);
+                          setBrandingErrors(prev => ({ ...prev, supportPhone: res.error }));
+                        } else {
+                          setBrandingErrors(prev => ({ ...prev, supportPhone: undefined }));
+                        }
+                      }}
+                      onBlur={() => {
+                        if (companyBranding.supportPhone) {
+                          const res = validatePhoneNumber(companyBranding.supportPhone, false);
+                          setBrandingErrors(prev => ({ ...prev, supportPhone: res.error }));
+                        } else {
+                          setBrandingErrors(prev => ({ ...prev, supportPhone: undefined }));
+                        }
+                      }}
                       className={`w-full pl-9 pr-3 py-2 rounded-xl border text-xs font-semibold transition ${
                         !isEditing
                           ? 'bg-slate-50/80 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 cursor-not-allowed'
+                          : brandingErrors.supportPhone
+                          ? 'bg-rose-50/20 border-rose-400 focus:ring-2 focus:ring-rose-500/20 text-slate-900 dark:text-white'
                           : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20'
                       }`}
                     />
                   </div>
+                  {brandingErrors.supportPhone && (
+                    <p className="mt-1 text-[10px] font-bold text-rose-500 flex items-center gap-1">
+                      <span>⚠️</span> {brandingErrors.supportPhone}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -754,16 +984,41 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
                   <input
                     type="url"
                     disabled={!isEditing}
+                    maxLength={200}
                     placeholder="https://smscloud.portal"
                     value={companyBranding.websiteUrl}
-                    onChange={(e) => setCompanyBranding(prev => ({ ...prev, websiteUrl: e.target.value }))}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setCompanyBranding(prev => ({ ...prev, websiteUrl: val }));
+                      if (val.trim()) {
+                        const res = validateWebsiteUrl(val.trim(), false);
+                        setBrandingErrors(prev => ({ ...prev, websiteUrl: res.error }));
+                      } else {
+                        setBrandingErrors(prev => ({ ...prev, websiteUrl: undefined }));
+                      }
+                    }}
+                    onBlur={() => {
+                      if (companyBranding.websiteUrl.trim()) {
+                        const res = validateWebsiteUrl(companyBranding.websiteUrl.trim(), false);
+                        setBrandingErrors(prev => ({ ...prev, websiteUrl: res.error }));
+                      } else {
+                        setBrandingErrors(prev => ({ ...prev, websiteUrl: undefined }));
+                      }
+                    }}
                     className={`w-full pl-9 pr-3 py-2 rounded-xl border text-xs font-semibold transition ${
                       !isEditing
                         ? 'bg-slate-50/80 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 cursor-not-allowed'
+                        : brandingErrors.websiteUrl
+                        ? 'bg-rose-50/20 border-rose-400 focus:ring-2 focus:ring-rose-500/20 text-slate-900 dark:text-white'
                         : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20'
                     }`}
                   />
                 </div>
+                {brandingErrors.websiteUrl && (
+                  <p className="mt-1 text-[10px] font-bold text-rose-500 flex items-center gap-1">
+                    <span>⚠️</span> {brandingErrors.websiteUrl}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -925,6 +1180,7 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
                     onClick={() => {
                       setIsEditing(false);
                       setFormErrors({});
+                      setBrandingErrors({});
                     }}
                     className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition-all cursor-pointer text-xs"
                   >
@@ -985,10 +1241,24 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
                       placeholder="Current master password"
                       value={currentPassword}
                       onChange={(e) => {
-                        setCurrentPassword(e.target.value);
+                        const val = e.target.value;
+                        setCurrentPassword(val);
                         if (passwordError) setPasswordError(null);
+                        setPasswordFieldErrors(prev => ({
+                          ...prev,
+                          current: val ? undefined : 'Current master password is required.'
+                        }));
                       }}
-                      className="w-full pl-9 pr-9 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
+                      onBlur={() => {
+                        if (!currentPassword) {
+                          setPasswordFieldErrors(prev => ({ ...prev, current: 'Current master password is required.' }));
+                        }
+                      }}
+                      className={`w-full pl-9 pr-9 py-1.5 rounded-xl border text-xs font-semibold transition ${
+                        passwordFieldErrors.current
+                          ? 'border-rose-400 bg-rose-50/20 focus:ring-2 focus:ring-rose-500/20 text-slate-900 dark:text-white'
+                          : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20'
+                      }`}
                     />
                     <button
                       type="button"
@@ -998,6 +1268,11 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
                       {showCurrentPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                     </button>
                   </div>
+                  {passwordFieldErrors.current && (
+                    <p className="mt-1 text-[10px] font-bold text-rose-500 flex items-center gap-1">
+                      <span>⚠️</span> {passwordFieldErrors.current}
+                    </p>
+                  )}
                 </div>
 
                 {/* New Password */}
@@ -1012,10 +1287,37 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
                       placeholder="At least 6 characters"
                       value={newPassword}
                       onChange={(e) => {
-                        setNewPassword(e.target.value);
+                        const val = e.target.value;
+                        setNewPassword(val);
                         if (passwordError) setPasswordError(null);
+                        let err: string | undefined = undefined;
+                        if (!val) {
+                          err = 'New password is required.';
+                        } else if (val.length < 6) {
+                          err = 'New password must be at least 6 characters.';
+                        } else if (currentPassword && val === currentPassword) {
+                          err = 'New password cannot be the same as current password.';
+                        }
+                        setPasswordFieldErrors(prev => ({
+                          ...prev,
+                          new: err,
+                          confirm: confirmPassword && val !== confirmPassword ? 'Passwords do not match.' : undefined
+                        }));
                       }}
-                      className="w-full pl-9 pr-9 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
+                      onBlur={() => {
+                        if (!newPassword) {
+                          setPasswordFieldErrors(prev => ({ ...prev, new: 'New password is required.' }));
+                        } else if (newPassword.length < 6) {
+                          setPasswordFieldErrors(prev => ({ ...prev, new: 'New password must be at least 6 characters.' }));
+                        } else if (currentPassword && newPassword === currentPassword) {
+                          setPasswordFieldErrors(prev => ({ ...prev, new: 'New password cannot be the same as current password.' }));
+                        }
+                      }}
+                      className={`w-full pl-9 pr-9 py-1.5 rounded-xl border text-xs font-semibold transition ${
+                        passwordFieldErrors.new
+                          ? 'border-rose-400 bg-rose-50/20 focus:ring-2 focus:ring-rose-500/20 text-slate-900 dark:text-white'
+                          : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20'
+                      }`}
                     />
                     <button
                       type="button"
@@ -1025,6 +1327,11 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
                       {showNewPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                     </button>
                   </div>
+                  {passwordFieldErrors.new && (
+                    <p className="mt-1 text-[10px] font-bold text-rose-500 flex items-center gap-1">
+                      <span>⚠️</span> {passwordFieldErrors.new}
+                    </p>
+                  )}
                 </div>
 
                 {/* Confirm Password */}
@@ -1039,10 +1346,29 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
                       placeholder="Confirm password"
                       value={confirmPassword}
                       onChange={(e) => {
-                        setConfirmPassword(e.target.value);
+                        const val = e.target.value;
+                        setConfirmPassword(val);
                         if (passwordError) setPasswordError(null);
+                        let err: string | undefined = undefined;
+                        if (!val) {
+                          err = 'Please confirm your new password.';
+                        } else if (newPassword && val !== newPassword) {
+                          err = 'Passwords do not match.';
+                        }
+                        setPasswordFieldErrors(prev => ({ ...prev, confirm: err }));
                       }}
-                      className="w-full pl-9 pr-9 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
+                      onBlur={() => {
+                        if (!confirmPassword) {
+                          setPasswordFieldErrors(prev => ({ ...prev, confirm: 'Please confirm your new password.' }));
+                        } else if (newPassword !== confirmPassword) {
+                          setPasswordFieldErrors(prev => ({ ...prev, confirm: 'Passwords do not match.' }));
+                        }
+                      }}
+                      className={`w-full pl-9 pr-9 py-1.5 rounded-xl border text-xs font-semibold transition ${
+                        passwordFieldErrors.confirm
+                          ? 'border-rose-400 bg-rose-50/20 focus:ring-2 focus:ring-rose-500/20 text-slate-900 dark:text-white'
+                          : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20'
+                      }`}
                     />
                     <button
                       type="button"
@@ -1052,6 +1378,11 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
                       {showConfirmPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                     </button>
                   </div>
+                  {passwordFieldErrors.confirm && (
+                    <p className="mt-1 text-[10px] font-bold text-rose-500 flex items-center gap-1">
+                      <span>⚠️</span> {passwordFieldErrors.confirm}
+                    </p>
+                  )}
                 </div>
 
                 {/* Loading is strictly in the button only */}

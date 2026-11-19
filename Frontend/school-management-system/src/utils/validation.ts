@@ -1017,6 +1017,34 @@ export function validateCampusAddress(address: string, required: boolean = true)
 }
 
 /**
+ * Validates a website URL (HTTP/HTTPS format with valid hostname/domain).
+ */
+export function validateWebsiteUrl(url: string, required: boolean = false): { isValid: boolean; error?: string } {
+  if (!url || typeof url !== 'string' || !url.trim()) {
+    return required ? { isValid: false, error: 'Website URL is required.' } : { isValid: true };
+  }
+
+  const trimmed = url.trim();
+
+  if (trimmed.length > 200) {
+    return { isValid: false, error: 'URL cannot exceed 200 characters.' };
+  }
+
+  // Must have a valid web URL format with scheme or standard domain + TLD
+  const urlPattern = /^(https?:\/\/)?([a-zA-Z0-9]([a-zA-Z0-9\-]*[a-zA-Z0-9])?\.)+[a-zA-Z]{2,24}(:\d+)?(\/[^\s]*)?$/i;
+  if (!urlPattern.test(trimmed)) {
+    return { isValid: false, error: 'Please enter a valid website URL (e.g. https://smscloud.portal or https://school.edu).' };
+  }
+
+  // Check for repetitive characters or keyboard mashing in hostname
+  if (/(.)\1{4,}/.test(trimmed) || KEYBOARD_MASH_REGEX.test(trimmed)) {
+    return { isValid: false, error: 'Please enter a valid website URL.' };
+  }
+
+  return { isValid: true };
+}
+
+/**
  * Validator for circular headlines, notice titles, broadcast titles, and announcement headers.
  * Allows common punctuation (colons, exclamation marks, question marks, quotes, brackets, etc.) and emojis.
  */
