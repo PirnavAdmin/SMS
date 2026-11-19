@@ -13,7 +13,7 @@ import { teacherCheckInApi, teacherCheckOutApi, fetchTeacherTodayAttendanceApi }
 
 export const DriverAttendanceView: React.FC = () => {
   const { user } = useAuth();
-  const { staff = [], driverMasters = [], attendance = [], markAttendance, holidays = [], schoolProfile } = useData();
+  const { staff = [], driverMasters = [], busAttendants = [], attendance = [], markAttendance, holidays = [], schoolProfile } = useData();
   const { addToast } = useToast();
 
   const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
@@ -23,7 +23,22 @@ export const DriverAttendanceView: React.FC = () => {
   // 1. Identify logged-in Driver strictly
   const matchedDriver = useMemo(() => {
     const userEmail = (user?.email || '').trim().toLowerCase();
+    const userName = (user?.name || '').trim().toLowerCase();
     const userEmpId = (user?.id || (user as any)?.empId || (user as any)?.employeeId || '').trim().toLowerCase();
+
+    const fromAttendant = busAttendants.find(a =>
+      (userEmpId && (a.employeeId?.toLowerCase() === userEmpId || String(a.id) === userEmpId)) ||
+      (userName && a.attendantName?.trim().toLowerCase() === userName)
+    );
+    if (fromAttendant) {
+      return {
+        id: fromAttendant.id,
+        driverName: fromAttendant.attendantName || user?.name || 'Bus Attendant',
+        employeeId: fromAttendant.employeeId || userEmpId || '',
+        department: 'Transport Dept',
+        designation: 'Bus Attendant',
+      };
+    }
 
     const fromMaster = driverMasters.find(d =>
       (userEmail && d.email?.toLowerCase() === userEmail) ||

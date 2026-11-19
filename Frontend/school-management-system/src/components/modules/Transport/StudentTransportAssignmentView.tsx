@@ -13,7 +13,6 @@ import { Badge } from '../../common/Badge';
 import { ExportButton } from '../../common/ExportButton';
 import { ConfirmModal } from '../../common/ConfirmModal';
 import { ValidatedSearchInput } from '../../common/ValidatedSearchInput';
-import { initialBusAttendants } from './BusAttendantMasterView';
 
 export interface StudentTransportHistoryItem {
   id: string;

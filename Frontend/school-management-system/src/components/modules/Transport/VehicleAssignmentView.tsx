@@ -13,7 +13,6 @@ import { ExportButton } from '../../common/ExportButton';
 import { ConfirmModal } from '../../common/ConfirmModal';
 import { Pagination } from '../../common/Pagination';
 import { ValidatedSearchInput } from '../../common/ValidatedSearchInput';
-import { initialBusAttendants } from './BusAttendantMasterView';
 import { VehicleTripDetailsModal } from './VehicleTripDetailsModal';
 import {
   resolveAssignedStudentsForTrip,

@@ -15,6 +15,7 @@ export const DriverLeaveView: React.FC = () => {
   const {
     staff = [],
     driverMasters = [],
+    busAttendants = [],
     leaveApplications = [],
     addLeaveApplication,
     deleteLeaveApplication,
@@ -24,12 +25,46 @@ export const DriverLeaveView: React.FC = () => {
 
   const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
 
-  // 1. Identify logged-in Driver
+  // 1. Identify logged-in Driver or Bus Attendant
   const matchedDriver = useMemo(() => {
     const userEmail = (user?.email || '').trim().toLowerCase();
     const userName = (user?.name || '').trim().toLowerCase();
     const userPhone = (user?.phone || '').trim().toLowerCase();
     const userEmpId = (user?.id || (user as any)?.empId || (user as any)?.employeeId || '').trim().toLowerCase();
+
+    const fromAttendant = (() => {
+      if (userEmpId) {
+        const byEmpId = busAttendants.find(a => (a.employeeId?.toLowerCase() === userEmpId || String(a.id) === userEmpId));
+        if (byEmpId) return byEmpId;
+      }
+      if (userPhone && userPhone.length >= 10) {
+        const cleanPhone = userPhone.slice(-10);
+        const byPhone = busAttendants.find(a => (a.mobileNumber || '').replace(/\D/g, '').endsWith(cleanPhone));
+        if (byPhone) return byPhone;
+      }
+      if (userName && userName !== 'user' && userName !== 'administrator') {
+        const byName = busAttendants.find(a => {
+          const aName = (a.attendantName || '').trim().toLowerCase();
+          return aName === userName || (userName.length >= 3 && (aName.includes(userName) || userName.includes(aName)));
+        });
+        if (byName) return byName;
+      }
+      return null;
+    })();
+
+    if (fromAttendant) {
+      return {
+        id: fromAttendant.id,
+        driverName: fromAttendant.attendantName || user?.name || 'Bus Attendant',
+        licenseNumber: '',
+        mobileNumber: fromAttendant.mobileNumber || user?.phone || '',
+        employeeId: fromAttendant.employeeId || userEmpId || '',
+        status: fromAttendant.status || ('Active' as const),
+        experienceYears: 0,
+        isAttendant: true,
+        designation: 'Bus Attendant'
+      };
+    }
 
     const fromMaster = (() => {
       if (userEmail) {

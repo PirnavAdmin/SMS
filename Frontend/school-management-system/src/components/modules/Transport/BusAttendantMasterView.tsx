@@ -7,12 +7,9 @@ import { Badge } from '../../common/Badge';
 import { ExportButton } from '../../common/ExportButton';
 import { ConfirmModal } from '../../common/ConfirmModal';
 import { ValidatedSearchInput } from '../../common/ValidatedSearchInput';
-import { BusAttendantMaster, initialBusAttendants } from './transportData';
+import { BusAttendantMaster } from './transportData';
 import { validatePhoneNumber, sanitizePhoneInput } from '../../../utils/validation';
-export type { BusAttendantMaster };      // re-export type for backward compat
-export { initialBusAttendants };          // re-export value for backward compat
-
-// BusAttendantMaster type and initialBusAttendants are now in transportData.ts
+export type { BusAttendantMaster };
 
 export const BusAttendantMasterView: React.FC = () => {
   const {

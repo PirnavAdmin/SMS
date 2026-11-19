@@ -36,7 +36,7 @@ export const Header: React.FC<HeaderProps> = ({
   const { user, role, setRole, selectedBranch, setSelectedBranch, selectedAcademicYear, setSelectedAcademicYear, logout } = useAuth();
   const { isDarkMode, toggleDarkMode } = useTheme();
   const [showThemeCustomizer, setShowThemeCustomizer] = useState(false);
-  const { staff = [], announcements, students, admissions, academicClasses, dynamicFeeStructures, routeMasters, hostelMasters, driverMasters = [], academicYears, branches = [], fetchBranches, fetchAnnouncements } = useData();
+  const { staff = [], announcements, students, admissions, academicClasses, dynamicFeeStructures, routeMasters, hostelMasters, driverMasters = [], busAttendants = [], vehicleAssignments = [], academicYears, branches = [], fetchBranches, fetchAnnouncements } = useData();
 
   const formatEmailToName = (email?: string): string => {
     if (!email || !email.includes('@')) return '';
@@ -472,6 +472,41 @@ export const Header: React.FC<HeaderProps> = ({
     } catch {}
   };
 
+  const isBusAttendant = useMemo(() => {
+    const userRole = (role || user?.role || '').toLowerCase().trim();
+    if (!['driver', 'staff', 'bus attendant', 'attendant'].some(r => userRole.includes(r))) return false;
+    const userEmail = (user?.email || '').trim().toLowerCase();
+    const userName = (user?.name || '').trim().toLowerCase();
+    const userEmpId = (user?.id || (user as any)?.empId || (user as any)?.employeeId || '').trim().toLowerCase();
+    const userPhone = (user?.phone || '').trim();
+
+    const fromAttendant = busAttendants.some(a =>
+      (userEmpId && (a.employeeId?.toLowerCase() === userEmpId || String(a.id) === userEmpId)) ||
+      (userPhone && a.mobileNumber?.replace(/\D/g, '').endsWith(userPhone.slice(-10))) ||
+      (userName && a.attendantName?.toLowerCase().trim() === userName)
+    );
+    if (fromAttendant) return true;
+
+    const fromStaff = staff.some(s => {
+      const match = (userEmail && s.email?.toLowerCase().trim() === userEmail) ||
+        (userEmpId && (s.empId?.toLowerCase() === userEmpId || (s as any).employeeId?.toLowerCase() === userEmpId || String(s.id) === userEmpId)) ||
+        (userName && `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase() === userName);
+      if (!match) return false;
+      const des = (s.designation || '').toLowerCase();
+      const roleStr = (s.role || (s as any).employeeCategory || '').toLowerCase();
+      return des.includes('attendant') || des.includes('conductor') || des.includes('helper') || roleStr.includes('attendant');
+    });
+    if (fromStaff) return true;
+
+    const fromAsgn = vehicleAssignments.some(va => {
+      const vaAttName = (va.attendantName || '').toLowerCase().trim();
+      const vaAttEmpId = (va.attendantEmployeeId || '').toLowerCase().trim();
+      const vaAttId = (va.attendantId || '').toLowerCase().trim();
+      return (userName && vaAttName === userName) || (userEmpId && (vaAttEmpId === userEmpId || vaAttId === userEmpId));
+    });
+    return fromAsgn;
+  }, [role, user, busAttendants, staff, vehicleAssignments]);
+
   const displayRole = useMemo(() => {
     const userRole = (role || user?.role || '').toLowerCase().trim();
     if (userRole === 'parent' || (user?.role && user.role.toLowerCase() === 'parent') || (user?.email && user.email.toLowerCase().includes('parent'))) return 'Parent';
@@ -484,14 +519,14 @@ export const Header: React.FC<HeaderProps> = ({
     if (userRole === 'accountant') return 'Accountant';
     if (userRole === 'librarian') return 'Librarian';
     if (userRole === 'transport manager' || userRole === 'transportmanager') return 'Transport Manager';
-    if (userRole === 'driver') return 'Driver';
+    if (userRole === 'driver') return isBusAttendant ? 'Bus Attendant' : 'Driver';
     if (userRole === 'hostel warden' || userRole === 'warden') return 'Hostel Warden';
     if (userRole === 'receptionist') return 'Receptionist';
-    if (userRole === 'staff') return 'Staff';
+    if (userRole === 'staff') return isBusAttendant ? 'Bus Attendant' : 'Staff';
     if (role) return role.charAt(0).toUpperCase() + role.slice(1);
     if (user?.role) return user.role.charAt(0).toUpperCase() + user.role.slice(1);
     return 'User';
-  }, [role, user]);
+  }, [role, user, isBusAttendant]);
 
   const renderBranchDropdownContent = () => (
     <>
@@ -897,7 +932,9 @@ export const Header: React.FC<HeaderProps> = ({
                       const cleanRole = (role || '').toLowerCase();
                       if (cleanRole.includes('super')) {
                         onNavigate?.('superadmin-profile');
-                      } else if (['driver', 'teacher', 'librarian', 'warden', 'hostel warden', 'accountant', 'finance', 'hr', 'receptionist', 'transport manager', 'staff'].some(r => cleanRole.includes(r))) {
+                      } else if (cleanRole.includes('driver') || isBusAttendant) {
+                        onNavigate?.('driver-profile');
+                      } else if (['teacher', 'librarian', 'warden', 'hostel warden', 'accountant', 'finance', 'hr', 'receptionist', 'transport manager', 'staff'].some(r => cleanRole.includes(r))) {
                         onNavigate?.('teacher-profile');
                       } else {
                         try {

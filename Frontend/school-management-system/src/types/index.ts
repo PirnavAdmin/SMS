@@ -1617,6 +1617,16 @@ export interface StudentTransport {
   studentId: string;
   studentName: string;
   admissionNo: string;
+  className?: string;
+  section?: string;
+  sectionName?: string;
+  rollNo?: string;
+  rollNumber?: string;
+  parentName?: string;
+  fatherName?: string;
+  parentMobile?: string;
+  fatherMobile?: string;
+  gender?: string;
   routeId: string;
   routeName: string;
   pickupPoint: string;

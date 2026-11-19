@@ -558,9 +558,13 @@ const MainLayout: React.FC = () => {
           <AlumniView />
         );
       case "driver-profile":
+        return <DriverProfileView />;
       case "warden-profile":
       case "teacher-profile":
       case "teacher-my-profile":
+        if (userRole === "driver" || userRole.includes("driver") || userRole.includes("attendant")) {
+          return <DriverProfileView />;
+        }
         return <TeacherProfileView />;
       case "staff":
       case "staff-teachers":

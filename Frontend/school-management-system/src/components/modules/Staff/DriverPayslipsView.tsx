@@ -28,7 +28,7 @@ const formatPayMonth = (monthLabel?: string): string => {
 
 export const DriverPayslipsView: React.FC = () => {
   const { user } = useAuth();
-  const { staff = [], driverMasters = [], payslips = [], schoolProfile, fetchPayslips } = useData();
+  const { staff = [], driverMasters = [], busAttendants = [], payslips = [], schoolProfile, fetchPayslips } = useData();
 
   useEffect(() => {
     if (fetchPayslips) {
@@ -43,11 +43,35 @@ export const DriverPayslipsView: React.FC = () => {
   const [itemsPerPage] = useState(5);
   const [viewingPayslip, setViewingPayslip] = useState<Payslip | null>(null);
 
-  // 1. Resolve Driver Profile
+  // 1. Resolve Driver or Attendant Profile
   const matchedDriver = useMemo(() => {
     const userEmail = (user?.email || '').trim().toLowerCase();
     const userName = (user?.name || '').trim().toLowerCase();
-    const userEmpId = (user?.id || (user as any)?.empId || '').trim().toLowerCase();
+    const userEmpId = (user?.id || (user as any)?.empId || (user as any)?.employeeId || '').trim().toLowerCase();
+
+    const fromAttendant = (() => {
+      if (userEmpId) {
+        const byEmpId = busAttendants.find(a => (a.employeeId?.toLowerCase() === userEmpId || String(a.id) === userEmpId));
+        if (byEmpId) return byEmpId;
+      }
+      if (userName && userName !== 'user' && userName !== 'administrator') {
+        const byName = busAttendants.find(a => {
+          const aName = (a.attendantName || '').trim().toLowerCase();
+          return aName === userName || (userName.length >= 3 && (aName.includes(userName) || userName.includes(aName)));
+        });
+        if (byName) return byName;
+      }
+      return null;
+    })();
+
+    if (fromAttendant) {
+      return {
+        id: fromAttendant.id,
+        driverName: fromAttendant.attendantName || user?.name || 'Bus Attendant',
+        employeeId: fromAttendant.employeeId || userEmpId || '',
+        salary: 25000
+      };
+    }
 
     const fromMaster = (() => {
       if (userEmail) {

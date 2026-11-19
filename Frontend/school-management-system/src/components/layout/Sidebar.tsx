@@ -790,7 +790,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const staffSubItems =
     safeRole === "parent" || safeRole === "student"
       ? []
-      : safeRole === "teacher" || safeRole.includes("warden") || safeRole.includes("accountant") || safeRole === "finance" || safeRole.includes("librarian") || safeRole === "driver"
+      : safeRole === "driver" || safeRole.includes("driver") || safeRole.includes("attendant")
+      ? [
+          { id: "driver-profile", label: "My Profile", icon: User },
+          {
+            id: "staff-attendance",
+            label: "My Attendance",
+            icon: CalendarCheck,
+          },
+          { id: "staff-leave", label: "Leave Management", icon: FileText },
+          { id: "staff-my-payslips", label: "My Payslips", icon: IndianRupee },
+        ]
+      : safeRole === "teacher" || safeRole.includes("warden") || safeRole.includes("accountant") || safeRole === "finance" || safeRole.includes("librarian")
       ? [
           { id: "teacher-profile", label: "My Profile", icon: User },
           {

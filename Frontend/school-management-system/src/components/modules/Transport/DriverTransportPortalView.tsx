@@ -46,6 +46,7 @@ export const DriverTransportPortalView: React.FC<DriverTransportPortalViewProps>
     pickupPoints = [],
     busAttendants = [],
     studentTransports = [],
+    academicClasses = [],
     admissions = []
   } = useData();
 
@@ -61,23 +62,49 @@ export const DriverTransportPortalView: React.FC<DriverTransportPortalViewProps>
     setCurrentPage(1);
   }, [studentSearch, selectedStopFilter]);
 
-  // 1. Identify Driver
+  // 1. Identify Driver or Bus Attendant
   const matchedDriver = useMemo(() => {
     const userEmail = (user?.email || '').trim().toLowerCase();
     const userName = (user?.name || '').trim().toLowerCase();
     const userPhone = (user?.phone || '').trim().toLowerCase();
     const userEmpId = (user?.id || (user as any)?.empId || (user as any)?.employeeId || '').trim().toLowerCase();
 
-    const fromMaster = driverMasters.find(d =>
-      (userEmpId && (d.employeeId?.toLowerCase() === userEmpId || (d as any).empId?.toLowerCase() === userEmpId || String(d.id).toLowerCase() === userEmpId)) ||
-      (userEmail && d.email?.toLowerCase() === userEmail) ||
-      (userPhone && d.mobileNumber?.replace(/\D/g, '') === userPhone.replace(/\D/g, '')) ||
-      (userName && d.driverName?.toLowerCase() === userName) ||
-      (userName && (d.driverName?.toLowerCase().includes(userName) || userName.includes(d.driverName?.toLowerCase())))
-    );
+    // Priority 1: Match from busAttendants
+    const fromAttendant = (() => {
+      if (userEmpId) {
+        const byEmpId = busAttendants.find(a => (a.employeeId?.toLowerCase() === userEmpId || String(a.id) === userEmpId));
+        if (byEmpId) return byEmpId;
+      }
+      if (userPhone && userPhone.length >= 10) {
+        const cleanPhone = userPhone.slice(-10);
+        const byPhone = busAttendants.find(a => (a.mobileNumber || '').replace(/\D/g, '').endsWith(cleanPhone));
+        if (byPhone) return byPhone;
+      }
+      if (userName && userName !== 'user' && userName !== 'administrator') {
+        const byName = busAttendants.find(a => {
+          const aName = (a.attendantName || '').trim().toLowerCase();
+          return aName === userName || (userName.length >= 3 && (aName.includes(userName) || userName.includes(aName)));
+        });
+        if (byName) return byName;
+      }
+      return null;
+    })();
 
-    if (fromMaster) return fromMaster;
+    if (fromAttendant) {
+      return {
+        id: fromAttendant.id,
+        driverName: fromAttendant.attendantName || user?.name || 'Bus Attendant',
+        licenseNumber: '',
+        mobileNumber: fromAttendant.mobileNumber || user?.phone || '',
+        employeeId: fromAttendant.employeeId || userEmpId || '',
+        status: fromAttendant.status || ('Active' as const),
+        experienceYears: 0,
+        isAttendant: true,
+        designation: 'Bus Attendant'
+      };
+    }
 
+    // Priority 2: Match from staff
     const fromStaff = staff.find(s => {
       const sEmpId = (s.empId || (s as any).employeeId || '').toLowerCase();
       const sId = String(s.id).toLowerCase();
@@ -96,50 +123,96 @@ export const DriverTransportPortalView: React.FC<DriverTransportPortalViewProps>
 
     if (fromStaff) {
       const staffName = `${fromStaff.firstName || ''} ${fromStaff.lastName || ''}`.trim() || fromStaff.name;
+      const des = (fromStaff.designation || '').toLowerCase();
+      const roleStr = ((fromStaff as any).role || (fromStaff as any).employeeCategory || '').toLowerCase();
+      const isAtt = des.includes('attendant') || des.includes('conductor') || des.includes('helper') || roleStr.includes('attendant');
       return {
         id: fromStaff.id,
-        driverName: staffName || user?.name || 'Driver',
+        driverName: staffName || user?.name || (isAtt ? 'Bus Attendant' : 'Driver'),
         licenseNumber: (fromStaff as any).licenseNumber || (fromStaff as any).licenceNumber || '',
         mobileNumber: fromStaff.phone || (fromStaff as any).mobileNumber || user?.phone || '',
         employeeId: fromStaff.empId || (fromStaff as any).employeeId || String(fromStaff.id) || '',
         status: fromStaff.status || ('Active' as const),
-        experienceYears: (fromStaff as any).experienceYears !== undefined ? (fromStaff as any).experienceYears : 0
+        experienceYears: (fromStaff as any).experienceYears !== undefined ? (fromStaff as any).experienceYears : 0,
+        isAttendant: isAtt,
+        designation: isAtt ? 'Bus Attendant' : (fromStaff.designation || 'Driver')
       };
     }
 
+    // Priority 3: Match from driverMasters
+    const fromMaster = driverMasters.find(d =>
+      (userEmpId && (d.employeeId?.toLowerCase() === userEmpId || (d as any).empId?.toLowerCase() === userEmpId || String(d.id).toLowerCase() === userEmpId)) ||
+      (userEmail && d.email?.toLowerCase() === userEmail) ||
+      (userPhone && d.mobileNumber?.replace(/\D/g, '') === userPhone.replace(/\D/g, '')) ||
+      (userName && d.driverName?.toLowerCase() === userName) ||
+      (userName && (d.driverName?.toLowerCase().includes(userName) || userName.includes(d.driverName?.toLowerCase())))
+    );
+
+    if (fromMaster) {
+      return {
+        ...fromMaster,
+        driverName: fromMaster.driverName || user?.name || 'Driver',
+        isAttendant: false,
+        designation: 'Driver'
+      };
+    }
+
+    const isAttendantFallback = Boolean(
+      (user as any)?.designation?.toLowerCase().includes('attendant') ||
+      vehicleAssignments.some(va => {
+        const vaAtt = (va.attendantName || '').toLowerCase().trim();
+        return userName && vaAtt === userName;
+      })
+    );
+
     return {
       id: user?.id || '1',
-      driverName: user?.name || 'Driver',
+      driverName: user?.name || (isAttendantFallback ? 'Bus Attendant' : 'Driver'),
       licenseNumber: (user as any)?.licenseNumber || '',
       mobileNumber: user?.phone || (user as any)?.mobileNumber || '',
       employeeId: (user as any)?.empId || (user as any)?.employeeId || user?.id || '',
       status: 'Active' as const,
-      experienceYears: 0
+      experienceYears: 0,
+      isAttendant: isAttendantFallback,
+      designation: isAttendantFallback ? 'Bus Attendant' : 'Driver'
     };
-  }, [user, driverMasters, staff]);
+  }, [user, busAttendants, driverMasters, staff, vehicleAssignments]);
 
-  // 2. Resolve Active Assignment
+  // 2. Resolve Active Assignment (Driver OR Bus Attendant)
   const currentAssignment = useMemo(() => {
-    const driverId = String(matchedDriver.id).trim();
-    const driverName = (matchedDriver.driverName || '').trim().toLowerCase();
-    const driverEmpId = (matchedDriver.employeeId || '').trim().toLowerCase();
+    const userId = String(matchedDriver.id).trim();
+    const personName = (matchedDriver.driverName || user?.name || '').trim().toLowerCase();
+    const personEmpId = (matchedDriver.employeeId || (user as any)?.empId || '').trim().toLowerCase();
 
     const matched = vehicleAssignments.find(va => {
       const isActive = va.status === 'Active' || (va.status as any) === true || String(va.status).toLowerCase() === 'true';
       if (!isActive) return false;
+
+      // Check Driver match
       const vaDriverId = String(va.driverId || '').trim();
       const vaDriverName = (va.driverName || '').trim().toLowerCase();
       const vaDriverEmpId = (va.driverEmployeeId || '').trim().toLowerCase();
-
-      return (
-        (driverId && vaDriverId === driverId) ||
-        (driverName && vaDriverName === driverName) ||
-        (driverEmpId && vaDriverEmpId === driverEmpId)
+      const isDriverMatch = (
+        (userId && vaDriverId === userId) ||
+        (personName && vaDriverName === personName) ||
+        (personEmpId && vaDriverEmpId === personEmpId)
       );
+
+      // Check Attendant match
+      const vaAttId = String(va.attendantId || '').trim();
+      const vaAttName = (va.attendantName || '').trim().toLowerCase();
+      const vaAttEmpId = (va.attendantEmployeeId || '').trim().toLowerCase();
+      const isAttendantMatch = (
+        (userId && vaAttId === userId) ||
+        (personName && vaAttName === personName) ||
+        (personEmpId && vaAttEmpId === personEmpId)
+      );
+
+      return isDriverMatch || isAttendantMatch;
     });
 
     return matched || null;
-  }, [matchedDriver, vehicleAssignments]);
+  }, [matchedDriver, user, vehicleAssignments]);
 
   const assignedVehicle = useMemo(() => {
     if (!currentAssignment) return null;
@@ -196,6 +269,54 @@ export const DriverTransportPortalView: React.FC<DriverTransportPortalViewProps>
     };
   }, [currentAssignment, busAttendants, staff]);
 
+  const assignedDriver = useMemo(() => {
+    if (!currentAssignment) return { name: 'Unassigned', employeeId: '', mobile: '' };
+
+    const driver = driverMasters.find(d =>
+      (currentAssignment.driverId && (String(d.id) === String(currentAssignment.driverId) || d.employeeId === currentAssignment.driverId)) ||
+      (currentAssignment.driverEmployeeId && d.employeeId === currentAssignment.driverEmployeeId) ||
+      (currentAssignment.driverName && d.driverName?.trim().toLowerCase() === currentAssignment.driverName?.trim().toLowerCase())
+    );
+
+    const matchedStaff = staff.find(s => {
+      const staffFullName = `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase();
+      const dName = (currentAssignment.driverName || driver?.driverName || '').trim().toLowerCase();
+      const staffEmpId = (s.empId || (s as any).employeeId || String(s.id) || '').trim().toLowerCase();
+      const targetEmpId = (driver?.employeeId || currentAssignment.driverEmployeeId || currentAssignment.driverId || '').trim().toLowerCase();
+
+      return (
+        (targetEmpId && (staffEmpId === targetEmpId || String(s.id).toLowerCase() === targetEmpId)) ||
+        (dName && (staffFullName === dName || staffFullName.includes(dName) || dName.includes(staffFullName)))
+      );
+    });
+
+    const name = (currentAssignment.driverName && currentAssignment.driverName.toUpperCase() !== 'UNASSIGNED' && currentAssignment.driverName.trim() !== '')
+      ? currentAssignment.driverName
+      : (driver?.driverName || (matchedStaff ? `${matchedStaff.firstName || ''} ${matchedStaff.lastName || ''}`.trim() : 'Unassigned'));
+
+    let empCode = currentAssignment.driverEmployeeId || driver?.employeeId || matchedStaff?.empId || (matchedStaff as any)?.employeeId || (matchedStaff?.id ? `DRV-${matchedStaff.id}` : '-');
+    const mobile = currentAssignment.driverMobile || driver?.mobileNumber || matchedStaff?.phone || (matchedStaff as any)?.mobileNumber || '-';
+
+    return {
+      name,
+      employeeId: empCode,
+      mobile
+    };
+  }, [currentAssignment, driverMasters, staff]);
+
+  const isUserAttendant = useMemo(() => {
+    if (matchedDriver.isAttendant) return true;
+    const personName = (matchedDriver.driverName || user?.name || '').trim().toLowerCase();
+    const personEmpId = (matchedDriver.employeeId || (user as any)?.empId || '').trim().toLowerCase();
+    if (currentAssignment) {
+      const vaAttName = (currentAssignment.attendantName || '').trim().toLowerCase();
+      const vaAttEmpId = (currentAssignment.attendantEmployeeId || '').trim().toLowerCase();
+      if (personName && vaAttName === personName) return true;
+      if (personEmpId && vaAttEmpId === personEmpId) return true;
+    }
+    return false;
+  }, [matchedDriver, user, currentAssignment]);
+
   const routeStops = useMemo(() => {
     if (!targetRouteId && !targetRouteName) return [];
     return pickupPoints
@@ -238,11 +359,21 @@ export const DriverTransportPortalView: React.FC<DriverTransportPortalViewProps>
         const sRollNo = String(s.rollNo || (s as any).rollNumber || '').trim().toLowerCase();
         const sRegNo = String(s.registrationNo || (s as any).registrationNumber || '').trim().toLowerCase();
 
-        if (targetStuId && (sId === targetStuId || sStuId === targetStuId)) return true;
+        if (targetStuId && (sId === targetStuId || sStuId === targetStuId || sAdmNo === targetStuId || sRollNo === targetStuId)) return true;
         if (targetAdmNo && (sAdmNo === targetAdmNo || sRollNo === targetAdmNo || sRegNo === targetAdmNo || sStuId === targetAdmNo || sId === targetAdmNo)) return true;
         if (last4Digits && last4Digits.length >= 3) {
-          const sDigits = (sAdmNo || sRollNo || sRegNo || sId).replace(/\D/g, '');
-          if (sDigits && (sDigits.endsWith(last4Digits) || sDigits === last4Digits)) return true;
+          const sAdmDigits = sAdmNo.replace(/\D/g, '');
+          const sRollDigits = sRollNo.replace(/\D/g, '');
+          const sIdDigits = sId.replace(/\D/g, '');
+          const sStuDigits = sStuId.replace(/\D/g, '');
+          if (
+            (sAdmDigits && (sAdmDigits.endsWith(last4Digits) || sAdmDigits === last4Digits)) ||
+            (sRollDigits && (sRollDigits.endsWith(last4Digits) || sRollDigits === last4Digits)) ||
+            (sIdDigits && (sIdDigits.endsWith(last4Digits) || sIdDigits === last4Digits)) ||
+            (sStuDigits && (sStuDigits.endsWith(last4Digits) || sStuDigits === last4Digits))
+          ) {
+            return true;
+          }
         }
         return false;
       });
@@ -255,30 +386,65 @@ export const DriverTransportPortalView: React.FC<DriverTransportPortalViewProps>
         const aStuId = String((a as any).studentId || '').trim().toLowerCase();
         const aRollNo = String(a.rollNo || (a as any).rollNumber || '').trim().toLowerCase();
 
-        if (targetStuId && (aId === targetStuId || aStuId === targetStuId)) return true;
+        if (targetStuId && (aId === targetStuId || aStuId === targetStuId || aAdmNo === targetStuId || aRollNo === targetStuId || aRegNo === targetStuId)) return true;
         if (targetAdmNo && (aAdmNo === targetAdmNo || aRegNo === targetAdmNo || aAppNo === targetAdmNo || aRollNo === targetAdmNo || aStuId === targetAdmNo || aId === targetAdmNo)) return true;
         if (last4Digits && last4Digits.length >= 3) {
-          const aDigits = (aAdmNo || aRegNo || aAppNo || aId).replace(/\D/g, '');
-          if (aDigits && (aDigits.endsWith(last4Digits) || aDigits === last4Digits)) return true;
+          const aAdmDigits = aAdmNo.replace(/\D/g, '');
+          const aRegDigits = aRegNo.replace(/\D/g, '');
+          const aRollDigits = aRollNo.replace(/\D/g, '');
+          const aStuDigits = aStuId.replace(/\D/g, '');
+          if (
+            (aAdmDigits && (aAdmDigits.endsWith(last4Digits) || aAdmDigits === last4Digits)) ||
+            (aRegDigits && (aRegDigits.endsWith(last4Digits) || aRegDigits === last4Digits)) ||
+            (aRollDigits && (aRollDigits.endsWith(last4Digits) || aRollDigits === last4Digits)) ||
+            (aStuDigits && (aStuDigits.endsWith(last4Digits) || aStuDigits === last4Digits))
+          ) {
+            return true;
+          }
         }
         return false;
       });
 
       const key = String(student?.id || st.studentId || student?.admissionNo || st.admissionNo || st.id);
       const fullName = (
+        student?.studentName ||
         student?.name ||
         `${student?.firstName || ''} ${student?.lastName || ''}`.trim() ||
         matchedAdm?.applicantName ||
         `${matchedAdm?.firstName || ''} ${matchedAdm?.lastName || ''}`.trim() ||
-        st.studentName ||
+        (st.studentName && st.studentName !== 'Student Passenger' ? st.studentName : '') ||
         'Student Passenger'
       ).trim();
+
+      const resolvedClassName = (
+        student?.className ||
+        student?.grade ||
+        academicClasses.find(c => String(c.id) === String(student?.classId))?.name ||
+        (academicClasses.find(c => String(c.id) === String(student?.classId)) as any)?.className ||
+        matchedAdm?.appliedClass ||
+        (matchedAdm as any)?.className ||
+        (matchedAdm as any)?.targetClass ||
+        (st as any)?.className ||
+        '-'
+      ).trim();
+
+      const resolvedSection = (
+        student?.section ||
+        (student as any)?.sectionName ||
+        matchedAdm?.section ||
+        (st as any)?.section ||
+        (st as any)?.sectionName ||
+        '-'
+      ).replace(/^Section\s*/i, '').trim();
 
       const pName = (
         student?.fatherName ||
         (student as any)?.fatherFullName ||
         student?.parentName ||
         matchedAdm?.parentName ||
+        matchedAdm?.fatherName ||
+        (st as any)?.parentName ||
+        (st as any)?.fatherName ||
         (student as any)?.guardianName ||
         student?.motherName ||
         matchedAdm?.motherName ||
@@ -295,6 +461,9 @@ export const DriverTransportPortalView: React.FC<DriverTransportPortalViewProps>
         student?.phone ||
         (student as any)?.mobileNumber ||
         matchedAdm?.phone ||
+        matchedAdm?.fatherMobile ||
+        (st as any)?.parentMobile ||
+        (st as any)?.fatherMobile ||
         '+91-9878645500'
       ).trim();
 
@@ -304,10 +473,10 @@ export const DriverTransportPortalView: React.FC<DriverTransportPortalViewProps>
         : (routeStops.length > 0 ? routeStops[0].pickupName : '-');
 
       const studentIdVal =
-        (st.admissionNo && st.admissionNo.toUpperCase().startsWith('STU') ? st.admissionNo : '') ||
-        (student as any)?.studentId ||
         student?.rollNo ||
         (student as any)?.rollNumber ||
+        (st.admissionNo && st.admissionNo.toUpperCase().startsWith('STU') ? st.admissionNo : '') ||
+        (student as any)?.studentId ||
         (st.studentId && st.studentId !== '0' && st.studentId !== '' ? (String(st.studentId).startsWith('STU') ? String(st.studentId) : `STU-${st.studentId}`) : '') ||
         (matchedAdm as any)?.studentId ||
         (matchedAdm as any)?.rollNo ||
@@ -322,9 +491,9 @@ export const DriverTransportPortalView: React.FC<DriverTransportPortalViewProps>
         admissionNo: student?.admissionNo || st.admissionNo || (matchedAdm as any)?.admissionNo || matchedAdm?.registrationNo || matchedAdm?.applicationNo || '-',
         studentName: fullName,
         gender: student?.gender || matchedAdm?.gender || (student as any)?.sex || '-',
-        className: student?.className || student?.grade || matchedAdm?.appliedClass || (student as any)?.class || matchedAdm?.targetClass || '-',
-        section: student?.section || matchedAdm?.section || '-',
-        rollNo: student?.rollNo || (student as any)?.rollNumber || matchedAdm?.rollNo || '-',
+        className: resolvedClassName,
+        section: resolvedSection,
+        rollNo: student?.rollNo || (student as any)?.rollNumber || matchedAdm?.rollNo || (st as any)?.rollNo || '-',
         pickupPoint: pPoint,
         parentName: pName,
         parentMobile: pMobile
@@ -506,11 +675,19 @@ export const DriverTransportPortalView: React.FC<DriverTransportPortalViewProps>
               </div>
 
               <div className="glass-card p-3 sm:p-3.5 rounded-xl border border-sky-200/80 dark:border-sky-800 bg-white dark:bg-slate-900 space-y-1">
-                <span className="text-[9px] font-extrabold uppercase tracking-wider text-slate-400">Assigned Bus Attendant</span>
-                <div className="text-base sm:text-lg font-black text-slate-900 dark:text-white">{assignedAttendant.name}</div>
-                <a href={`tel:${assignedAttendant.mobile}`} className="text-[11px] text-sky-600 hover:underline font-bold flex items-center gap-1">
-                  <Phone className="w-3 h-3" /> {assignedAttendant.mobile}
-                </a>
+                <span className="text-[9px] font-extrabold uppercase tracking-wider text-slate-400">
+                  {isUserAttendant ? 'Assigned Driver' : 'Assigned Bus Attendant'}
+                </span>
+                <div className="text-base sm:text-lg font-black text-slate-900 dark:text-white">
+                  {isUserAttendant ? assignedDriver.name : assignedAttendant.name}
+                </div>
+                {((isUserAttendant ? assignedDriver.mobile : assignedAttendant.mobile) && (isUserAttendant ? assignedDriver.mobile : assignedAttendant.mobile) !== '-' && (isUserAttendant ? assignedDriver.mobile : assignedAttendant.mobile) !== '') ? (
+                  <a href={`tel:${isUserAttendant ? assignedDriver.mobile : assignedAttendant.mobile}`} className="text-[11px] text-sky-600 hover:underline font-bold flex items-center gap-1">
+                    <Phone className="w-3 h-3" /> {isUserAttendant ? assignedDriver.mobile : assignedAttendant.mobile}
+                  </a>
+                ) : (
+                  <span className="text-[11px] text-slate-400 font-mono">Emp ID: {isUserAttendant ? (assignedDriver.employeeId || '—') : (assignedAttendant.employeeId || '—')}</span>
+                )}
               </div>
             </div>
 
@@ -644,7 +821,9 @@ export const DriverTransportPortalView: React.FC<DriverTransportPortalViewProps>
                             </span>
                           </td>
                           <td className="py-3 px-4 text-center font-bold text-slate-700 dark:text-slate-300">
-                            {student.className}{student.section && student.section !== '-' ? ` - ${student.section}` : ''}
+                            {student.className && student.className !== '-'
+                              ? `${student.className}${student.section && student.section !== '-' ? ` - ${student.section.replace(/^Section\s*/i, '')}` : ''}`
+                              : (student.section && student.section !== '-' ? `Section ${student.section.replace(/^Section\s*/i, '')}` : '-')}
                           </td>
                           <td className="py-3 px-4 text-center">
                             <div className="inline-flex items-center justify-center gap-1.5 text-slate-700 dark:text-slate-300 font-semibold">

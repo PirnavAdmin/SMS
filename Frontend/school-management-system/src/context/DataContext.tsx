@@ -453,7 +453,6 @@ import {
 } from "../api/hostel";
 import {
   BusAttendantMaster,
-  initialBusAttendants,
   resolveAssignedStudentsForTrip,
 } from "../components/modules/Transport/transportData";
 import { useToast } from "./ToastContext";
@@ -2075,9 +2074,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const [driverMasters, setDriverMasters] = useState<DriverMaster[]>(() =>
     getStored("edu_db_driver_masters", getStored("driver_masters", [])),
   );
-  const [busAttendants, setBusAttendants] = useState<BusAttendantMaster[]>(() =>
-    getStored("edu_db_bus_attendants", getStored("bus_attendants", [])),
-  );
+  const [busAttendants, setBusAttendants] = useState<BusAttendantMaster[]>([]);
   const [vehicleAssignments, setVehicleAssignments] = useState<
     VehicleAssignment[]
   >(() =>
@@ -3698,30 +3695,71 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             }
 
             let sName = t.studentName || t.fullName || "";
-            if (!sName && students) {
+            let sClassName = t.className || "";
+            let sSection = t.sectionName || t.section || "";
+            let sRollNo = t.rollNumber || t.rollNo || "";
+            let sParentName = t.fatherName || t.parentName || "";
+            let sParentMobile = t.fatherMobile || t.parentMobile || "";
+
+            if (students && students.length > 0) {
               const matchedStudent = students.find(
                 (s: any) =>
                   s.id?.toString() === t.studentId?.toString() ||
                   (admNo && (s.admissionNo === admNo || s.rollNo === admNo || (s as any).studentId === admNo)),
               );
               if (matchedStudent) {
-                sName =
-                  `${matchedStudent.firstName || ""} ${matchedStudent.lastName || ""}`.trim() ||
-                  matchedStudent.name ||
-                  "";
+                if (!sName) {
+                  sName =
+                    `${matchedStudent.firstName || ""} ${matchedStudent.lastName || ""}`.trim() ||
+                    matchedStudent.name ||
+                    (matchedStudent as any).studentName ||
+                    "";
+                }
+                if (!sClassName) {
+                  sClassName = matchedStudent.className || (matchedStudent as any).grade || "";
+                }
+                if (!sSection) {
+                  sSection = matchedStudent.section || "";
+                }
+                if (!sRollNo) {
+                  sRollNo = matchedStudent.rollNo || (matchedStudent as any).studentId || "";
+                }
+                if (!sParentName) {
+                  sParentName = matchedStudent.fatherName || matchedStudent.parentName || "";
+                }
+                if (!sParentMobile) {
+                  sParentMobile = matchedStudent.fatherPhone || (matchedStudent as any).fatherMobile || (matchedStudent as any).parentPhone || "";
+                }
               }
             }
-            if (!sName && admissions) {
+            if (admissions && admissions.length > 0) {
               const matchedAdm = admissions.find(
                 (a: any) =>
                   a.id?.toString() === t.studentId?.toString() ||
                   (admNo && (a.registrationNo === admNo || a.applicationNo === admNo || (a as any).admissionNo === admNo || (a as any).studentId === admNo || (a as any).rollNo === admNo)),
               );
               if (matchedAdm) {
-                sName =
-                  matchedAdm.applicantName ||
-                  `${matchedAdm.firstName || ""} ${matchedAdm.lastName || ""}`.trim() ||
-                  "";
+                if (!sName) {
+                  sName =
+                    matchedAdm.applicantName ||
+                    `${matchedAdm.firstName || ""} ${matchedAdm.lastName || ""}`.trim() ||
+                    "";
+                }
+                if (!sClassName) {
+                  sClassName = matchedAdm.appliedClass || (matchedAdm as any).className || "";
+                }
+                if (!sSection) {
+                  sSection = matchedAdm.section || "";
+                }
+                if (!sRollNo) {
+                  sRollNo = (matchedAdm as any).rollNo || (matchedAdm as any).studentId || "";
+                }
+                if (!sParentName) {
+                  sParentName = matchedAdm.parentName || (matchedAdm as any).fatherName || "";
+                }
+                if (!sParentMobile) {
+                  sParentMobile = matchedAdm.phone || (matchedAdm as any).fatherMobile || "";
+                }
               }
             }
 
@@ -3735,6 +3773,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               studentId: (t.studentId || "").toString(),
               studentName: sName,
               admissionNo: admNo,
+              className: sClassName,
+              section: sSection,
+              sectionName: sSection,
+              rollNo: sRollNo,
+              rollNumber: sRollNo,
+              parentName: sParentName,
+              fatherName: sParentName,
+              parentMobile: sParentMobile,
+              fatherMobile: sParentMobile,
               routeName: t.routeName || "",
               routeId: (t.routeId || "").toString(),
               pickupPoint:
@@ -5118,9 +5165,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               s.rollNo ||
               sIdStr;
 
+            const resolvedStudentName = (s.studentName || s.name || `${firstName} ${lastName}`.trim()).trim();
+            const resolvedRollNo = s.rollNumber || s.rollNo || (matchingAdmission as any)?.studentId || (matchingAdmission as any)?.registrationNo || "";
+            const matchedCls = academicClasses?.find((c: any) => String(c.id) === String(s.classId || s.class_id));
+            const resolvedClass = s.className || s.class || matchedCls?.name || (matchedCls as any)?.className || matchingAdmission?.appliedClass || "";
+            const resolvedSec = (s.sectionName || s.section || matchingAdmission?.section || "").replace(/^Section\s*/i, "").trim();
+
             return {
               id: sIdStr,
               studentId: effectiveStudentId,
+              name: resolvedStudentName,
+              studentName: resolvedStudentName,
               admissionNo: admNo,
               registrationNo: (matchingAdmission as any)?.registrationNo || regNo || effectiveStudentId,
               registrationNumber: (matchingAdmission as any)?.registrationNo || regNo || effectiveStudentId,
@@ -5144,16 +5199,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 : s.dob
                   ? s.dob.split("T")[0]
                   : "",
-              className:
-                s.className || s.class || matchingAdmission?.appliedClass || "",
-              section: (
-                s.sectionName ||
-                s.section ||
-                matchingAdmission?.section ||
-                ""
-              )
-                .replace(/^Section\s*/i, "")
-                .trim(),
+              className: resolvedClass,
+              section: resolvedSec,
               academicYear: s.academicYearName || s.academicYear || "",
               branch: s.branchName || s.branch || "",
               branchId: s.branchId || s.branch_id || undefined,
@@ -5184,7 +5231,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               motherPhone: s.motherMobile || s.motherPhone || "",
               address: s.address || "",
               promotionHistory: [],
-              rollNo: (matchingAdmission as any)?.studentId || (matchingAdmission as any)?.registrationNo || s.rollNumber || s.rollNo || "",
+              rollNo: resolvedRollNo,
+              rollNumber: resolvedRollNo,
               bloodGroup: s.bloodGroup || matchingAdmission?.bloodGroup || "O+",
               religion: resolvedReligion,
               casteCategory: resolvedCasteCategory,
@@ -5234,9 +5282,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             setStudentTransports((prev) => {
               if (!prev || prev.length === 0) return prev;
               return prev.map((st) => {
-                if (st.studentName && st.studentName.trim() !== "" && st.studentName !== "Student Passenger") {
-                  return st;
-                }
                 const stAdm = String(st.admissionNo || "").trim().toLowerCase();
                 const stId = String(st.studentId || "").trim().toLowerCase();
                 const digits = (stAdm || stId).replace(/\D/g, "");
@@ -5245,9 +5290,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 const matched = (mappedResult || []).find((s: any) => {
                   const sId = String(s.id || "").trim().toLowerCase();
                   const sAdm = String(s.admissionNo || "").trim().toLowerCase();
-                  const sRoll = String(s.rollNo || "").trim().toLowerCase();
+                  const sRoll = String(s.rollNo || s.rollNumber || "").trim().toLowerCase();
                   const sStuId = String((s as any).studentId || "").trim().toLowerCase();
-                  if (stId && (sId === stId || sStuId === stId)) return true;
+                  if (stId && (sId === stId || sStuId === stId || sAdm === stId || sRoll === stId)) return true;
                   if (stAdm && (sAdm === stAdm || sRoll === stAdm || sStuId === stAdm || sId === stAdm)) return true;
                   if (last4 && last4.length >= 3) {
                     const sDigits = (sAdm || sRoll || sId).replace(/\D/g, "");
@@ -5257,10 +5302,26 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
                 });
 
                 if (matched) {
-                  const name = `${matched.firstName || ""} ${matched.lastName || ""}`.trim() || matched.name || "";
-                  if (name) {
-                    return { ...st, studentName: name };
-                  }
+                  const name = (matched as any).studentName || matched.name || `${matched.firstName || ""} ${matched.lastName || ""}`.trim() || st.studentName || "";
+                  const cName = matched.className || (matched as any).grade || st.className || "";
+                  const sec = (matched.section || "").replace(/^Section\s*/i, "").trim() || st.section || "";
+                  const rNo = matched.rollNo || (matched as any).rollNumber || (matched as any).studentId || st.rollNo || "";
+                  const pName = matched.fatherName || matched.parentName || (matched as any).guardianName || st.parentName || "";
+                  const pPhone = matched.fatherPhone || (matched as any).fatherMobile || (matched as any).parentPhone || (matched as any).mobileNumber || matched.phone || st.parentMobile || "";
+
+                  return {
+                    ...st,
+                    studentName: name || st.studentName,
+                    className: cName || st.className,
+                    section: sec || st.section,
+                    sectionName: sec || st.sectionName,
+                    rollNo: rNo || st.rollNo,
+                    rollNumber: rNo || st.rollNumber,
+                    parentName: pName || st.parentName,
+                    fatherName: pName || st.fatherName,
+                    parentMobile: pPhone || st.parentMobile,
+                    fatherMobile: pPhone || st.fatherMobile,
+                  };
                 }
                 return st;
               });
@@ -20821,16 +20882,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         "Registered Bus Attendant",
         `Added attendant ${newAttendant.attendantName}`,
       );
-    } catch (err) {
-      addToast("error", "API Sync Failed", "Operating in local fallback mode");
-      const id = "ATT-" + Math.floor(100 + Math.random() * 900);
-      const newAttendant: BusAttendantMaster = {
-        ...a,
-        id,
-        branch: (a as any).branch || (selectedBranch && selectedBranch !== "All Branches" && selectedBranch !== "All" && selectedBranch !== "All Campuses" ? selectedBranch : "Madhapur Branch"),
-      } as any;
-      setBusAttendants((prev) => [...prev, newAttendant]);
-      syncAttendantToStaffAndAssignments(newAttendant.id, newAttendant);
+    } catch (err: any) {
+      addToast("error", "API Sync Failed", err?.message || "Failed to register bus attendant with backend API");
+      throw err;
     }
   };
 
@@ -20863,17 +20917,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       if (updates.status !== undefined)
         payload.status = updates.status === "Active";
 
-      await TransportAPI.updateAttendantApi(id, payload);
+      const res = await TransportAPI.updateAttendantApi(id, payload);
+      const backendData = (res as any)?.data || res || {};
       setBusAttendants((prev) =>
-        prev.map((a) => (a.id === id ? { ...a, ...updates } : a)),
+        prev.map((a) => (a.id === id ? { ...a, ...updates, ...backendData } : a)),
       );
-      syncAttendantToStaffAndAssignments(id, updates);
-    } catch (err) {
-      addToast("error", "API Sync Failed", "Operating in local fallback mode");
-      setBusAttendants((prev) =>
-        prev.map((a) => (a.id === id ? { ...a, ...updates } : a)),
-      );
-      syncAttendantToStaffAndAssignments(id, updates);
+      syncAttendantToStaffAndAssignments(id, { ...updates, ...backendData });
+    } catch (err: any) {
+      addToast("error", "API Sync Failed", err?.message || "Failed to update bus attendant in backend API");
+      throw err;
     }
   };
 

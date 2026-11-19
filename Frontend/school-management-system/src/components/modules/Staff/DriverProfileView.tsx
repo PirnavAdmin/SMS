@@ -61,11 +61,13 @@ export const DriverProfileView: React.FC = () => {
   const {
     staff = [],
     driverMasters = [],
+    busAttendants = [],
     vehicleAssignments = [],
     vehicleMasters = [],
     routeMasters = [],
     pickupPoints = [],
     updateDriverMaster,
+    updateBusAttendant,
     updateStaff,
     schoolProfile
   } = useData();
@@ -73,14 +75,14 @@ export const DriverProfileView: React.FC = () => {
 
   const [isEditing, setIsEditing] = useState(false);
 
-  // 1. Dynamically match logged-in driver from driverMasters and staff
+  // 1. Dynamically match logged-in driver or bus attendant
   const matchedDriver = useMemo(() => {
     const userEmail = (user?.email || '').trim().toLowerCase();
     const userName = (user?.name || '').trim().toLowerCase();
     const userPhone = (user?.phone || '').trim().toLowerCase();
     const userEmpId = (user?.id || (user as any)?.empId || (user as any)?.employeeId || '').trim().toLowerCase();
 
-    // 1. Match from staff FIRST by exact user email (highest reliability, matching AuthContext & StaffAttendanceView)
+    // 1. Match from staff FIRST by exact user email (highest reliability, matching AuthContext)
     const fromStaff = (() => {
       if (userEmail) {
         const byEmail = staff.find(s => s.email && s.email.toLowerCase().trim() === userEmail);
@@ -101,14 +103,15 @@ export const DriverProfileView: React.FC = () => {
         if (byPhone) return byPhone;
       }
 
-      // Fallback by name: only match transport/driver staff and avoid conflicting with userEmail
+      // Fallback by name: match transport staff
       if (userName && userName !== 'user' && userName !== 'administrator') {
         const byName = staff.find(s => {
           const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase();
           const sName = (s.name || '').trim().toLowerCase();
-          const isTransportOrDriver = s.department?.toLowerCase() === 'transport' || s.designation?.toLowerCase().includes('driver') || (s as any).role?.toLowerCase().includes('driver');
+          const des = (s.designation || '').toLowerCase();
+          const isTransport = s.department?.toLowerCase() === 'transport' || des.includes('driver') || des.includes('attendant') || des.includes('conductor');
           const nameMatches = sFullName === userName || sName === userName || (userName.length >= 3 && (sFullName.includes(userName) || userName.includes(sFullName)));
-          if (!nameMatches || !isTransportOrDriver) return false;
+          if (!nameMatches || !isTransport) return false;
           if (userEmail && s.email && s.email.toLowerCase().trim() !== userEmail) {
             const isTypo = s.email.toLowerCase().includes('gamal.com') || s.email.toLowerCase().replace(/@.*/, '') === userEmail.replace(/@.*/, '');
             return isTypo;
@@ -121,15 +124,37 @@ export const DriverProfileView: React.FC = () => {
       return null;
     })();
 
-    // 2. Match from driverMasters prioritizing exact user email / staff empId
+    // 2. Match from busAttendants
     const staffEmpId = (fromStaff?.empId || (fromStaff as any)?.employeeId || String(fromStaff?.id || '')).toLowerCase().trim();
+    const targetEmpId = staffEmpId || userEmpId;
+
+    const fromAttendant = (() => {
+      if (targetEmpId) {
+        const byEmpId = busAttendants.find(a => (a.employeeId?.toLowerCase() === targetEmpId || String(a.id) === targetEmpId));
+        if (byEmpId) return byEmpId;
+      }
+      if (userPhone && userPhone.length >= 10) {
+        const cleanPhone = userPhone.slice(-10);
+        const byPhone = busAttendants.find(a => (a.mobileNumber || '').replace(/\D/g, '').endsWith(cleanPhone));
+        if (byPhone) return byPhone;
+      }
+      if (userName && userName !== 'user' && userName !== 'administrator') {
+        const byName = busAttendants.find(a => {
+          const aName = (a.attendantName || '').trim().toLowerCase();
+          return aName === userName || (userName.length >= 3 && (aName.includes(userName) || userName.includes(aName)));
+        });
+        if (byName) return byName;
+      }
+      return null;
+    })();
+
+    // 3. Match from driverMasters
     const fromMaster = (() => {
       if (userEmail) {
         const byEmail = driverMasters.find(d => d.email && d.email.toLowerCase().trim() === userEmail);
         if (byEmail) return byEmail;
       }
 
-      const targetEmpId = staffEmpId || userEmpId;
       if (targetEmpId) {
         const byEmpId = driverMasters.find(d => {
           const dEmpId = (d.employeeId || (d as any).empId || String(d.id || '')).toLowerCase().trim();
@@ -144,7 +169,6 @@ export const DriverProfileView: React.FC = () => {
         if (byPhone) return byPhone;
       }
 
-      // Name fallback: only if no conflicting valid email
       if (userName && userName !== 'user' && userName !== 'administrator') {
         const byName = driverMasters.find(d => {
           const dName = (d.driverName || '').trim().toLowerCase();
@@ -162,13 +186,25 @@ export const DriverProfileView: React.FC = () => {
       return null;
     })();
 
+    // Determine if user is Bus Attendant
+    const staffDesig = (fromStaff?.designation || '').toLowerCase();
+    const staffRole = ((fromStaff as any)?.role || (fromStaff as any)?.employeeCategory || '').toLowerCase();
+    const isAttendant = Boolean(
+      fromAttendant != null ||
+      staffDesig.includes('attendant') ||
+      staffDesig.includes('conductor') ||
+      staffDesig.includes('helper') ||
+      staffRole.includes('attendant') ||
+      (user as any)?.designation?.toLowerCase().includes('attendant')
+    );
+
     const resolvedBloodGroup = fromStaff?.bloodGroup || (fromStaff as any)?.blood_group || (fromMaster as any)?.bloodGroup || (user as any)?.bloodGroup || '';
     const resolvedEmergency = (fromStaff as any)?.emergencyContact || (fromStaff as any)?.emergencyContactNumber || (fromStaff as any)?.emergencyPhone || (fromMaster as any)?.emergencyContact || (fromStaff as any)?.fatherPhone || (fromStaff as any)?.guardianPhone || '';
     const resolvedJoiningDate = fromStaff?.joiningDate || (fromStaff as any)?.dateOfJoining || (fromMaster as any)?.dateOfJoining || (fromMaster as any)?.joiningDate || (user as any)?.joiningDate || '';
     const resolvedAddress = fromStaff?.address || (fromStaff as any)?.presentAddress || (fromStaff as any)?.permanentAddress || fromMaster?.address || (user as any)?.address || '';
-    const resolvedMobile = fromStaff?.phone || (fromStaff as any)?.mobileNumber || fromMaster?.mobileNumber || user?.phone || '';
+    const resolvedMobile = fromStaff?.phone || (fromStaff as any)?.mobileNumber || fromAttendant?.mobileNumber || fromMaster?.mobileNumber || user?.phone || '';
 
-    // Autocorrect and synchronize email: authenticated user email is the source of truth, correcting typos like @gamal.com -> @gmail.com
+    // Autocorrect and synchronize email
     let rawEmail = (user?.email && user.email.includes('@'))
       ? user.email.trim()
       : (fromStaff?.email || fromMaster?.email || '');
@@ -177,10 +213,10 @@ export const DriverProfileView: React.FC = () => {
     }
     const resolvedEmail = rawEmail;
 
-    const resolvedEmpId = fromStaff?.empId || (fromStaff as any)?.employeeId || fromMaster?.employeeId || (user as any)?.empId || user?.id || '';
+    const resolvedEmpId = fromStaff?.empId || (fromStaff as any)?.employeeId || fromAttendant?.employeeId || fromMaster?.employeeId || (user as any)?.empId || user?.id || '';
     const resolvedName = (user?.name && user.name.toLowerCase() !== 'user' && user.name.toLowerCase() !== 'administrator')
       ? user.name
-      : (fromMaster?.driverName || (fromStaff ? `${fromStaff.firstName || ''} ${fromStaff.lastName || ''}`.trim() : (user?.name || '')));
+      : (fromMaster?.driverName || (fromStaff ? `${fromStaff.firstName || ''} ${fromStaff.lastName || ''}`.trim() : (fromAttendant?.attendantName || user?.name || '')));
 
     const resolvedLicense = fromMaster?.licenseNumber || (fromStaff as any)?.licenseNumber || '';
     const resolvedLicenseExpiry = fromMaster?.licenseExpiryDate || (fromStaff as any)?.licenseExpiryDate || (fromMaster as any)?.licenceExpiry || '';
@@ -188,8 +224,7 @@ export const DriverProfileView: React.FC = () => {
     const resolvedExperience = (fromMaster?.experienceYears !== undefined && fromMaster.experienceYears !== null)
       ? fromMaster.experienceYears
       : ((fromStaff as any)?.experienceYears !== undefined && (fromStaff as any)?.experienceYears !== null ? (fromStaff as any).experienceYears : '');
-    // Dynamically resolve Department for Driver profile:
-    // Prioritizes driver master or transport staff, dynamically defaulting to "Transport"
+
     let resolvedDept =
       (fromMaster as any)?.department ||
       (fromStaff?.department && fromStaff.department.toLowerCase() !== 'hostel' && fromStaff.department.toLowerCase() !== 'academic' ? fromStaff.department : '') ||
@@ -199,22 +234,17 @@ export const DriverProfileView: React.FC = () => {
       resolvedDept = 'Transport';
     }
 
-    // Dynamically resolve Designation for Driver profile:
-    // Prioritizes driver master or transport staff, dynamically defaulting to "Driver"
-    let resolvedDesig =
-      (fromMaster as any)?.designation ||
-      (fromStaff?.designation && !fromStaff.designation.toLowerCase().includes('warden') && !fromStaff.designation.toLowerCase().includes('teacher') ? fromStaff.designation : '') ||
-      (user as any)?.designation ||
-      'Driver';
-    if (!resolvedDesig || resolvedDesig.toLowerCase().includes('warden') || resolvedDesig.toLowerCase().includes('teacher') || resolvedDesig.toLowerCase().includes('accountant') || resolvedDesig.toLowerCase() === 'staff') {
-      resolvedDesig = 'Driver';
-    }
+    let resolvedDesig = isAttendant
+      ? (fromStaff?.designation || 'Bus Attendant')
+      : ((fromMaster as any)?.designation || (fromStaff?.designation && !fromStaff.designation.toLowerCase().includes('teacher') ? fromStaff.designation : 'Driver'));
 
-    const resolvedStatus = fromMaster?.status || fromStaff?.status || (user as any)?.status || 'Active';
+    const resolvedStatus = fromAttendant?.status || fromMaster?.status || fromStaff?.status || (user as any)?.status || 'Active';
+    const resolvedBranch = fromAttendant?.branch || fromStaff?.branch || fromStaff?.branchName || (user as any)?.branch || 'Madhapur Branch';
 
     return {
-      id: fromMaster?.id || fromStaff?.id || user?.id || '',
+      id: fromMaster?.id || fromAttendant?.id || fromStaff?.id || user?.id || '',
       staffId: fromStaff?.id || '',
+      attendantId: fromAttendant?.id || '',
       driverName: resolvedName,
       employeeId: resolvedEmpId,
       mobileNumber: resolvedMobile,
@@ -230,30 +260,92 @@ export const DriverProfileView: React.FC = () => {
       department: resolvedDept,
       designation: resolvedDesig,
       status: resolvedStatus,
+      branch: resolvedBranch,
+      isAttendant,
       avatar: (fromMaster as any)?.avatar || fromStaff?.avatar || user?.avatar || ''
     };
-  }, [user, driverMasters, staff]);
+  }, [user, driverMasters, busAttendants, staff]);
 
-  // 2. Resolve Active Vehicle Assignment
+  // 2. Resolve Active Vehicle Assignment for Driver or Bus Attendant
   const currentAssignment = useMemo(() => {
-    const driverId = String(matchedDriver.id).trim();
-    const driverName = (matchedDriver.driverName || '').trim().toLowerCase();
-    const driverEmpId = (matchedDriver.employeeId || '').trim().toLowerCase();
+    const personId = String(matchedDriver.id).trim();
+    const personName = (matchedDriver.driverName || user?.name || '').trim().toLowerCase();
+    const personEmpId = (matchedDriver.employeeId || (user as any)?.empId || '').trim().toLowerCase();
 
     const matched = vehicleAssignments.find(va => {
+      const isActive = va.status === 'Active' || (va.status as any) === true || String(va.status).toLowerCase() === 'true';
+      if (!isActive) return false;
+
+      // Driver match
       const vaDriverId = String(va.driverId || '').trim();
       const vaDriverName = (va.driverName || '').trim().toLowerCase();
       const vaDriverEmpId = (va.driverEmployeeId || '').trim().toLowerCase();
-
-      return (
-        (driverId && vaDriverId === driverId) ||
-        (driverName && vaDriverName === driverName) ||
-        (driverEmpId && vaDriverEmpId === driverEmpId)
+      const isDriverMatch = (
+        (personId && vaDriverId === personId) ||
+        (personName && vaDriverName === personName) ||
+        (personEmpId && vaDriverEmpId === personEmpId)
       );
+
+      // Attendant match
+      const vaAttId = String(va.attendantId || '').trim();
+      const vaAttName = (va.attendantName || '').trim().toLowerCase();
+      const vaAttEmpId = (va.attendantEmployeeId || '').trim().toLowerCase();
+      const isAttendantMatch = (
+        (personId && vaAttId === personId) ||
+        (personName && vaAttName === personName) ||
+        (personEmpId && vaAttEmpId === personEmpId)
+      );
+
+      return isDriverMatch || isAttendantMatch;
     });
 
     return matched || null;
-  }, [matchedDriver, vehicleAssignments]);
+  }, [matchedDriver, user, vehicleAssignments]);
+
+  // 2b. Resolve Crew Partner (Assigned Driver if user is Attendant, or Assigned Attendant if user is Driver)
+  const crewPartner = useMemo(() => {
+    if (!currentAssignment) return null;
+    const isAttendant = matchedDriver.isAttendant || (
+      currentAssignment.attendantName &&
+      (matchedDriver.driverName || user?.name || '').trim().toLowerCase() === currentAssignment.attendantName.trim().toLowerCase()
+    );
+
+    if (isAttendant) {
+      const dName = currentAssignment.driverName || 'Unassigned';
+      const dObj = driverMasters.find(d =>
+        (currentAssignment.driverId && String(d.id) === String(currentAssignment.driverId)) ||
+        (currentAssignment.driverName && d.driverName?.toLowerCase() === currentAssignment.driverName.toLowerCase())
+      );
+      const dStaff = staff.find(s =>
+        (currentAssignment.driverEmployeeId && (s.empId === currentAssignment.driverEmployeeId || (s as any).employeeId === currentAssignment.driverEmployeeId)) ||
+        (dName && `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase() === dName.toLowerCase())
+      );
+      return {
+        role: 'Assigned Driver',
+        name: dName,
+        employeeId: currentAssignment.driverEmployeeId || dObj?.employeeId || dStaff?.empId || '—',
+        mobile: currentAssignment.driverMobile || dObj?.mobileNumber || dStaff?.phone || '—',
+        license: dObj?.licenseNumber || (dStaff as any)?.licenseNumber || ''
+      };
+    } else {
+      const aName = currentAssignment.attendantName || 'Unassigned';
+      const aObj = busAttendants.find(a =>
+        (currentAssignment.attendantId && String(a.id) === String(currentAssignment.attendantId)) ||
+        (currentAssignment.attendantName && a.attendantName?.toLowerCase() === currentAssignment.attendantName.toLowerCase())
+      );
+      const aStaff = staff.find(s =>
+        (currentAssignment.attendantEmployeeId && (s.empId === currentAssignment.attendantEmployeeId || (s as any).employeeId === currentAssignment.attendantEmployeeId)) ||
+        (aName && `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase() === aName.toLowerCase())
+      );
+      return {
+        role: 'Assigned Bus Attendant',
+        name: aName,
+        employeeId: currentAssignment.attendantEmployeeId || aObj?.employeeId || aStaff?.empId || '—',
+        mobile: currentAssignment.attendantMobile || aObj?.mobileNumber || aStaff?.phone || '—',
+        license: ''
+      };
+    }
+  }, [currentAssignment, matchedDriver, user, driverMasters, busAttendants, staff]);
 
   // 3. Resolve Vehicle & Route
   const assignedVehicle = useMemo(() => {
@@ -408,23 +500,36 @@ export const DriverProfileView: React.FC = () => {
     const finalAddress = updatedData.address ? updatedData.address.trim() : '';
     const finalEmergency = updatedData.emergencyContact ? updatedData.emergencyContact.trim() : '';
 
-    if (matchedDriver?.id && updateDriverMaster) {
-      await updateDriverMaster(String(matchedDriver.id), {
-        employeeId: matchedDriver.employeeId || undefined,
-        driverName: matchedDriver.driverName || undefined,
-        licenseNumber: finalLicense,
-        licenseExpiryDate: finalExpiry,
-        licenseType: updatedData.licenseType,
-        experienceYears: parsedExp,
-        mobileNumber: finalMobile,
-        email: finalEmail,
-        address: finalAddress,
-        emergencyContact: finalEmergency,
-        bloodGroup: updatedData.bloodGroup,
-      });
+    if (matchedDriver?.isAttendant) {
+      if (matchedDriver?.attendantId && updateBusAttendant) {
+        await updateBusAttendant(String(matchedDriver.attendantId), {
+          employeeId: matchedDriver.employeeId || undefined,
+          attendantName: matchedDriver.driverName || undefined,
+          mobileNumber: finalMobile,
+          branch: (matchedDriver as any).branch || undefined,
+          gender: (matchedDriver as any).gender || undefined,
+          status: matchedDriver.status === 'Active' || (matchedDriver.status as any) === true ? 'Active' : 'Inactive',
+        });
+      }
+    } else {
+      if (matchedDriver?.id && updateDriverMaster) {
+        await updateDriverMaster(String(matchedDriver.id), {
+          employeeId: matchedDriver.employeeId || undefined,
+          driverName: matchedDriver.driverName || undefined,
+          licenseNumber: finalLicense,
+          licenseExpiryDate: finalExpiry,
+          licenseType: updatedData.licenseType,
+          experienceYears: parsedExp,
+          mobileNumber: finalMobile,
+          email: finalEmail,
+          address: finalAddress,
+          emergencyContact: finalEmergency,
+          bloodGroup: updatedData.bloodGroup,
+        });
+      }
     }
 
-    // Also sync with staff store if driver exists as a staff record
+    // Also sync with staff store if exists as a staff record
     if (matchedDriver?.staffId && updateStaff) {
       updateStaff(matchedDriver.staffId, {
         phone: finalMobile,
@@ -835,10 +940,42 @@ export const DriverProfileView: React.FC = () => {
         {/* Middle Column: Driving License & Commercial Credentials */}
         <div className="glass-card p-4 sm:p-5 rounded-2xl border border-sky-200/80 dark:border-sky-800 bg-white dark:bg-slate-900 shadow-sm space-y-4">
           <h3 className="font-black text-xs sm:text-sm text-slate-900 dark:text-white flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
-            <ShieldCheck className="w-4 h-4 text-emerald-600" /> License & Safety Credentials
+            <ShieldCheck className="w-4 h-4 text-emerald-600" />
+            {matchedDriver.isAttendant ? 'Attendant Role & Deployment' : 'License & Safety Credentials'}
           </h3>
 
-          {!isEditing ? (
+          {matchedDriver.isAttendant ? (
+            <div className="space-y-3 text-xs">
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-850/50 border border-slate-200/60 dark:border-slate-800 space-y-2">
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Designation</span>
+                  <span className="font-black text-sm text-slate-900 dark:text-white">{matchedDriver.designation || 'Bus Attendant'}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant="success" size="sm">Verified Transport Staff</Badge>
+                  <span className="text-[10px] text-emerald-600 font-bold">On Duty</span>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl bg-sky-50/60 dark:bg-sky-950/30 border border-sky-200/80 dark:border-sky-800 space-y-1">
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Assigned Campus / Branch</span>
+                <span className="font-black text-sm text-sky-700 dark:text-sky-300">
+                  {matchedDriver.branch || user?.branch || 'Madhapur Branch'}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-850/50 border border-slate-200/60 dark:border-slate-800">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Employee Code</span>
+                  <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{matchedDriver.employeeId || '—'}</span>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-850/50 border border-slate-200/60 dark:border-slate-800">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Department</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">{matchedDriver.department || 'Transport'}</span>
+                </div>
+              </div>
+            </div>
+          ) : !isEditing ? (
             <div className="space-y-3 text-xs">
               <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-850/50 border border-slate-200/60 dark:border-slate-800">
                 <span className="text-[10px] uppercase font-bold text-slate-400 block">Driving License Number</span>
@@ -1022,6 +1159,24 @@ export const DriverProfileView: React.FC = () => {
                 <span>Distance: <span className="font-bold text-slate-700 dark:text-slate-300">{assignedRoute?.totalDistanceKm ? `${assignedRoute.totalDistanceKm} km` : '—'}</span></span>
               </div>
             </div>
+
+            {crewPartner && (
+              <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-850/50 border border-slate-200/60 dark:border-slate-800 space-y-1">
+                <span className="text-[10px] uppercase font-bold text-slate-400">{crewPartner.role}</span>
+                <div className="font-black text-sm text-slate-900 dark:text-white flex items-center justify-between">
+                  <span>{crewPartner.name}</span>
+                  <span className="text-[10px] text-emerald-600 bg-emerald-50 dark:bg-emerald-950/50 px-2 py-0.5 rounded-full font-bold">On Duty</span>
+                </div>
+                <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-200 dark:border-slate-700">
+                  <span>Emp ID: <span className="font-bold text-slate-700 dark:text-slate-300">{crewPartner.employeeId}</span></span>
+                  {crewPartner.mobile && crewPartner.mobile !== '—' && (
+                    <a href={`tel:${crewPartner.mobile}`} className="text-sky-600 dark:text-sky-400 font-bold hover:underline flex items-center gap-1">
+                      <Phone className="w-3 h-3" /> {crewPartner.mobile}
+                    </a>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

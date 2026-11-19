@@ -5,7 +5,6 @@ import {
 import { useData } from '../../../context/DataContext';
 import { VehicleAssignment, PickupPoint } from '../../../types';
 import { Badge } from '../../common/Badge';
-import { initialBusAttendants } from './BusAttendantMasterView';
 
 interface TransportGPSTrackingViewProps {
   initialVehicleId?: string;

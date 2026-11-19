@@ -5,7 +5,7 @@ import { useData } from '../../../context/DataContext';
 import { Badge } from '../../common/Badge';
 import { ExportButton } from '../../common/ExportButton';
 import { ValidatedSearchInput } from '../../common/ValidatedSearchInput';
-import { initialBusAttendants, resolveAssignedStudentsForTrip, formatMorningTripTime, formatEveningTripTime } from './transportData';
+import { resolveAssignedStudentsForTrip, formatMorningTripTime, formatEveningTripTime } from './transportData';
 import { VehicleTripDetailsModal } from './VehicleTripDetailsModal';
 import { VehicleAssignment } from '../../../types';
 
