@@ -59,7 +59,7 @@ export default defineConfig(({ mode }) => {
       bypass: (req) => {
         try {
           const urlPath = (req.url || '').split('?')[0];
-          const localPath = path.resolve(__dirname, 'public', urlPath.replace(/^\/+/, ''));
+          const localPath = path.resolve(import.meta.dirname, 'public', urlPath.replace(/^\/+/, ''));
           if (fs.existsSync(localPath) && fs.statSync(localPath).isFile()) {
             return req.url; // Bypasses proxy and lets Vite serve directly from public/
           }

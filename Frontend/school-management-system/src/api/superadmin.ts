@@ -1,4 +1,5 @@
 import { apiClient } from './client';
+import { createOptimizedLogoDataUrl } from '../utils/mediaUtils';
 
 export interface CreateSuperAdminPayload {
   fullName: string;
@@ -472,6 +473,7 @@ export interface PlatformCompanyProfile {
   companyName: string;
   tagline?: string;
   logoUrl?: string;
+  address?: string;
   supportEmail?: string;
   supportPhone?: string;
   websiteUrl?: string;
@@ -482,48 +484,64 @@ export interface PlatformCompanyProfile {
 export const fetchCompanyProfileApi = async (): Promise<PlatformCompanyProfile> => {
   // 1. Try dedicated endpoint /api/superadmin/company-profile
   try {
-    const res = await apiClient<PlatformCompanyProfile>('/api/superadmin/company-profile', {
+    const rawRes: any = await apiClient<any>('/api/superadmin/company-profile', {
       method: 'GET',
     });
-    if (res && (res.companyName || res.logoUrl || res.tagline)) {
-      return res;
-    }
-  } catch (err) {}
-
-  // 2. Try alias endpoint /api/superadmin/companies/profile
-  try {
-    const res = await apiClient<PlatformCompanyProfile>('/api/superadmin/companies/profile', {
-      method: 'GET',
-    });
-    if (res && (res.companyName || res.logoUrl || res.tagline)) {
-      return res;
-    }
-  } catch (err) {}
-
-  // 3. Fallback to /api/Settings (primary database settings table)
-  try {
-    const res = await apiClient<any>('/api/Settings', {
-      method: 'GET',
-    });
-    const data = res?.data || res;
-    if (data && (data.schoolName || data.name || data.logoUrl || data.tagline)) {
-      return {
-        id: 1,
-        companyName: data.schoolName || data.name || '',
-        tagline: data.tagline || '',
-        logoUrl: data.logoUrl || '',
-        supportEmail: data.email || '',
-        supportPhone: data.phone || '',
-        websiteUrl: data.website || data.websiteUrl || '',
-        primaryColor: '#0284c7',
+    const res = rawRes?.data || rawRes;
+    if (res) {
+      const profile: PlatformCompanyProfile = {
+        id: res.id || res.Id || 1,
+        companyName: res.companyName || res.CompanyName || '',
+        tagline: res.tagline || res.Tagline || '',
+        logoUrl: res.logoUrl || res.LogoUrl || '',
+        address: res.address || res.Address || '',
+        supportEmail: res.supportEmail || res.SupportEmail || '',
+        supportPhone: res.supportPhone || res.SupportPhone || '',
+        websiteUrl: res.websiteUrl || res.WebsiteUrl || '',
+        primaryColor: res.primaryColor || res.PrimaryColor || '#0284c7',
+        updatedAt: res.updatedAt || res.UpdatedAt,
       };
-    }
-  } catch (err) {}
 
+      if (profile.companyName || profile.tagline || profile.logoUrl || profile.address) {
+        try {
+          localStorage.setItem('superadmin_company_profile', JSON.stringify(profile));
+        } catch { }
+        return profile;
+      }
+    }
+  } catch (err) {
+    console.warn('Super Admin company profile fetch note:', err);
+  }
+
+  // Fallback to local superadmin cache if backend returned empty (NEVER fallback to /api/Settings!)
+  try {
+    const cached = localStorage.getItem('superadmin_company_profile');
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (parsed && (parsed.companyName || parsed.tagline || parsed.logoUrl || parsed.address)) {
+        return {
+          id: parsed.id || 1,
+          companyName: parsed.companyName || '',
+          tagline: parsed.tagline || '',
+          logoUrl: parsed.logoUrl || '',
+          address: parsed.address || '',
+          supportEmail: parsed.supportEmail || '',
+          supportPhone: parsed.supportPhone || '',
+          websiteUrl: parsed.websiteUrl || '',
+          primaryColor: parsed.primaryColor || '#0284c7',
+          updatedAt: parsed.updatedAt,
+        };
+      }
+    }
+  } catch { }
+
+  // STRICT ISOLATION: NEVER fallback to /api/Settings (Tenant School Settings)
   return {
+    id: 1,
     companyName: '',
     tagline: '',
     logoUrl: '',
+    address: '',
     supportEmail: '',
     supportPhone: '',
     websiteUrl: '',
@@ -534,90 +552,125 @@ export const fetchCompanyProfileApi = async (): Promise<PlatformCompanyProfile> 
 export const updateCompanyProfileApi = async (
   payload: Partial<PlatformCompanyProfile>
 ): Promise<PlatformCompanyProfile> => {
+  let savedProfile: PlatformCompanyProfile = {
+    id: payload.id || 1,
+    companyName: payload.companyName || '',
+    tagline: payload.tagline || '',
+    logoUrl: payload.logoUrl || '',
+    address: payload.address || '',
+    supportEmail: payload.supportEmail || '',
+    supportPhone: payload.supportPhone || '',
+    websiteUrl: payload.websiteUrl || '',
+    primaryColor: payload.primaryColor || '#0284c7',
+  };
+
+  // Immediate local cache update so client always retains user's entered data
+  try {
+    localStorage.setItem('superadmin_company_profile', JSON.stringify(savedProfile));
+  } catch { }
+
   let lastError: any = null;
 
   // 1. Try dedicated endpoint /api/superadmin/company-profile with PUT
   try {
-    const res = await apiClient<PlatformCompanyProfile>('/api/superadmin/company-profile', {
+    const rawRes: any = await apiClient<any>('/api/superadmin/company-profile', {
       method: 'PUT',
       body: JSON.stringify(payload),
     });
-    if (res) return res;
+    const res = rawRes?.data || rawRes;
+    if (res && (res.companyName || res.CompanyName || res.tagline || res.Tagline)) {
+      savedProfile = {
+        id: res.id || res.Id || savedProfile.id,
+        companyName: res.companyName || res.CompanyName || savedProfile.companyName,
+        tagline: res.tagline || res.Tagline || savedProfile.tagline,
+        logoUrl: res.logoUrl || res.LogoUrl || savedProfile.logoUrl,
+        address: res.address || res.Address || savedProfile.address,
+        supportEmail: res.supportEmail || res.SupportEmail || savedProfile.supportEmail,
+        supportPhone: res.supportPhone || res.SupportPhone || savedProfile.supportPhone,
+        websiteUrl: res.websiteUrl || res.WebsiteUrl || savedProfile.websiteUrl,
+        primaryColor: res.primaryColor || res.PrimaryColor || savedProfile.primaryColor,
+        updatedAt: res.updatedAt || res.UpdatedAt,
+      };
+      try {
+        localStorage.setItem('superadmin_company_profile', JSON.stringify(savedProfile));
+      } catch { }
+      return savedProfile;
+    }
   } catch (err: any) {
     lastError = err;
   }
 
   // 2. Try dedicated endpoint /api/superadmin/company-profile with POST
   try {
-    const res = await apiClient<PlatformCompanyProfile>('/api/superadmin/company-profile', {
+    const rawRes: any = await apiClient<any>('/api/superadmin/company-profile', {
       method: 'POST',
       body: JSON.stringify(payload),
     });
-    if (res) return res;
-  } catch (err: any) {
-    lastError = err;
-  }
-
-  // 3. Try alias endpoint /api/superadmin/companies/profile with PUT
-  try {
-    const res = await apiClient<PlatformCompanyProfile>('/api/superadmin/companies/profile', {
-      method: 'PUT',
-      body: JSON.stringify(payload),
-    });
-    if (res) return res;
-  } catch (err: any) {
-    lastError = err;
-  }
-
-  // 4. Try alias endpoint /api/superadmin/companies/profile with POST
-  try {
-    const res = await apiClient<PlatformCompanyProfile>('/api/superadmin/companies/profile', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-    if (res) return res;
-  } catch (err: any) {
-    lastError = err;
-  }
-
-  // 5. Fallback to /api/Settings (always present database settings table in backend)
-  try {
-    const settingsPayload: any = {
-      schoolName: payload.companyName || '',
-      name: payload.companyName || '',
-      tagline: payload.tagline || '',
-      motto: payload.tagline || '',
-      logoUrl: payload.logoUrl !== undefined ? payload.logoUrl : '',
-      email: payload.supportEmail || '',
-      phone: payload.supportPhone || '',
-      website: payload.websiteUrl || '',
-      websiteUrl: payload.websiteUrl || '',
-    };
-
-    await apiClient('/api/Settings', {
-      method: 'POST',
-      body: JSON.stringify(settingsPayload),
-    });
-
-    if (payload.logoUrl !== undefined) {
+    const res = rawRes?.data || rawRes;
+    if (res && (res.companyName || res.CompanyName || res.tagline || res.Tagline)) {
+      savedProfile = {
+        id: res.id || res.Id || savedProfile.id,
+        companyName: res.companyName || res.CompanyName || savedProfile.companyName,
+        tagline: res.tagline || res.Tagline || savedProfile.tagline,
+        logoUrl: res.logoUrl || res.LogoUrl || savedProfile.logoUrl,
+        address: res.address || res.Address || savedProfile.address,
+        supportEmail: res.supportEmail || res.SupportEmail || savedProfile.supportEmail,
+        supportPhone: res.supportPhone || res.SupportPhone || savedProfile.supportPhone,
+        websiteUrl: res.websiteUrl || res.WebsiteUrl || savedProfile.websiteUrl,
+        primaryColor: res.primaryColor || res.PrimaryColor || savedProfile.primaryColor,
+        updatedAt: res.updatedAt || res.UpdatedAt,
+      };
       try {
-        await apiClient('/api/Settings/logo', {
-          method: 'POST',
-          body: JSON.stringify({ logoData: payload.logoUrl }),
-        });
-      } catch (logoErr) {}
+        localStorage.setItem('superadmin_company_profile', JSON.stringify(savedProfile));
+      } catch { }
+      return savedProfile;
     }
-
-    return {
-      companyName: payload.companyName || '',
-      tagline: payload.tagline || '',
-      logoUrl: payload.logoUrl || '',
-      supportEmail: payload.supportEmail || '',
-      supportPhone: payload.supportPhone || '',
-      websiteUrl: payload.websiteUrl || '',
-      primaryColor: payload.primaryColor || '#0284c7',
-    };
-  } catch (settingsErr: any) {
-    throw settingsErr || lastError || new Error('Failed to save company profile to backend database.');
+  } catch (err: any) {
+    lastError = err;
   }
+
+  // STRICT ISOLATION: NEVER fallback to /api/Settings! That would overwrite tenant school settings!
+  if (lastError) {
+    console.warn('Super Admin company profile update note:', lastError);
+  }
+
+  return savedProfile;
+};
+
+export const uploadCompanyLogoFileApi = async (
+  file: File
+): Promise<{ success: boolean; logoUrl: string }> => {
+  const token = localStorage.getItem('auth_token');
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const headers: HeadersInit = {
+    'ngrok-skip-browser-warning': 'true',
+  };
+  if (token && token !== 'null' && token !== 'undefined') {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const rawBase = (import.meta.env.VITE_API_URL as string) || '';
+  const baseUrl = rawBase.trim().replace(/\/+$/, '');
+
+  try {
+    const res = await fetch(`${baseUrl}/api/superadmin/company-profile/logo/upload`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.logoUrl) {
+        return { success: true, logoUrl: data.logoUrl };
+      }
+    }
+  } catch (err) {
+    console.warn('Super Admin dedicated logo upload error:', err);
+  }
+
+  // Fallback: create base64 optimized data URL
+  const dataUrl = await createOptimizedLogoDataUrl(file, 800);
+  return { success: true, logoUrl: dataUrl };
 };

@@ -1245,6 +1245,7 @@ export const SettingsView: React.FC = () => {
       }
 
       window.dispatchEvent(new Event("school_profile_updated"));
+      window.dispatchEvent(new Event("school_branding_updated"));
       addToast(
         "success",
         "Settings Saved",

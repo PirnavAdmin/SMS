@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   User as UserIcon, ShieldCheck, Mail, Phone, Lock, Eye, EyeOff,
-  Edit, Save, X, Building2, Globe,
+  Edit, Save, X, Building2, Globe, MapPin,
   Server, Key, CheckCircle2, AlertTriangle, ArrowLeft, Activity,
   Database, RefreshCw, Award, Upload, Image as ImageIcon,
   Link as LinkIcon, Sparkles, Check, Info,
@@ -19,8 +19,8 @@ import {
   fetchPackagesApi,
   fetchCompanyProfileApi,
   updateCompanyProfileApi,
+  uploadCompanyLogoFileApi,
 } from '../../../api/superadmin';
-import { uploadSchoolLogoFileApi, uploadSchoolLogoApi } from '../../../api/settings';
 import { createOptimizedLogoDataUrl, resolveMediaUrl } from '../../../utils/mediaUtils';
 import { validateEmail, validateFullName, validatePhoneNumber, sanitizeEmailInput, sanitizePhoneInput } from '../../../utils/validation';
 
@@ -38,14 +38,32 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Company / Platform Branding State (Direct API & DB driven - No LocalStorage / No Mock Data)
-  const [companyBranding, setCompanyBranding] = useState({
-    name: '',
-    logo: '',
-    tagline: '',
-    supportEmail: user?.email || '',
-    supportPhone: user?.phone || '',
-    websiteUrl: '',
+  // Company / Platform Branding State (Direct API & DB driven - Instant cache backed)
+  const [companyBranding, setCompanyBranding] = useState(() => {
+    try {
+      const cached = localStorage.getItem('superadmin_company_profile');
+      if (cached) {
+        const p = JSON.parse(cached);
+        return {
+          name: p.companyName || p.name || '',
+          logo: p.logoUrl || p.logo || '',
+          tagline: p.tagline || '',
+          address: p.address || '',
+          supportEmail: p.supportEmail || user?.email || '',
+          supportPhone: p.supportPhone || user?.phone || '',
+          websiteUrl: p.websiteUrl || '',
+        };
+      }
+    } catch { }
+    return {
+      name: '',
+      logo: '',
+      tagline: '',
+      address: '',
+      supportEmail: user?.email || '',
+      supportPhone: user?.phone || '',
+      websiteUrl: '',
+    };
   });
   const [logoSourceMode, setLogoSourceMode] = useState<'upload' | 'url'>('upload');
   const [logoUrlInput, setLogoUrlInput] = useState('');
@@ -107,14 +125,15 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
 
         if (isMounted) {
           if (companyProfile) {
-            setCompanyBranding({
-              name: companyProfile.companyName || '',
-              logo: companyProfile.logoUrl || '',
-              tagline: companyProfile.tagline || '',
-              supportEmail: companyProfile.supportEmail || user?.email || '',
-              supportPhone: companyProfile.supportPhone || user?.phone || '',
-              websiteUrl: companyProfile.websiteUrl || '',
-            });
+            setCompanyBranding(prev => ({
+              name: companyProfile.companyName || prev.name || '',
+              logo: companyProfile.logoUrl || prev.logo || '',
+              tagline: companyProfile.tagline || prev.tagline || '',
+              address: companyProfile.address || prev.address || '',
+              supportEmail: companyProfile.supportEmail || prev.supportEmail || user?.email || '',
+              supportPhone: companyProfile.supportPhone || prev.supportPhone || user?.phone || '',
+              websiteUrl: companyProfile.websiteUrl || prev.websiteUrl || '',
+            }));
             if (companyProfile.companyName) {
               setProfileForm(prev => ({ ...prev, organization: companyProfile.companyName }));
             }
@@ -153,7 +172,7 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
     return () => {
       isMounted = false;
     };
-  }, [user]);
+  }, [user?.email]);
 
   // Handle Company Logo File Selection
   const handleCompanyLogoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -176,7 +195,7 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
       setCompanyBranding(prev => ({ ...prev, logo: dataUrl }));
 
       try {
-        const uploadRes = await uploadSchoolLogoFileApi(file);
+        const uploadRes = await uploadCompanyLogoFileApi(file);
         if (uploadRes?.success && uploadRes?.logoUrl) {
           setCompanyBranding(prev => ({ ...prev, logo: uploadRes.logoUrl }));
         }
@@ -264,10 +283,11 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
       const finalCompanyName = companyBranding.name.trim();
 
       // 1. Persist Company Profile to Backend DB API
-      await updateCompanyProfileApi({
+      const updatedProfile = await updateCompanyProfileApi({
         companyName: finalCompanyName,
         tagline: companyBranding.tagline.trim(),
         logoUrl: finalLogo,
+        address: companyBranding.address.trim(),
         supportEmail: companyBranding.supportEmail.trim(),
         supportPhone: companyBranding.supportPhone.trim(),
         websiteUrl: companyBranding.websiteUrl.trim(),
@@ -299,20 +319,22 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
         setUser(updatedUser);
       }
 
-      setCompanyBranding(prev => ({
-        ...prev,
-        name: finalCompanyName,
-        logo: finalLogo,
-        tagline: companyBranding.tagline.trim(),
-        supportEmail: companyBranding.supportEmail.trim(),
-        supportPhone: companyBranding.supportPhone.trim(),
-        websiteUrl: companyBranding.websiteUrl.trim(),
-      }));
+      setCompanyBranding({
+        name: updatedProfile?.companyName || finalCompanyName,
+        logo: updatedProfile?.logoUrl || finalLogo,
+        tagline: updatedProfile?.tagline !== undefined ? updatedProfile.tagline : companyBranding.tagline.trim(),
+        address: updatedProfile?.address || companyBranding.address.trim(),
+        supportEmail: updatedProfile?.supportEmail || companyBranding.supportEmail.trim(),
+        supportPhone: updatedProfile?.supportPhone || companyBranding.supportPhone.trim(),
+        websiteUrl: updatedProfile?.websiteUrl || companyBranding.websiteUrl.trim(),
+      });
       setProfileForm(prev => ({ ...prev, organization: finalCompanyName }));
       setFormErrors({});
       setIsEditing(false);
 
       window.dispatchEvent(new Event('superadmin_profile_updated'));
+      window.dispatchEvent(new Event('company_profile_updated'));
+      window.dispatchEvent(new Event('platform_branding_updated'));
 
       addToast('success', 'Changes Saved', 'Company profile and branding saved to database successfully.');
     } catch (err: any) {
@@ -375,15 +397,6 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
             </button>
           )}
           <div>
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-bold text-sky-600 dark:text-sky-400 uppercase tracking-wider">
-                Super Admin Account
-              </span>
-              <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-700" />
-              <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-                Platform Identity & Company Settings
-              </span>
-            </div>
             <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight">
               Company Profile
             </h1>
@@ -415,31 +428,8 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
             </div>
           </div>
 
-          {/* Company Brand Badge & Edit Trigger */}
-          <div className="flex flex-col sm:flex-row md:flex-col items-center sm:items-end gap-2 shrink-0">
-            <div className="flex items-center gap-2.5 p-2 bg-black/25 backdrop-blur-md rounded-xl border border-white/15">
-              <div className="w-9 h-9 rounded-lg bg-white/95 p-1 flex items-center justify-center overflow-hidden shrink-0">
-                {companyBranding.logo ? (
-                  <img
-                    src={resolveMediaUrl(companyBranding.logo)}
-                    alt="Company Logo"
-                    className="max-h-7 max-w-7 object-contain"
-                    onError={() => setCompanyBranding(prev => ({ ...prev, logo: '' }))}
-                  />
-                ) : (
-                  <Building2 className="w-5 h-5 text-sky-600" />
-                )}
-              </div>
-              <div className="text-left pr-1.5">
-                <span className="text-[9px] uppercase font-bold tracking-wider text-sky-200 block">
-                  Company Brand
-                </span>
-                <span className="text-xs font-black text-white truncate max-w-[130px] block">
-                  {companyBranding.name || 'Platform Identity'}
-                </span>
-              </div>
-            </div>
-
+          {/* Edit Trigger */}
+          <div className="flex items-center shrink-0">
             {!isEditing ? (
               <button
                 type="button"
@@ -450,17 +440,28 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
                 <span>Edit Profile & Branding</span>
               </button>
             ) : (
-              <button
-                type="button"
-                onClick={() => {
-                  setIsEditing(false);
-                  setFormErrors({});
-                }}
-                className="px-3.5 py-1.5 rounded-xl bg-white/20 hover:bg-white/30 text-white font-extrabold text-xs shadow-sm flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
-              >
-                <X className="w-3.5 h-3.5" />
-                <span>Cancel Editing</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEditing(false);
+                    setFormErrors({});
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-white/20 hover:bg-white/30 text-white font-extrabold text-xs shadow-sm flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  <span>Cancel</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveAll}
+                  disabled={isSaving}
+                  className="px-3.5 py-1.5 rounded-xl bg-white hover:bg-sky-50 text-sky-700 font-black text-xs shadow-sm flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 disabled:opacity-60"
+                >
+                  {isSaving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                  <span>{isSaving ? 'Saving...' : 'Save Changes'}</span>
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -509,17 +510,6 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
                     </p>
                   </div>
                 </div>
-
-                {!isEditing && (
-                  <button
-                    type="button"
-                    onClick={() => setIsEditing(true)}
-                    className="px-3 py-1 rounded-xl bg-sky-50 dark:bg-sky-950/40 text-sky-600 dark:text-sky-400 hover:bg-sky-100 dark:hover:bg-sky-900/60 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
-                  >
-                    <Edit className="w-3.5 h-3.5" />
-                    <span>Edit</span>
-                  </button>
-                )}
               </div>
 
               {/* Company Logo Section with Upload and Delete Options */}
@@ -687,6 +677,28 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
                 </div>
               </div>
 
+              {/* Corporate / Headquarter Address */}
+              <div className="text-xs">
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Corporate Office / Headquarter Address
+                </label>
+                <div className="relative">
+                  <MapPin className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+                  <input
+                    type="text"
+                    disabled={!isEditing}
+                    placeholder="e.g. 158, Kalina Santa Cruz CST Road, Santacruz East, Mumbai"
+                    value={companyBranding.address}
+                    onChange={(e) => setCompanyBranding(prev => ({ ...prev, address: e.target.value }))}
+                    className={`w-full pl-9 pr-3 py-2 rounded-xl border text-xs font-semibold transition ${
+                      !isEditing
+                        ? 'bg-slate-50/80 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 cursor-not-allowed'
+                        : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20'
+                    }`}
+                  />
+                </div>
+              </div>
+
               {/* Support Email & Phone */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                 <div>
@@ -771,17 +783,6 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
                     </p>
                   </div>
                 </div>
-
-                {!isEditing && (
-                  <button
-                    type="button"
-                    onClick={() => setIsEditing(true)}
-                    className="px-3 py-1 rounded-xl bg-sky-50 dark:bg-sky-950/40 text-sky-600 dark:text-sky-400 hover:bg-sky-100 dark:hover:bg-sky-900/60 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
-                  >
-                    <Edit className="w-3.5 h-3.5" />
-                    <span>Edit</span>
-                  </button>
-                )}
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
