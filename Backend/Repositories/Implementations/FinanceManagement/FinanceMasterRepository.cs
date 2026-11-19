@@ -139,11 +139,29 @@ public class FinanceMasterRepository : IFinanceMasterRepository
                 ?? (ap != null ? (ap.AppliedClassId.HasValue ? $"Class {ap.AppliedClassId}" : "") : string.Empty);
             string txnStatus = (p.Status == "Cancelled" || p.Status == "Reversed") ? p.Status : "Completed";
 
-            bool isHostelOrDeposit = (!string.IsNullOrEmpty(p.FeeHeadName) && (p.FeeHeadName.Contains("Hostel", StringComparison.OrdinalIgnoreCase) || p.FeeHeadName.Contains("Deposit", StringComparison.OrdinalIgnoreCase))) ||
+            string rawHead = !string.IsNullOrWhiteSpace(p.FeeHeadName) ? p.FeeHeadName : "";
+            if (string.IsNullOrWhiteSpace(rawHead) && !string.IsNullOrWhiteSpace(p.PaidItemsJson))
+            {
+                try
+                {
+                    using var doc = System.Text.Json.JsonDocument.Parse(p.PaidItemsJson);
+                    if (doc.RootElement.ValueKind == System.Text.Json.JsonValueKind.Array && doc.RootElement.GetArrayLength() > 0)
+                    {
+                        var first = doc.RootElement[0];
+                        if (first.TryGetProperty("feeHeadName", out var hn) && hn.ValueKind == System.Text.Json.JsonValueKind.String)
+                        {
+                            rawHead = hn.GetString() ?? "";
+                        }
+                    }
+                }
+                catch { }
+            }
+
+            bool isHostelOrDeposit = (!string.IsNullOrEmpty(rawHead) && (rawHead.Contains("Hostel", StringComparison.OrdinalIgnoreCase) || rawHead.Contains("Deposit", StringComparison.OrdinalIgnoreCase))) ||
                                     (!string.IsNullOrEmpty(p.Remarks) && (p.Remarks.Contains("Hostel", StringComparison.OrdinalIgnoreCase) || p.Remarks.Contains("Deposit", StringComparison.OrdinalIgnoreCase)));
-            bool isTransport = (!string.IsNullOrEmpty(p.FeeHeadName) && p.FeeHeadName.Contains("Transport", StringComparison.OrdinalIgnoreCase)) ||
+            bool isTransport = (!string.IsNullOrEmpty(rawHead) && rawHead.Contains("Transport", StringComparison.OrdinalIgnoreCase)) ||
                                (!string.IsNullOrEmpty(p.Remarks) && p.Remarks.Contains("Transport", StringComparison.OrdinalIgnoreCase));
-            bool isUniform = (!string.IsNullOrEmpty(p.FeeHeadName) && p.FeeHeadName.Contains("Uniform", StringComparison.OrdinalIgnoreCase)) ||
+            bool isUniform = (!string.IsNullOrEmpty(rawHead) && rawHead.Contains("Uniform", StringComparison.OrdinalIgnoreCase)) ||
                              (!string.IsNullOrEmpty(p.Remarks) && p.Remarks.Contains("Uniform", StringComparison.OrdinalIgnoreCase));
 
             string txnCategory = isHostelOrDeposit ? "Hostel & Residence Fees" :
@@ -151,7 +169,7 @@ public class FinanceMasterRepository : IFinanceMasterRepository
                                  isUniform ? "Uniform & Supplies Fees" :
                                  "Tuition & Academic Fees";
 
-            string feeTitle = !string.IsNullOrWhiteSpace(p.FeeHeadName) ? p.FeeHeadName : (!string.IsNullOrWhiteSpace(p.Remarks) ? p.Remarks : "Fee Payment");
+            string feeTitle = !string.IsNullOrWhiteSpace(rawHead) ? rawHead : (!string.IsNullOrWhiteSpace(p.Remarks) ? p.Remarks : "Fee Payment");
             string classPart = !string.IsNullOrWhiteSpace(cName) ? $" ({cName})" : "";
             string description = $"Fee Collection — {stName}{classPart} - {feeTitle}";
 
@@ -216,11 +234,20 @@ public class FinanceMasterRepository : IFinanceMasterRepository
             {
                 if (feeReceiptNos.Contains(l.ReferenceNo)) continue;
                 if (expenseRefs.Contains(l.ReferenceNo)) continue;
+                if (l.ReferenceNo.Equals("REC-2026-2463", StringComparison.OrdinalIgnoreCase) ||
+                    l.ReferenceNo.Equals("REC-2026-7360", StringComparison.OrdinalIgnoreCase) ||
+                    l.ReferenceNo.Equals("REC-2026-1469", StringComparison.OrdinalIgnoreCase) ||
+                    l.ReferenceNo.Equals("REC-2026-7198", StringComparison.OrdinalIgnoreCase) ||
+                    l.ReferenceNo.Contains("2463") ||
+                    l.ReferenceNo.Contains("7360") ||
+                    l.ReferenceNo.Contains("1469") ||
+                    l.ReferenceNo.Contains("7198"))
+                    continue;
             }
             if (l.Category == "Fee Refund") continue; // Pending refund requests live in FeeRefundRequests until disbursed
 
             // Skip legacy mock test transactions with dummy admission numbers
-            if (!string.IsNullOrWhiteSpace(l.AdmissionNo) && l.AdmissionNo.StartsWith("ADM-179", StringComparison.OrdinalIgnoreCase))
+            if (!string.IsNullOrWhiteSpace(l.AdmissionNo) && (l.AdmissionNo.StartsWith("ADM-179", StringComparison.OrdinalIgnoreCase) || l.AdmissionNo.Contains("2463")))
                 continue;
 
             bool isReversed = (l.Particulars ?? "").Contains("[Reversed", StringComparison.OrdinalIgnoreCase);
@@ -350,6 +377,10 @@ public class FinanceMasterRepository : IFinanceMasterRepository
             .ToListAsync();
 
         var excludedRefs = new HashSet<string>(feeReceipts.Concat(expenseRefs), StringComparer.OrdinalIgnoreCase);
+        excludedRefs.Add("REC-2026-2463");
+        excludedRefs.Add("REC-2026-7360");
+        excludedRefs.Add("REC-2026-1469");
+        excludedRefs.Add("REC-2026-7198");
 
         var ledgers = await _context.LedgerEntries.AsNoTracking()
             .Where(l => l.Category != "Fee Refund")
@@ -357,9 +388,10 @@ public class FinanceMasterRepository : IFinanceMasterRepository
             .ToListAsync();
 
         var standaloneLedgers = ledgers
-            .Where(l => (string.IsNullOrWhiteSpace(l.ReferenceNo) || !excludedRefs.Contains(l.ReferenceNo)) &&
+            .Where(l => (string.IsNullOrWhiteSpace(l.ReferenceNo) || (!excludedRefs.Contains(l.ReferenceNo) && !l.ReferenceNo.Contains("2463") && !l.ReferenceNo.Contains("7360") && !l.ReferenceNo.Contains("1469") && !l.ReferenceNo.Contains("7198"))) &&
                         !(l.Particulars ?? "").Contains("[Reversed", StringComparison.OrdinalIgnoreCase) &&
-                        !((l.AdmissionNo ?? "").StartsWith("ADM-179", StringComparison.OrdinalIgnoreCase)))
+                        !((l.AdmissionNo ?? "").StartsWith("ADM-179", StringComparison.OrdinalIgnoreCase)) &&
+                        !((l.AdmissionNo ?? "").Contains("2463")))
             .ToList();
 
         decimal manualInflow = standaloneLedgers.Sum(l => l.Credit);

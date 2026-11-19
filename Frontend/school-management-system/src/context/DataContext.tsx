@@ -2305,13 +2305,32 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       if (!t) continue;
       const ref = (t.referenceNumber || "").trim();
       const tid = (t.transactionId || t.id || "").trim();
-      if (ref === "REC-2026-7360" || tid === "TXN-LED-0002" || String(t.referenceNumber || "").includes("7360")) continue;
+      const isMock =
+        ref === "REC-2026-2463" ||
+        ref === "REC-2026-7360" ||
+        ref === "REC-2026-1469" ||
+        ref === "REC-2026-7198" ||
+        tid === "TXN-LED-0001" ||
+        tid === "TXN-LED-0002" ||
+        tid === "TXN-LED-0003" ||
+        tid === "TXN-LED-0004" ||
+        ref.includes("2463") ||
+        ref.includes("7360") ||
+        ref.includes("1469") ||
+        ref.includes("7198") ||
+        tid.includes("2463") ||
+        tid.includes("7360") ||
+        (t.description && t.description.includes("ADM-179"));
+      if (isMock) continue;
       if (ref && seenRefs.has(ref)) continue;
       if (tid && seenIds.has(tid)) continue;
       if (ref) seenRefs.add(ref);
       if (tid) seenIds.add(tid);
       deduped.push(t);
     }
+    try {
+      localStorage.setItem("finance_transactions", JSON.stringify(deduped));
+    } catch {}
     return deduped;
   });
   const [financialAccounts, setFinancialAccounts] = useState<
@@ -6451,6 +6470,23 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         for (const item of Array.isArray(apiTxns) ? apiTxns : []) {
           const tId = String(item.transactionId || item.id || "").trim();
           const ref = String(item.referenceNumber || "").trim();
+          const isMock =
+            ref === "REC-2026-2463" ||
+            ref === "REC-2026-7360" ||
+            ref === "REC-2026-1469" ||
+            ref === "REC-2026-7198" ||
+            tId === "TXN-LED-0001" ||
+            tId === "TXN-LED-0002" ||
+            tId === "TXN-LED-0003" ||
+            tId === "TXN-LED-0004" ||
+            ref.includes("2463") ||
+            ref.includes("7360") ||
+            ref.includes("1469") ||
+            ref.includes("7198") ||
+            tId.includes("2463") ||
+            tId.includes("7360") ||
+            (item.description && item.description.includes("ADM-179"));
+          if (isMock) continue;
           if (ref && seenTxnRefs.has(ref)) continue;
           if (tId && seenTxnIds.has(tId)) continue;
           if (ref) seenTxnRefs.add(ref);
