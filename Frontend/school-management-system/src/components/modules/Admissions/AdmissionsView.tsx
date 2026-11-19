@@ -42,6 +42,7 @@ import {
   Send,
   ShieldCheck,
   CreditCard,
+  AlertTriangle,
 } from "lucide-react";
 import {
   AdmissionApplication,
