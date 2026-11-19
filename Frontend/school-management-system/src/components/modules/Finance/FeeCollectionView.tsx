@@ -121,6 +121,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     removeDiscountFromStudent,
     updateAdmission,
     updateStudent,
+    updateAdmissionStatus,
     hostelBlocks = [],
     hostelRooms = [],
     hostelBeds = [],
@@ -608,14 +609,15 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
   const allEnrolledStudents = React.useMemo(() => {
     const map = new Map<string, Student>();
 
-    // 1. Primary source for enrolled students: Enrolled/Admitted admissions (e.g. REG-2044)
+    // 1. Primary source for students: Admissions (both pending and enrolled)
     (admissions || [])
       .filter((adm) => {
         if (!adm) return false;
         const st = String(adm.status || "").toLowerCase().trim();
-        return st === "enrolled" || st === "admitted" || st === "active";
+        return st !== "rejected" && st !== "cancelled" && st !== "withdrawn";
       })
       .forEach((adm) => {
+        const isEnrolled = String(adm.status || "").toLowerCase().trim() === "enrolled" || String(adm.status || "").toLowerCase().trim() === "admitted";
         const admId = adm.id || adm.applicationNo || adm.registrationNo;
         const admNo = (adm as any).admissionNo || (adm as any).admissionNumber || adm.registrationNo || adm.applicationNo || adm.id;
         if (!admNo) return;
@@ -628,13 +630,9 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
         const lName = adm.lastName || nameParts.slice(1).join(" ") || "";
         const targetCls = adm.appliedClass || (adm as any).appliedClassGrade || adm.targetClass || adm.className || (academicClasses && academicClasses[0] ? academicClasses[0].name : "");
 
-        const dynamicStudentId =
-          (adm as any).studentId ||
-          adm.registrationNo ||
-          (adm as any).registrationNumber ||
-          (adm as any).rollNo ||
-          adm.admissionNo ||
-          String(admId);
+        const dynamicStudentId = isEnrolled
+          ? ((adm as any).studentId || (adm as any).rollNo || adm.registrationNo || String(admId))
+          : (adm.admissionNo || (adm as any).admissionNumber || adm.applicationNo || String(admId));
 
         map.set(nameKey, {
           id: String(admId),
@@ -649,7 +647,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
           residentialStatus: adm.residentialStatus || adm.studentType || "Non-Residential",
           joiningDate: adm.admissionDate || (adm as any).createdAt?.split("T")[0] || new Date().toISOString().split("T")[0],
           dueFee: 0,
-          paidFee: 0,
+          paidFee: (adm as any).paidFee || 0,
           totalFee: 0,
           rollNo: dynamicStudentId,
           fatherName: adm.parentName || adm.fatherName || (adm as any).fatherFullName || "",
@@ -657,7 +655,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
           mobile: adm.mobile || adm.phone || (adm as any).fatherContact || "",
           email: adm.email || (adm as any).parentEmail || "",
           address: adm.address || (adm as any).areaLocality || "",
-          status: "Active",
+          status: isEnrolled ? "Active" : "Applied",
           academicYear: adm.academicYear || selectedAcademicYear || "",
 
           branch: adm.branch || (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? selectedBranch : "") || "",
@@ -674,6 +672,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
           hostelSharing: (adm as any).hostelSharing || (adm as any).roomSharing || (adm as any).roomType || "",
           hostelAc: (adm as any).hostelAc || (adm as any).acType || "",
           hostelSecurityDepositPaid: Boolean((adm as any).hostelSecurityDepositPaid),
+          isEnrolled: isEnrolled,
         } as unknown as Student);
       });
 
@@ -731,58 +730,34 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
   const getStudentDisplayId = React.useCallback(
     (st: any): string => {
       if (!st) return "—";
-      const candidates = [
-        st.studentId,
-        st.registrationNo,
-        st.registrationNumber,
-        st.rollNo,
-        st.rollNumber,
-        st.admissionNo,
-        st.admissionNumber,
-        st.id,
-      ];
 
-      for (const c of candidates) {
-        if (c && typeof c === "string" && c.trim().toUpperCase().startsWith("STU-")) {
-          return c.trim();
-        }
-      }
-
-      for (const c of candidates) {
-        if (
-          c &&
-          typeof c === "string" &&
-          !/^\d+$/.test(c.trim()) &&
-          !c.trim().toUpperCase().startsWith("REG-") &&
-          c.trim() !== "0"
-        ) {
-          return c.trim();
-        }
-      }
-
-      for (const c of candidates) {
-        if (c && typeof c === "string" && !/^\d+$/.test(c.trim()) && c.trim() !== "0") {
-          return c.trim();
-        }
-      }
-
+      // Match admission application record if present
       const matchingAdm = (admissions || []).find(
         (a: any) =>
-          (a.admissionNo && st.admissionNo && String(a.admissionNo).toLowerCase() === String(st.admissionNo).toLowerCase()) ||
-          (a.applicantName && st.firstName && String(a.applicantName).toLowerCase().includes(String(st.firstName).toLowerCase())) ||
-          String(a.id) === String(st.id)
+          String(a.id) === String(st.id) ||
+          (st.admissionNo && (
+            String(a.admissionNo).toLowerCase() === String(st.admissionNo).toLowerCase() ||
+            String(a.applicationNo).toLowerCase() === String(st.admissionNo).toLowerCase() ||
+            String(a.registrationNo).toLowerCase() === String(st.admissionNo).toLowerCase()
+          ))
       );
-      if (matchingAdm) {
-        const admStuId =
-          (matchingAdm as any).studentId ||
-          matchingAdm.registrationNo ||
-          (matchingAdm as any).registrationNumber;
-        if (admStuId && !/^\d+$/.test(String(admStuId))) {
-          return String(admStuId);
-        }
+
+      const isEnrolled =
+        (matchingAdm && (String(matchingAdm.status).toLowerCase() === "enrolled" || String(matchingAdm.status).toLowerCase() === "admitted")) ||
+        st.isEnrolled === true ||
+        st.status === "Enrolled" ||
+        (st.status === "Active" && st.studentId && String(st.studentId).toUpperCase().startsWith("STU-"));
+
+      // Requirement: Before enrollment student must be displayed with Admission Number; once enrolled with Student ID
+      if (!isEnrolled) {
+        return String(st.admissionNo || matchingAdm?.admissionNo || matchingAdm?.applicationNo || st.id || "—");
       }
 
-      return String(st.admissionNo || st.id || "—");
+      const stuId = st.studentId || (matchingAdm as any)?.studentId || (matchingAdm as any)?.rollNo;
+      if (stuId && String(stuId).toUpperCase().startsWith("STU-")) {
+        return String(stuId);
+      }
+      return String(stuId || st.admissionNo || st.id || "—");
     },
     [admissions]
   );
@@ -1490,12 +1465,25 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
 
     if (isSecurityDepositCollected) {
       try {
+        const sFullName = `${selectedStudent.firstName || ""} ${selectedStudent.lastName || ""}`.trim().toLowerCase();
         const targetAdm = (admissions || []).find((a) =>
           String(a.id) === String(selectedStudent.id) ||
-          (selectedStudent.admissionNo && (String(a.admissionNo) === String(selectedStudent.admissionNo) || String(a.applicationNo) === String(selectedStudent.admissionNo) || String(a.registrationNo) === String(selectedStudent.admissionNo)))
+          (selectedStudent.admissionNo && (
+            String(a.admissionNo) === String(selectedStudent.admissionNo) ||
+            String(a.applicationNo) === String(selectedStudent.admissionNo) ||
+            String(a.registrationNo) === String(selectedStudent.admissionNo)
+          )) ||
+          ((selectedStudent as any).studentId && (
+            String(a.studentId) === String((selectedStudent as any).studentId) ||
+            String(a.registrationNo) === String((selectedStudent as any).studentId)
+          )) ||
+          (sFullName && (
+            `${a.applicantName || ""}`.trim().toLowerCase() === sFullName ||
+            `${(a as any).firstName || ""} ${(a as any).lastName || ""}`.trim().toLowerCase() === sFullName
+          ))
         );
         if (targetAdm && updateAdmission) {
-          updateAdmission(targetAdm.id, {
+          await updateAdmission(targetAdm.id, {
             hostelSecurityDepositPaid: true,
             securityDepositAmount: numericAmount,
             securityDepositReceiptNo: receiptNumber,
@@ -1541,6 +1529,31 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
         );
       } catch (err) {
         console.warn("Failed to set hostelSecurityDepositPaid flag", err);
+      }
+    }
+
+    // Auto-enroll applicant directly upon fee payment
+    const targetAdmissionRecord = (admissions || []).find((a) =>
+      String(a.id) === String(selectedStudent.id) ||
+      (selectedStudent.admissionNo && (
+        String(a.admissionNo) === String(selectedStudent.admissionNo) ||
+        String(a.applicationNo) === String(selectedStudent.admissionNo) ||
+        String(a.registrationNo) === String(selectedStudent.admissionNo)
+      ))
+    );
+
+    if (targetAdmissionRecord && updateAdmissionStatus && targetAdmissionRecord.status !== "Enrolled") {
+      try {
+        const assignedStudentId = await updateAdmissionStatus(targetAdmissionRecord.id, "Enrolled");
+        if (assignedStudentId) {
+          addToast(
+            "success",
+            "Student Enrolled Automatically",
+            `${selectedStudent.firstName} ${selectedStudent.lastName} has been automatically enrolled (Student ID: ${assignedStudentId}) upon fee payment.`
+          );
+        }
+      } catch (err) {
+        console.warn("Failed to auto-enroll student on fee payment:", err);
       }
     }
 

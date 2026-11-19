@@ -9,7 +9,7 @@ services:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:5000
       AppUrl: "https://${DOMAIN:-pupilscholar.com}"
-      ConnectionStrings__DefaultConnection: "Server=${DB_HOST:-15.206.4.182};Port=${DB_PORT:-3306};Database=${DB_NAME:-sms_new_test};User=${DB_USER};Password=${DB_PASSWORD};"
+      ConnectionStrings__DefaultConnection: "Server=${DB_HOST:-15.206.4.182};Port=${DB_PORT:-3306};Database=${DB_NAME:-smsdb};User=${DB_USER:-smsdbuser};Password=${DB_PASSWORD:-Pirnav@2026};"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:

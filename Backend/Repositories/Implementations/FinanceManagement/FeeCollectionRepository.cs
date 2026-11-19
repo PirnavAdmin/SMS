@@ -1425,6 +1425,28 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                 matchingAssignment.DueAmount = Math.Max(0m, matchingAssignment.TotalAmount - matchingAssignment.PaidAmount - request.ConcessionDiscountAmount);
             }
 
+            // Sync Hostel Security Deposit status on Admission Application if deposit was collected
+            bool isDepositPayment =
+                (!string.IsNullOrEmpty(payment.FeeHeadName) && payment.FeeHeadName.Contains("Security Deposit", StringComparison.OrdinalIgnoreCase)) ||
+                (!string.IsNullOrEmpty(payment.Remarks) && payment.Remarks.Contains("Security Deposit", StringComparison.OrdinalIgnoreCase)) ||
+                (!string.IsNullOrEmpty(payment.PaidItemsJson) && payment.PaidItemsJson.Contains("Security Deposit", StringComparison.OrdinalIgnoreCase));
+
+            if (isDepositPayment)
+            {
+                var targetApp = await _context.AdmissionApplications.FirstOrDefaultAsync(a =>
+                    a.Id == request.StudentId ||
+                    a.Id == canonicalStudentId ||
+                    (!string.IsNullOrEmpty(a.AdmissionNo) && (a.AdmissionNo == canonicalStr || (student != null && a.AdmissionNo == student.AdmissionNumber))) ||
+                    (!string.IsNullOrEmpty(a.RegistrationNo) && a.RegistrationNo == canonicalStr));
+
+                if (targetApp != null)
+                {
+                    targetApp.HostelSecurityDepositPaid = true;
+                    targetApp.SecurityDepositAmount = payment.Amount;
+                    targetApp.SecurityDepositReceiptNo = receiptNo;
+                }
+            }
+
             var acct = await ResolveActiveAccountForModeAsync(payment.PaymentMethod);
             if (acct != null)
             {

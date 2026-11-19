@@ -6267,17 +6267,19 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             createdAt: apiItem.createdAt,
           }),
         );
-        setFinanceHostelConfigs(mappedHostelFees);
-        try {
-          localStorage.setItem(
-            "finance_hostel_configs",
-            JSON.stringify(mappedHostelFees),
-          );
-          localStorage.setItem(
-            "edu_db_finance_hostel_configs",
-            JSON.stringify(mappedHostelFees),
-          );
-        } catch (e) {}
+        if (hostelFeesRes.status === "fulfilled" && Array.isArray(hostelFees) && mappedHostelFees.length > 0) {
+          setFinanceHostelConfigs(mappedHostelFees);
+          try {
+            localStorage.setItem(
+              "finance_hostel_configs",
+              JSON.stringify(mappedHostelFees),
+            );
+            localStorage.setItem(
+              "edu_db_finance_hostel_configs",
+              JSON.stringify(mappedHostelFees),
+            );
+          } catch (e) {}
+        }
 
         // Sync active Hostel Facilities & Rooms from existing Hostel Management module
         try {
@@ -17271,7 +17273,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             const matchedAdm = admissions.find((a) => {
               if (!a) return false;
               const admStatus = String(a.status || "").toLowerCase().trim();
-              if (admStatus !== "enrolled" && admStatus !== "admitted" && admStatus !== "active") return false;
+              if (admStatus === "rejected" || admStatus === "cancelled" || admStatus === "withdrawn") return false;
               const aId = a.id != null ? String(a.id).trim().toLowerCase() : "";
               const aApp = a.applicationNo
                 ? String(a.applicationNo).trim().toLowerCase()

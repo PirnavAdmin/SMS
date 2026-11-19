@@ -692,6 +692,9 @@ public class HostelService : IHostelService
                                  (app.HostelSecurityDepositPaid && paidAmount >= (app.SecurityDepositAmount ?? requiredDeposit)) ||
                                  (requiredDeposit == 0);
 
+            if (!isDepositPaid)
+                continue;
+
             var dedupKey = !string.IsNullOrWhiteSpace(admNo) ? admNo : $"{stName}__{className}";
             if (processedKeys.Contains(dedupKey)) continue;
             processedKeys.Add(dedupKey);
