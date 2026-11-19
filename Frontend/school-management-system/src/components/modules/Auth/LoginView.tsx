@@ -12,7 +12,14 @@ import {
   Sparkles,
   ShieldCheck,
   User as UserIcon,
-  Phone
+  Phone,
+  Building2,
+  MapPin,
+  Globe,
+  BookOpen,
+  Users,
+  UserCheck,
+  Award
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
@@ -32,14 +39,66 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
   const { addToast } = useToast();
   const { tenant } = useTenant();
 
-  const [schoolName, setSchoolName] = useState<string>(() => {
-    return localStorage.getItem('school_name') || '';
+  // Dynamic Logo & Profile resolution with strict SuperAdmin vs School Admin isolation
+  const isSuperAdminLogin = initialRole === 'Super Admin';
+
+  const [superAdminBranding, setSuperAdminBranding] = useState<{
+    logoUrl: string;
+    companyName: string;
+    tagline: string;
+    address: string;
+    supportEmail: string;
+    supportPhone: string;
+    websiteUrl: string;
+  }>({
+    logoUrl: '',
+    companyName: '',
+    tagline: '',
+    address: '',
+    supportEmail: '',
+    supportPhone: '',
+    websiteUrl: '',
   });
 
-  // Dynamic Logo resolution with strict SuperAdmin vs Tenant isolation
-  const isSuperAdminLogin = initialRole === 'Super Admin';
-  const [superAdminBranding, setSuperAdminBranding] = useState<{ logoUrl: string; companyName: string }>({ logoUrl: '', companyName: '' });
+  const getTenantLogo = () => {
+    return localStorage.getItem('tenant_school_logo') || localStorage.getItem('school_logo') || '';
+  };
 
+  const [schoolProfile, setSchoolProfile] = useState<{
+    schoolName: string;
+    logoUrl: string;
+    tagline: string;
+    address: string;
+    phone: string;
+    email: string;
+    website: string;
+    boardType: string;
+    principalName: string;
+  }>(() => {
+    let savedProfile: any = null;
+    try {
+      const raw = localStorage.getItem('edu_db_profile') || localStorage.getItem('profile');
+      if (raw) savedProfile = JSON.parse(raw);
+    } catch {}
+
+    const localLogo = getTenantLogo();
+    const tLogo = tenant?.logoUrl || '';
+    const cleanTLogo = !tLogo.includes('pirnav') ? tLogo : '';
+
+    return {
+      schoolName: savedProfile?.name || savedProfile?.schoolName || localStorage.getItem('school_name') || (tenant?.companyName && !tenant.companyName.includes('Pirnav') ? tenant.companyName : '') || '',
+      logoUrl: savedProfile?.logoUrl || localLogo || cleanTLogo || '',
+      tagline: savedProfile?.tagline || localStorage.getItem('school_tagline') || '',
+      address: savedProfile?.address || localStorage.getItem('school_address') || '',
+      phone: savedProfile?.phone || localStorage.getItem('school_phone') || '',
+      email: savedProfile?.email || localStorage.getItem('school_email') || '',
+      website: savedProfile?.website || localStorage.getItem('school_website') || '',
+      boardType: savedProfile?.boardType || '',
+      principalName: savedProfile?.principalName || '',
+    };
+  });
+
+  // 1. Fetch Super Admin profile when logging in as Super Admin
   useEffect(() => {
     if (isSuperAdminLogin) {
       fetchCompanyProfileApi()
@@ -48,6 +107,11 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
             setSuperAdminBranding({
               logoUrl: p.logoUrl || '',
               companyName: p.companyName || '',
+              tagline: p.tagline || '',
+              address: p.address || '',
+              supportEmail: p.supportEmail || '',
+              supportPhone: p.supportPhone || '',
+              websiteUrl: p.websiteUrl || '',
             });
           }
         })
@@ -55,82 +119,99 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
     }
   }, [isSuperAdminLogin]);
 
-  const getTenantLogo = () => {
-    const storedSchoolLogo = localStorage.getItem('tenant_school_logo') || localStorage.getItem('school_logo') || '';
-    return storedSchoolLogo;
-  };
-
-  const [dynamicLogo, setDynamicLogo] = useState<string>(() => {
-    if (isSuperAdminLogin) {
-      return '';
-    }
-    const localLogo = getTenantLogo();
-    if (localLogo) return localLogo;
-    const tLogo = tenant?.logoUrl || '';
-    return !tLogo.includes('pirnav') ? tLogo : '';
-  });
-
-  // Prioritize configured School Branding over generic multi-tenant defaults
-  const effectiveLogo = isSuperAdminLogin
-    ? superAdminBranding.logoUrl
-    : (dynamicLogo || (tenant?.logoUrl && !tenant.logoUrl.includes('pirnav') ? tenant.logoUrl : '') || '');
-
-  const effectiveName = isSuperAdminLogin
-    ? (superAdminBranding.companyName || 'Super Admin Portal')
-    : (schoolName || (tenant?.companyName && !tenant.companyName.includes('Pirnav') ? tenant.companyName : '') || 'Campus Portal');
-
+  // 2. Fetch School Profile (when School Admin edits profile, this syncs live from DB & events)
   useEffect(() => {
+    if (isSuperAdminLogin) return;
     let isMounted = true;
 
     const loadBranding = async () => {
-      if (initialRole !== 'Super Admin') {
-        try {
-          const res: any = await fetchSchoolSettingsApi();
-          const data = res?.data || res;
-          if (data && isMounted) {
-            const sName = data.schoolName || data.name;
-            const sLogo = data.logoUrl || '';
-            if (sName) {
-              setSchoolName(sName);
-              applySchoolBranding(sName, sLogo);
-            }
-            if (sLogo !== undefined) {
-              setDynamicLogo(sLogo);
-            }
+      try {
+        const res: any = await fetchSchoolSettingsApi();
+        const data = res?.data || res;
+        if (data && isMounted) {
+          const sName = data.schoolName || data.SchoolName || data.name || data.Name || '';
+          const sLogo = data.logoUrl || data.LogoUrl || '';
+          const sTagline = data.tagline || data.Tagline || '';
+          const sAddress = data.address || data.Address || '';
+          const sPhone = data.phone || data.Phone || '';
+          const sEmail = data.email || data.Email || '';
+          const sWebsite = data.website || data.Website || '';
+          const sBoardType = data.boardType || data.BoardType || '';
+          const sPrincipal = data.principalName || data.PrincipalName || '';
+
+          setSchoolProfile({
+            schoolName: sName,
+            logoUrl: sLogo,
+            tagline: sTagline,
+            address: sAddress,
+            phone: sPhone,
+            email: sEmail,
+            website: sWebsite,
+            boardType: sBoardType,
+            principalName: sPrincipal,
+          });
+
+          if (sName) {
+            applySchoolBranding(sName, sLogo);
           }
-        } catch {
-          const savedName = localStorage.getItem('school_name');
-          const savedLogo = getTenantLogo();
-          if (savedName && isMounted) setSchoolName(savedName);
-          if (savedLogo && isMounted) setDynamicLogo(savedLogo);
         }
+      } catch {
+        try {
+          const raw = localStorage.getItem('edu_db_profile') || localStorage.getItem('profile');
+          if (raw && isMounted) {
+            const parsed = JSON.parse(raw);
+            setSchoolProfile(prev => ({
+              ...prev,
+              schoolName: parsed.name || parsed.schoolName || prev.schoolName,
+              logoUrl: parsed.logoUrl || prev.logoUrl,
+              tagline: parsed.tagline || prev.tagline,
+              address: parsed.address || prev.address,
+              phone: parsed.phone || prev.phone,
+              email: parsed.email || prev.email,
+              website: parsed.website || prev.website,
+              boardType: parsed.boardType || prev.boardType,
+            }));
+          }
+        } catch {}
       }
     };
 
     loadBranding();
 
-    const updateLogo = () => {
-      if (initialRole !== 'Super Admin') {
-        const savedLogo = getTenantLogo();
-        setDynamicLogo(savedLogo);
-        const savedName = localStorage.getItem('school_name');
-        if (savedName) {
-          setSchoolName(savedName);
-        }
-      }
+    const updateProfile = () => {
+      loadBranding();
     };
 
-    window.addEventListener('school_branding_updated', updateLogo);
-    window.addEventListener('school_profile_updated', updateLogo);
-    window.addEventListener('storage', updateLogo);
+    window.addEventListener('school_branding_updated', updateProfile);
+    window.addEventListener('school_profile_updated', updateProfile);
+    window.addEventListener('storage', updateProfile);
 
     return () => {
       isMounted = false;
-      window.removeEventListener('school_branding_updated', updateLogo);
-      window.removeEventListener('school_profile_updated', updateLogo);
-      window.removeEventListener('storage', updateLogo);
+      window.removeEventListener('school_branding_updated', updateProfile);
+      window.removeEventListener('school_profile_updated', updateProfile);
+      window.removeEventListener('storage', updateProfile);
     };
-  }, [initialRole, tenant?.logoUrl, tenant?.companyName]);
+  }, [isSuperAdminLogin, tenant?.logoUrl, tenant?.companyName]);
+
+  // Prioritize configured School Branding over generic multi-tenant defaults
+  const effectiveLogo = isSuperAdminLogin
+    ? superAdminBranding.logoUrl
+    : (schoolProfile.logoUrl || (tenant?.logoUrl && !tenant.logoUrl.includes('pirnav') ? tenant.logoUrl : '') || '');
+
+  const effectiveName = isSuperAdminLogin
+    ? (superAdminBranding.companyName || 'Super Admin Portal')
+    : (schoolProfile.schoolName || (tenant?.companyName && !tenant.companyName.includes('Pirnav') ? tenant.companyName : '') || 'Campus Portal');
+
+  const effectiveTagline = isSuperAdminLogin
+    ? (superAdminBranding.tagline || 'Multi-Tenant Central Administration')
+    : (schoolProfile.tagline || 'Empowering Minds, Shaping Tomorrow');
+
+  const effectiveAddress = isSuperAdminLogin ? (superAdminBranding.address || '') : schoolProfile.address;
+  const effectivePhone = isSuperAdminLogin ? superAdminBranding.supportPhone : schoolProfile.phone;
+  const effectiveEmail = isSuperAdminLogin ? superAdminBranding.supportEmail : schoolProfile.email;
+  const effectiveWebsite = isSuperAdminLogin ? superAdminBranding.websiteUrl : schoolProfile.website;
+  const effectiveBoard = isSuperAdminLogin ? '' : schoolProfile.boardType;
 
   const [rememberMe, setRememberMe] = useState<boolean>(() => {
     try {
@@ -363,7 +444,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
     setLoading(true);
     try {
       await login(identifier.trim(), password, initialRole as any);
-      addToast('success', 'Authentication Successful', `Welcome back to ${schoolName || 'the Campus Portal'}!`);
+      addToast('success', 'Authentication Successful', `Welcome back to ${effectiveName}!`);
     } catch (err: any) {
       const errorMessage = err?.message || '';
       if (errorMessage.includes('502') || errorMessage.includes('503') || errorMessage.includes('Failed to fetch') || errorMessage.includes('NetworkError')) {
@@ -555,13 +636,186 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
         )}
       </header>
 
-      {/* Main Centered Login Portal Card */}
-      <main className="flex-1 w-full max-w-7xl mx-auto flex items-center justify-center px-4 py-3 sm:py-5 z-20">
+      {/* Main Login Portal Layout: Left Institutional Showcase & Right Login Container */}
+      <main className="flex-1 w-full max-w-7xl mx-auto flex items-center justify-center px-4 sm:px-6 lg:px-8 py-4 sm:py-6 z-20">
         
-        <div className="w-full max-w-[24.5rem] mx-auto">
+        <div className="w-full max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
           
-          {/* Card in School Theme */}
-          <div className="relative rounded-2xl sm:rounded-3xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border border-sky-100 dark:border-slate-800 shadow-[0_20px_50px_-15px_rgba(14,165,233,0.2)] dark:shadow-[0_20px_50px_-15px_rgba(2,132,199,0.25)] overflow-hidden animate-in fade-in zoom-in-95 duration-500">
+          {/* LEFT SIDE: Relative Institutional / School Branding Showcase (Configured by Admin in Settings) */}
+          <div className="hidden lg:flex lg:col-span-7 flex-col justify-between space-y-6 text-white animate-in fade-in slide-in-from-left-6 duration-700">
+            
+            {/* Top Pill / Affiliation */}
+            <div className="flex items-center gap-2.5">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/10 dark:bg-slate-900/60 backdrop-blur-md border border-white/15 dark:border-slate-700/60 text-sky-300 text-xs font-bold shadow-lg shadow-black/10">
+                {isSuperAdminLogin ? (
+                  <>
+                    <ShieldCheck className="w-4 h-4 text-amber-400" />
+                    <span>Root Platform Administration</span>
+                  </>
+                ) : (
+                  <>
+                    <GraduationCap className="w-4 h-4 text-sky-400" />
+                    <span>{effectiveBoard ? `${effectiveBoard} Affiliated Institution` : 'Official Institutional Portal'}</span>
+                  </>
+                )}
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse ml-1" />
+                <span className="text-emerald-300 font-semibold text-[11px]">Campus Online</span>
+              </div>
+            </div>
+
+            {/* School / Platform Hero Branding */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-5">
+                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-white/95 dark:bg-slate-900/95 p-3 shadow-2xl ring-4 ring-sky-400/30 shrink-0 flex items-center justify-center overflow-hidden backdrop-blur-xl">
+                  {effectiveLogo ? (
+                    <img
+                      src={resolveMediaUrl(effectiveLogo)}
+                      alt={effectiveName || 'School Logo'}
+                      className="w-full h-full object-contain"
+                      onError={() => {
+                        if (isSuperAdminLogin) {
+                          setSuperAdminBranding(prev => ({ ...prev, logoUrl: '' }));
+                        } else {
+                          setSchoolProfile(prev => ({ ...prev, logoUrl: '' }));
+                        }
+                      }}
+                    />
+                  ) : isSuperAdminLogin ? (
+                    <ShieldCheck className="w-12 h-12 text-amber-500" />
+                  ) : (
+                    <GraduationCap className="w-12 h-12 text-sky-500" />
+                  )}
+                </div>
+                <div>
+                  <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight leading-tight drop-shadow-md">
+                    {effectiveName}
+                  </h1>
+                  <p className="text-sky-300/90 text-sm sm:text-base font-semibold italic mt-1 max-w-xl">
+                    {effectiveTagline}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Institutional Capabilities Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
+              {isSuperAdminLogin ? (
+                <>
+                  <div className="p-4 rounded-2xl bg-white/10 dark:bg-slate-900/40 backdrop-blur-md border border-white/10 dark:border-slate-800/60 shadow-lg">
+                    <div className="flex items-center gap-2.5 text-white font-bold text-xs sm:text-sm">
+                      <div className="w-7 h-7 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center">
+                        <Building2 className="w-4 h-4" />
+                      </div>
+                      <span>Multi-Branch & Tenant Isolation</span>
+                    </div>
+                    <p className="text-[11px] text-slate-300 mt-1.5 leading-relaxed">
+                      Unified database partitioning, dedicated tenant domains, and centralized SaaS package orchestration.
+                    </p>
+                  </div>
+
+                  <div className="p-4 rounded-2xl bg-white/10 dark:bg-slate-900/40 backdrop-blur-md border border-white/10 dark:border-slate-800/60 shadow-lg">
+                    <div className="flex items-center gap-2.5 text-white font-bold text-xs sm:text-sm">
+                      <div className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                        <ShieldCheck className="w-4 h-4" />
+                      </div>
+                      <span>Root Security & 99.95% SLA</span>
+                    </div>
+                    <p className="text-[11px] text-slate-300 mt-1.5 leading-relaxed">
+                      Enterprise TLS encryption, automated cloud snapshots, and 24/7 high-availability infrastructure.
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="p-4 rounded-2xl bg-white/10 dark:bg-slate-900/40 backdrop-blur-md border border-white/10 dark:border-slate-800/60 shadow-lg">
+                    <div className="flex items-center gap-2.5 text-white font-bold text-xs sm:text-sm">
+                      <div className="w-7 h-7 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center">
+                        <BookOpen className="w-4 h-4" />
+                      </div>
+                      <span>Academic & Examinations</span>
+                    </div>
+                    <p className="text-[11px] text-slate-300 mt-1.5 leading-relaxed">
+                      Real-time student attendance, automated gradebooks, dynamic schedules, and digital report cards.
+                    </p>
+                  </div>
+
+                  <div className="p-4 rounded-2xl bg-white/10 dark:bg-slate-900/40 backdrop-blur-md border border-white/10 dark:border-slate-800/60 shadow-lg">
+                    <div className="flex items-center gap-2.5 text-white font-bold text-xs sm:text-sm">
+                      <div className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                        <Sparkles className="w-4 h-4" />
+                      </div>
+                      <span>Campus Finance & Transport</span>
+                    </div>
+                    <p className="text-[11px] text-slate-300 mt-1.5 leading-relaxed">
+                      Online fee payments, instant receipt generation, live bus GPS fleet tracking, and parent SMS alerts.
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* School Contact Details Card (Configured by Admin in Settings) */}
+            {(effectiveAddress || effectivePhone || effectiveEmail || effectiveWebsite) && (
+              <div className="p-4 rounded-2xl bg-slate-950/45 backdrop-blur-md border border-white/10 text-xs text-slate-300 space-y-3 shadow-xl">
+                <div className="text-[10px] uppercase font-bold tracking-wider text-sky-400 flex items-center gap-1.5 pb-0.5 border-b border-white/5">
+                  <Building2 className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+                  <span>{isSuperAdminLogin ? 'Platform Support & Contact' : 'School Campus & Contact Information'}</span>
+                </div>
+                <div className="space-y-2 text-xs">
+                  {effectiveAddress && (
+                    <div className="flex items-start gap-2.5">
+                      <MapPin className="w-3.5 h-3.5 text-sky-400 shrink-0 mt-0.5" />
+                      <span className="text-slate-200 leading-relaxed">{effectiveAddress}</span>
+                    </div>
+                  )}
+                  {effectivePhone && (
+                    <div className="flex items-center gap-2.5">
+                      <Phone className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+                      <span className="text-slate-200 font-medium">{effectivePhone}</span>
+                    </div>
+                  )}
+                  {effectiveEmail && (
+                    <div className="flex items-center gap-2.5">
+                      <Mail className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+                      <a href={`mailto:${effectiveEmail}`} className="text-slate-200 hover:text-sky-300 transition-colors font-medium truncate">
+                        {effectiveEmail}
+                      </a>
+                    </div>
+                  )}
+                  {effectiveWebsite && (
+                    <div className="flex items-center gap-2.5">
+                      <Globe className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+                      <a
+                        href={effectiveWebsite.startsWith('http') ? effectiveWebsite : `https://${effectiveWebsite}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-slate-200 hover:text-sky-300 transition-colors font-medium truncate"
+                      >
+                        {effectiveWebsite}
+                      </a>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Bottom Security / Trust Notice */}
+            <div className="flex items-center gap-2 text-xs text-slate-400 font-medium">
+              <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span>
+                {isSuperAdminLogin
+                  ? 'Authorized Root Administrators Only • Encrypted Multi-Tenant Session'
+                  : 'Authorized School Administrators, Faculty, Students & Guardians Only'}
+              </span>
+            </div>
+
+          </div>
+
+          {/* RIGHT SIDE: The Login Container Card */}
+          <div className="w-full max-w-[26rem] mx-auto lg:col-span-5 animate-in fade-in slide-in-from-right-6 duration-700">
+            
+            {/* Card in School Theme */}
+            <div className="relative rounded-2xl sm:rounded-3xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border border-sky-100 dark:border-slate-800 shadow-[0_20px_50px_-15px_rgba(14,165,233,0.2)] dark:shadow-[0_20px_50px_-15px_rgba(2,132,199,0.25)] overflow-hidden">
             
             {/* Top School Theme Ribbon (Sky to Blue to Indigo) */}
             <div className="h-1.5 w-full bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-600" />
@@ -582,7 +836,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
                         if (isSuperAdminLogin) {
                           setSuperAdminBranding(prev => ({ ...prev, logoUrl: '' }));
                         } else {
-                          setDynamicLogo('');
+                          setSchoolProfile(prev => ({ ...prev, logoUrl: '' }));
                         }
                       }}
                     />
@@ -630,11 +884,27 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
               {mode === 'login' && (
                 <form onSubmit={handleLoginSubmit} noValidate className="space-y-3">
                   
-                  {initialRole === 'Super Admin' && (
-                    <div className="flex items-center justify-center gap-1.5 px-3 py-1 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-700 dark:text-sky-400 text-xs font-semibold mb-2">
-                      <ShieldCheck className="w-3.5 h-3.5 text-sky-500" /> Super Administrator Portal
+                  {initialRole === 'Super Admin' ? (
+                    <div className="flex items-center justify-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 text-xs font-semibold mb-2">
+                      <ShieldCheck className="w-3.5 h-3.5 text-amber-500" /> Super Administrator Portal
                     </div>
-                  )}
+                  ) : initialRole === 'Admin' ? (
+                    <div className="flex items-center justify-center gap-1.5 px-3 py-1 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-700 dark:text-sky-400 text-xs font-semibold mb-2">
+                      <ShieldCheck className="w-3.5 h-3.5 text-sky-500" /> Administrator Sign In
+                    </div>
+                  ) : initialRole === 'Teacher' ? (
+                    <div className="flex items-center justify-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-700 dark:text-indigo-400 text-xs font-semibold mb-2">
+                      <BookOpen className="w-3.5 h-3.5 text-indigo-500" /> Faculty & Teacher Portal
+                    </div>
+                  ) : initialRole === 'Student' ? (
+                    <div className="flex items-center justify-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs font-semibold mb-2">
+                      <GraduationCap className="w-3.5 h-3.5 text-emerald-500" /> Student Portal
+                    </div>
+                  ) : initialRole === 'Parent' ? (
+                    <div className="flex items-center justify-center gap-1.5 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-700 dark:text-purple-400 text-xs font-semibold mb-2">
+                      <Users className="w-3.5 h-3.5 text-purple-500" /> Parents & Guardians Portal
+                    </div>
+                  ) : null}
 
                   {/* Email / Phone Field */}
                   <div className="space-y-1 text-left">
@@ -1160,7 +1430,9 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
 
         </div>
 
-      </main>
+      </div>
+
+    </main>
 
     </div>
   );
