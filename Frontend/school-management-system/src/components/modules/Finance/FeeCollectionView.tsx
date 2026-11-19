@@ -1592,12 +1592,21 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     }
 
     // Auto-enroll applicant directly upon fee payment ONLY IF mandatory deposit & admission fee are satisfied
+    const sFullName = `${selectedStudent.firstName || ""} ${selectedStudent.lastName || ""}`.trim().toLowerCase();
     const targetAdmissionRecord = (admissions || []).find((a) =>
       String(a.id) === String(selectedStudent.id) ||
       (selectedStudent.admissionNo && (
         String(a.admissionNo) === String(selectedStudent.admissionNo) ||
         String(a.applicationNo) === String(selectedStudent.admissionNo) ||
         String(a.registrationNo) === String(selectedStudent.admissionNo)
+      )) ||
+      ((selectedStudent as any).studentId && (
+        String(a.studentId) === String((selectedStudent as any).studentId) ||
+        String(a.registrationNo) === String((selectedStudent as any).studentId)
+      )) ||
+      (sFullName && (
+        `${a.applicantName || ""}`.trim().toLowerCase() === sFullName ||
+        `${(a as any).firstName || ""} ${(a as any).lastName || ""}`.trim().toLowerCase() === sFullName
       ))
     );
 
@@ -1614,14 +1623,40 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
 
     // Check if class requires admission fee
     const applicantClassName = targetAdmissionRecord?.appliedClass || selectedStudent.className || "";
-    const matchedStruct = (dynamicFeeStructures || []).find(
+    const matchedStructs = (dynamicFeeStructures || []).filter(
       (s) => matchesClassName(s.className, applicantClassName) && (s.status === "Active" || !s.status)
-    ) || (dynamicFeeStructures || []).find((s) => matchesClassName(s.className, applicantClassName));
-    const dynamicAdmItem = matchedStruct?.items?.find(
-      (i) => (i.feeHeadName || "").toLowerCase().includes("admission") || (i.category || "").toLowerCase().includes("admission")
     );
+    const candidateStructs = matchedStructs.length > 0
+      ? matchedStructs
+      : (dynamicFeeStructures || []).filter((s) => matchesClassName(s.className, applicantClassName));
+
+    let dynamicAdmItemAmount = 0;
+    for (const struct of candidateStructs) {
+      if (struct && struct.items) {
+        const item = struct.items.find(
+          (i) => (i.feeHeadName || "").toLowerCase().includes("admission") || (i.category || "").toLowerCase().includes("admission")
+        );
+        if (item && Number(item.amount) > 0) {
+          dynamicAdmItemAmount = Number(item.amount);
+          break;
+        }
+      }
+    }
+
+    if (dynamicAdmItemAmount === 0) {
+      const admHead = (feeHeads || []).find(
+        (h) =>
+          h.status === "Active" &&
+          ((h.name || "").toLowerCase().includes("admission") || (h.category || "").toLowerCase().includes("admission")) &&
+          (!h.applicableClasses || h.applicableClasses.length === 0 || h.applicableClasses.some((c) => matchesClassName(c, applicantClassName)) || h.applicableClasses.includes("All"))
+      );
+      if (admHead && Number(admHead.defaultAmount || admHead.amount || 0) > 0) {
+        dynamicAdmItemAmount = Number(admHead.defaultAmount || admHead.amount);
+      }
+    }
+
     const hasMandatoryAdmFee = Boolean(
-      (dynamicAdmItem && Number(dynamicAdmItem.amount) > 0) ||
+      dynamicAdmItemAmount > 0 ||
       (targetAdmissionRecord?.admissionFeeAmount && targetAdmissionRecord.admissionFeeAmount > 0)
     );
 
@@ -2791,6 +2826,17 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     if (classAdmFeeAmount <= 0 && admRecord?.admissionFeeAmount && Number(admRecord.admissionFeeAmount) > 0) {
       classAdmFeeAmount = Number(admRecord.admissionFeeAmount);
     }
+    if (classAdmFeeAmount <= 0) {
+      const admHead = (feeHeads || []).find(
+        (h) =>
+          h.status === "Active" &&
+          ((h.name || "").toLowerCase().includes("admission") || (h.category || "").toLowerCase().includes("admission")) &&
+          (!h.applicableClasses || h.applicableClasses.length === 0 || h.applicableClasses.some((c) => matchesClassName(c, studentClassForFee)) || h.applicableClasses.includes("All"))
+      );
+      if (admHead && Number(admHead.defaultAmount || admHead.amount || 0) > 0) {
+        classAdmFeeAmount = Number(admHead.defaultAmount || admHead.amount);
+      }
+    }
 
     const isAdmFeePaid = (feePayments || []).some((p) => {
       const isStudentMatch =
@@ -2803,6 +2849,12 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
         (p.remarks || "").toLowerCase().includes("admission")
       );
     }) || Boolean(selectedStudent.admissionFeePaid || admRecord?.admissionFeePaid);
+
+    const dynamicAdmHead = (feeHeads || []).find(
+      (h) =>
+        h.status === "Active" &&
+        ((h.name || "").toLowerCase().includes("admission") || (h.category || "").toLowerCase().includes("admission"))
+    );
 
     if (admInstallments.length > 0) {
       admInstallments.forEach((inst) => {
@@ -2818,8 +2870,8 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
         studentId: selectedStudent.id,
         academicYear: currentYear,
         feeAssignmentId: `FA-ADM-${selectedStudent.id}`,
-        feeHeadId: "FH-ADM",
-        feeHeadName: "Admission Fee",
+        feeHeadId: dynamicAdmHead?.id || dynamicAdmHead?.code || "FH-ADM",
+        feeHeadName: dynamicAdmHead?.name || "Admission Fee",
         frequency: "One Time",
         termId: "ONETIME",
         termName: "One Time",

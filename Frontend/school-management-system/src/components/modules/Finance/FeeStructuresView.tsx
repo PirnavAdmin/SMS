@@ -783,7 +783,15 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
                         </label>
                         <select
                           value={selectedFeeHeadId}
-                          onChange={(e) => setSelectedFeeHeadId(e.target.value)}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setSelectedFeeHeadId(val);
+                            const head = activeFeeHeads.find((h) => String(h.id) === String(val));
+                            if (head && Number(head.defaultAmount || head.amount || 0) > 0) {
+                              setFeeHeadInputAmount(String(head.defaultAmount || head.amount));
+                              if (amountError) setAmountError(false);
+                            }
+                          }}
                           className="w-full px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border text-xs font-semibold outline-none cursor-pointer"
                         >
                           <option value="">Select Fee Head</option>

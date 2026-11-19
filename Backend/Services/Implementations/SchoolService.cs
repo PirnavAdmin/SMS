@@ -1450,6 +1450,44 @@ public class SchoolService : ISchoolService
 			}
 		}
 
+		var feeHeads = await _context.FeeHeads.AsNoTracking()
+			.Where(h => (h.Status == "Active" || string.IsNullOrEmpty(h.Status)) &&
+			            (h.Category == "Admission Fee" || h.Category == "Admission" || (h.Name != null && h.Name.Contains("Admission"))))
+			.ToListAsync();
+
+		foreach (var head in feeHeads)
+		{
+			if (head.DefaultAmount > 0)
+			{
+				bool classMatches = true;
+				if (!string.IsNullOrWhiteSpace(head.Description))
+				{
+					try
+					{
+						using var doc = System.Text.Json.JsonDocument.Parse(head.Description);
+						if (doc.RootElement.TryGetProperty("applicableClasses", out var classesEl) && classesEl.ValueKind == System.Text.Json.JsonValueKind.Array)
+						{
+							var classes = new List<string>();
+							foreach (var c in classesEl.EnumerateArray())
+							{
+								var s = c.GetString();
+								if (!string.IsNullOrWhiteSpace(s)) classes.Add(s);
+							}
+							if (classes.Count > 0 && !classes.Contains("All") && !classes.Any(c => string.Equals(c, appClass, StringComparison.OrdinalIgnoreCase) || c.Contains(appClass, StringComparison.OrdinalIgnoreCase)))
+							{
+								classMatches = false;
+							}
+						}
+					}
+					catch { }
+				}
+				if (classMatches)
+				{
+					return (true, head.DefaultAmount);
+				}
+			}
+		}
+
 		return (false, 0m);
 	}
 

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Tag, Plus, Search, Edit, Trash2, CheckCircle2, XCircle, Building2, Bus, Shirt, BookOpen, AlertTriangle, Calculator, Calendar } from 'lucide-react';
+import { Tag, Plus, Search, Edit, Trash2, CheckCircle2, XCircle, Building2, Bus, Shirt, BookOpen, AlertTriangle, Calculator, Calendar, UserCheck } from 'lucide-react';
 import { FeeHead, FeeHeadCategory, FeeHeadFrequency, FeePaymentEligibility } from '../../../types';
 import { useData, matchesAcademicYear } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
@@ -199,6 +199,8 @@ export const FeeHeadsView: React.FC = () => {
     code: '',
     category: '' as any,
     frequency: 'Term-wise',
+    defaultAmount: '' as any,
+    amount: '' as any,
     mandatory: false,
     applicableClasses: [],
     applicableBranches: [],
@@ -300,6 +302,8 @@ const exportData = useMemo(() => {
       code: '',
       category: '' as any,
       frequency: 'Term-wise',
+      defaultAmount: '' as any,
+      amount: '' as any,
       mandatory: false,
       applicableClasses: [],
       applicableBranches: [],
@@ -328,8 +332,13 @@ const exportData = useMemo(() => {
   const handleOpenEdit = (h: FeeHead) => {
     setEditingHead(h);
     setFieldErrors({});
+    const effectiveAmt = h.defaultAmount !== undefined && h.defaultAmount !== null && Number(h.defaultAmount) > 0
+      ? h.defaultAmount
+      : (h.amount !== undefined && h.amount !== null && Number(h.amount) > 0 ? h.amount : '');
     setFormData({
       ...h,
+      defaultAmount: effectiveAmt as any,
+      amount: effectiveAmt as any,
       mandatory: h.mandatory === true,
       applicableClasses: h.applicableClasses && h.applicableClasses.length > 0 ? [...h.applicableClasses] : [...classOptions],
       applicableBranches: h.applicableBranches && h.applicableBranches.length > 0 ? [...h.applicableBranches] : ['All Branches'],
@@ -403,6 +412,7 @@ const exportData = useMemo(() => {
 
       setFieldErrors({});
 
+      const cleanAmount = (formData.defaultAmount as any) === '' || formData.defaultAmount === undefined || formData.defaultAmount === null ? 0 : Number(formData.defaultAmount);
       const cleanTax = (formData.taxPercentage as any) === '' || formData.taxPercentage === undefined || formData.taxPercentage === null ? 0 : Number(formData.taxPercentage);
       const cleanOrder = (formData.displayOrder as any) === '' || formData.displayOrder === undefined || formData.displayOrder === null ? feeHeads.length + 1 : Number(formData.displayOrder);
 
@@ -415,6 +425,8 @@ const exportData = useMemo(() => {
 
       const payload = {
         ...formData,
+        defaultAmount: cleanAmount,
+        amount: cleanAmount,
         frequency: calculatedFrequency,
         taxPercentage: cleanTax,
         displayOrder: cleanOrder,
@@ -583,6 +595,12 @@ const exportData = useMemo(() => {
                           {h.category}
                         </span>
 
+                        {Number(h.defaultAmount || h.amount || 0) > 0 && (
+                          <span className="inline-flex items-center text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-800">
+                            ₹{Number(h.defaultAmount || h.amount).toLocaleString('en-IN')}
+                          </span>
+                        )}
+
                         {/* Module Mapping Badges */}
                         {h.category === 'Hostel' && (
                           <div className="flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 font-semibold justify-center">
@@ -681,7 +699,7 @@ const exportData = useMemo(() => {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4 text-xs">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 <div>
                   <label className="block font-semibold mb-1">Fee Type Name <span className="text-rose-500 font-bold ml-0.5">*</span></label>
                   <input
@@ -755,7 +773,34 @@ const exportData = useMemo(() => {
                     </p>
                   )}
                 </div>
+                <div>
+                  <label className="block font-semibold mb-1">Default Amount (₹)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="any"
+                    value={formData.defaultAmount !== undefined && formData.defaultAmount !== null ? formData.defaultAmount : ''}
+                    onChange={e => {
+                      const val = e.target.value === '' ? '' : Number(e.target.value);
+                      setFormData({ ...formData, defaultAmount: val as any, amount: val as any });
+                    }}
+                    placeholder="0.00"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 outline-none font-bold text-slate-900 dark:text-white"
+                  />
+                </div>
               </div>
+
+              {(formData.category === 'Admission Fee' || formData.category === 'Admission' || (formData.name && formData.name.toLowerCase().includes('admission'))) && (
+                <div className="p-3.5 rounded-2xl bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-800/80 space-y-1">
+                  <div className="flex items-center gap-2 text-xs font-bold text-indigo-900 dark:text-indigo-200">
+                    <UserCheck className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                    Admission Fee Head Master
+                  </div>
+                  <p className="text-[11px] text-indigo-700 dark:text-indigo-300">
+                    Set default amount here, or configure per-class in <strong>Fee Structures</strong>. When set, this fee is mandatory during admission — students cannot be enrolled until it is paid, and upon fee collection they will be enrolled automatically.
+                  </p>
+                </div>
+              )}
 
               {/* DYNAMIC MODULE ARCHITECTURE NOTICES */}
               {formData.category === 'Hostel' && (
