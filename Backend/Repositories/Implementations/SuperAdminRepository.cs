@@ -167,25 +167,25 @@ public class SuperAdminRepository : ISuperAdminRepository
         {
             try
             {
-                var staff = await _context.Staff.IgnoreQueryFilters().Where(s => s.TenantId == tenantId).ToListAsync();
+                var staff = await _context.Staff.IgnoreQueryFilters().Where(s => EF.Property<string>(s, "TenantId") == tenantId).ToListAsync();
                 if (staff.Any()) _context.Staff.RemoveRange(staff);
 
-                var students = await _context.Students.IgnoreQueryFilters().Where(s => s.TenantId == tenantId).ToListAsync();
+                var students = await _context.Students.IgnoreQueryFilters().Where(s => EF.Property<string>(s, "TenantId") == tenantId).ToListAsync();
                 if (students.Any()) _context.Students.RemoveRange(students);
 
-                var admissions = await _context.Admissions.IgnoreQueryFilters().Where(a => a.TenantId == tenantId).ToListAsync();
+                var admissions = await _context.Admissions.IgnoreQueryFilters().Where(a => EF.Property<string>(a, "TenantId") == tenantId).ToListAsync();
                 if (admissions.Any()) _context.Admissions.RemoveRange(admissions);
 
-                var branches = await _context.Branches.IgnoreQueryFilters().Where(b => b.TenantId == tenantId).ToListAsync();
+                var branches = await _context.Branches.IgnoreQueryFilters().Where(b => EF.Property<string>(b, "TenantId") == tenantId).ToListAsync();
                 if (branches.Any()) _context.Branches.RemoveRange(branches);
 
-                var departments = await _context.Departments.IgnoreQueryFilters().Where(d => d.TenantId == tenantId).ToListAsync();
+                var departments = await _context.Departments.IgnoreQueryFilters().Where(d => EF.Property<string>(d, "TenantId") == tenantId).ToListAsync();
                 if (departments.Any()) _context.Departments.RemoveRange(departments);
 
-                var subjects = await _context.Subjects.IgnoreQueryFilters().Where(s => s.TenantId == tenantId).ToListAsync();
+                var subjects = await _context.Subjects.IgnoreQueryFilters().Where(s => EF.Property<string>(s, "TenantId") == tenantId).ToListAsync();
                 if (subjects.Any()) _context.Subjects.RemoveRange(subjects);
 
-                var settings = await _context.SchoolSettings.IgnoreQueryFilters().Where(s => s.TenantId == tenantId).ToListAsync();
+                var settings = await _context.SchoolSettings.IgnoreQueryFilters().Where(s => EF.Property<string>(s, "TenantId") == tenantId).ToListAsync();
                 if (settings.Any()) _context.SchoolSettings.RemoveRange(settings);
             }
             catch { }

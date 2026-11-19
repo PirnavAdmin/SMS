@@ -60,7 +60,7 @@ import { Pagination } from "../../common/Pagination";
 import { SchoolPrintHeader } from "../../common/SchoolPrintHeader";
 import { LoadingSpinner } from "../../common/LoadingSpinner";
 import { lookupPostalCode, getOfflinePostalInfo } from "../../../utils/postalLookup";
-import { isClassInRange, getSharingCapacity, matchesSharingType } from "../../../utils/classSorter";
+import { isClassInRange, getSharingCapacity, matchesSharingType, matchesClassName } from "../../../utils/classSorter";
 import {
   validate10DigitPhone,
   validateEmail,
@@ -1334,17 +1334,23 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
   const applicableAdmissionFee = useMemo(() => {
     const cls = formData.appliedClass || "";
     if (!cls) return 0;
-    const matchedStruct = (dynamicFeeStructures || []).find(
+    const matchedStructs = (dynamicFeeStructures || []).filter(
       (s) => matchesClassName(s.className, cls) && (s.status === "Active" || !s.status)
-    ) || (dynamicFeeStructures || []).find((s) => matchesClassName(s.className, cls));
-    if (matchedStruct && matchedStruct.items) {
-      const admItem = matchedStruct.items.find(
-        (i) =>
-          (i.feeHeadName || "").toLowerCase().includes("admission") ||
-          (i.category || "").toLowerCase().includes("admission")
-      );
-      if (admItem && Number(admItem.amount) > 0) {
-        return Number(admItem.amount);
+    );
+    const candidateStructs = matchedStructs.length > 0
+      ? matchedStructs
+      : (dynamicFeeStructures || []).filter((s) => matchesClassName(s.className, cls));
+
+    for (const struct of candidateStructs) {
+      if (struct && struct.items) {
+        const admItem = struct.items.find(
+          (i) =>
+            (i.feeHeadName || "").toLowerCase().includes("admission") ||
+            (i.category || "").toLowerCase().includes("admission")
+        );
+        if (admItem && Number(admItem.amount) > 0) {
+          return Number(admItem.amount);
+        }
       }
     }
     const admHead = (feeHeads || []).find(
@@ -1363,17 +1369,23 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     if (app.admissionFeeAmount && Number(app.admissionFeeAmount) > 0) return Number(app.admissionFeeAmount);
     const cls = app.appliedClass || (app as any).grade || "";
     if (!cls) return 0;
-    const matchedStruct = (dynamicFeeStructures || []).find(
+    const matchedStructs = (dynamicFeeStructures || []).filter(
       (s) => matchesClassName(s.className, cls) && (s.status === "Active" || !s.status)
-    ) || (dynamicFeeStructures || []).find((s) => matchesClassName(s.className, cls));
-    if (matchedStruct && matchedStruct.items) {
-      const admItem = matchedStruct.items.find(
-        (i) =>
-          (i.feeHeadName || "").toLowerCase().includes("admission") ||
-          (i.category || "").toLowerCase().includes("admission")
-      );
-      if (admItem && Number(admItem.amount) > 0) {
-        return Number(admItem.amount);
+    );
+    const candidateStructs = matchedStructs.length > 0
+      ? matchedStructs
+      : (dynamicFeeStructures || []).filter((s) => matchesClassName(s.className, cls));
+
+    for (const struct of candidateStructs) {
+      if (struct && struct.items) {
+        const admItem = struct.items.find(
+          (i) =>
+            (i.feeHeadName || "").toLowerCase().includes("admission") ||
+            (i.category || "").toLowerCase().includes("admission")
+        );
+        if (admItem && Number(admItem.amount) > 0) {
+          return Number(admItem.amount);
+        }
       }
     }
     const admHead = (feeHeads || []).find(
