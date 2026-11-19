@@ -6,7 +6,9 @@ import { formatAcademicYear } from '../../context/DataContext';
 
 export interface AcademicYearOption {
   id: string | number;
+  academicYearId?: string | number;
   academicYear: string;
+  year?: string;
   isCurrent?: boolean;
   status?: string;
 }
@@ -66,18 +68,23 @@ export const AcademicYearDropdown: React.FC<AcademicYearDropdownProps> = ({ clas
     <div className={`relative inline-flex items-center ${className}`}>
       <Calendar className="pointer-events-none absolute left-3.5 h-4 w-4 text-brand-500" />
       <select
-        value={selectedAcademicYear || (years.length > 0 ? years[0].academicYear : '')}
+        value={selectedAcademicYear || (years.length > 0 ? (years[0].academicYear || years[0].year) : '')}
         onChange={(e) => {
-          const chosen = years.find((y) => y.academicYear === e.target.value || String(y.id) === e.target.value);
-          setAcademicYear(e.target.value, chosen ? String(chosen.id) : undefined);
+          const chosen = years.find((y) => (y.academicYear || y.year) === e.target.value || String(y.id) === e.target.value || String(y.academicYearId) === e.target.value);
+          const rawId = chosen ? (chosen.academicYearId !== undefined ? String(chosen.academicYearId) : String(chosen.id)) : undefined;
+          const numericId = rawId && /^\d+$/.test(rawId.trim()) ? rawId.trim() : undefined;
+          setAcademicYear(e.target.value, numericId);
         }}
         className="h-10 cursor-pointer appearance-none rounded-2xl border border-slate-200 bg-white/80 backdrop-blur-md pl-10 pr-8 text-xs font-bold text-slate-800 shadow-sm transition hover:border-slate-300 focus:outline-none dark:border-slate-700/80 dark:bg-slate-800/80 dark:text-slate-100"
       >
-        {years.map((y) => (
-          <option key={String(y.id || y.academicYear)} value={y.academicYear}>
-            {formatAcademicYear(y.academicYear)} {y.isCurrent ? '(Active)' : ''}
-          </option>
-        ))}
+        {years.map((y) => {
+          const val = y.academicYear || y.year || '';
+          return (
+            <option key={String(y.id || y.academicYearId || val)} value={val}>
+              {formatAcademicYear(val)} {y.isCurrent ? '(Active)' : ''}
+            </option>
+          );
+        })}
       </select>
       <div className="pointer-events-none absolute right-3 text-[10px] text-slate-400">▼</div>
     </div>

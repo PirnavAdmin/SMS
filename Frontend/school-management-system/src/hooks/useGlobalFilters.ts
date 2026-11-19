@@ -56,19 +56,35 @@ export function useGlobalFilters() {
     // Update active headers for all outgoing API calls
     const effBranch = next.branchName || next.branchId;
     const effAY = next.academicYearName || next.academicYearId;
-    setActiveBranchHeader(effBranch);
-    setActiveAcademicYearHeader(effAY);
+    setActiveBranchHeader(effBranch, next.branchId);
+    setActiveAcademicYearHeader(effAY, next.academicYearId);
 
     if (typeof window !== 'undefined') {
       const url = new URL(window.location.href);
 
-      if (next.branchId) url.searchParams.set('branchId', next.branchId);
-      if (next.branchName && next.branchName !== next.branchId) url.searchParams.set('branch', next.branchName);
-      else if (!next.branchId && next.branchName) url.searchParams.set('branch', next.branchName);
+      if (next.branchId && /^\d+$/.test(String(next.branchId).trim())) {
+        url.searchParams.set('branchId', String(next.branchId).trim());
+      } else {
+        url.searchParams.delete('branchId');
+      }
 
-      if (next.academicYearId) url.searchParams.set('academicYearId', next.academicYearId);
-      if (next.academicYearName && next.academicYearName !== next.academicYearId) url.searchParams.set('academicYear', next.academicYearName);
-      else if (!next.academicYearId && next.academicYearName) url.searchParams.set('academicYear', next.academicYearName);
+      if (next.branchName) {
+        url.searchParams.set('branch', next.branchName);
+      } else if (next.branchId && !/^\d+$/.test(String(next.branchId).trim())) {
+        url.searchParams.set('branch', String(next.branchId));
+      }
+
+      if (next.academicYearId && /^\d+$/.test(String(next.academicYearId).trim())) {
+        url.searchParams.set('academicYearId', String(next.academicYearId).trim());
+      } else {
+        url.searchParams.delete('academicYearId');
+      }
+
+      if (next.academicYearName) {
+        url.searchParams.set('academicYear', next.academicYearName);
+      } else if (next.academicYearId && !/^\d+$/.test(String(next.academicYearId).trim())) {
+        url.searchParams.set('academicYear', String(next.academicYearId));
+      }
 
       if (replaceUrl) {
         window.history.replaceState({}, '', url.toString());

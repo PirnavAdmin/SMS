@@ -1,14 +1,30 @@
 import { getSubdomain } from '../utils/subdomain';
 
 let activeBranchHeader = '';
+let activeBranchIdHeader = '';
 let activeAcademicYearHeader = '';
+let activeAcademicYearIdHeader = '';
 
-export const setActiveBranchHeader = (b: string) => {
+export const setActiveBranchHeader = (b: string, id?: string) => {
   activeBranchHeader = b || '';
+  if (id && /^\d+$/.test(id.trim())) {
+    activeBranchIdHeader = id.trim();
+  } else if (b && /^\d+$/.test(b.trim())) {
+    activeBranchIdHeader = b.trim();
+  } else {
+    activeBranchIdHeader = '';
+  }
 };
 
-export const setActiveAcademicYearHeader = (ay: string) => {
+export const setActiveAcademicYearHeader = (ay: string, id?: string) => {
   activeAcademicYearHeader = ay || '';
+  if (id && /^\d+$/.test(id.trim())) {
+    activeAcademicYearIdHeader = id.trim();
+  } else if (ay && /^\d+$/.test(ay.trim())) {
+    activeAcademicYearIdHeader = ay.trim();
+  } else {
+    activeAcademicYearIdHeader = '';
+  }
 };
 
 // Set of active abort controllers for pending requests
@@ -93,14 +109,22 @@ export const apiClient = async <T = any>(endpoint: string, options: RequestInit 
       if (branch && branch !== 'All Branches' && branch !== 'All') {
         if (!parsedUrl.searchParams.has('branch') && !parsedUrl.searchParams.has('branchId')) {
           parsedUrl.searchParams.set('branch', branch);
-          parsedUrl.searchParams.set('branchId', branch);
+          if (activeBranchIdHeader) {
+            parsedUrl.searchParams.set('branchId', activeBranchIdHeader);
+          } else if (/^\d+$/.test(branch.trim())) {
+            parsedUrl.searchParams.set('branchId', branch.trim());
+          }
           paramsModified = true;
         }
       }
       if (academicYear && academicYear !== 'All') {
         if (!parsedUrl.searchParams.has('academicYear') && !parsedUrl.searchParams.has('academicYearId')) {
           parsedUrl.searchParams.set('academicYear', academicYear);
-          parsedUrl.searchParams.set('academicYearId', academicYear);
+          if (activeAcademicYearIdHeader) {
+            parsedUrl.searchParams.set('academicYearId', activeAcademicYearIdHeader);
+          } else if (/^\d+$/.test(academicYear.trim())) {
+            parsedUrl.searchParams.set('academicYearId', academicYear.trim());
+          }
           paramsModified = true;
         }
       }

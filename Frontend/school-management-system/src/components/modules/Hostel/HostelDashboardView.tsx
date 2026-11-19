@@ -49,6 +49,10 @@ export const HostelDashboardView: React.FC<HostelDashboardViewProps> = ({
     }
   }, [addToast]);
 
+  const { user, role, selectedBranch, selectedAcademicYear } = useAuth();
+  const userRole = (role || user?.role || "").toLowerCase();
+  const isWarden = userRole.includes("warden");
+
   useEffect(() => {
     loadData();
     const handleSync = () => {
@@ -59,18 +63,20 @@ export const HostelDashboardView: React.FC<HostelDashboardViewProps> = ({
     window.addEventListener("hostel_students_updated", handleSync);
     window.addEventListener("students_updated", handleSync);
     window.addEventListener("finance_data_updated", handleSync);
+    window.addEventListener("global_context_branch_changed", handleSync);
+    window.addEventListener("global_context_academic_year_changed", handleSync);
+    window.addEventListener("global_filters_changed", handleSync);
     return () => {
       window.removeEventListener("residential_students_updated", handleSync);
       window.removeEventListener("hostel_allocations_updated", handleSync);
       window.removeEventListener("hostel_students_updated", handleSync);
       window.removeEventListener("students_updated", handleSync);
       window.removeEventListener("finance_data_updated", handleSync);
+      window.removeEventListener("global_context_branch_changed", handleSync);
+      window.removeEventListener("global_context_academic_year_changed", handleSync);
+      window.removeEventListener("global_filters_changed", handleSync);
     };
-  }, [loadData]);
-
-  const { user, role } = useAuth();
-  const userRole = (role || user?.role || "").toLowerCase();
-  const isWarden = userRole.includes("warden");
+  }, [loadData, selectedBranch, selectedAcademicYear]);
 
   const wardenAssignedBlocks = React.useMemo(() => {
     if (!isWarden) return blocks;
@@ -109,8 +115,55 @@ export const HostelDashboardView: React.FC<HostelDashboardViewProps> = ({
     }));
   }, [blocks, isWarden, user]);
 
-  // Derived calculations from real data across all hostel modules
-  const displayBlocks = isWarden ? wardenAssignedBlocks : blocks;
+  const baseBlocks = isWarden ? wardenAssignedBlocks : blocks;
+
+  // Filter blocks strictly according to the globally selected Branch
+  const displayBlocks = React.useMemo(() => {
+    if (!selectedBranch || selectedBranch === 'All' || selectedBranch === 'All Branches' || selectedBranch === 'All Campuses') {
+      return baseBlocks;
+    }
+    const sel = selectedBranch.toLowerCase().trim();
+
+    // 1. Direct match on address, hostelName, or hostelCode
+    const directMatch = baseBlocks.filter((b) => {
+      const addr = (b.address || '').toLowerCase();
+      const name = (b.hostelName || '').toLowerCase();
+      const code = (b.hostelCode || '').toLowerCase();
+      return addr.includes(sel) || name.includes(sel) || code.includes(sel);
+    });
+
+    if (directMatch.length > 0) return directMatch;
+
+    // 2. Cross-reference with DataContext hostelMasters if available
+    const ctxMasters = Array.isArray(dataContext?.hostelMasters) ? dataContext.hostelMasters : [];
+    if (ctxMasters.length > 0) {
+      const matchedNames = new Set(ctxMasters.map((m: any) => (m.hostelName || m.name || '').toLowerCase().trim()));
+      const matchedCodes = new Set(ctxMasters.map((m: any) => (m.hostelCode || m.code || '').toLowerCase().trim()));
+      const matchedIds = new Set(ctxMasters.map((m: any) => String(m.id || m.hostelId || '')));
+
+      const matched = baseBlocks.filter((b) => {
+        const bName = (b.hostelName || '').toLowerCase().trim();
+        const bCode = (b.hostelCode || '').toLowerCase().trim();
+        const bId = String(b.hostelId);
+        return matchedNames.has(bName) || matchedCodes.has(bCode) || matchedIds.has(bId);
+      });
+      if (matched.length > 0) return matched;
+    }
+
+    // 3. Fallback for default branch (Capital Park): legacy blocks without specific other branch address belong to Capital Park
+    const isDefaultBranch = sel.includes('capital') || sel.includes('main') || sel === '1';
+    if (isDefaultBranch) {
+      return baseBlocks.filter((b) => {
+        const addr = (b.address || '').toLowerCase();
+        if (addr.includes('madhapur') || addr.includes('miyapur')) return false;
+        return true;
+      });
+    }
+
+    // If selected branch has no hostels assigned, return empty list
+    return [];
+  }, [baseBlocks, selectedBranch, dataContext?.hostelMasters]);
+
   const totalHostels = displayBlocks.length;
 
   const activeBlockIds = new Set(displayBlocks.map((b) => String(b.hostelId)));
@@ -715,8 +768,18 @@ export const HostelDashboardView: React.FC<HostelDashboardViewProps> = ({
               )}
             </div>
 
-            {/* Render Empty State Prompt if not selected */}
-            {!dashboardBlockFilter &&
+            {/* Render Empty State Prompt if not selected or no blocks found for branch */}
+            {displayBlocks.length === 0 ? (
+              <div className="py-12 px-6 rounded-2xl border border-dashed border-slate-300 dark:border-slate-700 text-center space-y-2 bg-slate-50/50 dark:bg-slate-800/30">
+                <Building2 className="w-8 h-8 text-slate-400 mx-auto opacity-70" />
+                <p className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                  No Hostel Blocks Found
+                </p>
+                <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                  No hostel facilities are currently configured for {selectedBranch || 'the selected branch'}.
+                </p>
+              </div>
+            ) : !dashboardBlockFilter &&
             !dashboardSearchQuery.trim() &&
             !isWarden ? (
               <div className="py-12 px-6 rounded-2xl border border-sky-200/80 dark:border-sky-900/50 text-center space-y-2 bg-slate-50/50 dark:bg-slate-800/30">

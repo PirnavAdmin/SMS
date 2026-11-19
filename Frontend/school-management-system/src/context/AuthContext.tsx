@@ -369,9 +369,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [token, user?.id, user?.email]);
 
   const handleSetBranch = (branch: string) => {
-    // Prevent race conditions: Cancel all pending in-flight requests immediately
-    cancelPendingRequests();
-
     setSelectedBranchState(branch);
     setActiveBranchHeader(branch);
 
@@ -379,6 +376,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const url = new URL(window.location.href);
       if (branch) {
         url.searchParams.set('branch', branch);
+        if (/^\d+$/.test(branch.trim())) {
+          url.searchParams.set('branchId', branch.trim());
+        } else {
+          url.searchParams.delete('branchId');
+        }
       } else {
         url.searchParams.delete('branch');
         url.searchParams.delete('branchId');
@@ -391,9 +393,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const handleSetAcademicYear = (academicYear: string) => {
-    // Prevent race conditions: Cancel all pending in-flight requests immediately
-    cancelPendingRequests();
-
     setSelectedAcademicYearState(academicYear);
     setActiveAcademicYearHeader(academicYear);
 
@@ -401,6 +400,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const url = new URL(window.location.href);
       if (academicYear) {
         url.searchParams.set('academicYear', academicYear);
+        if (/^\d+$/.test(academicYear.trim())) {
+          url.searchParams.set('academicYearId', academicYear.trim());
+        } else {
+          url.searchParams.delete('academicYearId');
+        }
       } else {
         url.searchParams.delete('academicYear');
         url.searchParams.delete('academicYearId');

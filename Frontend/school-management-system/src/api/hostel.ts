@@ -16,30 +16,42 @@ if (typeof window !== 'undefined') {
   window.addEventListener('hostel_wardens_updated', invalidateHostelCache);
   window.addEventListener('room_types_updated', invalidateHostelCache);
   window.addEventListener('residential_students_updated', invalidateHostelCache);
+  window.addEventListener('global_context_branch_changed', invalidateHostelCache);
+  window.addEventListener('global_context_academic_year_changed', invalidateHostelCache);
+  window.addEventListener('global_filters_changed', invalidateHostelCache);
 }
 
+const getContextCacheSuffix = () => {
+  if (typeof window === 'undefined') return '';
+  const params = new URLSearchParams(window.location.search);
+  const b = params.get('branch') || params.get('branchId') || '';
+  const ay = params.get('academicYear') || params.get('academicYearId') || '';
+  return `:${b}:${ay}`;
+};
+
 const cachedHostelGet = async <T>(key: string, fetcher: () => Promise<T>): Promise<T> => {
+  const fullKey = `${key}${getContextCacheSuffix()}`;
   const now = Date.now();
-  const cached = hostelGetCache.get(key);
+  const cached = hostelGetCache.get(fullKey);
   if (cached && cached.expiresAt > now) {
     return cached.data as T;
   }
 
-  const existing = hostelInFlight.get(key);
+  const existing = hostelInFlight.get(fullKey);
   if (existing) {
     return existing as Promise<T>;
   }
 
   const promise = fetcher()
     .then((data) => {
-      hostelGetCache.set(key, { data, expiresAt: Date.now() + HOSTEL_CACHE_TTL_MS });
+      hostelGetCache.set(fullKey, { data, expiresAt: Date.now() + HOSTEL_CACHE_TTL_MS });
       return data;
     })
     .finally(() => {
-      hostelInFlight.delete(key);
+      hostelInFlight.delete(fullKey);
     });
 
-  hostelInFlight.set(key, promise);
+  hostelInFlight.set(fullKey, promise);
   return promise;
 };
 

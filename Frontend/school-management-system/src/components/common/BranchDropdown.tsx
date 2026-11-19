@@ -5,7 +5,9 @@ import { fetchBranchesApi } from '../../api/settings';
 
 export interface BranchOption {
   id: string | number;
+  branchId?: string | number;
   branchName: string;
+  name?: string;
   branchCode?: string;
   status?: string;
 }
@@ -66,18 +68,23 @@ export const BranchDropdown: React.FC<BranchDropdownProps> = ({ className = '' }
     <div className={`relative inline-flex items-center ${className}`}>
       <Building2 className="pointer-events-none absolute left-3.5 h-4 w-4 text-brand-500" />
       <select
-        value={selectedBranch || (branches.length > 0 ? branches[0].branchName : '')}
+        value={selectedBranch || (branches.length > 0 ? (branches[0].branchName || branches[0].name) : '')}
         onChange={(e) => {
-          const chosen = branches.find((b) => b.branchName === e.target.value || String(b.id) === e.target.value);
-          setBranch(e.target.value, chosen ? String(chosen.id) : undefined);
+          const chosen = branches.find((b) => (b.branchName || b.name) === e.target.value || String(b.id) === e.target.value || String(b.branchId) === e.target.value);
+          const rawId = chosen ? (chosen.branchId !== undefined ? String(chosen.branchId) : String(chosen.id)) : undefined;
+          const numericId = rawId && /^\d+$/.test(rawId.trim()) ? rawId.trim() : undefined;
+          setBranch(e.target.value, numericId);
         }}
         className="h-10 cursor-pointer appearance-none rounded-2xl border border-slate-200 bg-white/80 backdrop-blur-md pl-10 pr-8 text-xs font-bold text-slate-800 shadow-sm transition hover:border-slate-300 focus:outline-none dark:border-slate-700/80 dark:bg-slate-800/80 dark:text-slate-100"
       >
-        {branches.map((b) => (
-          <option key={String(b.id || b.branchName)} value={b.branchName}>
-            {b.branchName} {b.branchCode ? `(${b.branchCode})` : ''}
-          </option>
-        ))}
+        {branches.map((b) => {
+          const name = b.branchName || b.name || '';
+          return (
+            <option key={String(b.id || b.branchId || name)} value={name}>
+              {name} {b.branchCode ? `(${b.branchCode})` : ''}
+            </option>
+          );
+        })}
       </select>
       <div className="pointer-events-none absolute right-3 text-[10px] text-slate-400">▼</div>
     </div>
