@@ -399,23 +399,6 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
     ? erpFeatures 
     : erpFeatures.filter(f => f.category === activeTab);
 
-  // 5-fold multiplied sets for seamless, continuous infinite auto-looping without boundaries
-  const displayRoles = [
-    ...portalRoles.map((r, i) => ({ ...r, uniqueKey: `pr0-${r.id}-${i}` })),
-    ...portalRoles.map((r, i) => ({ ...r, uniqueKey: `pr1-${r.id}-${i}` })),
-    ...portalRoles.map((r, i) => ({ ...r, uniqueKey: `pr2-${r.id}-${i}` })),
-    ...portalRoles.map((r, i) => ({ ...r, uniqueKey: `pr3-${r.id}-${i}` })),
-    ...portalRoles.map((r, i) => ({ ...r, uniqueKey: `pr4-${r.id}-${i}` })),
-  ];
-
-  const displayFeatures = [
-    ...filteredFeatures.map((f, i) => ({ ...f, uniqueKey: `mf0-${f.title}-${i}` })),
-    ...filteredFeatures.map((f, i) => ({ ...f, uniqueKey: `mf1-${f.title}-${i}` })),
-    ...filteredFeatures.map((f, i) => ({ ...f, uniqueKey: `mf2-${f.title}-${i}` })),
-    ...filteredFeatures.map((f, i) => ({ ...f, uniqueKey: `mf3-${f.title}-${i}` })),
-    ...filteredFeatures.map((f, i) => ({ ...f, uniqueKey: `mf4-${f.title}-${i}` })),
-  ];
-
   // Carousel Refs & States for Portals
   const portalScrollRef = useRef<HTMLDivElement>(null);
   const [activePortalIndex, setActivePortalIndex] = useState(0);
@@ -426,52 +409,25 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
   const [activeModuleIndex, setActiveModuleIndex] = useState(0);
   const [isModuleHovered, setIsModuleHovered] = useState(false);
 
-  const checkPortalInfiniteBounds = () => {
-    if (!portalScrollRef.current) return;
-    const cardEl = portalScrollRef.current.firstElementChild as HTMLElement | null;
-    const cardWidth = cardEl ? cardEl.offsetWidth + 16 : 336;
-    const singleSetWidth = portalRoles.length * cardWidth;
-    const { scrollLeft } = portalScrollRef.current;
-
-    // Keep scroll position centered around Set 2 for seamless infinite auto-looping
-    if (scrollLeft >= singleSetWidth * 3) {
-      portalScrollRef.current.scrollLeft = scrollLeft - singleSetWidth;
-    } else if (scrollLeft < singleSetWidth * 1) {
-      portalScrollRef.current.scrollLeft = scrollLeft + singleSetWidth;
-    }
-  };
-
-  const checkModuleInfiniteBounds = () => {
-    if (!moduleScrollRef.current || filteredFeatures.length === 0) return;
-    const cardEl = moduleScrollRef.current.firstElementChild as HTMLElement | null;
-    const cardWidth = cardEl ? cardEl.offsetWidth + 16 : 310;
-    const singleSetWidth = filteredFeatures.length * cardWidth;
-    const { scrollLeft } = moduleScrollRef.current;
-
-    if (scrollLeft >= singleSetWidth * 3) {
-      moduleScrollRef.current.scrollLeft = scrollLeft - singleSetWidth;
-    } else if (scrollLeft < singleSetWidth * 1) {
-      moduleScrollRef.current.scrollLeft = scrollLeft + singleSetWidth;
-    }
-  };
+  // Carousel Refs & States for Subscriptions
+  const packageScrollRef = useRef<HTMLDivElement>(null);
+  const [activePackageIndex, setActivePackageIndex] = useState(0);
+  const [isPackageHovered, setIsPackageHovered] = useState(false);
 
   const checkPortalScroll = () => {
-    if (!portalScrollRef.current) return;
+    if (!portalScrollRef.current || portalRoles.length === 0) return;
     const { scrollLeft } = portalScrollRef.current;
     const cardEl = portalScrollRef.current.firstElementChild as HTMLElement | null;
     const cardWidth = cardEl ? cardEl.offsetWidth + 16 : 336;
-    const rawIdx = Math.round(scrollLeft / cardWidth) % portalRoles.length;
-    setActivePortalIndex((rawIdx + portalRoles.length) % portalRoles.length);
+    const rawIdx = Math.round(scrollLeft / cardWidth);
+    setActivePortalIndex(Math.min(portalRoles.length - 1, Math.max(0, rawIdx)));
   };
 
   const scrollToPortalIndex = (index: number) => {
-    if (!portalScrollRef.current) return;
+    if (!portalScrollRef.current || portalRoles.length === 0) return;
     const cardEl = portalScrollRef.current.firstElementChild as HTMLElement | null;
     const cardWidth = cardEl ? cardEl.offsetWidth + 16 : 336;
-    const singleSetWidth = portalRoles.length * cardWidth;
-    const { scrollLeft } = portalScrollRef.current;
-    const currentBase = Math.floor(scrollLeft / singleSetWidth) * singleSetWidth;
-    portalScrollRef.current.scrollTo({ left: currentBase + index * cardWidth, behavior: 'smooth' });
+    portalScrollRef.current.scrollTo({ left: index * cardWidth, behavior: 'smooth' });
     setActivePortalIndex(index);
   };
 
@@ -480,35 +436,52 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
     const { scrollLeft } = moduleScrollRef.current;
     const cardEl = moduleScrollRef.current.firstElementChild as HTMLElement | null;
     const cardWidth = cardEl ? cardEl.offsetWidth + 16 : 310;
-    const rawIdx = Math.round(scrollLeft / cardWidth) % filteredFeatures.length;
-    setActiveModuleIndex((rawIdx + filteredFeatures.length) % filteredFeatures.length);
+    const rawIdx = Math.round(scrollLeft / cardWidth);
+    setActiveModuleIndex(Math.min(filteredFeatures.length - 1, Math.max(0, rawIdx)));
   };
 
   const scrollToModuleIndex = (index: number) => {
     if (!moduleScrollRef.current || filteredFeatures.length === 0) return;
     const cardEl = moduleScrollRef.current.firstElementChild as HTMLElement | null;
     const cardWidth = cardEl ? cardEl.offsetWidth + 16 : 310;
-    const singleSetWidth = filteredFeatures.length * cardWidth;
-    const { scrollLeft } = moduleScrollRef.current;
-    const currentBase = Math.floor(scrollLeft / singleSetWidth) * singleSetWidth;
-    moduleScrollRef.current.scrollTo({ left: currentBase + index * cardWidth, behavior: 'smooth' });
+    moduleScrollRef.current.scrollTo({ left: index * cardWidth, behavior: 'smooth' });
     setActiveModuleIndex(index);
   };
 
-  // Continuous auto-rotate Portals Carousel Timer (every 3 seconds)
+  const checkPackageScroll = () => {
+    if (!packageScrollRef.current || activePackages.length === 0) return;
+    const { scrollLeft } = packageScrollRef.current;
+    const cardEl = packageScrollRef.current.firstElementChild as HTMLElement | null;
+    const cardWidth = cardEl ? cardEl.offsetWidth + 16 : 356;
+    const rawIdx = Math.round(scrollLeft / cardWidth);
+    setActivePackageIndex(Math.min(activePackages.length - 1, Math.max(0, rawIdx)));
+  };
+
+  const scrollToPackageIndex = (index: number) => {
+    if (!packageScrollRef.current || activePackages.length === 0) return;
+    const cardEl = packageScrollRef.current.firstElementChild as HTMLElement | null;
+    const cardWidth = cardEl ? cardEl.offsetWidth + 16 : 356;
+    packageScrollRef.current.scrollTo({ left: index * cardWidth, behavior: 'smooth' });
+    setActivePackageIndex(index);
+  };
+
+  // Continuous auto-rotate Portals Carousel Timer (every 3.5 seconds)
   useEffect(() => {
-    if (isPortalHovered) return;
+    if (isPortalHovered || portalRoles.length <= 1) return;
 
     const timer = setInterval(() => {
       if (portalScrollRef.current) {
+        const { scrollLeft, scrollWidth, clientWidth } = portalScrollRef.current;
         const cardEl = portalScrollRef.current.firstElementChild as HTMLElement | null;
         const cardWidth = cardEl ? cardEl.offsetWidth + 16 : 336;
-        portalScrollRef.current.scrollBy({ left: cardWidth, behavior: 'smooth' });
-        setTimeout(() => {
-          checkPortalInfiniteBounds();
-        }, 450);
+
+        if (scrollLeft + clientWidth >= scrollWidth - 20) {
+          portalScrollRef.current.scrollTo({ left: 0, behavior: 'smooth' });
+        } else {
+          portalScrollRef.current.scrollBy({ left: cardWidth, behavior: 'smooth' });
+        }
       }
-    }, 3000);
+    }, 3500);
 
     return () => clearInterval(timer);
   }, [isPortalHovered, portalRoles.length]);
@@ -519,17 +492,41 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
 
     const timer = setInterval(() => {
       if (moduleScrollRef.current) {
+        const { scrollLeft, scrollWidth, clientWidth } = moduleScrollRef.current;
         const cardEl = moduleScrollRef.current.firstElementChild as HTMLElement | null;
         const cardWidth = cardEl ? cardEl.offsetWidth + 16 : 310;
-        moduleScrollRef.current.scrollBy({ left: cardWidth, behavior: 'smooth' });
-        setTimeout(() => {
-          checkModuleInfiniteBounds();
-        }, 450);
+
+        if (scrollLeft + clientWidth >= scrollWidth - 20) {
+          moduleScrollRef.current.scrollTo({ left: 0, behavior: 'smooth' });
+        } else {
+          moduleScrollRef.current.scrollBy({ left: cardWidth, behavior: 'smooth' });
+        }
       }
     }, 3500);
 
     return () => clearInterval(timer);
   }, [isModuleHovered, filteredFeatures.length]);
+
+  // Continuous auto-rotate Subscriptions Carousel Timer (every 3.5 seconds)
+  useEffect(() => {
+    if (isPackageHovered || activePackages.length <= 1) return;
+
+    const timer = setInterval(() => {
+      if (packageScrollRef.current) {
+        const { scrollLeft, scrollWidth, clientWidth } = packageScrollRef.current;
+        const cardEl = packageScrollRef.current.firstElementChild as HTMLElement | null;
+        const cardWidth = cardEl ? cardEl.offsetWidth + 16 : 356;
+
+        if (scrollLeft + clientWidth >= scrollWidth - 20) {
+          packageScrollRef.current.scrollTo({ left: 0, behavior: 'smooth' });
+        } else {
+          packageScrollRef.current.scrollBy({ left: cardWidth, behavior: 'smooth' });
+        }
+      }
+    }, 3500);
+
+    return () => clearInterval(timer);
+  }, [isPackageHovered, activePackages.length]);
 
   // Auto-rotate Live Console Tabs (every 4.5 seconds)
   useEffect(() => {
@@ -544,33 +541,21 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
     return () => clearInterval(timer);
   }, []);
 
-  // Initial positioning in Set 2 for continuous seamless auto-looping
+  // Reset module carousel to 0 when tab filter changes
   useEffect(() => {
-    const initTimer = setTimeout(() => {
-      if (portalScrollRef.current) {
-        const cardEl = portalScrollRef.current.firstElementChild as HTMLElement | null;
-        const cardWidth = cardEl ? cardEl.offsetWidth + 16 : 336;
-        portalScrollRef.current.scrollLeft = portalRoles.length * 2 * cardWidth;
-      }
-      if (moduleScrollRef.current && filteredFeatures.length > 0) {
-        const cardEl = moduleScrollRef.current.firstElementChild as HTMLElement | null;
-        const cardWidth = cardEl ? cardEl.offsetWidth + 16 : 310;
-        moduleScrollRef.current.scrollLeft = filteredFeatures.length * 2 * cardWidth;
-      }
-    }, 60);
-
-    return () => clearTimeout(initTimer);
-  }, []);
-
-  // Reset module carousel to Set 2 when tab filter changes
-  useEffect(() => {
-    if (moduleScrollRef.current && filteredFeatures.length > 0) {
-      const cardEl = moduleScrollRef.current.firstElementChild as HTMLElement | null;
-      const cardWidth = cardEl ? cardEl.offsetWidth + 16 : 310;
-      moduleScrollRef.current.scrollLeft = filteredFeatures.length * 2 * cardWidth;
+    if (moduleScrollRef.current) {
+      moduleScrollRef.current.scrollTo({ left: 0, behavior: 'smooth' });
       setActiveModuleIndex(0);
     }
   }, [activeTab]);
+
+  // Reset subscriptions carousel to 0 when packages update
+  useEffect(() => {
+    if (packageScrollRef.current) {
+      packageScrollRef.current.scrollTo({ left: 0, behavior: 'smooth' });
+      setActivePackageIndex(0);
+    }
+  }, [activePackages.length]);
 
   return (
     <div className="min-h-screen w-full font-sans text-slate-900 dark:text-slate-100 selection:bg-sky-500 selection:text-white relative overflow-x-hidden transition-colors duration-300">
@@ -1000,11 +985,11 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
             className="flex items-stretch gap-4 overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory py-2.5 px-0.5"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
-            {displayRoles.map((role) => {
+            {portalRoles.map((role) => {
               const Icon = role.icon;
               return (
                 <div
-                  key={role.uniqueKey}
+                  key={role.id}
                   onClick={() => onLoginClick(role.id)}
                   className="w-[85vw] sm:w-[320px] md:w-[330px] lg:w-[340px] shrink-0 snap-start group relative bg-white/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 hover:border-sky-500/50 rounded-2xl p-5 transition-all duration-300 hover:-translate-y-1 cursor-pointer flex flex-col justify-between shadow-md hover:shadow-xl backdrop-blur-md select-none"
                 >
@@ -1113,11 +1098,11 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
             className="flex items-stretch gap-4 overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory py-2.5 px-0.5"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
-            {displayFeatures.map((feat) => {
+            {filteredFeatures.map((feat) => {
               const Icon = feat.icon;
               return (
                 <div
-                  key={feat.uniqueKey}
+                  key={feat.title}
                   className="w-[85vw] sm:w-[280px] md:w-[290px] lg:w-[310px] shrink-0 snap-start p-5 rounded-2xl bg-white/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800/90 hover:border-slate-300 dark:hover:border-slate-700 transition-all hover:bg-white dark:hover:bg-slate-900 group shadow-md backdrop-blur-md flex flex-col justify-between select-none"
                 >
                   <div>
@@ -1157,7 +1142,14 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
         {/* Reflects live packages configured in Super Admin */}
         {/* ========================================================= */}
         {activePackages.length > 0 && (
-          <section id="subscriptions" className="py-5 sm:py-6 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-slate-200/60 dark:border-slate-800/60 relative">
+          <section
+            id="subscriptions"
+            onMouseEnter={() => setIsPackageHovered(true)}
+            onMouseLeave={() => setIsPackageHovered(false)}
+            onTouchStart={() => setIsPackageHovered(true)}
+            onTouchEnd={() => setIsPackageHovered(false)}
+            className="py-5 sm:py-6 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto border-t border-slate-200/60 dark:border-slate-800/60 relative"
+          >
             <div className="text-center max-w-3xl mx-auto space-y-2 mb-4 sm:mb-6">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-700 dark:text-sky-300 text-xs font-bold backdrop-blur-md">
                 <Sparkles className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
@@ -1202,14 +1194,17 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
               </div>
             </div>
 
-            {/* Subscription Plans Cards Grid */}
-            <div className={`grid grid-cols-1 ${
-              activePackages.length === 1
-                ? 'max-w-sm mx-auto'
-                : activePackages.length === 2
-                  ? 'md:grid-cols-2 max-w-3xl mx-auto'
-                  : 'md:grid-cols-2 lg:grid-cols-3 max-w-6xl mx-auto'
-            } gap-4 sm:gap-5 items-stretch`}>
+            {/* Subscriptions Carousel Slider */}
+            <div
+              ref={packageScrollRef}
+              onScroll={checkPackageScroll}
+              className={`flex items-stretch gap-4 ${
+                activePackages.length === 1
+                  ? 'justify-center py-4'
+                  : 'overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory py-4 px-1'
+              }`}
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
               {activePackages.map((pkg) => {
                 const isPopular = pkg.isPopular;
                 const isMonthly = subscriptionBillingCycle === 'Monthly';
@@ -1221,14 +1216,14 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
                 return (
                   <div
                     key={pkg.id || pkg.name}
-                    className={`relative rounded-2xl p-4 sm:p-5 flex flex-col justify-between transition-all duration-300 hover:scale-[1.01] backdrop-blur-xl ${
+                    className={`w-[85vw] sm:w-[320px] md:w-[340px] lg:w-[350px] shrink-0 snap-start relative rounded-2xl p-4 sm:p-5 flex flex-col justify-between transition-all duration-300 hover:scale-[1.01] backdrop-blur-xl select-none ${
                       isPopular
                         ? 'bg-white/95 dark:bg-slate-900/95 border-2 border-sky-500 shadow-xl shadow-sky-500/10 ring-2 ring-sky-500/10'
                         : 'bg-white/80 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800 shadow-md'
                     }`}
                   >
                     {isPopular && (
-                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full bg-sky-600 text-white text-[9px] font-black uppercase tracking-wider shadow-sm flex items-center gap-1">
+                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full bg-sky-600 text-white text-[9px] font-black uppercase tracking-wider shadow-sm flex items-center gap-1 z-10">
                         <Star className="w-3 h-3 fill-current" />
                         <span>MOST POPULAR</span>
                       </div>
@@ -1299,7 +1294,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
                           Included Modules & Capabilities
                         </div>
                         <ul className="space-y-1.5">
-                          {pkg.features?.map((feat, idx) => (
+                          {pkg.features?.map((feat: string, idx: number) => (
                             <li key={idx} className="flex items-start gap-1.5 text-[11px] sm:text-xs text-slate-700 dark:text-slate-300 font-medium">
                               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
                               <span className="leading-snug">{feat}</span>
@@ -1327,6 +1322,25 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
                 );
               })}
             </div>
+
+            {/* Dot Indicators */}
+            {activePackages.length > 1 && (
+              <div className="flex items-center justify-center gap-1.5 mt-3.5">
+                {activePackages.map((pkg, idx) => (
+                  <button
+                    key={pkg.id || idx}
+                    type="button"
+                    onClick={() => scrollToPackageIndex(idx)}
+                    className={`transition-all duration-300 rounded-full cursor-pointer ${
+                      activePackageIndex === idx
+                        ? 'w-6 h-2 bg-sky-500 dark:bg-sky-400'
+                        : 'w-2 h-2 bg-slate-300 dark:bg-slate-700 hover:bg-slate-400 dark:hover:bg-slate-600'
+                    }`}
+                    aria-label={`Go to plan ${idx + 1}`}
+                  />
+                ))}
+              </div>
+            )}
           </section>
         )}
 
