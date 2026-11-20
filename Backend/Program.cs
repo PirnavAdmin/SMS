@@ -501,15 +501,6 @@ using (var scope = app.Services.CreateScope())
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
                 ");
 
-                try
-                {
-                    context.Database.ExecuteSqlRaw(@"
-                        ALTER TABLE `platform_company_profile` 
-                        ADD COLUMN `Address` varchar(500) NULL;
-                    ");
-                }
-                catch { }
-
                 context.Database.ExecuteSqlRaw(@"
                     CREATE TABLE IF NOT EXISTS `subscription_packages` (
                         `Id` varchar(100) NOT NULL,
@@ -1887,6 +1878,7 @@ using (var scope = app.Services.CreateScope())
             catch { }
         }
 
+        EnsureColumnExists("platform_company_profile", "Address", "varchar(500) NULL");
         EnsureColumnExists("payroll_configs", "LeaveRulesJson", "LONGTEXT NULL");
         EnsureColumnExists("payroll_configs", "AttendanceRulesJson", "LONGTEXT NULL");
         EnsureColumnExists("payroll_configs", "DeductionRulesJson", "LONGTEXT NULL");
