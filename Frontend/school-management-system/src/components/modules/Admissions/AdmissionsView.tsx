@@ -5866,44 +5866,6 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                       <span className="font-bold text-slate-700 dark:text-slate-300 block">
                         {formatStudentType(app.studentType)}
                       </span>
-                      {(() => {
-                        const admAmt = getAppAdmissionFeeAmount(app);
-                        const isAdmPaid = checkAppAdmissionFeePaid(app);
-                        const isRes = isResidentialApp(app);
-                        const isDepPaid = checkAppDepositPaid(app);
-                        const depAmt = getAppDepositAmount(app);
-
-                        return (
-                          <div className="flex flex-col gap-0.5 mt-1">
-                            {admAmt > 0 && (
-                              isAdmPaid ? (
-                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
-                                  <CheckCircle2 className="w-3 h-3 text-emerald-500 shrink-0" />
-                                  <span>✓ Admission Fee Paid (₹{admAmt.toLocaleString('en-IN')})</span>
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-600 dark:text-amber-400">
-                                  <AlertTriangle className="w-3 h-3 text-amber-500 shrink-0" />
-                                  <span>Admission Fee Pending (₹{admAmt.toLocaleString('en-IN')})</span>
-                                </span>
-                              )
-                            )}
-                            {isRes && depAmt > 0 && (
-                              isDepPaid ? (
-                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
-                                  <CheckCircle2 className="w-3 h-3 text-emerald-500 shrink-0" />
-                                  <span>✓ Deposit Paid (₹{depAmt.toLocaleString('en-IN')})</span>
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-600 dark:text-amber-400">
-                                  <AlertTriangle className="w-3 h-3 text-amber-500 shrink-0" />
-                                  <span>Deposit Pending (₹{depAmt.toLocaleString('en-IN')})</span>
-                                </span>
-                              )
-                            )}
-                          </div>
-                        );
-                      })()}
                     </td>
                     <td className="py-3 px-4">
                       <p className="text-slate-800 dark:text-slate-200">
