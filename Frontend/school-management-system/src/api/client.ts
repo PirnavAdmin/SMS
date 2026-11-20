@@ -275,7 +275,18 @@ export const apiClient = async <T = any>(endpoint: string, options: RequestInit 
     throw error;
   }
 
-  // Handle empty responses
+  // Handle empty or malformed responses
   const text = await response.text();
-  return (text ? JSON.parse(text) : null) as T;
+  if (!text || !text.trim()) return null as T;
+  try {
+    return JSON.parse(text) as T;
+  } catch (parseError: any) {
+    console.warn(`[apiClient] JSON parse warning for endpoint "${endpoint}":`, parseError?.message);
+    if (text.trim().startsWith('<') || text.includes('530') || text.includes('Error')) {
+      const err: any = new Error(`Server returned non-JSON response (Status ${response.status})`);
+      err.status = response.status;
+      throw err;
+    }
+    throw parseError;
+  }
 };
