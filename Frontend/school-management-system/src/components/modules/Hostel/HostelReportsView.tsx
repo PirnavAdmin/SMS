@@ -88,7 +88,7 @@ export const HostelReportsView: React.FC = () => {
       return false;
     });
 
-    const activeList = matched.length > 0 ? matched : (blocks.length > 0 ? [blocks[0]] : []);
+    const activeList = matched;
 
     // Synchronize the block's assigned warden with the currently logged-in warden's details
     return activeList.map(b => ({

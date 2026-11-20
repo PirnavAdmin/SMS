@@ -17,24 +17,12 @@ export const HostelMastersView: React.FC<HostelMastersViewProps> = ({
   const userRole = (role || user?.role || '').toLowerCase();
   const isWarden = userRole.includes('warden');
 
-  const [activeSubTab, setActiveSubTab] = useState<'blocks' | 'room-types' | 'rooms' | 'wardens'>(() => {
-    try {
-      const saved = localStorage.getItem('hostel_master_active_subtab') as any;
-      if (saved && ['blocks', 'room-types', 'rooms', 'wardens'].includes(saved)) {
-        if (isWarden && (saved === 'wardens' || saved === 'room-types')) {
-          return 'blocks';
-        }
-        return saved;
-      }
-    } catch {}
-    return isWarden && (initialSubTab === 'wardens' || initialSubTab === 'room-types') ? 'blocks' : initialSubTab;
-  });
+  const [activeSubTab, setActiveSubTab] = useState<'blocks' | 'room-types' | 'rooms' | 'wardens'>(
+    isWarden && (initialSubTab === 'wardens' || initialSubTab === 'room-types') ? 'blocks' : initialSubTab
+  );
 
   const handleSubTabChange = (tabId: 'blocks' | 'room-types' | 'rooms' | 'wardens') => {
     setActiveSubTab(tabId);
-    try {
-      localStorage.setItem('hostel_master_active_subtab', tabId);
-    } catch {}
   };
 
   React.useEffect(() => {
@@ -43,24 +31,12 @@ export const HostelMastersView: React.FC<HostelMastersViewProps> = ({
         ? 'blocks'
         : initialSubTab;
       setActiveSubTab(target);
-      try {
-        localStorage.setItem('hostel_master_active_subtab', target);
-      } catch {}
     }
   }, [initialSubTab, isWarden]);
-  const [sharedHostelFilter, setSharedHostelFilter] = useState(() => {
-    try {
-      return localStorage.getItem('hostel_master_selected_filter') || '';
-    } catch {
-      return '';
-    }
-  });
+  const [sharedHostelFilter, setSharedHostelFilter] = useState('');
 
   const handleSharedHostelFilterChange = (val: string) => {
     setSharedHostelFilter(val);
-    try {
-      localStorage.setItem('hostel_master_selected_filter', val);
-    } catch {}
   };
 
   const allSubTabs = [

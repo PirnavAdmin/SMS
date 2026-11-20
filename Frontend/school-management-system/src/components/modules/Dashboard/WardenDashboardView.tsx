@@ -187,19 +187,50 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
     const uName = (user?.name || '').toLowerCase().trim();
     const uFirst = uName ? uName.split(' ')[0] : '';
     const uEmail = (user?.email || '').toLowerCase().trim();
+    const uEmpId = ((user as any)?.empId || (user as any)?.employeeId || '').toLowerCase().trim();
 
-    const allBlks = blocks.length > 0 ? blocks : contextBlocks;
-    const matched = allBlks.filter(b => {
-      const wName = (b.wardenName || (b as any).warden || '').toLowerCase().trim();
-      const wEmail = (b.email || (b as any).wardenEmail || '').toLowerCase().trim();
-      if (uEmail && wEmail && wEmail === uEmail) return true;
-      if (uFirst && wName && (wName.includes(uFirst) || uFirst.includes(wName.split(' ')[0]))) return true;
+    // Check wardens allocation records first
+    const myWardenAllocations = wardens.filter(w => {
+      const wEmail = (w.emailAddress || w.email || '').toLowerCase().trim();
+      const wEmpId = (w.employeeId || w.empId || '').toLowerCase().trim();
+      const wName = (w.wardenName || w.name || '').toLowerCase().trim();
+      if (uEmpId && wEmpId && uEmpId === wEmpId) return true;
+      if (uEmail && wEmail && uEmail === wEmail) return true;
+      if (uName && wName && (uName === wName || wName.includes(uName) || uName.includes(wName))) return true;
       return false;
     });
 
-    if (matched.length > 0) return matched;
-    return allBlks.length > 0 ? [allBlks[0]] : [];
-  }, [blocks, contextBlocks, user]);
+    const allBlks = blocks.length > 0 ? blocks : contextBlocks;
+    if (myWardenAllocations.length > 0) {
+      const assignedHostelIds = new Set(myWardenAllocations.map(w => String(w.hostelId)));
+      const assignedHostelNames = new Set(myWardenAllocations.map(w => (w.hostelName || '').toLowerCase().trim()));
+      const matched = allBlks.filter(b => 
+        assignedHostelIds.has(String(b.hostelId || b.id)) ||
+        assignedHostelNames.has((b.name || b.hostelName || '').toLowerCase().trim())
+      );
+      if (matched.length > 0) return matched;
+      return myWardenAllocations.map(w => ({
+        id: w.hostelId,
+        hostelId: w.hostelId,
+        name: w.hostelName,
+        hostelName: w.hostelName
+      }));
+    }
+
+    // Direct match on block's warden field
+    const directlyAssigned = allBlks.filter(b => {
+      const wName = (b.wardenName || (b as any).warden || '').toLowerCase().trim();
+      const wEmail = (b.email || (b as any).wardenEmail || '').toLowerCase().trim();
+      if (uEmail && wEmail && wEmail === uEmail) return true;
+      if (uName && wName && (wName === uName || (uFirst && wName.includes(uFirst)))) return true;
+      return false;
+    });
+
+    if (directlyAssigned.length > 0) return directlyAssigned;
+
+    // If not allocated, return empty array (do NOT default to any block)
+    return [];
+  }, [blocks, contextBlocks, wardens, user]);
 
   const activeBlockIds = useMemo(() => {
     return new Set(targetBlocks.map(b => String(b.hostelId || b.id)));
@@ -207,26 +238,28 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
 
   // Dynamic Bed Occupancy Metrics
   const activeBlockRooms = useMemo(() => {
+    if (activeBlockIds.size === 0) return [];
     const allRooms = rooms.length > 0 ? rooms : contextRooms;
-    if (activeBlockIds.size === 0) return allRooms;
     return allRooms.filter(r => r && activeBlockIds.has(String(r.hostelId || r.blockId)));
   }, [rooms, contextRooms, activeBlockIds]);
 
   const totalBedsCount = useMemo(() => {
+    if (targetBlocks.length === 0) return 0;
     const roomsCap = activeBlockRooms.reduce((acc, r) => acc + (Number(r.bedCapacity) || Number(r.capacity) || 0), 0);
     const blocksCap = targetBlocks.reduce((acc, b) => acc + (Number((b as any).totalCapacity) || Number((b as any).capacity) || 0), 0);
     if (roomsCap > 0) return roomsCap;
     if (blocksCap > 0) return blocksCap;
-    return contextBeds.length > 0 ? contextBeds.length : 0;
-  }, [activeBlockRooms, targetBlocks, contextBeds]);
+    return 0;
+  }, [activeBlockRooms, targetBlocks]);
 
   const occupiedBedsCount = useMemo(() => {
+    if (targetBlocks.length === 0) return 0;
     const validAllocs = allocations.filter(a =>
       a && (a.status === 'Active' || !a.status) &&
-      (activeBlockIds.size === 0 || activeBlockIds.has(String(a.hostelId)) || activeBlockRooms.some(r => String(r.roomId) === String(a.roomId)))
+      (activeBlockIds.has(String(a.hostelId)) || activeBlockRooms.some(r => String(r.roomId) === String(a.roomId)))
     );
     return validAllocs.length;
-  }, [allocations, activeBlockIds, activeBlockRooms]);
+  }, [allocations, activeBlockIds, activeBlockRooms, targetBlocks]);
 
   const vacantBedsCount = Math.max(0, totalBedsCount - occupiedBedsCount);
   const bedOccupancyPct = totalBedsCount > 0 ? Math.min(100, Math.round((occupiedBedsCount / totalBedsCount) * 100)) : 0;
@@ -266,41 +299,69 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
     const allBlks = blocks.length > 0 ? blocks : contextBlocks;
     if (allBlks.length > 0) {
       return allBlks.map((b) => {
-        const total = Number((b as any).totalCapacity) || Number((b as any).capacity) || 0;
-        const bAllocs = allocations.filter(a => String(a.hostelId) === String(b.hostelId || b.id) && (a.status === 'Active' || !a.status));
-        const occupied = bAllocs.length > 0 ? bAllocs.length : ((b as any).occupiedBeds !== undefined ? (b as any).occupiedBeds : 0);
-        
-        // Find assigned warden from master or block record
-        const matchedWarden = wardens.find((w: any) =>
-          String(w.hostelId || w.blockId) === String(b.hostelId || b.id) ||
-          (w.hostelName && b.hostelName && String(w.hostelName).toLowerCase().trim() === String(b.hostelName).toLowerCase().trim()) ||
-          (w.hostelName && b.name && String(w.hostelName).toLowerCase().trim() === String(b.name).toLowerCase().trim())
-        );
+        const blockId = String(b.hostelId || b.id || '');
+        const blockName = (b.name || (b as any).hostelName || '').toLowerCase().trim();
 
-        const rawWarden = b.wardenName || (b as any).warden || matchedWarden?.wardenName || matchedWarden?.staffName || matchedWarden?.name || '';
-        const isUnassigned = !rawWarden || rawWarden.toLowerCase().includes('unassigned') || rawWarden.toLowerCase().includes('not assigned');
+        // 1. Strictly match from official Warden Allocation records
+        const matchedWarden = wardens.find((w: any) => {
+          const wHostelId = String(w.hostelId || w.blockId || '');
+          const wHostelName = (w.hostelName || w.blockName || '').toLowerCase().trim();
+          return (wHostelId && wHostelId === blockId) || (wHostelName && blockName && wHostelName === blockName);
+        });
+
+        // 2. Validate warden name against real staff directory
+        let allocatedWardenName = matchedWarden?.wardenName || matchedWarden?.staffName || matchedWarden?.name || '';
+        
+        // If not in wardens table, check if b.wardenName is a REAL staff member from staff directory
+        if (!allocatedWardenName && b.wardenName) {
+          const matchingStaff = (staff || []).find((s: any) => {
+            const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase();
+            const bw = (b.wardenName || '').trim().toLowerCase();
+            const sEmp = (s.empId || s.employeeId || s.id || '').toLowerCase();
+            return (sFullName && sFullName === bw) || (sEmp && bw.includes(sEmp));
+          });
+          if (matchingStaff) {
+            allocatedWardenName = `${matchingStaff.firstName || ''} ${matchingStaff.lastName || ''}`.trim();
+          }
+        }
+
+        const isUnassigned = !allocatedWardenName || 
+          allocatedWardenName.toLowerCase().includes('unassigned') || 
+          allocatedWardenName.toLowerCase().includes('not assigned') ||
+          allocatedWardenName.toLowerCase().includes('action required');
+
+        const blockRooms = (rooms.length > 0 ? rooms : contextRooms).filter(r => 
+          String(r.hostelId || r.blockId) === blockId
+        );
+        const roomsCap = blockRooms.reduce((acc, r) => acc + (Number(r.bedCapacity) || Number(r.capacity) || 0), 0);
+        const total = roomsCap > 0 ? roomsCap : (Number((b as any).totalCapacity) || Number((b as any).capacity) || 0);
+
+        const bAllocs = allocations.filter(a => 
+          String(a.hostelId) === blockId && (a.status === 'Active' || !a.status)
+        );
+        const occupied = bAllocs.length;
 
         return {
-          id: String(b.id || (b as any).hostelId || ''),
+          id: blockId,
           name: b.name || (b as any).hostelName || `Hostel Block ${b.id}`,
-          warden: isUnassigned ? 'Unassigned' : rawWarden,
+          warden: isUnassigned ? 'Unassigned' : allocatedWardenName,
           isUnassigned,
           totalBeds: total,
           occupiedBeds: occupied,
-          pct: Math.min(100, Math.round((occupied / Math.max(1, total)) * 100)),
+          pct: total > 0 ? Math.min(100, Math.round((occupied / total) * 100)) : 0,
         };
       });
     }
 
     return [];
-  }, [blocks, contextBlocks, allocations, wardens]);
+  }, [blocks, contextBlocks, allocations, wardens, rooms, contextRooms, staff]);
 
   // Assigned block name for the logged-in warden
   const assignedBlockName = useMemo(() => {
     if (targetBlocks.length > 0) {
-      return targetBlocks[0].name || (targetBlocks[0] as any).hostelName || 'Hostel Facility';
+      return targetBlocks[0].name || (targetBlocks[0] as any).hostelName || 'Not Assigned';
     }
-    return 'Hostel Facility';
+    return 'Not Assigned';
   }, [targetBlocks]);
 
   const displayName = useMemo(() => {
@@ -376,7 +437,16 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
             <span className="text-[10px] font-black uppercase text-slate-400 dark:text-slate-500 tracking-wider">
               Assigned Block
             </span>
-            <p className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mt-0.5 truncate" title={assignedBlockName}>
+            <p
+              className={`font-black text-slate-900 dark:text-white mt-0.5 truncate ${
+                assignedBlockName.toLowerCase().includes('not assigned')
+                  ? 'text-xs sm:text-sm font-bold'
+                  : assignedBlockName.length > 12
+                  ? 'text-sm sm:text-base'
+                  : 'text-lg sm:text-xl'
+              }`}
+              title={assignedBlockName}
+            >
               {assignedBlockName}
             </p>
 
@@ -786,7 +856,7 @@ export const WardenDashboardView: React.FC<WardenDashboardViewProps> = ({
 
             <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800 text-[11px] text-slate-500">
               <span className="text-[10px] text-slate-400 font-medium">
-                Mandatory night log verification
+                {/* Mandatory night log verification */}
               </span>
               <button
                 onClick={() => onNavigate && onNavigate("hostel-attendance")}

@@ -1387,6 +1387,10 @@ public class HostelService : IHostelService
         int totalCapacity = b.Rooms?.Sum(r => r.RoomType?.BedCapacity ?? 0) ?? 0;
         int activeOccupied = b.Allocations?.Count(a => a.Status == "Active") ?? 0;
 
+        // Check if a warden is allocated to this block in tbl_HostelWardens
+        var assignedWarden = b.Wardens?.FirstOrDefault();
+        string? effectiveWarden = assignedWarden?.WardenName;
+
         return new HostelBlockDto
         {
             HostelId = b.HostelId,
@@ -1394,16 +1398,16 @@ public class HostelService : IHostelService
             HostelCode = b.HostelCode ?? "",
             HostelType = b.HostelType ?? "",
             TotalFloors = b.TotalFloors > 0 ? b.TotalFloors : 1,
-            WardenName = b.WardenName,
-            PrimaryMobileNumber = IsPlaceholderPhone(b.PrimaryMobileNumber) ? null : b.PrimaryMobileNumber,
-            AlternateMobileNumber = IsPlaceholderPhone(b.AlternateMobileNumber) ? null : b.AlternateMobileNumber,
-            Email = IsPlaceholderEmail(b.Email) ? null : b.Email,
+            WardenName = effectiveWarden,
+            PrimaryMobileNumber = IsPlaceholderPhone(assignedWarden?.MobileNumber ?? b.PrimaryMobileNumber) ? null : (assignedWarden?.MobileNumber ?? b.PrimaryMobileNumber),
+            AlternateMobileNumber = assignedWarden?.AlternateMobile ?? b.AlternateMobileNumber,
+            Email = IsPlaceholderEmail(assignedWarden?.EmailAddress ?? b.Email) ? null : (assignedWarden?.EmailAddress ?? b.Email),
             Status = b.Status ?? "",
             Address = b.Address,
             CreatedAt = b.CreatedAt ?? DateTime.UtcNow,
             TotalRooms = b.Rooms?.Count ?? 0,
             OccupiedBeds = activeOccupied,
-            TotalCapacity = totalCapacity
+            TotalCapacity = totalCapacity > 0 ? totalCapacity : 0
         };
     }
 

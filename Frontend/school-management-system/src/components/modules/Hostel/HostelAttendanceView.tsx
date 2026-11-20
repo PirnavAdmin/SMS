@@ -42,7 +42,7 @@ export const HostelAttendanceView: React.FC = () => {
 
     if (matched.length > 0) return matched;
 
-    return blocks.length > 0 ? [blocks[0]] : [];
+    return [];
   }, [blocks, isWarden, user]);
 
   const targetBlocks = isWarden ? wardenAssignedBlocks : blocks;

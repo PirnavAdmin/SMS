@@ -176,7 +176,7 @@ const TeacherSearchDropdown: React.FC<TeacherSearchDropdownProps> = ({
     : (value && isNaN(Number(value)) ? value : '');
 
   return (
-    <div className={`relative ${className}`} ref={dropdownRef}>
+    <div className={`relative ${isOpen ? 'z-50' : 'z-10'} ${className}`} ref={dropdownRef}>
       {/* Trigger Button */}
       <button
         type="button"

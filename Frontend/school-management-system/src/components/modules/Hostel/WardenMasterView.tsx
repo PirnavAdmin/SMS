@@ -56,14 +56,7 @@ export const WardenMasterView: React.FC<WardenMasterViewProps> = ({
       setSearchError(res.isValid ? undefined : (res.error || 'Enter a valid search term.'));
     }
   };
-  const [localFilterHostel, setLocalFilterHostel] = useState(() => {
-    try {
-      const saved = localStorage.getItem('hostel_warden_filter') || localStorage.getItem('hostel_master_selected_filter') || '';
-      return (saved === 'All' || saved === 'ALL_HOSTELS') ? 'ALL_HOSTELS' : saved;
-    } catch {
-      return '';
-    }
-  });
+  const [localFilterHostel, setLocalFilterHostel] = useState('ALL_HOSTELS');
 
   const filterHostel = selectedHostelFilter !== undefined
     ? ((selectedHostelFilter === 'All' || selectedHostelFilter === 'ALL_HOSTELS') ? 'ALL_HOSTELS' : selectedHostelFilter)
@@ -75,14 +68,6 @@ export const WardenMasterView: React.FC<WardenMasterViewProps> = ({
   const handleFilterHostelChange = (val: string) => {
     setCurrentPage(1);
     setLocalFilterHostel(val);
-    try {
-      localStorage.setItem('hostel_warden_filter', val);
-      if (val === 'ALL_HOSTELS') {
-        localStorage.setItem('hostel_master_selected_filter', 'All');
-      } else if (val && val !== 'MANUAL') {
-        localStorage.setItem('hostel_master_selected_filter', val);
-      }
-    } catch {}
     if (onHostelFilterChange) {
       onHostelFilterChange(val === 'ALL_HOSTELS' ? 'All' : val);
     }

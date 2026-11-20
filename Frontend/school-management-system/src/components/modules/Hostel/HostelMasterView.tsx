@@ -57,22 +57,13 @@ export const HostelMasterView: React.FC<HostelMasterViewProps> = ({
     }
   };
 
-  const [localFilterType, setLocalFilterType] = useState(() => {
-    try {
-      return localStorage.getItem('hostel_master_selected_filter') || '';
-    } catch {
-      return '';
-    }
-  });
+  const [localFilterType, setLocalFilterType] = useState('');
 
   const filterType = selectedHostelFilter !== undefined ? selectedHostelFilter : localFilterType;
 
   const handleFilterChange = (val: string) => {
     setCurrentPage(1);
     setLocalFilterType(val);
-    try {
-      localStorage.setItem('hostel_master_selected_filter', val);
-    } catch {}
     if (onHostelFilterChange) {
       onHostelFilterChange(val);
     }
