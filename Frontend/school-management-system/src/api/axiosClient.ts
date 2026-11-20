@@ -246,7 +246,9 @@ axiosClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
     }
   } catch {}
 
-  const branch = localStorage.getItem('selected_branch');
+  const branch = typeof window !== 'undefined'
+    ? (new URLSearchParams(window.location.search).get('branch') || new URLSearchParams(window.location.search).get('branchId') || '')
+    : '';
   if (branch && branch !== 'All Branches' && branch !== 'All') {
     config.headers.set('X-Branch-Id', branch);
   }

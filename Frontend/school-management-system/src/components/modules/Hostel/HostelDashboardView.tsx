@@ -150,17 +150,7 @@ export const HostelDashboardView: React.FC<HostelDashboardViewProps> = ({
       if (matched.length > 0) return matched;
     }
 
-    // 3. Fallback for default branch (Capital Park): legacy blocks without specific other branch address belong to Capital Park
-    const isDefaultBranch = sel.includes('capital') || sel.includes('main') || sel === '1';
-    if (isDefaultBranch) {
-      return baseBlocks.filter((b) => {
-        const addr = (b.address || '').toLowerCase();
-        if (addr.includes('madhapur') || addr.includes('miyapur')) return false;
-        return true;
-      });
-    }
-
-    // If selected branch has no hostels assigned, return empty list
+    // If selected branch has no matching hostels, return empty list
     return [];
   }, [baseBlocks, selectedBranch, dataContext?.hostelMasters]);
 
@@ -431,20 +421,7 @@ export const HostelDashboardView: React.FC<HostelDashboardViewProps> = ({
       ),
   ).size;
 
-  const [dashboardBlockFilter, setDashboardBlockFilterState] = useState(() => {
-    try {
-      return localStorage.getItem('hostel_dashboard_block_filter') || '';
-    } catch {
-      return '';
-    }
-  });
-
-  const setDashboardBlockFilter = (val: string) => {
-    setDashboardBlockFilterState(val);
-    try {
-      localStorage.setItem('hostel_dashboard_block_filter', val);
-    } catch {}
-  };
+  const [dashboardBlockFilter, setDashboardBlockFilter] = useState<string>('');
   const [dashboardSearchQuery, setDashboardSearchQuery] = useState('');
 
   const filteredBlocksList = displayBlocks.filter((b) => {

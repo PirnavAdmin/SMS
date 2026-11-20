@@ -2379,9 +2379,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             };
           });
           setSelectedAcademicYear(created.academicYear);
-          try {
-            localStorage.setItem("selected_academic_year", created.academicYear);
-          } catch {}
         }
         return [...updated, created];
       });
@@ -2448,9 +2445,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       if (isNowActive) {
         const targetAyName = updates.academicYear || id;
         setSelectedAcademicYear(targetAyName);
-        try {
-          localStorage.setItem("selected_academic_year", targetAyName);
-        } catch {}
       }
 
       window.dispatchEvent(new Event("academic_years_updated"));
@@ -2527,9 +2521,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
     // 1. Optimistic immediate state update so UI switches INSTANTLY with zero lag
     setSelectedAcademicYear(target.academicYear);
-    try {
-      localStorage.setItem("selected_academic_year", target.academicYear);
-    } catch {}
 
     setAcademicYears((prev) => {
       return prev.map((a) => {

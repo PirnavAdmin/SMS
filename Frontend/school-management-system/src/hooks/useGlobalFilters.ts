@@ -176,8 +176,8 @@ export function useGlobalFilters() {
               const bList = Array.isArray(bJson) ? bJson : bJson?.data || [];
               const active = bList.find((b: any) => b && b.status !== 'Inactive') || bList[0];
               if (active) {
-                resolvedBranchId = String(active.branchId || active.id || '1');
-                resolvedBranchName = active.branchName || active.name || 'Capital Park';
+                resolvedBranchId = String(active.branchId || active.id || '');
+                resolvedBranchName = active.branchName || active.name || '';
               }
             }
           } catch {}
@@ -192,21 +192,23 @@ export function useGlobalFilters() {
               const yList = Array.isArray(yJson) ? yJson : yJson?.data || [];
               const current = yList.find((y: any) => y.isCurrent || y.isCurrentAcademicYear || y.status === 'Active') || yList[0];
               if (current) {
-                resolvedYearId = String(current.academicYearId || current.id || '1');
-                resolvedYearName = current.academicYear || current.academicYearName || current.year || '2026-27';
+                resolvedYearId = String(current.academicYearId || current.id || '');
+                resolvedYearName = current.academicYear || current.academicYearName || current.year || '';
               }
             }
           } catch {}
         }
 
         if (!controller.signal.aborted) {
-          const nextState: GlobalFilterState = {
-            branchId: resolvedBranchId || '1',
-            branchName: resolvedBranchName || 'Capital Park',
-            academicYearId: resolvedYearId || '1',
-            academicYearName: resolvedYearName || '2026-27',
-          };
-          applyFilters(nextState, true);
+          if (resolvedBranchId || resolvedBranchName || resolvedYearId || resolvedYearName) {
+            const nextState: GlobalFilterState = {
+              branchId: resolvedBranchId || '',
+              branchName: resolvedBranchName || '',
+              academicYearId: resolvedYearId || '',
+              academicYearName: resolvedYearName || '',
+            };
+            applyFilters(nextState, true);
+          }
           setIsInitializing(false);
         }
       } catch (err: any) {

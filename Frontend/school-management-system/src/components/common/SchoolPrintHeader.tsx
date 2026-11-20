@@ -39,8 +39,7 @@ export const SchoolPrintHeader: React.FC<SchoolPrintHeaderProps> = ({
     propAcademicYear ||
     schoolProfile?.academicYear ||
     selectedAcademicYear ||
-    localStorage.getItem('selected_academic_year') ||
-    fallbackAY || '2026-27';
+    fallbackAY || '';
 
   return (
     <div

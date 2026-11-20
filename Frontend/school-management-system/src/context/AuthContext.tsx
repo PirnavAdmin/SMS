@@ -657,9 +657,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (userBranch) {
         setSelectedBranchState(userBranch);
         setActiveBranchHeader(userBranch);
-        try {
-          localStorage.setItem('selected_branch', userBranch);
-        } catch {}
       }
 
       setUser(loggedUser);
