@@ -1653,7 +1653,17 @@ function setGlobalInputError(input: HTMLInputElement | HTMLTextAreaElement, erro
   const container = input.parentElement;
   if (!container) return;
 
+  const isCompositeInputWrapper = Boolean(
+    container.hasAttribute('data-input-wrapper') ||
+    container.classList.contains('input-wrapper') ||
+    (container.tagName.toLowerCase() === 'div' &&
+      input.classList.contains('bg-transparent') &&
+      (container.classList.contains('border') || (container.className || '').includes('border-')) &&
+      container.children.length > 1)
+  );
+
   const isIconWrapper = container.classList.contains('relative') || 
+                        isCompositeInputWrapper ||
                         (container.tagName.toLowerCase() === 'div' && Boolean(container.querySelector('svg.absolute, .pointer-events-none')));
   const targetParent = (isIconWrapper && container.parentElement && container.parentElement !== document.body)
     ? container.parentElement
@@ -1706,7 +1716,7 @@ function setGlobalInputError(input: HTMLInputElement | HTMLTextAreaElement, erro
 
   const shouldAbsolute = !isTargetParentCol && (isSearch || (!isFormField && isInsideHorizontalLayout));
 
-  const directSibling = (isIconWrapper ? container.nextElementSibling : input.nextElementSibling) as HTMLElement | null;
+  const directSibling = ((isIconWrapper || isCompositeInputWrapper) ? container.nextElementSibling : input.nextElementSibling) as HTMLElement | null;
   let errEl = (container.querySelector(':scope > [data-global-validation-error="true"]') ||
                (directSibling && directSibling.getAttribute('data-global-validation-error') === 'true' ? directSibling : null) ||
                container.parentElement?.querySelector(':scope > [data-global-validation-error="true"]')) as HTMLElement | null;
@@ -1714,6 +1724,10 @@ function setGlobalInputError(input: HTMLInputElement | HTMLTextAreaElement, erro
   if (!error) {
     input.removeAttribute('data-global-invalid');
     input.style.borderColor = '';
+    if (container.hasAttribute('data-global-invalid-wrapper')) {
+      container.style.borderColor = '';
+      container.removeAttribute('data-global-invalid-wrapper');
+    }
     container.style.marginBottom = '';
     container.style.alignSelf = '';
     if (container.parentElement) {
@@ -1740,6 +1754,10 @@ function setGlobalInputError(input: HTMLInputElement | HTMLTextAreaElement, erro
 
   input.setAttribute('data-global-invalid', error);
   input.style.borderColor = '#f43f5e';
+  if (isCompositeInputWrapper) {
+    container.style.borderColor = '#f43f5e';
+    container.setAttribute('data-global-invalid-wrapper', 'true');
+  }
 
   // Avoid duplicate error message only if component already rendered its own error paragraph outside <label>
   const existingComponentError = Array.from(targetParent.querySelectorAll('p, span')).find(el => {

@@ -937,13 +937,46 @@ export const CertificateSettingsTab: React.FC = () => {
     setIsPlaceholderModalOpen(true);
   };
 
+  const validateTokenKey = (val: string): boolean => {
+    const trimmed = val.trim();
+    if (!trimmed) {
+      setPlaceholderErrors(prev => ({ ...prev, tokenKey: 'Placeholder Token Key is required.' }));
+      return false;
+    }
+    if (!/^[a-zA-Z][a-zA-Z0-9_]*$/.test(trimmed)) {
+      setPlaceholderErrors(prev => ({
+        ...prev,
+        tokenKey: 'Must start with a letter and contain only letters, numbers, and underscores (e.g. sportsCategory).'
+      }));
+      return false;
+    }
+    if (trimmed.length < 2) {
+      setPlaceholderErrors(prev => ({ ...prev, tokenKey: 'Placeholder key must be at least 2 characters.' }));
+      return false;
+    }
+    if (trimmed.length > 40) {
+      setPlaceholderErrors(prev => ({ ...prev, tokenKey: 'Placeholder key cannot exceed 40 characters.' }));
+      return false;
+    }
+    setPlaceholderErrors(prev => ({ ...prev, tokenKey: undefined }));
+    return true;
+  };
+
   const handleSavePlaceholder = (e: React.FormEvent) => {
     e.preventDefault();
     const newErrors: { tokenKey?: string; category?: string; description?: string } = {};
 
-    if (!placeholderForm.tokenKey.trim()) {
+    const trimmedKey = placeholderForm.tokenKey.trim();
+    if (!trimmedKey) {
       newErrors.tokenKey = 'Placeholder Token Key is required.';
+    } else if (!/^[a-zA-Z][a-zA-Z0-9_]*$/.test(trimmedKey)) {
+      newErrors.tokenKey = 'Must start with a letter and contain only letters, numbers, and underscores (e.g. sportsCategory).';
+    } else if (trimmedKey.length < 2) {
+      newErrors.tokenKey = 'Placeholder key must be at least 2 characters.';
+    } else if (trimmedKey.length > 40) {
+      newErrors.tokenKey = 'Placeholder key cannot exceed 40 characters.';
     }
+
     if (!placeholderForm.category) {
       newErrors.category = 'Please select a Category.';
     }
@@ -2388,15 +2421,28 @@ export const CertificateSettingsTab: React.FC = () => {
                 <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">
                   Placeholder Key Name <span className="text-rose-500 font-bold ml-0.5">*</span>
                 </label>
-                <div className={`flex items-center gap-1 bg-slate-50 dark:bg-slate-800 p-2 rounded-xl border font-mono font-bold text-xs text-sky-600 dark:text-sky-400 ${placeholderErrors.tokenKey ? 'border-rose-500 ring-1 ring-rose-500/20' : 'border-slate-200 dark:border-slate-700'
-                  }`}>
+                <div
+                  data-input-wrapper="true"
+                  className={`flex items-center gap-1 bg-slate-50 dark:bg-slate-800 p-2 rounded-xl border font-mono font-bold text-xs text-sky-600 dark:text-sky-400 ${placeholderErrors.tokenKey ? 'border-rose-500 ring-1 ring-rose-500/20' : 'border-slate-200 dark:border-slate-700'
+                  }`}
+                >
                   <span>{"{{"}</span>
                   <input
                     type="text"
                     value={placeholderForm.tokenKey}
                     onChange={e => {
-                      setPlaceholderForm(prev => ({ ...prev, tokenKey: e.target.value }));
-                      if (e.target.value.trim()) setPlaceholderErrors(prev => ({ ...prev, tokenKey: undefined }));
+                      const val = e.target.value.replace(/[{}]/g, '');
+                      setPlaceholderForm(prev => ({ ...prev, tokenKey: val }));
+                      if (val.trim()) {
+                        validateTokenKey(val);
+                      } else {
+                        setPlaceholderErrors(prev => ({ ...prev, tokenKey: undefined }));
+                      }
+                    }}
+                    onBlur={() => {
+                      if (placeholderForm.tokenKey.trim()) {
+                        validateTokenKey(placeholderForm.tokenKey);
+                      }
                     }}
                     className="w-full bg-transparent outline-none text-slate-900 dark:text-white font-mono font-bold"
                     placeholder="e.g. sportsCategory"
