@@ -37,6 +37,9 @@ export function useApplicationDraft<T extends Record<string, any>>({
   const [draftBannerVisible, setDraftBannerVisible] = useState<boolean>(false);
   const [isDraftRestored, setIsDraftRestored] = useState<boolean>(false);
 
+  const localStorageKey = `app_draft_${formType}_${draftKey}`;
+  const latestPendingDataRef = useRef<{ formData: T; currentStep?: number; applicantName?: string } | null>(null);
+
   // References to keep track of current state without unnecessary re-renders
   const activeDraftRef = useRef<ApplicationDraft<T> | null>(null);
   activeDraftRef.current = activeDraft;
@@ -44,6 +47,29 @@ export function useApplicationDraft<T extends Record<string, any>>({
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isRestoringRef = useRef<boolean>(false);
   const lastSavedJsonRef = useRef<string>('');
+
+  // Synchronously restore from localStorage on initial mount
+  useEffect(() => {
+    try {
+      const cached = localStorage.getItem(localStorageKey);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed && parsed.formData && hasMeaningfulData(parsed.formData)) {
+          setActiveDraft(parsed);
+          setLastSavedAt(new Date(parsed.updatedAt || new Date()));
+          if (onDraftRestored && !isRestoringRef.current) {
+            isRestoringRef.current = true;
+            lastSavedJsonRef.current = JSON.stringify(parsed.formData);
+            onDraftRestored(parsed);
+            setIsDraftRestored(true);
+            setTimeout(() => {
+              isRestoringRef.current = false;
+            }, 300);
+          }
+        }
+      }
+    } catch {}
+  }, [localStorageKey]);
 
   // Helper to check if payload has meaningful data to draft
   const hasMeaningfulData = useCallback(
@@ -186,6 +212,24 @@ export function useApplicationDraft<T extends Record<string, any>>({
       if (isRestoringRef.current) return;
       if (!hasMeaningfulData(formData)) return;
 
+      latestPendingDataRef.current = { formData, currentStep, applicantName };
+
+      // Immediate synchronous persistence to localStorage so data is NEVER lost when switching screens
+      try {
+        localStorage.setItem(
+          localStorageKey,
+          JSON.stringify({
+            id: activeDraftRef.current?.id,
+            formType,
+            draftKey,
+            applicantName,
+            currentStep,
+            formData,
+            updatedAt: new Date().toISOString()
+          })
+        );
+      } catch {}
+
       if (timerRef.current) {
         clearTimeout(timerRef.current);
       }
@@ -194,23 +238,49 @@ export function useApplicationDraft<T extends Record<string, any>>({
         saveDraft(formData, { currentStep, applicantName });
       }, debounceMs);
     },
-    [debounceMs, hasMeaningfulData, saveDraft]
+    [debounceMs, hasMeaningfulData, localStorageKey, saveDraft, formType, draftKey]
   );
 
-  // Cleanup auto-save timer on unmount
+  // Cleanup auto-save timer and flush pending data on unmount
   useEffect(() => {
     return () => {
       if (timerRef.current) {
         clearTimeout(timerRef.current);
       }
+      if (latestPendingDataRef.current && hasMeaningfulData(latestPendingDataRef.current.formData)) {
+        try {
+          localStorage.setItem(
+            localStorageKey,
+            JSON.stringify({
+              id: activeDraftRef.current?.id,
+              formType,
+              draftKey,
+              applicantName: latestPendingDataRef.current.applicantName,
+              currentStep: latestPendingDataRef.current.currentStep,
+              formData: latestPendingDataRef.current.formData,
+              updatedAt: new Date().toISOString()
+            })
+          );
+        } catch {}
+        saveDraft(latestPendingDataRef.current.formData, {
+          currentStep: latestPendingDataRef.current.currentStep,
+          applicantName: latestPendingDataRef.current.applicantName,
+          immediate: true
+        }).catch(() => {});
+      }
     };
-  }, []);
+  }, [hasMeaningfulData, localStorageKey, saveDraft, formType, draftKey]);
 
-  // Discard draft completely from database
+  // Discard draft completely from database and local storage
   const discardDraft = useCallback(
     async (draftId?: number): Promise<boolean> => {
       const targetId = draftId || activeDraftRef.current?.id;
       setSaveStatus('idle');
+      latestPendingDataRef.current = null;
+
+      try {
+        localStorage.removeItem(localStorageKey);
+      } catch {}
 
       try {
         if (targetId) {
@@ -231,13 +301,19 @@ export function useApplicationDraft<T extends Record<string, any>>({
         return false;
       }
     },
-    [formType, draftKey]
+    [formType, draftKey, localStorageKey]
   );
 
   // Clear draft after successful submission
   const completeDraft = useCallback(
     async (draftId?: number) => {
       const targetId = draftId || activeDraftRef.current?.id;
+      latestPendingDataRef.current = null;
+
+      try {
+        localStorage.removeItem(localStorageKey);
+      } catch {}
+
       if (targetId) {
         try {
           await deleteDraftApi(targetId);
@@ -252,7 +328,7 @@ export function useApplicationDraft<T extends Record<string, any>>({
       setIsDraftRestored(false);
       lastSavedJsonRef.current = '';
     },
-    [formType, draftKey]
+    [formType, draftKey, localStorageKey]
   );
 
   return {

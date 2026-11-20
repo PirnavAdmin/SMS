@@ -344,8 +344,7 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
             onClick={() => handleOpenGenerator('offer')}
             className="px-3.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition transform active:scale-95 cursor-pointer whitespace-nowrap"
           >
-            <Plus className="w-3.5 h-3.5" />
-            Generate & Send Letter
+            Generate Offer & Relieving Letter
           </button>
         </div>
       </div>

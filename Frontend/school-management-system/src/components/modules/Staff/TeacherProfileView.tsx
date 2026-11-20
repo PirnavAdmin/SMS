@@ -1229,7 +1229,7 @@ export const TeacherProfileView: React.FC = () => {
               className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold transition shadow-xs cursor-pointer"
             >
               <Eye className="w-4 h-4" />
-              View Issued Appointment Contract
+              View Issued Appointment Letter
             </button>
           </div>
 

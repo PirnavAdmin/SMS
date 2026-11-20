@@ -47,7 +47,38 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { useApplicationDraft } from "../../../hooks/useApplicationDraft";
-import { DraftActionBar } from "../../common/DraftActionBar";
+
+const isStudentAdmissionDataEmpty = (data: any): boolean => {
+  if (!data) return true;
+  const f = data.formData || data;
+  return !(
+    (data.firstName && String(data.firstName).trim()) ||
+    (data.lastName && String(data.lastName).trim()) ||
+    (f.appliedClass && String(f.appliedClass).trim() && String(f.appliedClass).trim() !== "Select Class") ||
+    (f.parentName && String(f.parentName).trim()) ||
+    (f.motherName && String(f.motherName).trim()) ||
+    (f.phone && String(f.phone).trim()) ||
+    (f.email && String(f.email).trim()) ||
+    (f.dob && String(f.dob).trim()) ||
+    (f.addressHouseNo && String(f.addressHouseNo).trim()) ||
+    (f.addressStreet && String(f.addressStreet).trim()) ||
+    (f.addressCity && String(f.addressCity).trim()) ||
+    (data.siblingDetails && Array.isArray(data.siblingDetails) && data.siblingDetails.length > 0)
+  );
+};
+
+const getCachedStudentDraft = () => {
+  try {
+    const raw = localStorage.getItem("app_draft_student_admission_default");
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.formData && !isStudentAdmissionDataEmpty(parsed.formData)) {
+        return parsed.formData;
+      }
+    }
+  } catch {}
+  return null;
+};
 import {
   AdmissionApplication,
   StudentType,
@@ -378,12 +409,25 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
   }, [query, filterClass, filterStatus]);
 
   // View States: Table View vs Full-Page Form View
-  const [isFormView, setIsFormView] = useState(initialFormOpen || false);
+  const [isFormView, setIsFormView] = useState(() => {
+    if (initialFormOpen) return true;
+    try {
+      const wasFormOpen = sessionStorage.getItem("admission_form_active") === "true";
+      const cached = getCachedStudentDraft();
+      if (wasFormOpen && cached) {
+        return true;
+      }
+    } catch {}
+    return false;
+  });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (initialFormOpen) {
       setIsFormView(true);
+      try {
+        sessionStorage.setItem("admission_form_active", "true");
+      } catch {}
     }
   }, [initialFormOpen]);
 
@@ -399,6 +443,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           setQuery(parsed.studentName || parsed.admissionNo);
           setCurrentPage(1);
           setIsFormView(false);
+          sessionStorage.removeItem("admission_form_active");
           addToast(
             "success",
             "Payment Recorded",
@@ -411,6 +456,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
 
   const handleCloseForm = () => {
     setIsFormView(false);
+    try {
+      sessionStorage.removeItem("admission_form_active");
+    } catch {}
     setEditingApp(null);
     setIsSubmitting(false);
     setIsSubmittingForm(false);
@@ -908,79 +956,86 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
   }, [isFormView]);
 
   // Form Fields State
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [avatar, setAvatar] = useState("");
-  const [isCustomCasteCategory, setIsCustomCasteCategory] = useState(false);
-  const [hasSiblings, setHasSiblings] = useState<boolean>(false);
-  const [siblingsCount, setSiblingsCount] = useState<number>(1);
-  const [siblingDetails, setSiblingDetails] = useState<SiblingDetail[]>([]);
-  const [siblingStudentIds, setSiblingStudentIds] = useState<string[]>([]);
+  const cachedStudent = getCachedStudentDraft();
+  const [firstName, setFirstName] = useState(cachedStudent?.firstName || "");
+  const [lastName, setLastName] = useState(cachedStudent?.lastName || "");
+  const [avatar, setAvatar] = useState(cachedStudent?.avatar || "");
+  const [isCustomCasteCategory, setIsCustomCasteCategory] = useState(cachedStudent?.isCustomCasteCategory || false);
+  const [hasSiblings, setHasSiblings] = useState<boolean>(cachedStudent?.hasSiblings || false);
+  const [siblingsCount, setSiblingsCount] = useState<number>(cachedStudent?.siblingsCount ?? 1);
+  const [siblingDetails, setSiblingDetails] = useState<SiblingDetail[]>(cachedStudent?.siblingDetails || []);
+  const [siblingStudentIds, setSiblingStudentIds] = useState<string[]>(cachedStudent?.siblingStudentIds || []);
   const [activeSiblingDropdownIdx, setActiveSiblingDropdownIdx] = useState<
     number | null
   >(null);
   const [siblingSearchQuery, setSiblingSearchQuery] = useState("");
-  const [depositPaymentMode, setDepositPaymentMode] = useState<string>("Cash");
-  const [depositTxnId, setDepositTxnId] = useState<string>("");
+  const [depositPaymentMode, setDepositPaymentMode] = useState<string>(cachedStudent?.depositPaymentMode || "Cash");
+  const [depositTxnId, setDepositTxnId] = useState<string>(cachedStudent?.depositTxnId || "");
   const [depositDate, setDepositDate] = useState<string>(
-    new Date().toISOString().split("T")[0],
+    cachedStudent?.depositDate || new Date().toISOString().split("T")[0],
   );
 
-  const [formData, setFormData] = useState<Partial<AdmissionApplication>>({
-    appliedClass: "",
-    section: "Unassigned",
-    gender: "" as any,
-    dob: "",
-    bloodGroup: "",
-    religion: "",
-    casteCategory: "",
-    parentName: "",
-    motherName: "",
-    email: "",
-    phone: "",
-    addressHouseNo: "",
-    addressStreet: "",
-    addressArea: "",
-    addressCity: "",
-    addressDistrict: "",
-    addressState: "",
-    addressPinCode: "",
-    siblingsCount: 0,
-    siblingStudentId: "",
-    studentType: "" as any,
-    transportRequired: false,
-    transportType: "" as any,
-    busRoute: "",
-    pickupPoint: "",
-    hostelBlock: "",
-    floor: "",
-    hostelRoom: "",
-    hostelBed: "",
-    hostelSecurityDepositPaid: false,
-    securityDepositAmount: 0,
-    securityDepositReceiptNo: "",
-    securityDepositPaymentMode: "Cash",
-    securityDepositTxnId: "",
-    securityDepositDate: new Date().toISOString().split("T")[0],
-    admissionFeePaid: false,
-    admissionFeeAmount: 0,
-    admissionFeeReceiptNo: "",
-    admissionFeePaymentMode: "Cash",
-    admissionFeeTxnId: "",
-    admissionFeeDate: new Date().toISOString().split("T")[0],
-    branch: (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" && dynamicCampuses.includes(selectedBranch))
-      ? selectedBranch
-      : (dynamicCampuses[0] || ""),
-    joiningDate: new Date().toISOString().split("T")[0],
-    admissionDate: new Date().toISOString().split("T")[0],
-    isLateAdmission: false,
-    feeCalculationMethod: "Term-wise",
-    selectedOptionalFees: [],
-    documentsSubmitted: [],
+  const [formData, setFormData] = useState<Partial<AdmissionApplication>>(() => {
+    const defaults = {
+      appliedClass: "",
+      section: "Unassigned",
+      gender: "" as any,
+      dob: "",
+      bloodGroup: "",
+      religion: "",
+      casteCategory: "",
+      parentName: "",
+      motherName: "",
+      email: "",
+      phone: "",
+      addressHouseNo: "",
+      addressStreet: "",
+      addressArea: "",
+      addressCity: "",
+      addressDistrict: "",
+      addressState: "",
+      addressPinCode: "",
+      siblingsCount: 0,
+      siblingStudentId: "",
+      studentType: "" as any,
+      transportRequired: false,
+      transportType: "" as any,
+      busRoute: "",
+      pickupPoint: "",
+      hostelBlock: "",
+      floor: "",
+      hostelRoom: "",
+      hostelBed: "",
+      hostelSecurityDepositPaid: false,
+      securityDepositAmount: 0,
+      securityDepositReceiptNo: "",
+      securityDepositPaymentMode: "Cash",
+      securityDepositTxnId: "",
+      securityDepositDate: new Date().toISOString().split("T")[0],
+      admissionFeePaid: false,
+      admissionFeeAmount: 0,
+      admissionFeeReceiptNo: "",
+      admissionFeePaymentMode: "Cash",
+      admissionFeeTxnId: "",
+      admissionFeeDate: new Date().toISOString().split("T")[0],
+      branch: (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" && dynamicCampuses.includes(selectedBranch))
+        ? selectedBranch
+        : (dynamicCampuses[0] || ""),
+      joiningDate: new Date().toISOString().split("T")[0],
+      admissionDate: new Date().toISOString().split("T")[0],
+      isLateAdmission: false,
+      feeCalculationMethod: "Term-wise",
+      selectedOptionalFees: [],
+      documentsSubmitted: [],
+    };
+    if (cachedStudent?.formData && typeof cachedStudent.formData === "object") {
+      return { ...defaults, ...cachedStudent.formData };
+    }
+    return defaults;
   });
 
   const handleStudentDraftRestored = React.useCallback((draft: any) => {
-    if (draft && draft.formData) {
+    if (draft && draft.formData && !isStudentAdmissionDataEmpty(draft.formData)) {
       const d = draft.formData;
       if (d.firstName !== undefined) setFirstName(d.firstName);
       if (d.lastName !== undefined) setLastName(d.lastName);
@@ -994,24 +1049,21 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       if (d.depositTxnId !== undefined) setDepositTxnId(d.depositTxnId);
       if (d.depositDate !== undefined) setDepositDate(d.depositDate);
       if (d.formData) setFormData((prev) => ({ ...prev, ...d.formData }));
-      setIsFormView(true);
+      if (sessionStorage.getItem("admission_form_active") === "true") {
+        setIsFormView(true);
+      }
     }
   }, []);
 
   const {
     activeDraft: studentDraft,
-    allDrafts: allStudentDrafts,
-    saveStatus: studentDraftSaveStatus,
-    lastSavedAt: studentDraftLastSavedAt,
-    isDraftRestored: isStudentDraftRestored,
-    saveDraft: saveStudentDraft,
     triggerAutoSave: triggerStudentAutoSave,
-    discardDraft: discardStudentDraft,
     completeDraft: completeStudentDraft,
   } = useApplicationDraft<any>({
     formType: "student_admission",
     branch: formData.branch || (selectedBranch && selectedBranch !== "All" ? selectedBranch : undefined),
     academicYear: selectedAcademicYear,
+    isDataEmpty: isStudentAdmissionDataEmpty,
     onDraftRestored: handleStudentDraftRestored,
   });
 
@@ -1059,33 +1111,6 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     studentApplicantName,
     triggerStudentAutoSave,
   ]);
-
-  const handleManualSaveStudentDraft = async () => {
-    const currentDraftPayload = {
-      firstName,
-      lastName,
-      avatar,
-      isCustomCasteCategory,
-      hasSiblings,
-      siblingsCount,
-      siblingDetails,
-      siblingStudentIds,
-      depositPaymentMode,
-      depositTxnId,
-      depositDate,
-      formData,
-    };
-    const res = await saveStudentDraft(currentDraftPayload, {
-      currentStep: 1,
-      applicantName: studentApplicantName || "New Student",
-      manual: true,
-    });
-    if (res) {
-      addToast("success", "Draft Saved", "Student admission draft saved to server.");
-    } else {
-      addToast("warning", "Save Draft", "Please enter some student details before saving draft.");
-    }
-  };
 
   const handleDiscardStudentDraft = async () => {
     await discardStudentDraft();
@@ -1149,7 +1174,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       documentsSubmitted: [],
     });
     setIsFormView(false);
-    addToast("info", "Draft Discarded", "Student admission draft has been discarded from server.");
+    try {
+      sessionStorage.removeItem("admission_form_active");
+    } catch {}
   };
 
   const handleRestoreDraftIntoForm = (draft: any) => {
@@ -1169,7 +1196,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       if (d.formData) setFormData((prev) => ({ ...prev, ...d.formData }));
       setEditingApp(null);
       setIsFormView(true);
-      addToast("info", "Draft Loaded", `Restored draft for ${draft.applicantName || "Student"}.`);
+      try {
+        sessionStorage.setItem("admission_form_active", "true");
+      } catch {}
     }
   };
 
@@ -2331,8 +2360,15 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
   );
 
   const handleOpenAdd = () => {
-    if (studentDraft && studentDraft.formData) {
-      handleRestoreDraftIntoForm(studentDraft);
+    let draftToRestore = studentDraft;
+    if (!draftToRestore) {
+      const cached = getCachedStudentDraft();
+      if (cached && !isStudentAdmissionDataEmpty(cached)) {
+        draftToRestore = { formData: cached, applicantName: `${cached.firstName || ""} ${cached.lastName || ""}`.trim() } as any;
+      }
+    }
+    if (draftToRestore && draftToRestore.formData && !isStudentAdmissionDataEmpty(draftToRestore.formData)) {
+      handleRestoreDraftIntoForm(draftToRestore);
       return;
     }
     setEditingApp(null);
@@ -2379,18 +2415,18 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       floor: "",
       hostelRoom: "",
       hostelBed: "",
-    hostelSecurityDepositPaid: false,
-    securityDepositAmount: 0,
-    securityDepositReceiptNo: "",
-    securityDepositPaymentMode: "Cash",
-    securityDepositTxnId: "",
-    securityDepositDate: new Date().toISOString().split("T")[0],
-    admissionFeePaid: false,
-    admissionFeeAmount: 0,
-    admissionFeeReceiptNo: "",
-    admissionFeePaymentMode: "Cash",
-    admissionFeeTxnId: "",
-    admissionFeeDate: new Date().toISOString().split("T")[0],
+      hostelSecurityDepositPaid: false,
+      securityDepositAmount: 0,
+      securityDepositReceiptNo: "",
+      securityDepositPaymentMode: "Cash",
+      securityDepositTxnId: "",
+      securityDepositDate: new Date().toISOString().split("T")[0],
+      admissionFeePaid: false,
+      admissionFeeAmount: 0,
+      admissionFeeReceiptNo: "",
+      admissionFeePaymentMode: "Cash",
+      admissionFeeTxnId: "",
+      admissionFeeDate: new Date().toISOString().split("T")[0],
       branch: "",
       joiningDate: new Date().toISOString().split("T")[0],
       admissionDate: new Date().toISOString().split("T")[0],
@@ -2410,6 +2446,9 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     setHouseNoError("");
     setCityError("");
     setIsFormView(true);
+    try {
+      sessionStorage.setItem("admission_form_active", "true");
+    } catch {}
   };
 
   const handlePinCodeChange = (pinCode: string) => {
@@ -3992,22 +4031,6 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
             </div>
           </div>
         </div>
-
-        {/* Server Draft Action Bar */}
-        {!editingApp && (
-          <DraftActionBar
-            saveStatus={studentDraftSaveStatus}
-            lastSavedAt={studentDraftLastSavedAt}
-            applicantName={studentApplicantName}
-            currentStep={1}
-            totalSteps={1}
-            isDraftRestored={isStudentDraftRestored}
-            onManualSave={handleManualSaveStudentDraft}
-            onDiscardDraft={handleDiscardStudentDraft}
-            allDrafts={allStudentDrafts}
-            onSelectDraft={handleRestoreDraftIntoForm}
-          />
-        )}
 
         {/* Full Page Layout with Sticky Live Fee Preview Panel */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
@@ -5888,47 +5911,6 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           </button>
         </div>
       </div>
-
-      {/* Pending Application Resume Banner */}
-      {studentDraft && !isFormView && (
-        <div className="flex flex-wrap items-center justify-between gap-3 p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 rounded-2xl text-xs text-amber-900 dark:text-amber-200 shadow-sm animate-in fade-in">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-amber-100 dark:bg-amber-900/50 rounded-xl text-amber-700 dark:text-amber-300">
-              <Clock className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="font-bold text-sm text-slate-900 dark:text-white">
-                Pending Admission Application
-              </div>
-              <div className="text-slate-600 dark:text-slate-400">
-                You have an unfinished application for{" "}
-                <strong>{studentDraft.applicantName || "Student"}</strong>
-                {studentDraft.updatedAt
-                  ? ` • Last saved at ${new Date(studentDraft.updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
-                  : ""}.
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => handleRestoreDraftIntoForm(studentDraft)}
-              className="px-4 py-2 font-bold text-white bg-brand-600 hover:bg-brand-700 rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
-            >
-              <RotateCcw className="w-4 h-4" />
-              Continue Application Entry
-            </button>
-            <button
-              type="button"
-              onClick={handleDiscardStudentDraft}
-              className="px-3 py-2 font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-950/40 rounded-xl transition-colors flex items-center gap-1 cursor-pointer"
-            >
-              <Trash2 className="w-4 h-4" />
-              Discard Draft
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Multi-Filter Bar */}
       <div className="glass-card p-4 rounded-2xl flex flex-col lg:flex-row items-start justify-between gap-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
