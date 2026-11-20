@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import {
   fetchThemeApi,
   updateSchoolDefaultThemeApi,
@@ -301,18 +301,18 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [isDarkMode]);
 
-  const toggleDarkMode = () => setIsDarkMode((prev) => !prev);
+  const toggleDarkMode = useCallback(() => setIsDarkMode((prev) => !prev), []);
 
   // Live preview / transient picker color updates
-  const updateColor = (key: 'primary' | 'secondary' | string, hex: string) => {
+  const updateColor = useCallback((key: 'primary' | 'secondary' | string, hex: string) => {
     if (!hex) return;
-    const cleanHex = hex.startsWith('#') ? hex : `#${hex}`;
+    const cleanHex = (hex.startsWith('#') ? hex : `#${hex}`).toLowerCase();
     if (key === 'primary') {
-      setPrimary(cleanHex);
+      setPrimary((prev) => (prev.toLowerCase() === cleanHex ? prev : cleanHex));
     } else if (key === 'secondary') {
-      setSecondary(cleanHex);
+      setSecondary((prev) => (prev.toLowerCase() === cleanHex ? prev : cleanHex));
     }
-  };
+  }, []);
 
   // Synchronize active colors whenever isLandingPage, isSuperAdminScreen or themes change
   useEffect(() => {
@@ -422,7 +422,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
    * Admin-only / System action: Sets the School Default Theme.
    * This theme is persisted to the backend API and displayed to ALL users across all devices.
    */
-  const applySchoolDefaultTheme = async (newPrimary: string, newSecondary: string): Promise<void> => {
+  const applySchoolDefaultTheme = useCallback(async (newPrimary: string, newSecondary: string): Promise<void> => {
     const p = newPrimary || primary;
     const s = newSecondary || secondary;
     const updatedTheme: ThemeColors = {
@@ -464,14 +464,14 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     try {
       window.dispatchEvent(new CustomEvent('school_theme_changed', { detail: updatedTheme }));
     } catch {}
-  };
+  }, [primary, secondary]);
 
   /**
    * SuperAdmin-only action: Sets the Super Admin Platform Theme.
    * This theme is persisted to the backend API and applied ONLY to Super Admin screens.
    * DOES NOT modify or overwrite the school-wide default theme.
    */
-  const applySuperAdminTheme = async (newPrimary: string, newSecondary: string): Promise<void> => {
+  const applySuperAdminTheme = useCallback(async (newPrimary: string, newSecondary: string): Promise<void> => {
     const p = newPrimary || primary;
     const s = newSecondary || secondary;
     const updatedTheme: ThemeColors = {
@@ -502,12 +502,12 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     try {
       window.dispatchEvent(new CustomEvent('superadmin_theme_changed', { detail: updatedTheme }));
     } catch {}
-  };
+  }, [primary, secondary, isSuperAdminScreen]);
 
   /**
    * SuperAdmin action: Resets Super Admin theme back to system default.
    */
-  const resetSuperAdminTheme = async (): Promise<void> => {
+  const resetSuperAdminTheme = useCallback(async (): Promise<void> => {
     const defaultTheme: ThemeColors = {
       ...DEFAULT_THEME,
       updatedAt: new Date().toISOString(),
@@ -533,13 +533,13 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     try {
       window.dispatchEvent(new CustomEvent('superadmin_theme_changed', { detail: defaultTheme }));
     } catch {}
-  };
+  }, [isSuperAdminScreen]);
 
   /**
    * User action: Sets a personal theme for this user account.
    * Applies only within this user's screen; DOES NOT affect other users.
    */
-  const applyUserTheme = async (newPrimary: string, newSecondary: string, targetKey?: string): Promise<void> => {
+  const applyUserTheme = useCallback(async (newPrimary: string, newSecondary: string, targetKey?: string): Promise<void> => {
     const p = newPrimary || primary;
     const s = newSecondary || secondary;
     const key = targetKey || getActiveUserKey();
@@ -577,21 +577,21 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         })
       );
     } catch {}
-  };
+  }, [primary, secondary]);
 
   /**
    * Generic applyTheme fallback: applies as personal user theme.
    */
-  const applyTheme = (newPrimary?: string, newSecondary?: string) => {
+  const applyTheme = useCallback((newPrimary?: string, newSecondary?: string) => {
     const p = newPrimary || primary;
     const s = newSecondary || secondary;
     return applyUserTheme(p, s);
-  };
+  }, [primary, secondary, applyUserTheme]);
 
   /**
    * User action: Clears personal theme override and restores the School Default Theme.
    */
-  const resetUserTheme = async (targetKey?: string): Promise<void> => {
+  const resetUserTheme = useCallback(async (targetKey?: string): Promise<void> => {
     const key = targetKey || getActiveUserKey();
     if (key && key !== 'default') {
       try {
@@ -620,12 +620,12 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         })
       );
     } catch {}
-  };
+  }, [schoolDefaultTheme]);
 
   /**
    * Admin action: Resets the School Default Theme back to the original Sky & Amber system default.
    */
-  const resetSchoolDefaultTheme = async (): Promise<void> => {
+  const resetSchoolDefaultTheme = useCallback(async (): Promise<void> => {
     const defaultTheme: ThemeColors = {
       ...DEFAULT_THEME,
       updatedAt: new Date().toISOString(),
@@ -662,20 +662,20 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     try {
       window.dispatchEvent(new CustomEvent('school_theme_changed', { detail: defaultTheme }));
     } catch {}
-  };
+  }, []);
 
-  const resetTheme = () => {
+  const resetTheme = useCallback(() => {
     if (isUserOverride) {
       resetUserTheme();
     } else {
       resetSchoolDefaultTheme();
     }
-  };
+  }, [isUserOverride, resetUserTheme, resetSchoolDefaultTheme]);
 
-  const applyPreset = (newPrimary: string, newSecondary: string) => {
+  const applyPreset = useCallback((newPrimary: string, newSecondary: string) => {
     if (newPrimary) setPrimary(newPrimary);
     if (newSecondary) setSecondary(newSecondary);
-  };
+  }, []);
 
   // Re-evaluates active theme based on current auth user and localStorage state
   const refreshTheme = useCallback(() => {
@@ -771,32 +771,57 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
   }, [refreshTheme, isSuperAdminScreen]);
 
-  const contextValue: ThemeContextType = {
-    primary,
-    secondary,
-    colors: { primary, secondary },
-    schoolDefaultTheme,
-    superAdminTheme,
-    isSuperAdminScreen,
-    setIsSuperAdminScreen,
-    isLandingPage,
-    setIsLandingPage,
-    isUserOverride,
-    activeUserKey,
-    updateColor,
-    applyTheme,
-    applySchoolDefaultTheme,
-    applySuperAdminTheme,
-    applyUserTheme,
-    resetTheme,
-    resetUserTheme,
-    resetSchoolDefaultTheme,
-    resetSuperAdminTheme,
-    applyPreset,
-    refreshTheme,
-    isDarkMode,
-    toggleDarkMode,
-  };
+  const contextValue = useMemo<ThemeContextType>(
+    () => ({
+      primary,
+      secondary,
+      colors: { primary, secondary },
+      schoolDefaultTheme,
+      superAdminTheme,
+      isSuperAdminScreen,
+      setIsSuperAdminScreen,
+      isLandingPage,
+      setIsLandingPage,
+      isUserOverride,
+      activeUserKey,
+      updateColor,
+      applyTheme,
+      applySchoolDefaultTheme,
+      applySuperAdminTheme,
+      applyUserTheme,
+      resetTheme,
+      resetUserTheme,
+      resetSchoolDefaultTheme,
+      resetSuperAdminTheme,
+      applyPreset,
+      refreshTheme,
+      isDarkMode,
+      toggleDarkMode,
+    }),
+    [
+      primary,
+      secondary,
+      schoolDefaultTheme,
+      superAdminTheme,
+      isSuperAdminScreen,
+      isLandingPage,
+      isUserOverride,
+      activeUserKey,
+      updateColor,
+      applyTheme,
+      applySchoolDefaultTheme,
+      applySuperAdminTheme,
+      applyUserTheme,
+      resetTheme,
+      resetUserTheme,
+      resetSchoolDefaultTheme,
+      resetSuperAdminTheme,
+      applyPreset,
+      refreshTheme,
+      isDarkMode,
+      toggleDarkMode,
+    ]
+  );
 
   return (
     <ThemeContext.Provider value={contextValue}>

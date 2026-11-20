@@ -458,6 +458,15 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     setIsFormView(false);
     try {
       sessionStorage.removeItem("admission_form_active");
+      const prefix = "app_draft_student_admission";
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && (k === prefix || k.startsWith(`${prefix}_`))) {
+          keysToRemove.push(k);
+        }
+      }
+      keysToRemove.forEach(k => localStorage.removeItem(k));
     } catch {}
     setEditingApp(null);
     setIsSubmitting(false);
@@ -1059,6 +1068,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     activeDraft: studentDraft,
     triggerAutoSave: triggerStudentAutoSave,
     completeDraft: completeStudentDraft,
+    resetDraft: resetStudentDraft,
   } = useApplicationDraft<any>({
     formType: "student_admission",
     branch: formData.branch || (selectedBranch && selectedBranch !== "All" ? selectedBranch : undefined),
@@ -2360,17 +2370,15 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
   );
 
   const handleOpenAdd = () => {
-    let draftToRestore = studentDraft;
-    if (!draftToRestore) {
-      const cached = getCachedStudentDraft();
-      if (cached && !isStudentAdmissionDataEmpty(cached)) {
-        draftToRestore = { formData: cached, applicantName: `${cached.firstName || ""} ${cached.lastName || ""}`.trim() } as any;
-      }
-    }
-    if (draftToRestore && draftToRestore.formData && !isStudentAdmissionDataEmpty(draftToRestore.formData)) {
-      handleRestoreDraftIntoForm(draftToRestore);
+    // Only restore if an unsubmitted in-progress draft is actively cached in localStorage
+    const cached = getCachedStudentDraft();
+    if (cached && !isStudentAdmissionDataEmpty(cached)) {
+      handleRestoreDraftIntoForm({ formData: cached, applicantName: `${cached.firstName || ""} ${cached.lastName || ""}`.trim() });
       return;
     }
+    try {
+      resetStudentDraft();
+    } catch {}
     setEditingApp(null);
     setFirstName("");
     setLastName("");
@@ -3344,6 +3352,21 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           "Application Updated",
           `Updated details for ${fullApplicantName}`,
         );
+        try {
+          await completeStudentDraft();
+        } catch {}
+        try {
+          const prefix = "app_draft_student_admission";
+          const keysToRemove: string[] = [];
+          for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (k && (k === prefix || k.startsWith(`${prefix}_`))) {
+              keysToRemove.push(k);
+            }
+          }
+          keysToRemove.forEach(k => localStorage.removeItem(k));
+          sessionStorage.removeItem("admission_form_active");
+        } catch {}
       } else {
         const admissionPayload = {
           applicantName: fullApplicantName,
@@ -3509,8 +3532,22 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           "Application Submitted",
           `Application registered for ${fullApplicantName}`,
         );
-        // Clear server draft on successful submission
-        completeStudentDraft().catch(() => {});
+        // Clear server and localStorage draft on successful submission
+        try {
+          await completeStudentDraft();
+        } catch {}
+        try {
+          const prefix = "app_draft_student_admission";
+          const keysToRemove: string[] = [];
+          for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (k && (k === prefix || k.startsWith(`${prefix}_`))) {
+              keysToRemove.push(k);
+            }
+          }
+          keysToRemove.forEach(k => localStorage.removeItem(k));
+          sessionStorage.removeItem("admission_form_active");
+        } catch {}
       }
 
       handleCloseForm();

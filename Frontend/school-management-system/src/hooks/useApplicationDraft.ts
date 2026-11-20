@@ -38,6 +38,7 @@ export function useApplicationDraft<T extends Record<string, any>>({
   const [isDraftRestored, setIsDraftRestored] = useState<boolean>(false);
 
   const localStorageKey = `app_draft_${formType}_${draftKey}`;
+  const isCompletedRef = useRef<boolean>(false);
   const latestPendingDataRef = useRef<{ formData: T; currentStep?: number; applicantName?: string } | null>(null);
 
   // References to keep track of current state without unnecessary re-renders
@@ -147,6 +148,7 @@ export function useApplicationDraft<T extends Record<string, any>>({
         manual?: boolean;
       }
     ): Promise<ApplicationDraft<T> | null> => {
+      if (isCompletedRef.current) return null;
       if (isRestoringRef.current) return null;
 
       if (!hasMeaningfulData(formData)) {
@@ -209,6 +211,7 @@ export function useApplicationDraft<T extends Record<string, any>>({
   // Trigger debounced auto-save on form data change
   const triggerAutoSave = useCallback(
     (formData: T, currentStep?: number, applicantName?: string) => {
+      if (isCompletedRef.current) return;
       if (isRestoringRef.current) return;
       if (!hasMeaningfulData(formData)) return;
 
@@ -235,6 +238,7 @@ export function useApplicationDraft<T extends Record<string, any>>({
       }
 
       timerRef.current = setTimeout(() => {
+        if (isCompletedRef.current) return;
         saveDraft(formData, { currentStep, applicantName });
       }, debounceMs);
     },
@@ -246,6 +250,10 @@ export function useApplicationDraft<T extends Record<string, any>>({
     return () => {
       if (timerRef.current) {
         clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
+      if (isCompletedRef.current) {
+        return; // Record was completed / submitted! Do not re-save draft!
       }
       if (latestPendingDataRef.current && hasMeaningfulData(latestPendingDataRef.current.formData)) {
         try {
@@ -271,16 +279,34 @@ export function useApplicationDraft<T extends Record<string, any>>({
     };
   }, [hasMeaningfulData, localStorageKey, saveDraft, formType, draftKey]);
 
+  const clearLocalStorageForForm = useCallback(() => {
+    try {
+      localStorage.removeItem(localStorageKey);
+      const prefix = `app_draft_${formType}`;
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && (k === prefix || k.startsWith(`${prefix}_`))) {
+          keysToRemove.push(k);
+        }
+      }
+      keysToRemove.forEach(k => localStorage.removeItem(k));
+    } catch {}
+  }, [formType, localStorageKey]);
+
   // Discard draft completely from database and local storage
   const discardDraft = useCallback(
     async (draftId?: number): Promise<boolean> => {
+      isCompletedRef.current = true;
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
       const targetId = draftId || activeDraftRef.current?.id;
       setSaveStatus('idle');
       latestPendingDataRef.current = null;
 
-      try {
-        localStorage.removeItem(localStorageKey);
-      } catch {}
+      clearLocalStorageForForm();
 
       try {
         if (targetId) {
@@ -301,18 +327,26 @@ export function useApplicationDraft<T extends Record<string, any>>({
         return false;
       }
     },
-    [formType, draftKey, localStorageKey]
+    [formType, draftKey, clearLocalStorageForForm]
   );
 
   // Clear draft after successful submission
   const completeDraft = useCallback(
     async (draftId?: number) => {
-      const targetId = draftId || activeDraftRef.current?.id;
+      isCompletedRef.current = true;
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+      }
       latestPendingDataRef.current = null;
 
-      try {
-        localStorage.removeItem(localStorageKey);
-      } catch {}
+      clearLocalStorageForForm();
+
+      const targetId = draftId || activeDraftRef.current?.id;
+      setActiveDraft(null);
+      setDraftBannerVisible(false);
+      setIsDraftRestored(false);
+      lastSavedJsonRef.current = '';
 
       if (targetId) {
         try {
@@ -323,13 +357,24 @@ export function useApplicationDraft<T extends Record<string, any>>({
           await deleteActiveDraftApi(formType, draftKey);
         } catch {}
       }
-      setActiveDraft(null);
-      setDraftBannerVisible(false);
-      setIsDraftRestored(false);
-      lastSavedJsonRef.current = '';
     },
-    [formType, draftKey, localStorageKey]
+    [formType, draftKey, clearLocalStorageForForm]
   );
+
+  // Reset draft state so a fresh form session can start cleanly without leftover data
+  const resetDraft = useCallback(() => {
+    isCompletedRef.current = false;
+    latestPendingDataRef.current = null;
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    setActiveDraft(null);
+    setDraftBannerVisible(false);
+    setIsDraftRestored(false);
+    lastSavedJsonRef.current = '';
+    clearLocalStorageForForm();
+  }, [clearLocalStorageForForm]);
 
   return {
     activeDraft,
@@ -344,6 +389,7 @@ export function useApplicationDraft<T extends Record<string, any>>({
     triggerAutoSave,
     discardDraft,
     completeDraft,
+    resetDraft,
     refreshDrafts: loadDraftsFromServer
   };
 }

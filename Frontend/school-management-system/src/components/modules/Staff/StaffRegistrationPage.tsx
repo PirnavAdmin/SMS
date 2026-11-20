@@ -110,7 +110,8 @@ export const StaffRegistrationPage: React.FC<StaffRegistrationPageProps> = ({ on
 
   const {
     triggerAutoSave,
-    completeDraft
+    completeDraft,
+    resetDraft
   } = useApplicationDraft<BasicStaffFormState>({
     formType: 'staff_registration',
     branch: form.branch || selectedBranch,
@@ -289,7 +290,7 @@ export const StaffRegistrationPage: React.FC<StaffRegistrationPageProps> = ({ on
     return nextErrors;
   };
 
-  const handleSubmit = (e?: React.FormEvent) => {
+  const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     const validationErrors = validate();
     const errorKeys = Object.keys(validationErrors);
@@ -301,61 +302,80 @@ export const StaffRegistrationPage: React.FC<StaffRegistrationPageProps> = ({ on
 
     setSubmitting(true);
 
-    const isTeaching = normalizeStaffType(form.employeeCategory) === 'Teaching Staff';
-    let duplicateConflict: any = null;
-    if (isTeaching && form.designation && form.assignedSubjects && form.assignedSubjects.length > 0 && form.assignedClasses && form.assignedClasses.length > 0) {
-      duplicateConflict = staff.find(s => {
-        const category = s.employeeCategory || s.role || '';
-        const isTeachingStaff = category === 'Teacher' || category === 'Teaching Staff';
-        if (!isTeachingStaff) return false;
-        if (s.designation?.trim().toLowerCase() !== form.designation.trim().toLowerCase()) return false;
-        
-        const otherSubjects = s.assignedSubjects || [];
-        const hasCommonSubject = (form.assignedSubjects || []).some(subj => 
-          otherSubjects.some(os => os.trim().toLowerCase() === subj.trim().toLowerCase())
-        );
-        if (!hasCommonSubject) return false;
+    try {
+      const isTeaching = normalizeStaffType(form.employeeCategory) === 'Teaching Staff';
+      let duplicateConflict: any = null;
+      if (isTeaching && form.designation && form.assignedSubjects && form.assignedSubjects.length > 0 && form.assignedClasses && form.assignedClasses.length > 0) {
+        duplicateConflict = staff.find(s => {
+          const category = s.employeeCategory || s.role || '';
+          const isTeachingStaff = category === 'Teacher' || category === 'Teaching Staff';
+          if (!isTeachingStaff) return false;
+          if (s.designation?.trim().toLowerCase() !== form.designation.trim().toLowerCase()) return false;
+          
+          const otherSubjects = s.assignedSubjects || [];
+          const hasCommonSubject = (form.assignedSubjects || []).some(subj => 
+            otherSubjects.some(os => os.trim().toLowerCase() === subj.trim().toLowerCase())
+          );
+          if (!hasCommonSubject) return false;
 
-        const otherClasses = s.assignedClasses || [];
-        return (form.assignedClasses || []).some(cls =>
-          otherClasses.some(oc => oc.trim().toLowerCase() === cls.trim().toLowerCase())
-        );
+          const otherClasses = s.assignedClasses || [];
+          return (form.assignedClasses || []).some(cls =>
+            otherClasses.some(oc => oc.trim().toLowerCase() === cls.trim().toLowerCase())
+          );
+        });
+      }
+
+      const payload = buildBasicStaffCreatePayload(form);
+      const added = addStaff(payload);
+
+      // Permanently complete and purge draft from server and localStorage
+      try {
+        await completeDraft();
+      } catch {}
+
+      try {
+        const prefix = 'app_draft_staff_registration';
+        const keysToRemove: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && (k === prefix || k.startsWith(`${prefix}_`))) {
+            keysToRemove.push(k);
+          }
+        }
+        keysToRemove.forEach(k => localStorage.removeItem(k));
+        sessionStorage.removeItem('staff-registration-category');
+        delete (window as any).staffRegistrationCategory;
+      } catch {
+        // Ignore storage errors.
+      }
+
+      // Reset form state to initial blank defaults
+      setForm({
+        ...defaultBasicStaffFormState(''),
+        employeeCategory: '',
+        branch: '',
+        empId: ''
       });
-    }
+      setCurrentStep(1);
 
-    const payload = buildBasicStaffCreatePayload(form);
-    const added = addStaff(payload);
-
-    // Clean up draft from server after successful submission
-    completeDraft().catch(() => {});
-
-    try {
-      sessionStorage.removeItem('staff-registration-category');
-    } catch {
-      // Ignore session storage errors.
-    }
-    try {
-      delete (window as any).staffRegistrationCategory;
-    } catch {
-      // Ignore
-    }
-
-    addToast(
-      'success',
-      'Employee created',
-      `${added.firstName} ${added.lastName} has been added to the directory.`
-    );
-
-    if (duplicateConflict) {
       addToast(
-        'warning',
-        'Workload Conflict Detected',
-        `${duplicateConflict.name || `${duplicateConflict.firstName} ${duplicateConflict.lastName}`} also teaches this subject as a ${duplicateConflict.designation}.`
+        'success',
+        'Employee created',
+        `${added.firstName} ${added.lastName} has been added to the directory.`
       );
-    }
 
-    setSubmitting(false);
-    onNavigate(isTeaching ? 'staff-directory' : 'staff-non-teaching');
+      if (duplicateConflict) {
+        addToast(
+          'warning',
+          'Workload Conflict Detected',
+          `${duplicateConflict.name || `${duplicateConflict.firstName} ${duplicateConflict.lastName}`} also teaches this subject as a ${duplicateConflict.designation}.`
+        );
+      }
+
+      onNavigate(isTeaching ? 'staff-directory' : 'staff-non-teaching');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
