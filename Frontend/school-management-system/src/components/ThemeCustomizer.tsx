@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { HexColorPicker, HexColorInput } from 'react-colorful';
-import { useTheme, DEFAULT_THEME } from '../context/ThemeContext';
+import { useTheme, DEFAULT_THEME, applyThemeToDocument } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import {
@@ -91,6 +91,15 @@ const PRESET_THEMES: PresetTheme[] = [
 const PRIMARY_SWATCHES: string[] = ['#0284c7', '#059669', '#4f46e5', '#7c3aed', '#dc2626', '#0f172a'];
 const SECONDARY_SWATCHES: string[] = ['#f59e0b', '#f43f5e', '#ec4899', '#eab308', '#06b6d4', '#64748b'];
 
+const normalizeHex = (hex: string): string => {
+  if (!hex) return '';
+  let clean = hex.startsWith('#') ? hex.slice(1) : hex;
+  if (clean.length === 3) {
+    clean = clean.split('').map((c) => c + c).join('');
+  }
+  return `#${clean}`.toLowerCase();
+};
+
 export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ className = '', onClose }) => {
   const {
     primary,
@@ -113,6 +122,7 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ className = ''
   const initialPrimaryRef = useRef(primary);
   const initialSecondaryRef = useRef(secondary);
   const isAppliedRef = useRef(false);
+  const isSelfUpdatingRef = useRef(false);
 
   let authUser: any = null;
   let authRole: string | null = null;
@@ -182,53 +192,92 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ className = ''
 
   const [activeTab, setActiveTab] = useState<'presets' | 'custom'>('presets');
   const [selectedPrimary, setSelectedPrimary] = useState<string>(() => {
-    if (isSuperAdminMode) return superAdminTheme?.primary || primary || DEFAULT_THEME.primary;
-    return primary || DEFAULT_THEME.primary;
+    if (isSuperAdminMode) return normalizeHex(superAdminTheme?.primary || primary || DEFAULT_THEME.primary);
+    return normalizeHex(primary || DEFAULT_THEME.primary);
   });
   const [selectedSecondary, setSelectedSecondary] = useState<string>(() => {
-    if (isSuperAdminMode) return superAdminTheme?.secondary || secondary || DEFAULT_THEME.secondary;
-    return secondary || DEFAULT_THEME.secondary;
+    if (isSuperAdminMode) return normalizeHex(superAdminTheme?.secondary || secondary || DEFAULT_THEME.secondary);
+    return normalizeHex(secondary || DEFAULT_THEME.secondary);
   });
+
+  const selectedPrimaryRef = useRef(selectedPrimary);
+  const selectedSecondaryRef = useRef(selectedSecondary);
+
+  useEffect(() => {
+    selectedPrimaryRef.current = selectedPrimary;
+  }, [selectedPrimary]);
+
+  useEffect(() => {
+    selectedSecondaryRef.current = selectedSecondary;
+  }, [selectedSecondary]);
 
   // Sync state if context primary/secondary changes externally
   useEffect(() => {
+    if (isSelfUpdatingRef.current) {
+      // Ignore external sync if the change originated from local user interaction
+      isSelfUpdatingRef.current = false;
+      return;
+    }
     if (isSuperAdminMode) {
-      if (superAdminTheme?.primary) setSelectedPrimary(superAdminTheme.primary);
-      if (superAdminTheme?.secondary) setSelectedSecondary(superAdminTheme.secondary);
+      if (superAdminTheme?.primary) {
+        const norm = normalizeHex(superAdminTheme.primary);
+        setSelectedPrimary((prev) => (prev.toLowerCase() === norm ? prev : norm));
+      }
+      if (superAdminTheme?.secondary) {
+        const norm = normalizeHex(superAdminTheme.secondary);
+        setSelectedSecondary((prev) => (prev.toLowerCase() === norm ? prev : norm));
+      }
     } else {
-      if (primary) setSelectedPrimary(primary);
-      if (secondary) setSelectedSecondary(secondary);
+      if (primary) {
+        const norm = normalizeHex(primary);
+        setSelectedPrimary((prev) => (prev.toLowerCase() === norm ? prev : norm));
+      }
+      if (secondary) {
+        const norm = normalizeHex(secondary);
+        setSelectedSecondary((prev) => (prev.toLowerCase() === norm ? prev : norm));
+      }
     }
   }, [isSuperAdminMode, superAdminTheme, primary, secondary]);
 
-  const handlePrimaryChange = (hex: string) => {
+  const handlePrimaryChange = useCallback((hex: string) => {
     if (!hex) return;
-    const cleanHex = hex.startsWith('#') ? hex : `#${hex}`;
+    const cleanHex = normalizeHex(hex);
+    if (selectedPrimaryRef.current.toLowerCase() === cleanHex) return;
+    isSelfUpdatingRef.current = true;
     setSelectedPrimary(cleanHex);
+    applyThemeToDocument(cleanHex, selectedSecondaryRef.current);
     updateColor?.('primary', cleanHex);
-  };
+  }, [updateColor]);
 
-  const handleSecondaryChange = (hex: string) => {
+  const handleSecondaryChange = useCallback((hex: string) => {
     if (!hex) return;
-    const cleanHex = hex.startsWith('#') ? hex : `#${hex}`;
+    const cleanHex = normalizeHex(hex);
+    if (selectedSecondaryRef.current.toLowerCase() === cleanHex) return;
+    isSelfUpdatingRef.current = true;
     setSelectedSecondary(cleanHex);
+    applyThemeToDocument(selectedPrimaryRef.current, cleanHex);
     updateColor?.('secondary', cleanHex);
-  };
+  }, [updateColor]);
 
-  const handleSelectPreset = (p: string, s: string) => {
-    setSelectedPrimary(p);
-    setSelectedSecondary(s);
-    updateColor?.('primary', p);
-    updateColor?.('secondary', s);
-  };
+  const handleSelectPreset = useCallback((p: string, s: string) => {
+    const cleanP = normalizeHex(p);
+    const cleanS = normalizeHex(s);
+    isSelfUpdatingRef.current = true;
+    setSelectedPrimary(cleanP);
+    setSelectedSecondary(cleanS);
+    applyThemeToDocument(cleanP, cleanS);
+    updateColor?.('primary', cleanP);
+    updateColor?.('secondary', cleanS);
+  }, [updateColor]);
 
-  const handleModalClose = () => {
+  const handleModalClose = useCallback(() => {
     if (!isAppliedRef.current) {
+      applyThemeToDocument(initialPrimaryRef.current, initialSecondaryRef.current);
       updateColor?.('primary', initialPrimaryRef.current);
       updateColor?.('secondary', initialSecondaryRef.current);
     }
     onClose?.();
-  };
+  }, [onClose, updateColor]);
 
   // Determine if Reset button should be disabled
   const isResetDisabled = useMemo<boolean>(() => {
@@ -358,6 +407,7 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ className = ''
   const handleReset = async () => {
     setIsSaving(true);
     isAppliedRef.current = true;
+    isSelfUpdatingRef.current = true;
     try {
       if (isSuperAdminMode) {
         // Super Admin resets platform theme back to system default (Sky & Amber)
@@ -368,6 +418,7 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ className = ''
         }
         setSelectedPrimary(DEFAULT_THEME.primary);
         setSelectedSecondary(DEFAULT_THEME.secondary);
+        applyThemeToDocument(DEFAULT_THEME.primary, DEFAULT_THEME.secondary);
         if (addToast) {
           addToast('info', 'Super Admin Theme Reset', 'Restored default platform theme colors for Super Admin.');
         }
@@ -380,6 +431,7 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ className = ''
         }
         setSelectedPrimary(DEFAULT_THEME.primary);
         setSelectedSecondary(DEFAULT_THEME.secondary);
+        applyThemeToDocument(DEFAULT_THEME.primary, DEFAULT_THEME.secondary);
         if (addToast) {
           addToast('info', 'School Theme Reset', 'Restored default school colors (Sky & Amber) for all users.');
         }
@@ -393,6 +445,7 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ className = ''
         const schoolTheme = schoolDefaultTheme || DEFAULT_THEME;
         setSelectedPrimary(schoolTheme.primary);
         setSelectedSecondary(schoolTheme.secondary);
+        applyThemeToDocument(schoolTheme.primary, schoolTheme.secondary);
         if (addToast) {
           addToast('info', 'Personal Theme Cleared', 'Restored the school default theme set by administration.');
         }
