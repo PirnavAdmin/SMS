@@ -893,7 +893,7 @@ export const StaffList: React.FC<{
       </div>
 
       {/* Advanced Filters Block (Hidden in Print) */}
-      <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3 shadow-sm no-print">
+      <div className={`glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3 shadow-sm no-print relative ${deptDropdownOpen || designationDropdownOpen ? 'z-40' : 'z-20'}`}>
         <div className="flex flex-col md:flex-row flex-wrap items-start gap-3">
           {/* Query search */}
           <div className="flex-[2] min-w-[240px] w-full">
@@ -933,7 +933,7 @@ export const StaffList: React.FC<{
           {/* Department */}
           <div
             ref={deptDropdownRef}
-            className="relative flex-1 min-w-[140px] w-full"
+            className={`relative flex-1 min-w-[140px] w-full ${deptDropdownOpen ? 'z-50' : 'z-10'}`}
           >
             <div
               className="flex items-center justify-between gap-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 h-10 cursor-pointer"
@@ -998,7 +998,7 @@ export const StaffList: React.FC<{
           {/* Designation */}
           <div
             ref={designationDropdownRef}
-            className="relative flex-1 min-w-[140px] w-full"
+            className={`relative flex-1 min-w-[140px] w-full ${designationDropdownOpen ? 'z-50' : 'z-10'}`}
           >
             <div
               className="flex items-center justify-between gap-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 h-10 cursor-pointer"
@@ -1106,7 +1106,7 @@ export const StaffList: React.FC<{
       </div>
 
       {/* Directory Table Grid */}
-      <div id="printable-content" className="glass-card rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800 shadow-sm p-4 print:p-0 print:border-none">
+      <div id="printable-content" className="glass-card rounded-2xl overflow-hidden border border-slate-200/80 dark:border-slate-800 shadow-sm p-4 print:p-0 print:border-none relative z-10">
         <SchoolPrintHeader
           title={`Faculty & Staff Directory${activeCategory ? ` - ${activeCategory}` : ''}`}
           subtitle={`Total Filtered Staff: ${sorted.length}`}

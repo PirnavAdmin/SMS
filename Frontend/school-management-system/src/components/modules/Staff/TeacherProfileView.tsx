@@ -272,7 +272,7 @@ export const TeacherProfileView: React.FC = () => {
       assignedSubjects: [],
       department: isAccountant ? 'Finance & Accounts' : isWarden ? 'Hostel Management' : isLibrarian ? 'Library Administration' : isDriver ? 'Transport Dept' : ((user as any)?.department || 'Academics'),
       designation: isAccountant ? 'Accountant' : isWarden ? 'Hostel Warden' : isLibrarian ? 'Librarian' : isDriver ? 'Driver' : ((user as any)?.designation || 'Teacher'),
-      qualification: isDriver ? 'Commercial Driving License' : (isWarden ? 'B.A. / Diploma in Hostel & Student Welfare Admin' : ((user as any)?.qualification || 'Bachelor of Education (B.Ed)')),
+      qualification: ((user as any)?.qualification || (user as any)?.highestQualification || ''),
       experience: (user as any)?.experience || (user as any)?.workExperience || '',
       branch: user?.branch || '',
       avatar: user?.avatar || ''
@@ -582,13 +582,16 @@ export const TeacherProfileView: React.FC = () => {
       (dbTeacher as any)?.alternateMobile ||
       (dbTeacher as any)?.guardianPhone ||
       (user as any)?.emergencyContact ||
-      (isWardenStaff ? '+91-9876543210' : '');
+      '';
 
     const effectiveQualification = localEdit?.qualification ||
       (dbTeacher as any)?.qualification ||
       dbTeacher?.highestQualification ||
       (user as any)?.qualification ||
-      (isWardenStaff ? 'B.A. / Diploma in Hostel & Student Welfare Admin' : isAccountantStaff ? 'B.Com / M.Com (Finance & Accounts)' : isLibrarianStaff ? 'Master of Library & Information Science (M.Lib.I.Sc)' : isDriverStaff ? 'Commercial Driving License (HMV / Transport Vehicle)' : 'Bachelor of Education (B.Ed)');
+      (Array.isArray((dbTeacher as any)?.qualifications) && (dbTeacher as any).qualifications.length > 0
+        ? ((dbTeacher as any).qualifications[0]?.qualification || (dbTeacher as any).qualifications[0]?.degree || '')
+        : '') ||
+      '';
 
     const effectiveExperience = localEdit?.experience ||
       (dbTeacher as any)?.experience ||
@@ -1172,7 +1175,7 @@ export const TeacherProfileView: React.FC = () => {
                   ACADEMIC QUALIFICATIONS
                 </span>
                 <p className="text-slate-900 dark:text-white font-bold bg-slate-50 dark:bg-slate-800/60 p-3 rounded-2xl text-xs sm:text-sm border border-sky-200/70 dark:border-slate-700">
-                  {profile.qualification || (isDriver ? 'Commercial Driving License (HMV / Transport Vehicle)' : isWarden ? 'B.A. / Diploma in Hostel & Student Welfare Admin' : 'Bachelor of Education (B.Ed)')}
+                  {profile.qualification || 'Not Specified'}
                 </p>
               </div>
 

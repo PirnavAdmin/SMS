@@ -922,7 +922,7 @@ export const GlobalReportCardsView: React.FC<GlobalReportCardsViewProps> = ({ on
           </div>
 
           {/* Searchable Student Dropdown displaying Student Name AND ID */}
-          <div className="relative" ref={studentDropdownRef}>
+          <div className={`relative ${isStudentDropdownOpen ? 'z-50' : 'z-20'}`} ref={studentDropdownRef}>
             <button
               type="button"
               onClick={() => setIsStudentDropdownOpen(prev => !prev)}

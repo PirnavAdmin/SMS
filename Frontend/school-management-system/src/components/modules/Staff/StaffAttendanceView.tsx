@@ -1506,10 +1506,10 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
         {/* 3. Bottom Section: Admin-Style Attendance Register UI */}
         <div className="space-y-4">
           {/* Control Filters Row */}
-          <div className="glass-card p-4 rounded-2xl border border-sky-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-4 shadow-sm">
+          <div className={`glass-card p-4 rounded-2xl border border-sky-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-4 shadow-sm relative ${persDateModeDropdownOpen ? 'z-40' : 'z-20'}`}>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-start">
               {/* Date Mode Custom Theme Dropdown */}
-              <div ref={persDateModeRef} className="relative">
+              <div ref={persDateModeRef} className={`relative ${persDateModeDropdownOpen ? 'z-50' : 'z-10'}`}>
                 <button
                   type="button"
                   onClick={() => setPersDateModeDropdownOpen(prev => !prev)}
@@ -1520,7 +1520,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
                 </button>
 
                 {persDateModeDropdownOpen && (
-                  <div className="absolute left-0 top-full mt-1.5 w-full min-w-[160px] bg-white dark:bg-slate-900 rounded-xl shadow-xl border border-sky-100 dark:border-slate-800 py-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="absolute left-0 top-full mt-1.5 w-full min-w-[160px] bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-sky-100 dark:border-slate-800 py-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
                     {DATE_MODE_OPTIONS.map((opt) => {
                       const isSelected = persDateMode === opt;
                       return (
@@ -1605,7 +1605,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
 
           {persDateMode === "Daily" ? (
             /* Daily View Table (Admin Style) */
-            <div className="glass-card rounded-3xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-xl bg-white dark:bg-slate-900">
+            <div className="glass-card rounded-3xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-xl bg-white dark:bg-slate-900 relative z-10">
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
@@ -1691,7 +1691,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
             /* Monthly & Custom Range Register (Exact Admin Login Style) */
             <div className="space-y-4">
               {/* Monthly Register Legend & Controls Bar */}
-              <div className="glass-card py-2.5 px-4 rounded-2xl bg-white dark:bg-slate-900 border border-sky-200/80 dark:border-slate-800 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="glass-card py-2.5 px-4 rounded-2xl bg-white dark:bg-slate-900 border border-sky-200/80 dark:border-slate-800 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
                 <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-extrabold">
                   <span className="px-2 py-0.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 border border-emerald-500/20">
                     P = Present
@@ -1726,7 +1726,7 @@ export const StaffAttendanceView: React.FC<{ onNavigate?: (module: string) => vo
               </div>
 
               {/* Monthly Matrix Table */}
-              <div className="glass-card rounded-3xl overflow-hidden border border-sky-200/80 dark:border-slate-800 shadow-xl bg-white dark:bg-slate-900">
+              <div className="glass-card rounded-3xl overflow-hidden border border-sky-200/80 dark:border-slate-800 shadow-xl bg-white dark:bg-slate-900 relative z-10">
                 <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
                     <FileSpreadsheet className="w-4 h-4 text-sky-600" />

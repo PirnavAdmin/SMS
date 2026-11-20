@@ -54,7 +54,7 @@ const DownwardSelect: React.FC<{
   const selectedOption = options.find(o => o.value === value) || options[0];
 
   return (
-    <div ref={containerRef} className="relative">
+    <div ref={containerRef} className={`relative ${open ? 'z-50' : 'z-10'}`}>
       <button
         type="button"
         onClick={() => setOpen(prev => !prev)}

@@ -5,7 +5,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { useData } from '../../../context/DataContext';
 import { Pagination } from '../../common/Pagination';
 import { LoadingSpinner } from '../../common/LoadingSpinner';
-import { getHostelBlocks, getRooms, getAllocations, formatRoomNumber, HostelBlock, HostelRoom, BedAllocation } from '../../../api/hostel';
+import { getHostelBlocks, getRooms, getAllocations, getWardens, formatRoomNumber, HostelBlock, HostelRoom, BedAllocation } from '../../../api/hostel';
 import { formatCurrency } from '../../../utils/currency';
 import { isClassInRange } from '../../../utils/classSorter';
 
@@ -21,10 +21,14 @@ export const HostelDashboardView: React.FC<HostelDashboardViewProps> = ({
   const students = Array.isArray(dataContext?.students)
     ? dataContext.students
     : [];
+  const staff = Array.isArray(dataContext?.staff)
+    ? dataContext.staff
+    : [];
 
   const [blocks, setBlocks] = useState<HostelBlock[]>([]);
   const [rooms, setRooms] = useState<HostelRoom[]>([]);
   const [allocations, setAllocations] = useState<BedAllocation[]>([]);
+  const [wardens, setWardens] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Pagination states
@@ -34,14 +38,16 @@ export const HostelDashboardView: React.FC<HostelDashboardViewProps> = ({
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const [blocksData, roomsData, allocationsData] = await Promise.all([
+      const [blocksData, roomsData, allocationsData, wardensData] = await Promise.all([
         getHostelBlocks().catch(() => []),
         getRooms().catch(() => []),
         getAllocations().catch(() => []),
+        getWardens().catch(() => []),
       ]);
       setBlocks(Array.isArray(blocksData) ? blocksData : []);
       setRooms(Array.isArray(roomsData) ? roomsData : []);
       setAllocations(Array.isArray(allocationsData) ? allocationsData : []);
+      setWardens(Array.isArray(wardensData) ? wardensData : []);
     } catch (error: any) {
       addToast("error", "Failed to load dashboard data", error?.message);
     } finally {
@@ -101,10 +107,7 @@ export const HostelDashboardView: React.FC<HostelDashboardViewProps> = ({
       return false;
     });
 
-    const activeList =
-      matched.length > 0
-        ? matched
-        : (blocks.length > 0 ? [blocks[0]] : []);
+    const activeList = matched;
 
     return activeList.map((b) => ({
       ...b,
@@ -794,8 +797,19 @@ export const HostelDashboardView: React.FC<HostelDashboardViewProps> = ({
                     b.hostelCode ||
                     (b as any).code ||
                     `HST-${b.hostelId || "01"}`;
-                  const wardenVal =
-                    b.wardenName || (b as any).warden || "Not Assigned";
+                  const matchedW = wardens.find((w: any) => String(w.hostelId) === String(b.hostelId));
+                  let effectiveW = matchedW?.wardenName || "";
+                  if (!effectiveW && b.wardenName) {
+                    const matchingStaff = staff.find((s: any) => {
+                      const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase();
+                      const bw = (b.wardenName || '').trim().toLowerCase();
+                      return sFullName && sFullName === bw;
+                    });
+                    if (matchingStaff) {
+                      effectiveW = `${matchingStaff.firstName || ''} ${matchingStaff.lastName || ''}`.trim();
+                    }
+                  }
+                  const wardenVal = effectiveW || "Not Assigned";
                   const phoneVal =
                     b.primaryMobileNumber || (b as any).contactNumber || "N/A";
                   const addressVal = b.address || (b as any).branch || "";

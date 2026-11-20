@@ -78,19 +78,10 @@ export const RoomTypeMasterView: React.FC = () => {
       setSearchError(res.isValid ? undefined : (res.error || 'Enter a valid search term.'));
     }
   };
-  const [filterAcType, setFilterAcType] = useState(() => {
-    try {
-      return localStorage.getItem('hostel_room_categories_filter') || '';
-    } catch {
-      return '';
-    }
-  });
+  const [filterAcType, setFilterAcType] = useState('');
 
   const handleFilterAcChange = (val: string) => {
     setFilterAcType(val);
-    try {
-      localStorage.setItem('hostel_room_categories_filter', val);
-    } catch {}
     if (val !== 'Custom') setManualFilterInput('');
   };
   const [manualFilterInput, setManualFilterInput] = useState('');

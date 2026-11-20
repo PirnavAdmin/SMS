@@ -1689,9 +1689,6 @@ export const StudentHostelAssignmentView: React.FC = () => {
               type="button"
               onClick={() => {
                 setFilterHostel('All');
-                try {
-                  localStorage.setItem('hostel_assignments_filter', 'All');
-                } catch {}
               }}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-md shadow-sky-600/20 transition-all cursor-pointer hover:scale-105 active:scale-95"
             >
