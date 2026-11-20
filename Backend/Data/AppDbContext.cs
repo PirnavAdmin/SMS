@@ -82,6 +82,7 @@ namespace SMS.Api.Data
         public DbSet<TeacherAssignment> TeacherAssignments { get; set; } = null!;
         public DbSet<SubjectTeacherAllocation> SubjectTeacherAllocations { get; set; } = null!;
         public DbSet<AdmissionApplication> AdmissionApplications { get; set; } = null!;
+        public DbSet<ApplicationDraft> ApplicationDrafts { get; set; } = null!;
         public DbSet<Admission> Admissions { get; set; } = null!;
         public DbSet<SMS.Api.Models.AcademicManagement.DesignationMaster> DesignationMasters { get; set; } = null!;
 
@@ -228,6 +229,7 @@ namespace SMS.Api.Data
             ConfigureTeacherAssignment(modelBuilder);
             ConfigureClassSection(modelBuilder);
             ConfigureAdmissionApplication(modelBuilder);
+            ConfigureApplicationDraft(modelBuilder);
 
             ConfigureTransportRoute(modelBuilder);
             ConfigurePickupPoint(modelBuilder);
@@ -876,6 +878,16 @@ namespace SMS.Api.Data
                         classGrade.AdmissionApplications)
                     .HasForeignKey(x => x.AppliedClassId)
                     .OnDelete(DeleteBehavior.Restrict);
+            });
+        }
+
+        private void ConfigureApplicationDraft(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<ApplicationDraft>(entity =>
+            {
+                entity.ToTable("application_drafts");
+                entity.HasQueryFilter(x => (TenantInfo == null || EF.Property<string>(x, "TenantId") == TenantInfo.Id || EF.Property<string>(x, "TenantId") == null || EF.Property<string>(x, "TenantId") == ""));
+                entity.HasIndex(x => new { x.FormType, x.DraftKey, x.UserId });
             });
         }
 

@@ -55,6 +55,8 @@ interface BasicStaffFormFieldsProps {
   isSubmitting?: boolean;
   onCancel?: () => void;
   staffToEdit?: any;
+  activeStep?: number;
+  onStepChange?: (step: number) => void;
 }
 
 const fieldClass =
@@ -179,7 +181,9 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
   compact = false,
   isSubmitting = false,
   onCancel,
-  staffToEdit
+  staffToEdit,
+  activeStep: propActiveStep,
+  onStepChange
 }) => {
   const { departments = [], designations = [], staff = [], academicClasses = [], subjects = [], branches = [], fetchDesignations, fetchDepartments, fetchBranches } = useData();
 
@@ -562,8 +566,17 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
     );
   }, [allSubjectOptions, subjectSearch]);
 
-  // Stepper state (Step 1 to Step 5)
-  const [activeStep, setActiveStep] = useState<number>(1);
+  // Stepper state (Step 1 to Step 6)
+  const [internalStep, setInternalStep] = useState<number>(1);
+  const activeStep = propActiveStep !== undefined ? propActiveStep : internalStep;
+  const setActiveStep = React.useCallback(
+    (stepOrFn: number | ((prev: number) => number)) => {
+      const next = typeof stepOrFn === 'function' ? stepOrFn(activeStep) : stepOrFn;
+      setInternalStep(next);
+      onStepChange?.(next);
+    },
+    [activeStep, onStepChange]
+  );
   const [selectedDocType, setSelectedDocType] = useState<string>("");
 
   // Qualification inline form state

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { ArrowLeft, CheckCircle2, Users } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
@@ -14,6 +14,8 @@ import {
 } from './staffFlowOptions';
 import { BasicStaffFormFields } from './BasicStaffFormFields';
 import { validate10DigitPhone } from '../../../utils/validation';
+import { useApplicationDraft } from '../../../hooks/useApplicationDraft';
+import { DraftActionBar } from '../../common/DraftActionBar';
 
 interface StaffRegistrationPageProps {
   onNavigate: (module: string) => void;
@@ -31,6 +33,7 @@ export const StaffRegistrationPage: React.FC<StaffRegistrationPageProps> = ({ on
   const { addToast } = useToast();
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
+  const [currentStep, setCurrentStep] = useState<number>(1);
 
   // Clear any legacy session/window category storage on mount
   useEffect(() => {
@@ -58,6 +61,33 @@ export const StaffRegistrationPage: React.FC<StaffRegistrationPageProps> = ({ on
     };
   });
 
+  const handleDraftRestored = useCallback((draft: any) => {
+    if (draft.formData) {
+      setForm(prev => ({ ...prev, ...draft.formData }));
+    }
+    if (draft.currentStep) {
+      setCurrentStep(draft.currentStep);
+    }
+  }, []);
+
+  const {
+    activeDraft,
+    allDrafts,
+    saveStatus,
+    lastSavedAt,
+    isDraftRestored,
+    saveDraft,
+    triggerAutoSave,
+    discardDraft,
+    completeDraft
+  } = useApplicationDraft<BasicStaffFormState>({
+    formType: 'staff_registration',
+    branch: form.branch || selectedBranch,
+    onDraftRestored: handleDraftRestored
+  });
+
+  const applicantName = `${form.firstName || ''} ${form.lastName || ''}`.trim();
+
   useEffect(() => {
     if (!form.employeeCategory) return;
     setForm(prev => {
@@ -72,7 +102,12 @@ export const StaffRegistrationPage: React.FC<StaffRegistrationPageProps> = ({ on
   }, [staff, form.employeeCategory]);
 
   const handleChange = (field: keyof BasicStaffFormState, value: any) => {
-    setForm(prev => ({ ...prev, [field]: value }));
+    setForm(prev => {
+      const next = { ...prev, [field]: value };
+      const name = `${next.firstName || ''} ${next.lastName || ''}`.trim();
+      triggerAutoSave(next, currentStep, name);
+      return next;
+    });
     setErrors(prev => {
       if (!prev[field]) return prev;
       const next = { ...prev };
@@ -82,13 +117,44 @@ export const StaffRegistrationPage: React.FC<StaffRegistrationPageProps> = ({ on
   };
 
   const handleCategoryChange = (value: string) => {
-    setForm(prev => ({
-      ...prev,
-      employeeCategory: value,
-      department: '',
-      designation: '',
-      empId: value ? getNextEmployeeId(staff, value) : ''
-    }));
+    setForm(prev => {
+      const next = {
+        ...prev,
+        employeeCategory: value,
+        department: '',
+        designation: '',
+        empId: value ? getNextEmployeeId(staff, value) : ''
+      };
+      const name = `${next.firstName || ''} ${next.lastName || ''}`.trim();
+      triggerAutoSave(next, currentStep, name);
+      return next;
+    });
+  };
+
+  const handleStepChange = (newStep: number) => {
+    setCurrentStep(newStep);
+    triggerAutoSave(form, newStep, applicantName);
+  };
+
+  const handleManualSave = async () => {
+    const res = await saveDraft(form, { currentStep, applicantName, manual: true });
+    if (res) {
+      addToast('success', 'Draft Saved', 'Staff registration draft has been saved to server.');
+    } else {
+      addToast('warning', 'Save Draft', 'Please fill in staff details before saving draft.');
+    }
+  };
+
+  const handleDiscardDraft = async () => {
+    await discardDraft();
+    setForm({
+      ...defaultBasicStaffFormState(''),
+      employeeCategory: '',
+      branch: '',
+      empId: ''
+    });
+    setCurrentStep(1);
+    addToast('info', 'Draft Discarded', 'Pending staff draft has been removed from server.');
   };
 
   const validate = () => {
@@ -249,6 +315,9 @@ export const StaffRegistrationPage: React.FC<StaffRegistrationPageProps> = ({ on
     const payload = buildBasicStaffCreatePayload(form);
     const added = addStaff(payload);
 
+    // Clean up draft from server after successful submission
+    completeDraft().catch(() => {});
+
     try {
       sessionStorage.removeItem('staff-registration-category');
     } catch {
@@ -296,8 +365,28 @@ export const StaffRegistrationPage: React.FC<StaffRegistrationPageProps> = ({ on
           </div>
         </div>
       </div>
+
+      {/* Server Draft Action & Status Bar */}
+      <DraftActionBar
+        saveStatus={saveStatus}
+        lastSavedAt={lastSavedAt}
+        applicantName={applicantName}
+        currentStep={currentStep}
+        totalSteps={6}
+        isDraftRestored={isDraftRestored}
+        onManualSave={handleManualSave}
+        onDiscardDraft={handleDiscardDraft}
+        allDrafts={allDrafts}
+        onSelectDraft={(draft) => {
+          if (draft.formData) {
+            setForm(draft.formData);
+            setCurrentStep(draft.currentStep || 1);
+            addToast('info', 'Draft Loaded', `Loaded draft for ${draft.applicantName || 'staff'}.`);
+          }
+        }}
+      />
  
-      {/* Main 5-Section Stepper Form */}
+      {/* Main 6-Section Stepper Form */}
       <form onSubmit={handleSubmit}>
         <BasicStaffFormFields
           value={form}
@@ -306,6 +395,8 @@ export const StaffRegistrationPage: React.FC<StaffRegistrationPageProps> = ({ on
           onCategoryChange={handleCategoryChange}
           employeeIdReadOnly={false}
           isSubmitting={submitting}
+          activeStep={currentStep}
+          onStepChange={handleStepChange}
         />
       </form>
     </div>

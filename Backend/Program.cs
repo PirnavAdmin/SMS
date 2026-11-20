@@ -536,7 +536,7 @@ using (var scope = app.Services.CreateScope())
                 var multiTenantTables = new[]
                 {
                     "users", "admins", "schools", "schoolsettings", "branches", "departments",
-                    "subjects", "staff", "students", "admissions", "admission_applications",
+                    "subjects", "staff", "students", "admissions", "admission_applications", "application_drafts",
                     "academic_years", "classes", "class_sections", "homeworks",
                     "class_subject_mappings", "teacher_assignments", "teacher_subject_assignments",
                     "timetable_headers", "timetable_slots", "employee_assessment_candidates",
@@ -1802,6 +1802,26 @@ using (var scope = app.Services.CreateScope())
                 `AllocatedAmount` decimal(18,2) NOT NULL DEFAULT 0.00,
                 `AllocatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (`Id`)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+
+            @"CREATE TABLE IF NOT EXISTS `application_drafts` (
+                `Id` int NOT NULL AUTO_INCREMENT,
+                `TenantId` varchar(64) NULL,
+                `FormType` varchar(50) NOT NULL,
+                `DraftKey` varchar(100) NOT NULL DEFAULT 'default',
+                `UserId` varchar(100) NULL,
+                `UserName` varchar(150) NULL,
+                `Branch` varchar(100) NULL,
+                `AcademicYear` varchar(50) NULL,
+                `ApplicantName` varchar(250) NULL,
+                `CurrentStep` int NOT NULL DEFAULT 1,
+                `FormData` longtext NOT NULL,
+                `Status` varchar(50) NOT NULL DEFAULT 'Draft',
+                `CreatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                `UpdatedAt` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                PRIMARY KEY (`Id`),
+                KEY `ix_draft_form_user` (`FormType`, `UserId`),
+                KEY `ix_draft_status` (`Status`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;"
         };
 

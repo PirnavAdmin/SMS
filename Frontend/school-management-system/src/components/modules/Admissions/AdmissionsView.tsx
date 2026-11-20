@@ -43,7 +43,11 @@ import {
   ShieldCheck,
   CreditCard,
   AlertTriangle,
+  Clock,
+  RotateCcw,
 } from "lucide-react";
+import { useApplicationDraft } from "../../../hooks/useApplicationDraft";
+import { DraftActionBar } from "../../common/DraftActionBar";
 import {
   AdmissionApplication,
   StudentType,
@@ -974,6 +978,200 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
     selectedOptionalFees: [],
     documentsSubmitted: [],
   });
+
+  const handleStudentDraftRestored = React.useCallback((draft: any) => {
+    if (draft && draft.formData) {
+      const d = draft.formData;
+      if (d.firstName !== undefined) setFirstName(d.firstName);
+      if (d.lastName !== undefined) setLastName(d.lastName);
+      if (d.avatar !== undefined) setAvatar(d.avatar);
+      if (d.isCustomCasteCategory !== undefined) setIsCustomCasteCategory(d.isCustomCasteCategory);
+      if (d.hasSiblings !== undefined) setHasSiblings(d.hasSiblings);
+      if (d.siblingsCount !== undefined) setSiblingsCount(d.siblingsCount);
+      if (d.siblingDetails !== undefined) setSiblingDetails(d.siblingDetails);
+      if (d.siblingStudentIds !== undefined) setSiblingStudentIds(d.siblingStudentIds);
+      if (d.depositPaymentMode !== undefined) setDepositPaymentMode(d.depositPaymentMode);
+      if (d.depositTxnId !== undefined) setDepositTxnId(d.depositTxnId);
+      if (d.depositDate !== undefined) setDepositDate(d.depositDate);
+      if (d.formData) setFormData((prev) => ({ ...prev, ...d.formData }));
+      setIsFormView(true);
+    }
+  }, []);
+
+  const {
+    activeDraft: studentDraft,
+    allDrafts: allStudentDrafts,
+    saveStatus: studentDraftSaveStatus,
+    lastSavedAt: studentDraftLastSavedAt,
+    isDraftRestored: isStudentDraftRestored,
+    saveDraft: saveStudentDraft,
+    triggerAutoSave: triggerStudentAutoSave,
+    discardDraft: discardStudentDraft,
+    completeDraft: completeStudentDraft,
+  } = useApplicationDraft<any>({
+    formType: "student_admission",
+    branch: formData.branch || (selectedBranch && selectedBranch !== "All" ? selectedBranch : undefined),
+    academicYear: selectedAcademicYear,
+    onDraftRestored: handleStudentDraftRestored,
+  });
+
+  const studentApplicantName = `${firstName || ""} ${lastName || ""}`.trim();
+
+  // Debounced auto-save effect
+  useEffect(() => {
+    if (!isFormView || editingApp) return;
+
+    const currentDraftPayload = {
+      firstName,
+      lastName,
+      avatar,
+      isCustomCasteCategory,
+      hasSiblings,
+      siblingsCount,
+      siblingDetails,
+      siblingStudentIds,
+      depositPaymentMode,
+      depositTxnId,
+      depositDate,
+      formData,
+    };
+
+    triggerStudentAutoSave(
+      currentDraftPayload,
+      1,
+      studentApplicantName || "New Student"
+    );
+  }, [
+    isFormView,
+    editingApp,
+    firstName,
+    lastName,
+    avatar,
+    isCustomCasteCategory,
+    hasSiblings,
+    siblingsCount,
+    siblingDetails,
+    siblingStudentIds,
+    depositPaymentMode,
+    depositTxnId,
+    depositDate,
+    formData,
+    studentApplicantName,
+    triggerStudentAutoSave,
+  ]);
+
+  const handleManualSaveStudentDraft = async () => {
+    const currentDraftPayload = {
+      firstName,
+      lastName,
+      avatar,
+      isCustomCasteCategory,
+      hasSiblings,
+      siblingsCount,
+      siblingDetails,
+      siblingStudentIds,
+      depositPaymentMode,
+      depositTxnId,
+      depositDate,
+      formData,
+    };
+    const res = await saveStudentDraft(currentDraftPayload, {
+      currentStep: 1,
+      applicantName: studentApplicantName || "New Student",
+      manual: true,
+    });
+    if (res) {
+      addToast("success", "Draft Saved", "Student admission draft saved to server.");
+    } else {
+      addToast("warning", "Save Draft", "Please enter some student details before saving draft.");
+    }
+  };
+
+  const handleDiscardStudentDraft = async () => {
+    await discardStudentDraft();
+    setFirstName("");
+    setLastName("");
+    setAvatar("");
+    setHasSiblings(false);
+    setSiblingsCount(1);
+    setSiblingDetails([]);
+    setSiblingStudentIds([]);
+    setFormData({
+      appliedClass: "",
+      section: "Unassigned",
+      gender: "" as any,
+      dob: "",
+      bloodGroup: "",
+      religion: "",
+      casteCategory: "",
+      parentName: "",
+      motherName: "",
+      email: "",
+      phone: "",
+      addressHouseNo: "",
+      addressStreet: "",
+      addressArea: "",
+      addressCity: "",
+      addressDistrict: "",
+      addressState: "",
+      addressPinCode: "",
+      siblingsCount: 0,
+      siblingStudentId: "",
+      studentType: "" as any,
+      transportRequired: false,
+      transportType: "" as any,
+      busRoute: "",
+      pickupPoint: "",
+      hostelBlock: "",
+      floor: "",
+      hostelRoom: "",
+      hostelBed: "",
+      hostelSecurityDepositPaid: false,
+      securityDepositAmount: 0,
+      securityDepositReceiptNo: "",
+      securityDepositPaymentMode: "Cash",
+      securityDepositTxnId: "",
+      securityDepositDate: new Date().toISOString().split("T")[0],
+      admissionFeePaid: false,
+      admissionFeeAmount: 0,
+      admissionFeeReceiptNo: "",
+      admissionFeePaymentMode: "Cash",
+      admissionFeeTxnId: "",
+      admissionFeeDate: new Date().toISOString().split("T")[0],
+      branch: (selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" && dynamicCampuses.includes(selectedBranch))
+        ? selectedBranch
+        : (dynamicCampuses[0] || ""),
+      joiningDate: new Date().toISOString().split("T")[0],
+      admissionDate: new Date().toISOString().split("T")[0],
+      isLateAdmission: false,
+      feeCalculationMethod: "Term-wise",
+      selectedOptionalFees: [],
+      documentsSubmitted: [],
+    });
+    setIsFormView(false);
+    addToast("info", "Draft Discarded", "Student admission draft has been discarded from server.");
+  };
+
+  const handleRestoreDraftIntoForm = (draft: any) => {
+    if (draft && draft.formData) {
+      const d = draft.formData;
+      if (d.firstName !== undefined) setFirstName(d.firstName);
+      if (d.lastName !== undefined) setLastName(d.lastName);
+      if (d.avatar !== undefined) setAvatar(d.avatar);
+      if (d.isCustomCasteCategory !== undefined) setIsCustomCasteCategory(d.isCustomCasteCategory);
+      if (d.hasSiblings !== undefined) setHasSiblings(d.hasSiblings);
+      if (d.siblingsCount !== undefined) setSiblingsCount(d.siblingsCount);
+      if (d.siblingDetails !== undefined) setSiblingDetails(d.siblingDetails);
+      if (d.siblingStudentIds !== undefined) setSiblingStudentIds(d.siblingStudentIds);
+      if (d.depositPaymentMode !== undefined) setDepositPaymentMode(d.depositPaymentMode);
+      if (d.depositTxnId !== undefined) setDepositTxnId(d.depositTxnId);
+      if (d.depositDate !== undefined) setDepositDate(d.depositDate);
+      if (d.formData) setFormData((prev) => ({ ...prev, ...d.formData }));
+      setEditingApp(null);
+      setIsFormView(true);
+      addToast("info", "Draft Loaded", `Restored draft for ${draft.applicantName || "Student"}.`);
+    }
+  };
 
   const isSiblingConcession = (name?: string, category?: string) => {
     if (!name) return false;
@@ -2133,6 +2331,10 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
   );
 
   const handleOpenAdd = () => {
+    if (studentDraft && studentDraft.formData) {
+      handleRestoreDraftIntoForm(studentDraft);
+      return;
+    }
     setEditingApp(null);
     setFirstName("");
     setLastName("");
@@ -3268,6 +3470,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           "Application Submitted",
           `Application registered for ${fullApplicantName}`,
         );
+        // Clear server draft on successful submission
+        completeStudentDraft().catch(() => {});
       }
 
       handleCloseForm();
@@ -3788,6 +3992,22 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
             </div>
           </div>
         </div>
+
+        {/* Server Draft Action Bar */}
+        {!editingApp && (
+          <DraftActionBar
+            saveStatus={studentDraftSaveStatus}
+            lastSavedAt={studentDraftLastSavedAt}
+            applicantName={studentApplicantName}
+            currentStep={1}
+            totalSteps={1}
+            isDraftRestored={isStudentDraftRestored}
+            onManualSave={handleManualSaveStudentDraft}
+            onDiscardDraft={handleDiscardStudentDraft}
+            allDrafts={allStudentDrafts}
+            onSelectDraft={handleRestoreDraftIntoForm}
+          />
+        )}
 
         {/* Full Page Layout with Sticky Live Fee Preview Panel */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
@@ -5668,6 +5888,47 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Pending Application Resume Banner */}
+      {studentDraft && !isFormView && (
+        <div className="flex flex-wrap items-center justify-between gap-3 p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 rounded-2xl text-xs text-amber-900 dark:text-amber-200 shadow-sm animate-in fade-in">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-amber-100 dark:bg-amber-900/50 rounded-xl text-amber-700 dark:text-amber-300">
+              <Clock className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="font-bold text-sm text-slate-900 dark:text-white">
+                Pending Admission Application
+              </div>
+              <div className="text-slate-600 dark:text-slate-400">
+                You have an unfinished application for{" "}
+                <strong>{studentDraft.applicantName || "Student"}</strong>
+                {studentDraft.updatedAt
+                  ? ` • Last saved at ${new Date(studentDraft.updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+                  : ""}.
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => handleRestoreDraftIntoForm(studentDraft)}
+              className="px-4 py-2 font-bold text-white bg-brand-600 hover:bg-brand-700 rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+            >
+              <RotateCcw className="w-4 h-4" />
+              Continue Application Entry
+            </button>
+            <button
+              type="button"
+              onClick={handleDiscardStudentDraft}
+              className="px-3 py-2 font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-950/40 rounded-xl transition-colors flex items-center gap-1 cursor-pointer"
+            >
+              <Trash2 className="w-4 h-4" />
+              Discard Draft
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Multi-Filter Bar */}
       <div className="glass-card p-4 rounded-2xl flex flex-col lg:flex-row items-start justify-between gap-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
