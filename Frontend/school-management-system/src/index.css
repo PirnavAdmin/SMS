@@ -195,6 +195,52 @@
   background-color: rgba(148, 163, 184, 0.7);
 }
 
+/* Visible, polished horizontal scrollbar for tab headers */
+.tab-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #94a3b8 #f1f5f9;
+}
+
+.tab-scrollbar::-webkit-scrollbar {
+  height: 6px;
+}
+
+.tab-scrollbar::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 9999px;
+  margin: 0 6px;
+}
+
+.tab-scrollbar::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border-radius: 9999px;
+  transition: background-color 0.15s ease;
+}
+
+.tab-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+.dark .tab-scrollbar,
+:where(.dark, .dark *) .tab-scrollbar {
+  scrollbar-color: #64748b #1e293b;
+}
+
+.dark .tab-scrollbar::-webkit-scrollbar-track,
+:where(.dark, .dark *) .tab-scrollbar::-webkit-scrollbar-track {
+  background: #1e293b;
+}
+
+.dark .tab-scrollbar::-webkit-scrollbar-thumb,
+:where(.dark, .dark *) .tab-scrollbar::-webkit-scrollbar-thumb {
+  background: #64748b;
+}
+
+.dark .tab-scrollbar::-webkit-scrollbar-thumb:hover,
+:where(.dark, .dark *) .tab-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
 /* ========================================================
    APPLE iOS 17 / iOS 18 LIQUID GLASS DESIGN SYSTEM
    Frosted glass materials, specular highlights & micro-tactile feel

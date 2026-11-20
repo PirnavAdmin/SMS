@@ -48,7 +48,7 @@ export const TrainingContainerView: React.FC = () => {
   useEffect(() => {
     try {
       localStorage.removeItem('training_active_tab');
-    } catch {}
+    } catch { }
   }, []);
 
   // Filters
@@ -545,7 +545,7 @@ export const TrainingContainerView: React.FC = () => {
       results: assignedResults
     });
 
-    addToast('success', 'Assessment Scheduled', 'Evaluation scheduled successfully.');
+    addToast('success', 'Assessment Scheduled', 'Assessment scheduled successfully.');
     setIsAddAssessmentModalOpen(false);
     setAssessmentWizardStep(1);
   };
@@ -713,7 +713,7 @@ export const TrainingContainerView: React.FC = () => {
     const memberWorkshops = workshops.filter(w => w.participants && w.participants.some(p => p.employeeId === staffId));
     const memberAssessments = employeeAssessments.filter(a => a.results && a.results.some(r => r.employeeId === staffId));
     const memberCertificates = issuedCertificates.filter(c => c.employeeId === staffId);
-    
+
     let totalScore = 0;
     let scoreCount = 0;
     memberAssessments.forEach(a => {
@@ -735,7 +735,7 @@ export const TrainingContainerView: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in">
-      
+
       {/* Module Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -743,7 +743,7 @@ export const TrainingContainerView: React.FC = () => {
             <GraduationCap className="w-6 h-6 text-brand-600 dark:text-brand-400" />
             Faculty Development & Training
           </h2>
-          </div>
+        </div>
 
         <div className="flex items-center gap-2">
           <button
@@ -759,7 +759,7 @@ export const TrainingContainerView: React.FC = () => {
                 onClick={() => handleOpenCreateAssessmentModal()}
                 className="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-md flex items-center gap-1.5 transition-all cursor-pointer"
               >
-                Schedule Evaluation
+                Schedule Assessment
               </button>
 
               <button
@@ -774,69 +774,63 @@ export const TrainingContainerView: React.FC = () => {
       </div>
 
       {/* Sub-Navigation Tabs */}
-      <div className="flex items-center gap-1.5 p-1.5 rounded-2xl bg-white dark:bg-slate-900 w-full border border-sky-300 dark:border-sky-700 shadow-xs overflow-x-auto no-scrollbar">
+      <div className="flex items-center gap-1.5 p-1.5 pb-2.5 rounded-2xl bg-white dark:bg-slate-900 w-full border border-sky-300 dark:border-sky-700 shadow-xs overflow-x-auto tab-scrollbar">
         <button
           onClick={() => setActiveTab('dashboard')}
-          className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 ${
-            activeTab === 'dashboard'
+          className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 ${activeTab === 'dashboard'
               ? 'bg-sky-600 text-white shadow-sm font-extrabold'
               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60'
-          }`}
+            }`}
         >
           <Layers className={`w-3.5 h-3.5 ${activeTab === 'dashboard' ? 'text-white' : 'text-sky-500'}`} /> Dashboard
         </button>
 
         <button
           onClick={() => setActiveTab('workshops')}
-          className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 ${
-            activeTab === 'workshops'
+          className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 ${activeTab === 'workshops'
               ? 'bg-sky-600 text-white shadow-sm font-extrabold'
               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60'
-          }`}
+            }`}
         >
           <BookOpen className={`w-3.5 h-3.5 ${activeTab === 'workshops' ? 'text-white' : 'text-sky-500'}`} /> Workshops & FDPs ({workshops.length})
         </button>
 
         <button
           onClick={() => setActiveTab('assessments')}
-          className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 ${
-            activeTab === 'assessments'
+          className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 ${activeTab === 'assessments'
               ? 'bg-sky-600 text-white shadow-sm font-extrabold'
               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60'
-          }`}
+            }`}
         >
           <FileCheck className={`w-3.5 h-3.5 ${activeTab === 'assessments' ? 'text-white' : 'text-sky-500'}`} /> Competency Evaluations ({employeeAssessments.length})
         </button>
 
         <button
           onClick={() => setActiveTab('certificates')}
-          className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 ${
-            activeTab === 'certificates'
+          className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 ${activeTab === 'certificates'
               ? 'bg-sky-600 text-white shadow-sm font-extrabold'
               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60'
-          }`}
+            }`}
         >
           <Award className={`w-3.5 h-3.5 ${activeTab === 'certificates' ? 'text-white' : 'text-amber-500'}`} /> Earned Certificates ({issuedCertificates.length})
         </button>
 
         <button
           onClick={() => setActiveTab('reports')}
-          className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 ${
-            activeTab === 'reports'
+          className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 ${activeTab === 'reports'
               ? 'bg-sky-600 text-white shadow-sm font-extrabold'
               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60'
-          }`}
+            }`}
         >
           <BarChart3 className={`w-3.5 h-3.5 ${activeTab === 'reports' ? 'text-white' : 'text-emerald-500'}`} /> Development Reports
         </button>
 
         <button
           onClick={() => setActiveTab('profile-view')}
-          className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 ${
-            activeTab === 'profile-view'
+          className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center justify-center gap-1.5 ${activeTab === 'profile-view'
               ? 'bg-sky-600 text-white shadow-sm font-extrabold'
               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800/60'
-          }`}
+            }`}
         >
           <UserCheck className={`w-3.5 h-3.5 ${activeTab === 'profile-view' ? 'text-white' : 'text-sky-500'}`} /> Staff Profiles
         </button>
@@ -879,7 +873,7 @@ export const TrainingContainerView: React.FC = () => {
 
           {/* Widgets Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            
+
             {/* Upcoming Training & Workshops Widget */}
             <div className="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 shadow-sm space-y-4">
               <div className="flex justify-between items-center">
@@ -1789,7 +1783,7 @@ export const TrainingContainerView: React.FC = () => {
       {isAddAssessmentModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in">
           <div className="bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 rounded-3xl max-w-3xl w-full p-6 shadow-2xl flex flex-col max-h-[88vh] text-xs">
-            
+
             {/* Modal Header (Fixed Top) */}
             <div className="flex justify-between items-center pb-3 shrink-0 border-b border-sky-100 dark:border-sky-900/40 mb-3">
               <div>
@@ -1810,15 +1804,13 @@ export const TrainingContainerView: React.FC = () => {
             <div className="flex items-center gap-4 bg-slate-50 dark:bg-slate-800/60 p-3 rounded-2xl border border-slate-200/60 dark:border-slate-800 shrink-0 mb-4">
               <div
                 onClick={() => setAssessmentWizardStep(1)}
-                className={`flex-1 flex items-center gap-2.5 p-2 rounded-xl cursor-pointer transition-all ${
-                  assessmentWizardStep === 1
+                className={`flex-1 flex items-center gap-2.5 p-2 rounded-xl cursor-pointer transition-all ${assessmentWizardStep === 1
                     ? 'bg-sky-600 text-white font-bold shadow-xs'
                     : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border'
-                }`}
+                  }`}
               >
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center font-black text-[11px] ${
-                  assessmentWizardStep === 1 ? 'bg-white text-sky-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-700'
-                }`}>
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center font-black text-[11px] ${assessmentWizardStep === 1 ? 'bg-white text-sky-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-700'
+                  }`}>
                   1
                 </div>
                 <div>
@@ -1833,15 +1825,13 @@ export const TrainingContainerView: React.FC = () => {
                 onClick={() => {
                   if (wizardStep1.assessmentName.trim()) setAssessmentWizardStep(2);
                 }}
-                className={`flex-1 flex items-center gap-2.5 p-2 rounded-xl transition-all ${
-                  assessmentWizardStep === 2
+                className={`flex-1 flex items-center gap-2.5 p-2 rounded-xl transition-all ${assessmentWizardStep === 2
                     ? 'bg-sky-600 text-white font-bold shadow-xs'
                     : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border opacity-75'
-                }`}
+                  }`}
               >
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center font-black text-[11px] ${
-                  assessmentWizardStep === 2 ? 'bg-white text-sky-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-700'
-                }`}>
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center font-black text-[11px] ${assessmentWizardStep === 2 ? 'bg-white text-sky-600' : 'bg-slate-100 dark:bg-slate-800 text-slate-700'
+                  }`}>
                   2
                 </div>
                 <div>
@@ -2009,7 +1999,7 @@ export const TrainingContainerView: React.FC = () => {
                   {/* Target Audience Filters */}
                   <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border space-y-3">
                     <span className="font-extrabold text-xs text-slate-900 dark:text-white block">1. Participant Selection Filters</span>
-                    
+
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                       <div>
                         <label className="block font-semibold text-[10px] text-slate-500 mb-0.5">Employee Type</label>
@@ -2470,12 +2460,11 @@ export const TrainingContainerView: React.FC = () => {
                             [r.employeeId]: { ...prev[r.employeeId], marksObtained: val, remarks: prev[r.employeeId]?.remarks || '' }
                           }));
                         }}
-                        className={`w-20 px-2.5 py-1.5 rounded-xl bg-white dark:bg-slate-900 border font-mono font-bold text-right text-xs outline-none focus:ring-2 ${
-                          evaluationScores[r.employeeId]?.marksObtained !== '' &&
-                          Number(evaluationScores[r.employeeId]?.marksObtained) > selectedAssessmentForEvaluation.totalMarks
+                        className={`w-20 px-2.5 py-1.5 rounded-xl bg-white dark:bg-slate-900 border font-mono font-bold text-right text-xs outline-none focus:ring-2 ${evaluationScores[r.employeeId]?.marksObtained !== '' &&
+                            Number(evaluationScores[r.employeeId]?.marksObtained) > selectedAssessmentForEvaluation.totalMarks
                             ? 'border-rose-500 text-rose-600 focus:ring-rose-500/20'
                             : 'border-slate-300 dark:border-slate-700 focus:ring-sky-500/20'
-                        }`}
+                          }`}
                       />
                       <span className="font-bold text-slate-400">/ {selectedAssessmentForEvaluation.totalMarks}</span>
                     </div>
