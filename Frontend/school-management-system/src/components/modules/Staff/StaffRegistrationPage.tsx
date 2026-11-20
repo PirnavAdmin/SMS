@@ -110,6 +110,7 @@ export const StaffRegistrationPage: React.FC<StaffRegistrationPageProps> = ({ on
 
   const {
     triggerAutoSave,
+    saveDraft,
     completeDraft,
     resetDraft
   } = useApplicationDraft<BasicStaffFormState>({
@@ -166,7 +167,21 @@ export const StaffRegistrationPage: React.FC<StaffRegistrationPageProps> = ({ on
 
   const handleStepChange = (newStep: number) => {
     setCurrentStep(newStep);
-    triggerAutoSave(form, newStep, applicantName);
+    saveDraft(form, {
+      currentStep: newStep,
+      applicantName,
+      immediate: true,
+      manual: true
+    }).catch(() => {});
+  };
+
+  const handleSaveStep = (currStep: number, nextStep: number) => {
+    saveDraft(form, {
+      currentStep: nextStep,
+      applicantName,
+      immediate: true,
+      manual: true
+    }).catch(() => {});
   };
 
   const validate = () => {
@@ -238,7 +253,7 @@ export const StaffRegistrationPage: React.FC<StaffRegistrationPageProps> = ({ on
       nextErrors.aadhaarNumber = 'Aadhaar Number must be exactly 12 digits.';
     }
 
-    require('panNumber', !!form.panNumber?.trim(), 'PAN Number is required.');
+    // PAN Number is optional. Only validate format if provided.
     if (form.panNumber?.trim() && !/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(form.panNumber.trim().toUpperCase())) {
       nextErrors.panNumber = 'Invalid PAN Number format (e.g. ABCDE1234F).';
     }
@@ -408,6 +423,7 @@ export const StaffRegistrationPage: React.FC<StaffRegistrationPageProps> = ({ on
           isSubmitting={submitting}
           activeStep={currentStep}
           onStepChange={handleStepChange}
+          onSaveStep={handleSaveStep}
         />
       </form>
     </div>

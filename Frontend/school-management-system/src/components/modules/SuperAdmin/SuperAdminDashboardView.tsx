@@ -248,32 +248,32 @@ export const SuperAdminDashboardView: React.FC<SuperAdminDashboardViewProps> = (
   return (
     <div className="space-y-4 animate-in fade-in duration-300 pb-6">
       
-      {/* Top Banner: Welcome Back {Admin Name} */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-sky-600 via-blue-600 to-indigo-700 p-4 sm:p-5 md:p-6 text-white shadow-lg">
+      {/* Top Banner: Welcome Back {Admin Name} - Optimized width & balanced layout */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-sky-600 via-blue-600 to-indigo-700 p-4 sm:p-5 text-white shadow-md max-w-4xl">
         {/* Decorative background shape */}
-        <div className="absolute -right-10 -bottom-10 w-64 h-64 rounded-full bg-white/10 blur-2xl pointer-events-none" />
-        <div className="absolute right-32 top-4 w-20 h-20 rounded-full bg-sky-400/20 blur-xl pointer-events-none" />
+        <div className="absolute -right-10 -bottom-10 w-48 h-48 rounded-full bg-white/10 blur-xl pointer-events-none" />
+        <div className="absolute right-28 top-2 w-16 h-16 rounded-full bg-sky-400/20 blur-lg pointer-events-none" />
 
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-1.5">
-            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight">
               Welcome Back, {user?.name || 'Administrator'}
             </h1>
-            <p className="text-sky-100 text-sm font-medium">
+            <p className="text-sky-100 text-xs sm:text-sm font-medium">
               {newSchoolsToday} New Schools Subscribed Today &bull; {totalSchools} Total Institutions Active
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5 shrink-0">
             <button
               onClick={() => onNavigate('superadmin-schools')}
-              className="px-5 py-2.5 rounded-2xl btn-glass-secondary text-xs md:text-sm font-bold text-slate-900 dark:text-white shadow-md transition-all cursor-pointer active:scale-95"
+              className="px-4 py-2 rounded-xl btn-glass-secondary text-xs sm:text-sm font-bold text-slate-900 dark:text-white shadow-xs transition-all cursor-pointer active:scale-95"
             >
               Schools
             </button>
             <button
               onClick={() => onNavigate('superadmin-subscriptions')}
-              className="px-5 py-2.5 rounded-2xl btn-glass-primary text-xs md:text-sm font-bold text-white shadow-md transition-all cursor-pointer active:scale-95"
+              className="px-4 py-2 rounded-xl btn-glass-primary text-xs sm:text-sm font-bold text-white shadow-xs transition-all cursor-pointer active:scale-95"
             >
               Subscriptions
             </button>

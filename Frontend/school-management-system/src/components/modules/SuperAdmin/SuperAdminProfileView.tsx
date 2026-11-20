@@ -194,10 +194,82 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
 
     loadProfileData();
 
+    // Listen to profile updates to maintain immediate synchronization across admin sections
+    const handleSync = () => {
+      try {
+        const cached = localStorage.getItem('superadmin_company_profile');
+        if (cached) {
+          const p = JSON.parse(cached);
+          setCompanyBranding(prev => ({
+            ...prev,
+            name: p.companyName || p.name || prev.name,
+            logo: p.logoUrl || p.logo || prev.logo,
+            tagline: p.tagline !== undefined ? p.tagline : prev.tagline,
+            address: p.address || prev.address,
+            supportEmail: p.supportEmail || prev.supportEmail,
+            supportPhone: p.supportPhone || prev.supportPhone,
+            websiteUrl: p.websiteUrl || prev.websiteUrl,
+          }));
+          setProfileForm(prev => ({
+            ...prev,
+            organization: p.companyName || p.name || prev.organization,
+          }));
+        }
+      } catch { }
+    };
+
+    window.addEventListener('superadmin_profile_updated', handleSync);
+
     return () => {
       isMounted = false;
+      window.removeEventListener('superadmin_profile_updated', handleSync);
     };
   }, [user?.email]);
+
+  // Validation helpers for Company Profile and Identity fields
+  const validateCompanyNameField = (val: string): { isValid: boolean; error?: string } => {
+    if (!val || !val.trim()) {
+      return { isValid: false, error: 'Platform / Company name is required.' };
+    }
+    const trimmed = val.trim();
+    if (trimmed.length < 2) {
+      return { isValid: false, error: 'Company name must be at least 2 characters.' };
+    }
+    if (trimmed.length > 70) {
+      return { isValid: false, error: 'Company name cannot exceed 70 characters.' };
+    }
+    if (!/^[a-zA-Z0-9\s\-\–\—\.\,\&\(\)\/\'\_]+$/.test(trimmed)) {
+      return { isValid: false, error: 'Special characters are not allowed in company name.' };
+    }
+    return { isValid: true };
+  };
+
+  const validatePhoneDigits = (val: string, label: string = 'Support phone number'): { isValid: boolean; error?: string } => {
+    if (!val || typeof val !== 'string' || !val.trim()) {
+      return { isValid: false, error: `${label} is required.` };
+    }
+    const trimmed = val.trim();
+    if (/[^0-9\+\-\s\(\)]/.test(trimmed)) {
+      return { isValid: false, error: 'Only numeric digits are allowed.' };
+    }
+    const digitsOnly = trimmed.replace(/\D/g, '');
+    if (!digitsOnly) {
+      return { isValid: false, error: `${label} is required.` };
+    }
+    if (digitsOnly.length > 10) {
+      return { isValid: false, error: `${label} cannot exceed 10 digits.` };
+    }
+    if (digitsOnly.length < 10) {
+      return { isValid: false, error: `${label} must be exactly 10 digits.` };
+    }
+    if (!/^[6-9]/.test(digitsOnly)) {
+      return { isValid: false, error: `${label} must start with 6, 7, 8, or 9.` };
+    }
+    if (/^(\d)\1{9,}$/.test(digitsOnly)) {
+      return { isValid: false, error: `Enter a valid ${label.toLowerCase()} (repeated digits not allowed).` };
+    }
+    return { isValid: true };
+  };
 
   // Handle Company Logo File Selection
   const handleCompanyLogoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -262,6 +334,7 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
           companyName: companyBranding.name.trim(),
           tagline: companyBranding.tagline.trim(),
           logoUrl: '',
+          address: companyBranding.address.trim(),
           supportEmail: companyBranding.supportEmail.trim(),
           supportPhone: companyBranding.supportPhone.trim(),
           websiteUrl: companyBranding.websiteUrl.trim(),
@@ -291,14 +364,12 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
       pErrors.email = emailRes.error || 'Please enter a valid email address.';
     }
 
-    if (profileForm.phone) {
-      const phoneRes = validatePhoneNumber(profileForm.phone, false);
-      if (!phoneRes.isValid) {
-        pErrors.phone = phoneRes.error || 'Phone must be exactly 10 digits.';
-      }
+    const phoneRes = validatePhoneDigits(profileForm.phone, 'Contact phone number');
+    if (!phoneRes.isValid) {
+      pErrors.phone = phoneRes.error;
     }
 
-    // 2. Company / Platform Branding Validation
+    // 2. Company / Platform Branding Validation (All mandatory fields verified)
     const bErrors: {
       name?: string;
       tagline?: string;
@@ -308,9 +379,9 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
       websiteUrl?: string;
     } = {};
 
-    const companyNameRes = validateOrganizationName(companyBranding.name, true);
+    const companyNameRes = validateCompanyNameField(companyBranding.name);
     if (!companyNameRes.isValid) {
-      bErrors.name = companyNameRes.error || 'Please enter a valid platform / company name.';
+      bErrors.name = companyNameRes.error;
     }
 
     if (companyBranding.tagline?.trim()) {
@@ -326,32 +397,24 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
       }
     }
 
-    if (companyBranding.address?.trim()) {
-      const addressRes = validateAddress(companyBranding.address, false);
-      if (!addressRes.isValid) {
-        bErrors.address = addressRes.error;
-      }
+    const addressRes = validateAddress(companyBranding.address, true);
+    if (!addressRes.isValid) {
+      bErrors.address = addressRes.error;
     }
 
-    if (companyBranding.supportEmail?.trim()) {
-      const sEmailRes = validateEmail(companyBranding.supportEmail, false);
-      if (!sEmailRes.isValid) {
-        bErrors.supportEmail = sEmailRes.error;
-      }
+    const sEmailRes = validateEmail(companyBranding.supportEmail, true);
+    if (!sEmailRes.isValid) {
+      bErrors.supportEmail = sEmailRes.error;
     }
 
-    if (companyBranding.supportPhone?.trim()) {
-      const sPhoneRes = validatePhoneNumber(companyBranding.supportPhone, false);
-      if (!sPhoneRes.isValid) {
-        bErrors.supportPhone = sPhoneRes.error;
-      }
+    const sPhoneRes = validatePhoneDigits(companyBranding.supportPhone, 'Support phone number');
+    if (!sPhoneRes.isValid) {
+      bErrors.supportPhone = sPhoneRes.error;
     }
 
-    if (companyBranding.websiteUrl?.trim()) {
-      const sUrlRes = validateWebsiteUrl(companyBranding.websiteUrl, false);
-      if (!sUrlRes.isValid) {
-        bErrors.websiteUrl = sUrlRes.error;
-      }
+    const sUrlRes = validateWebsiteUrl(companyBranding.websiteUrl, true);
+    if (!sUrlRes.isValid) {
+      bErrors.websiteUrl = sUrlRes.error;
     }
 
     setFormErrors(pErrors);
@@ -405,14 +468,21 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
         console.warn('Backend user profile update note:', apiErr);
       }
 
-      if (user) {
-        const updatedUser = {
-          ...user,
-          name: profileForm.name.trim(),
-          email: profileForm.email.trim(),
-          phone: profileForm.phone.trim(),
-        };
+      // Synchronize into user session & localStorage immediately
+      const updatedUser = user ? {
+        ...user,
+        name: profileForm.name.trim(),
+        email: profileForm.email.trim(),
+        phone: profileForm.phone.trim(),
+        organization: finalCompanyName,
+      } : null;
+
+      if (updatedUser) {
         setUser(updatedUser);
+        try {
+          localStorage.setItem('auth_user', JSON.stringify(updatedUser));
+          localStorage.setItem('user', JSON.stringify(updatedUser));
+        } catch { }
       }
 
       setCompanyBranding({
@@ -424,7 +494,13 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
         supportPhone: updatedProfile?.supportPhone || companyBranding.supportPhone.trim(),
         websiteUrl: updatedProfile?.websiteUrl || companyBranding.websiteUrl.trim(),
       });
-      setProfileForm(prev => ({ ...prev, organization: finalCompanyName }));
+      setProfileForm(prev => ({
+        ...prev,
+        organization: finalCompanyName,
+        name: profileForm.name.trim(),
+        email: profileForm.email.trim(),
+        phone: profileForm.phone.trim(),
+      }));
       setFormErrors({});
       setBrandingErrors({});
       setIsEditing(false);
@@ -432,6 +508,9 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
       window.dispatchEvent(new Event('superadmin_profile_updated'));
       window.dispatchEvent(new Event('company_profile_updated'));
       window.dispatchEvent(new Event('platform_branding_updated'));
+      window.dispatchEvent(new Event('user_profile_updated'));
+      window.dispatchEvent(new StorageEvent('storage', { key: 'superadmin_company_profile' }));
+      window.dispatchEvent(new StorageEvent('storage', { key: 'auth_user' }));
 
       addToast('success', 'Changes Saved', 'Company profile and branding saved to database successfully.');
     } catch (err: any) {
@@ -541,41 +620,54 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
             </div>
           </div>
 
-          {/* Edit Trigger */}
+          {/* Edit Trigger - Consolidated to avoid duplicate save buttons */}
           <div className="flex items-center shrink-0">
             {!isEditing ? (
               <button
                 type="button"
-                onClick={() => setIsEditing(true)}
+                onClick={() => {
+                  setIsEditing(true);
+                  // Run immediate pre-validation on active fields so invalid existing entries are flagged at once
+                  const initialBrandingErrors: typeof brandingErrors = {};
+                  const cNameRes = validateCompanyNameField(companyBranding.name);
+                  if (!cNameRes.isValid) initialBrandingErrors.name = cNameRes.error;
+                  const cAddrRes = validateAddress(companyBranding.address, true);
+                  if (!cAddrRes.isValid) initialBrandingErrors.address = cAddrRes.error;
+                  const cEmailRes = validateEmail(companyBranding.supportEmail, true);
+                  if (!cEmailRes.isValid) initialBrandingErrors.supportEmail = cEmailRes.error;
+                  const cPhoneRes = validatePhoneDigits(companyBranding.supportPhone, 'Support phone number');
+                  if (!cPhoneRes.isValid) initialBrandingErrors.supportPhone = cPhoneRes.error;
+                  const cUrlRes = validateWebsiteUrl(companyBranding.websiteUrl, true);
+                  if (!cUrlRes.isValid) initialBrandingErrors.websiteUrl = cUrlRes.error;
+                  setBrandingErrors(initialBrandingErrors);
+
+                  const initialFormErrors: typeof formErrors = {};
+                  const pNameRes = validateFullName(profileForm.name, true);
+                  if (!pNameRes.isValid) initialFormErrors.name = pNameRes.error;
+                  const pEmailRes = validateEmail(profileForm.email, true);
+                  if (!pEmailRes.isValid) initialFormErrors.email = pEmailRes.error;
+                  const pPhoneRes = validatePhoneDigits(profileForm.phone, 'Contact phone number');
+                  if (!pPhoneRes.isValid) initialFormErrors.phone = pPhoneRes.error;
+                  setFormErrors(initialFormErrors);
+                }}
                 className="px-3.5 py-1.5 rounded-xl bg-white/95 hover:bg-white text-sky-700 font-extrabold text-xs shadow-sm flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
               >
                 <Edit className="w-3.5 h-3.5 text-sky-600" />
                 <span>Edit Profile & Branding</span>
               </button>
             ) : (
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsEditing(false);
-                    setFormErrors({});
-                    setBrandingErrors({});
-                  }}
-                  className="px-3 py-1.5 rounded-xl bg-white/20 hover:bg-white/30 text-white font-extrabold text-xs shadow-sm flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
-                >
-                  <X className="w-3.5 h-3.5" />
-                  <span>Cancel</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSaveAll}
-                  disabled={isSaving}
-                  className="px-3.5 py-1.5 rounded-xl bg-white hover:bg-sky-50 text-sky-700 font-black text-xs shadow-sm flex items-center gap-1.5 transition-all cursor-pointer active:scale-95 disabled:opacity-60"
-                >
-                  {isSaving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-                  <span>{isSaving ? 'Saving...' : 'Save Changes'}</span>
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsEditing(false);
+                  setFormErrors({});
+                  setBrandingErrors({});
+                }}
+                className="px-3.5 py-1.5 rounded-xl bg-white/20 hover:bg-white/30 text-white font-extrabold text-xs shadow-sm flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
+              >
+                <X className="w-3.5 h-3.5" />
+                <span>Cancel Editing</span>
+              </button>
             )}
           </div>
         </div>
@@ -757,17 +849,18 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
                       type="text"
                       required
                       disabled={!isEditing}
-                      maxLength={100}
+                      maxLength={70}
                       placeholder="e.g. SMS Enterprise Cloud"
                       value={companyBranding.name}
                       onChange={(e) => {
                         const val = e.target.value;
                         setCompanyBranding(prev => ({ ...prev, name: val }));
-                        const res = validateOrganizationName(val, true);
+                        setProfileForm(prev => ({ ...prev, organization: val }));
+                        const res = validateCompanyNameField(val);
                         setBrandingErrors(prev => ({ ...prev, name: res.error }));
                       }}
                       onBlur={() => {
-                        const res = validateOrganizationName(companyBranding.name, true);
+                        const res = validateCompanyNameField(companyBranding.name);
                         setBrandingErrors(prev => ({ ...prev, name: res.error }));
                       }}
                       className={`w-full pl-9 pr-3 py-2 rounded-xl border text-xs font-semibold transition ${
@@ -780,7 +873,7 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
                     />
                   </div>
                   {brandingErrors.name && (
-                    <p className="mt-1 text-[10px] font-bold text-rose-500 flex items-center gap-1">
+                    <p className="mt-1 text-[11px] font-bold text-rose-500 flex items-center gap-1">
                       <span>⚠️</span> {brandingErrors.name}
                     </p>
                   )}
@@ -826,7 +919,7 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
                     />
                   </div>
                   {brandingErrors.tagline && (
-                    <p className="mt-1 text-[10px] font-bold text-rose-500 flex items-center gap-1">
+                    <p className="mt-1 text-[11px] font-bold text-rose-500 flex items-center gap-1">
                       <span>⚠️</span> {brandingErrors.tagline}
                     </p>
                   )}
@@ -836,12 +929,13 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
               {/* Corporate / Headquarter Address */}
               <div className="text-xs">
                 <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Corporate Office / Headquarter Address
+                  Corporate Office / Headquarter Address <span className="text-rose-500">*</span>
                 </label>
                 <div className="relative">
                   <MapPin className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
                   <input
                     type="text"
+                    required
                     disabled={!isEditing}
                     maxLength={200}
                     placeholder="e.g. 158, Kalina Santa Cruz CST Road, Santacruz East, Mumbai"
@@ -849,20 +943,12 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
                     onChange={(e) => {
                       const val = e.target.value;
                       setCompanyBranding(prev => ({ ...prev, address: val }));
-                      if (val.trim()) {
-                        const res = validateAddress(val, false);
-                        setBrandingErrors(prev => ({ ...prev, address: res.error }));
-                      } else {
-                        setBrandingErrors(prev => ({ ...prev, address: undefined }));
-                      }
+                      const res = validateAddress(val, true);
+                      setBrandingErrors(prev => ({ ...prev, address: res.error }));
                     }}
                     onBlur={() => {
-                      if (companyBranding.address.trim()) {
-                        const res = validateAddress(companyBranding.address, false);
-                        setBrandingErrors(prev => ({ ...prev, address: res.error }));
-                      } else {
-                        setBrandingErrors(prev => ({ ...prev, address: undefined }));
-                      }
+                      const res = validateAddress(companyBranding.address, true);
+                      setBrandingErrors(prev => ({ ...prev, address: res.error }));
                     }}
                     className={`w-full pl-9 pr-3 py-2 rounded-xl border text-xs font-semibold transition ${
                       !isEditing
@@ -874,7 +960,7 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
                   />
                 </div>
                 {brandingErrors.address && (
-                  <p className="mt-1 text-[10px] font-bold text-rose-500 flex items-center gap-1">
+                  <p className="mt-1 text-[11px] font-bold text-rose-500 flex items-center gap-1">
                     <span>⚠️</span> {brandingErrors.address}
                   </p>
                 )}
@@ -884,32 +970,26 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                 <div>
                   <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    Support Email
+                    Support Email <span className="text-rose-500">*</span>
                   </label>
                   <div className="relative">
                     <Mail className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
                     <input
                       type="email"
+                      required
                       disabled={!isEditing}
+                      maxLength={100}
                       placeholder="support@saascloud.com"
                       value={companyBranding.supportEmail}
                       onChange={(e) => {
                         const val = sanitizeEmailInput(e.target.value);
                         setCompanyBranding(prev => ({ ...prev, supportEmail: val }));
-                        if (val.trim()) {
-                          const res = validateEmail(val, false);
-                          setBrandingErrors(prev => ({ ...prev, supportEmail: res.error }));
-                        } else {
-                          setBrandingErrors(prev => ({ ...prev, supportEmail: undefined }));
-                        }
+                        const res = validateEmail(val, true);
+                        setBrandingErrors(prev => ({ ...prev, supportEmail: res.error }));
                       }}
                       onBlur={() => {
-                        if (companyBranding.supportEmail.trim()) {
-                          const res = validateEmail(companyBranding.supportEmail, false);
-                          setBrandingErrors(prev => ({ ...prev, supportEmail: res.error }));
-                        } else {
-                          setBrandingErrors(prev => ({ ...prev, supportEmail: undefined }));
-                        }
+                        const res = validateEmail(companyBranding.supportEmail, true);
+                        setBrandingErrors(prev => ({ ...prev, supportEmail: res.error }));
                       }}
                       className={`w-full pl-9 pr-3 py-2 rounded-xl border text-xs font-semibold transition ${
                         !isEditing
@@ -921,7 +1001,7 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
                     />
                   </div>
                   {brandingErrors.supportEmail && (
-                    <p className="mt-1 text-[10px] font-bold text-rose-500 flex items-center gap-1">
+                    <p className="mt-1 text-[11px] font-bold text-rose-500 flex items-center gap-1">
                       <span>⚠️</span> {brandingErrors.supportEmail}
                     </p>
                   )}
@@ -929,33 +1009,26 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
 
                 <div>
                   <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    Support Phone
+                    Support Phone <span className="text-rose-500">*</span>
                   </label>
                   <div className="relative">
                     <Phone className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
                     <input
                       type="tel"
-                      maxLength={10}
+                      required
+                      maxLength={15}
                       disabled={!isEditing}
                       placeholder="e.g. 9876543210"
                       value={companyBranding.supportPhone}
                       onChange={(e) => {
-                        const val = sanitizePhoneInput(e.target.value, 10);
-                        setCompanyBranding(prev => ({ ...prev, supportPhone: val }));
-                        if (val) {
-                          const res = validatePhoneNumber(val, false);
-                          setBrandingErrors(prev => ({ ...prev, supportPhone: res.error }));
-                        } else {
-                          setBrandingErrors(prev => ({ ...prev, supportPhone: undefined }));
-                        }
+                        const rawVal = e.target.value.slice(0, 15);
+                        setCompanyBranding(prev => ({ ...prev, supportPhone: rawVal }));
+                        const res = validatePhoneDigits(rawVal, 'Support phone number');
+                        setBrandingErrors(prev => ({ ...prev, supportPhone: res.error }));
                       }}
                       onBlur={() => {
-                        if (companyBranding.supportPhone) {
-                          const res = validatePhoneNumber(companyBranding.supportPhone, false);
-                          setBrandingErrors(prev => ({ ...prev, supportPhone: res.error }));
-                        } else {
-                          setBrandingErrors(prev => ({ ...prev, supportPhone: undefined }));
-                        }
+                        const res = validatePhoneDigits(companyBranding.supportPhone, 'Support phone number');
+                        setBrandingErrors(prev => ({ ...prev, supportPhone: res.error }));
                       }}
                       className={`w-full pl-9 pr-3 py-2 rounded-xl border text-xs font-semibold transition ${
                         !isEditing
@@ -967,7 +1040,7 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
                     />
                   </div>
                   {brandingErrors.supportPhone && (
-                    <p className="mt-1 text-[10px] font-bold text-rose-500 flex items-center gap-1">
+                    <p className="mt-1 text-[11px] font-bold text-rose-500 flex items-center gap-1">
                       <span>⚠️</span> {brandingErrors.supportPhone}
                     </p>
                   )}
@@ -977,12 +1050,13 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
               {/* Portal Website URL */}
               <div className="text-xs">
                 <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                  Portal Website URL
+                  Portal Website URL <span className="text-rose-500">*</span>
                 </label>
                 <div className="relative">
                   <Globe className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
                   <input
                     type="url"
+                    required
                     disabled={!isEditing}
                     maxLength={200}
                     placeholder="https://smscloud.portal"
@@ -990,20 +1064,12 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
                     onChange={(e) => {
                       const val = e.target.value;
                       setCompanyBranding(prev => ({ ...prev, websiteUrl: val }));
-                      if (val.trim()) {
-                        const res = validateWebsiteUrl(val.trim(), false);
-                        setBrandingErrors(prev => ({ ...prev, websiteUrl: res.error }));
-                      } else {
-                        setBrandingErrors(prev => ({ ...prev, websiteUrl: undefined }));
-                      }
+                      const res = validateWebsiteUrl(val.trim(), true);
+                      setBrandingErrors(prev => ({ ...prev, websiteUrl: res.error }));
                     }}
                     onBlur={() => {
-                      if (companyBranding.websiteUrl.trim()) {
-                        const res = validateWebsiteUrl(companyBranding.websiteUrl.trim(), false);
-                        setBrandingErrors(prev => ({ ...prev, websiteUrl: res.error }));
-                      } else {
-                        setBrandingErrors(prev => ({ ...prev, websiteUrl: undefined }));
-                      }
+                      const res = validateWebsiteUrl(companyBranding.websiteUrl.trim(), true);
+                      setBrandingErrors(prev => ({ ...prev, websiteUrl: res.error }));
                     }}
                     className={`w-full pl-9 pr-3 py-2 rounded-xl border text-xs font-semibold transition ${
                       !isEditing
@@ -1015,7 +1081,7 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
                   />
                 </div>
                 {brandingErrors.websiteUrl && (
-                  <p className="mt-1 text-[10px] font-bold text-rose-500 flex items-center gap-1">
+                  <p className="mt-1 text-[11px] font-bold text-rose-500 flex items-center gap-1">
                     <span>⚠️</span> {brandingErrors.websiteUrl}
                   </p>
                 )}
@@ -1052,11 +1118,16 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
                       type="text"
                       required
                       disabled={!isEditing}
+                      maxLength={70}
                       value={profileForm.name}
                       onChange={(e) => {
                         const val = e.target.value;
                         setProfileForm(prev => ({ ...prev, name: val }));
                         const res = validateFullName(val, true);
+                        setFormErrors(prev => ({ ...prev, name: res.error }));
+                      }}
+                      onBlur={() => {
+                        const res = validateFullName(profileForm.name, true);
                         setFormErrors(prev => ({ ...prev, name: res.error }));
                       }}
                       className={`w-full pl-9 pr-3 py-2 rounded-xl border text-xs font-semibold transition ${
@@ -1069,7 +1140,7 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
                     />
                   </div>
                   {formErrors.name && (
-                    <p className="mt-1 text-[10px] font-bold text-rose-500 flex items-center gap-1">
+                    <p className="mt-1 text-[11px] font-bold text-rose-500 flex items-center gap-1">
                       <span>⚠️</span> {formErrors.name}
                     </p>
                   )}
@@ -1086,11 +1157,16 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
                       type="email"
                       required
                       disabled={!isEditing}
+                      maxLength={100}
                       value={profileForm.email}
                       onChange={(e) => {
                         const val = sanitizeEmailInput(e.target.value);
                         setProfileForm(prev => ({ ...prev, email: val }));
                         const res = validateEmail(val, true);
+                        setFormErrors(prev => ({ ...prev, email: res.error }));
+                      }}
+                      onBlur={() => {
+                        const res = validateEmail(profileForm.email, true);
                         setFormErrors(prev => ({ ...prev, email: res.error }));
                       }}
                       className={`w-full pl-9 pr-3 py-2 rounded-xl border text-xs font-semibold transition ${
@@ -1103,7 +1179,7 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
                     />
                   </div>
                   {formErrors.email && (
-                    <p className="mt-1 text-[10px] font-bold text-rose-500 flex items-center gap-1">
+                    <p className="mt-1 text-[11px] font-bold text-rose-500 flex items-center gap-1">
                       <span>⚠️</span> {formErrors.email}
                     </p>
                   )}
@@ -1112,32 +1188,38 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
                 {/* Contact Phone */}
                 <div>
                   <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    Contact Phone Number
+                    Contact Phone Number <span className="text-rose-500">*</span>
                   </label>
                   <div className="relative">
                     <Phone className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
                     <input
                       type="tel"
-                      maxLength={10}
+                      required
+                      maxLength={15}
                       disabled={!isEditing}
+                      placeholder="e.g. 9876543210"
                       value={profileForm.phone}
                       onChange={(e) => {
-                        const val = sanitizePhoneInput(e.target.value);
-                        setProfileForm(prev => ({ ...prev, phone: val }));
-                        const res = validatePhoneNumber(val, false);
-                        setFormErrors(prev => ({ ...prev, phone: val ? res.error : undefined }));
+                        const rawVal = e.target.value.slice(0, 15);
+                        setProfileForm(prev => ({ ...prev, phone: rawVal }));
+                        const res = validatePhoneDigits(rawVal, 'Contact phone number');
+                        setFormErrors(prev => ({ ...prev, phone: res.error }));
+                      }}
+                      onBlur={() => {
+                        const res = validatePhoneDigits(profileForm.phone, 'Contact phone number');
+                        setFormErrors(prev => ({ ...prev, phone: res.error }));
                       }}
                       className={`w-full pl-9 pr-3 py-2 rounded-xl border text-xs font-semibold transition ${
                         !isEditing
                           ? 'bg-slate-50/80 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 cursor-not-allowed'
                           : formErrors.phone
-                          ? 'bg-rose-50/20 border-rose-400 focus:ring-2 focus:ring-rose-500/20'
+                          ? 'bg-rose-50/20 border-rose-400 focus:ring-2 focus:ring-rose-500/20 text-slate-900 dark:text-white'
                           : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20'
                       }`}
                     />
                   </div>
                   {formErrors.phone && (
-                    <p className="mt-1 text-[10px] font-bold text-rose-500 flex items-center gap-1">
+                    <p className="mt-1 text-[11px] font-bold text-rose-500 flex items-center gap-1">
                       <span>⚠️</span> {formErrors.phone}
                     </p>
                   )}
@@ -1153,8 +1235,13 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
                     <input
                       type="text"
                       disabled={!isEditing}
+                      maxLength={70}
                       value={profileForm.organization}
-                      onChange={(e) => setProfileForm(prev => ({ ...prev, organization: e.target.value }))}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setProfileForm(prev => ({ ...prev, organization: val }));
+                        setCompanyBranding(prev => ({ ...prev, name: val }));
+                      }}
                       className={`w-full pl-9 pr-3 py-2 rounded-xl border text-xs font-semibold transition ${
                         !isEditing
                           ? 'bg-slate-50/80 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 cursor-not-allowed'

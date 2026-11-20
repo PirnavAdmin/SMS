@@ -223,7 +223,7 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
       nextErrors.aadhaarNumber = "Aadhaar Number must be exactly 12 digits.";
     }
 
-    require("panNumber", !!form.panNumber?.trim(), "PAN Number is required.");
+    // PAN Number is optional now
     if (form.panNumber?.trim() && !/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(form.panNumber.trim().toUpperCase())) {
       nextErrors.panNumber = "Invalid PAN Number format (e.g. ABCDE1234F).";
     }
@@ -426,3 +426,4 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
     </div>
   );
 };
+

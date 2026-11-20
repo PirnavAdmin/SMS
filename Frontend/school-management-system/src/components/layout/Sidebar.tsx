@@ -1019,7 +1019,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         >
           {effectiveCollapsed ? (
             <div
-              className="flex items-center justify-center w-11 h-11 rounded-2xl btn-glass-secondary cursor-pointer overflow-hidden p-1 active:scale-95 transition-all mx-auto"
+              className="flex items-center justify-center w-10 h-10 rounded-xl cursor-pointer hover:bg-slate-100/60 dark:hover:bg-slate-800/60 overflow-hidden p-1 active:scale-95 transition-all mx-auto"
               onClick={() => setCollapsed(false)}
               title={isSuperAdmin ? "Super Admin Portal" : (schoolProfile?.name || "School Dashboard")}
             >
@@ -1040,10 +1040,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
           ) : (
             <div className="flex items-center justify-center w-full min-w-0 relative">
               <div
-                className={`flex items-center justify-center select-none cursor-pointer btn-glass-secondary transition-all overflow-hidden active:scale-98 mx-auto ${
-                  logoMeta && Math.abs(logoMeta.ratio - 1) < 0.3
-                    ? "w-12 h-12 rounded-2xl p-1.5 shrink-0"
-                    : "h-12 w-auto max-w-[190px] px-3 py-1 rounded-2xl shrink-0"
+                className={`flex items-center justify-center select-none cursor-pointer transition-all overflow-hidden active:scale-98 mx-auto ${
+                  isSuperAdmin
+                    ? "w-full max-w-[210px] py-1.5 px-2 rounded-xl hover:bg-slate-100/60 dark:hover:bg-slate-800/60"
+                    : logoMeta && Math.abs(logoMeta.ratio - 1) < 0.3
+                    ? "w-12 h-12 rounded-2xl p-1.5 shrink-0 btn-glass-secondary"
+                    : "h-12 w-auto max-w-[190px] px-3 py-1 rounded-2xl shrink-0 btn-glass-secondary"
                 }`}
                 onClick={() => handleNav(isSuperAdmin ? "superadmin-dashboard" : "dashboard")}
                 title={isSuperAdmin ? "Super Admin Portal" : (schoolProfile?.name || "School Dashboard")}
@@ -1055,15 +1057,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     onError={handleSidebarLogoError}
                     onLoad={handleSidebarLogoLoad}
                     className={`object-contain mx-auto ${
-                      logoMeta && Math.abs(logoMeta.ratio - 1) < 0.3
+                      isSuperAdmin
+                        ? "max-h-10 max-w-[170px]"
+                        : logoMeta && Math.abs(logoMeta.ratio - 1) < 0.3
                         ? "max-h-9 max-w-9"
                         : "max-h-10 max-w-full w-auto"
                     }`}
                   />
                 ) : isSuperAdmin ? (
-                  <div className="flex items-center justify-center gap-2 px-2 mx-auto">
-                    <Building2 className="w-5 h-5 text-sky-600 dark:text-sky-400 shrink-0" />
-                    <span className="font-extrabold text-xs text-slate-800 dark:text-white truncate max-w-[145px]">
+                  <div className="flex items-center justify-center gap-2.5 px-2 mx-auto">
+                    <div className="w-8 h-8 rounded-lg bg-sky-500/10 dark:bg-sky-500/20 flex items-center justify-center shrink-0">
+                      <Building2 className="w-4 h-4 text-sky-600 dark:text-sky-400 stroke-[2.2]" />
+                    </div>
+                    <span className="font-extrabold text-xs text-slate-800 dark:text-white truncate max-w-[140px] tracking-wide">
                       Super Admin
                     </span>
                   </div>
