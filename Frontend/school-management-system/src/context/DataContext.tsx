@@ -7250,6 +7250,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
             let parsedTypes: any[] = [];
             let parsedIssued: any[] = [];
             let parsedAlumni: any[] = [];
+            let parsedSignatories: any[] = [];
+            let parsedSeal: any = null;
 
             if (Array.isArray(rawCertSettings)) {
               parsedTemplates = rawCertSettings;
@@ -7266,6 +7268,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               parsedAlumni = Array.isArray(rawCertSettings.alumni)
                 ? rawCertSettings.alumni
                 : [];
+              parsedSignatories = Array.isArray(rawCertSettings.signatories)
+                ? rawCertSettings.signatories
+                : [];
+              parsedSeal = (rawCertSettings.seal && typeof rawCertSettings.seal === 'object')
+                ? rawCertSettings.seal
+                : null;
             }
 
             setCertificateTemplates(parsedTemplates);
@@ -7277,6 +7285,18 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
               "edu_db_certificate_types",
               JSON.stringify(parsedTypes),
             );
+            if (parsedSignatories.length > 0) {
+              localStorage.setItem(
+                "edu_db_certificate_signatories",
+                JSON.stringify(parsedSignatories),
+              );
+            }
+            if (parsedSeal) {
+              localStorage.setItem(
+                "edu_db_certificate_seal",
+                JSON.stringify(parsedSeal),
+              );
+            }
             setGeneratedCertificates(parsedIssued);
             localStorage.setItem(
               "edu_db_generated_certificates",
@@ -8151,12 +8171,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         const dbTemplates = Array.isArray(raw.templates) ? raw.templates : [];
         const dbTypes = Array.isArray(raw.types) ? raw.types : [];
         const dbPlaceholders = Array.isArray(raw.placeholders) ? raw.placeholders : [];
+        const dbSignatories = Array.isArray(raw.signatories) ? raw.signatories : [];
+        const dbSeal = (raw.seal && typeof raw.seal === 'object') ? raw.seal : null;
+
         setGeneratedCertificates(dbIssued);
         localStorage.setItem("edu_db_generated_certificates", JSON.stringify(dbIssued));
         setCertificateTemplates(dbTemplates);
         localStorage.setItem("edu_db_certificate_templates_v2", JSON.stringify(dbTemplates));
         localStorage.setItem("edu_db_certificate_types", JSON.stringify(dbTypes));
         localStorage.setItem("edu_db_certificate_placeholders", JSON.stringify(dbPlaceholders));
+        if (dbSignatories.length > 0) {
+          localStorage.setItem("edu_db_certificate_signatories", JSON.stringify(dbSignatories));
+        }
+        if (dbSeal) {
+          localStorage.setItem("edu_db_certificate_seal", JSON.stringify(dbSeal));
+        }
         if (Array.isArray(raw.alumni)) {
           setAlumniRecords((prev) => {
             const map = new Map<string, AlumniRecord>();
@@ -8169,12 +8198,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           });
         }
       } else {
-        setGeneratedCertificates([]);
-        localStorage.setItem("edu_db_generated_certificates", JSON.stringify([]));
-        setCertificateTemplates([]);
-        localStorage.setItem("edu_db_certificate_templates_v2", JSON.stringify([]));
-        localStorage.setItem("edu_db_certificate_types", JSON.stringify([]));
-        localStorage.setItem("edu_db_certificate_placeholders", JSON.stringify([]));
+        // Do not wipe localStorage with empty values if local storage already has valid configurations
+        const hasExisting = localStorage.getItem("edu_db_certificate_templates_v2") || localStorage.getItem("edu_db_certificate_types");
+        if (!hasExisting) {
+          setGeneratedCertificates([]);
+          localStorage.setItem("edu_db_generated_certificates", JSON.stringify([]));
+          setCertificateTemplates([]);
+          localStorage.setItem("edu_db_certificate_templates_v2", JSON.stringify([]));
+          localStorage.setItem("edu_db_certificate_types", JSON.stringify([]));
+          localStorage.setItem("edu_db_certificate_placeholders", JSON.stringify([]));
+        }
       }
       try {
         window.dispatchEvent(new Event("certificates_updated"));

@@ -1,15 +1,16 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { 
   X, FileText, CheckCircle2, AlertTriangle, ShieldCheck, Printer, 
   Download, ArrowRight, Eye, Calendar, Award, Building2, User, UserCheck, RefreshCw,
   Search, ChevronDown, Users, Check, Minus, Edit3
 } from 'lucide-react';
 import { 
-  Student, GeneratedCertificateRecord, CertificateTypeConfig, CertificateTemplateConfig 
+  Student, GeneratedCertificateRecord, CertificateTypeConfig, CertificateTemplateConfig, CertificateSignatory 
 } from '../../../types';
 import { useData, formatAcademicYear } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
+import { fetchSchoolSettingsApi } from '../../../api/settings';
 import { PrintableCertificateContainer, PrintableBatchCertificatesContainer } from './PrintableCertificateContainer';
 import { DateInput } from '../../common/DateInput';
 import { getFieldsForCertificateType, DEFAULT_CERTIFICATE_TYPES } from '../../../utils/certificateFields';
@@ -73,9 +74,140 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
   onSuccess,
   existingRecord
 }) => {
-  const { students, schoolProfile, academicClasses, academicYears = [], saveGeneratedCertificates } = useData();
+  const { students, schoolProfile, academicClasses, academicYears = [], saveGeneratedCertificates, certificateTemplates: contextTemplates = [] } = useData();
   const { selectedAcademicYear, selectedBranch } = useAuth();
   const { addToast } = useToast();
+
+  const modalContentRef = useRef<HTMLDivElement>(null);
+
+  // Synchronized state for Types, Templates, Signatories, and Seal from Settings
+  const [localTypes, setLocalTypes] = useState<CertificateTypeConfig[]>(() => {
+    try {
+      const saved = localStorage.getItem('edu_db_certificate_types');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return DEFAULT_CERTIFICATE_TYPES;
+  });
+
+  const [localTemplates, setLocalTemplates] = useState<CertificateTemplateConfig[]>(() => {
+    try {
+      const saved = localStorage.getItem('edu_db_certificate_templates_v2') || localStorage.getItem('edu_db_certificate_templates');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return contextTemplates || [];
+  });
+
+  const [localSignatories, setLocalSignatories] = useState<CertificateSignatory[]>(() => {
+    try {
+      const saved = localStorage.getItem('edu_db_certificate_signatories');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return [];
+  });
+
+  const [localSeal, setLocalSeal] = useState<{ show: boolean; sealText: string; sealImageUrl: string }>(() => {
+    try {
+      const saved = localStorage.getItem('edu_db_certificate_seal');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object') return parsed;
+      }
+    } catch (e) {}
+    return { show: true, sealText: '', sealImageUrl: '' };
+  });
+
+  const reloadCertificateConfigurations = useCallback(() => {
+    try {
+      const savedTypes = localStorage.getItem('edu_db_certificate_types');
+      if (savedTypes) {
+        const parsed = JSON.parse(savedTypes);
+        if (Array.isArray(parsed) && parsed.length > 0) setLocalTypes(parsed);
+      }
+    } catch {}
+
+    try {
+      const savedTemplates = localStorage.getItem('edu_db_certificate_templates_v2') || localStorage.getItem('edu_db_certificate_templates');
+      if (savedTemplates) {
+        const parsed = JSON.parse(savedTemplates);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setLocalTemplates(parsed);
+        } else if (contextTemplates && contextTemplates.length > 0) {
+          setLocalTemplates(contextTemplates);
+        }
+      } else if (contextTemplates && contextTemplates.length > 0) {
+        setLocalTemplates(contextTemplates);
+      }
+    } catch {}
+
+    try {
+      const savedSig = localStorage.getItem('edu_db_certificate_signatories');
+      if (savedSig) {
+        const parsed = JSON.parse(savedSig);
+        if (Array.isArray(parsed) && parsed.length > 0) setLocalSignatories(parsed);
+      }
+    } catch {}
+
+    try {
+      const savedSeal = localStorage.getItem('edu_db_certificate_seal');
+      if (savedSeal) {
+        const parsed = JSON.parse(savedSeal);
+        if (parsed && typeof parsed === 'object') setLocalSeal(parsed);
+      }
+    } catch {}
+  }, [contextTemplates]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    reloadCertificateConfigurations();
+
+    let isMounted = true;
+    fetchSchoolSettingsApi()
+      .then((res: any) => {
+        if (!isMounted) return;
+        const certData = res?.data?.certificateTemplates;
+        if (certData && typeof certData === 'object' && !Array.isArray(certData)) {
+          if (Array.isArray(certData.types) && certData.types.length > 0) {
+            setLocalTypes(certData.types);
+            try { localStorage.setItem('edu_db_certificate_types', JSON.stringify(certData.types)); } catch {}
+          }
+          if (Array.isArray(certData.templates) && certData.templates.length > 0) {
+            setLocalTemplates(certData.templates);
+            try { localStorage.setItem('edu_db_certificate_templates_v2', JSON.stringify(certData.templates)); } catch {}
+          }
+          if (Array.isArray(certData.signatories) && certData.signatories.length > 0) {
+            setLocalSignatories(certData.signatories);
+            try { localStorage.setItem('edu_db_certificate_signatories', JSON.stringify(certData.signatories)); } catch {}
+          }
+          if (certData.seal && typeof certData.seal === 'object') {
+            setLocalSeal(certData.seal);
+            try { localStorage.setItem('edu_db_certificate_seal', JSON.stringify(certData.seal)); } catch {}
+          }
+        }
+      })
+      .catch(() => {});
+
+    const onUpdate = () => {
+      reloadCertificateConfigurations();
+    };
+
+    window.addEventListener('certificates_updated', onUpdate);
+    window.addEventListener('school_profile_updated', onUpdate);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener('certificates_updated', onUpdate);
+      window.removeEventListener('school_profile_updated', onUpdate);
+    };
+  }, [isOpen, reloadCertificateConfigurations]);
   
   const activeAY = useMemo(() => {
     if (selectedAcademicYear && selectedAcademicYear !== 'All') return formatAcademicYear(selectedAcademicYear);
@@ -101,26 +233,14 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
 
   // Load Certificate Types & Templates from synced backend state / localStorage
   const certificateTypes = useMemo<CertificateTypeConfig[]>(() => {
-    try {
-      const saved = localStorage.getItem('edu_db_certificate_types');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-      }
-    } catch (e) {}
+    if (localTypes && localTypes.length > 0) return localTypes;
     return DEFAULT_CERTIFICATE_TYPES;
-  }, [isOpen]);
+  }, [localTypes]);
 
   const certificateTemplates = useMemo<CertificateTemplateConfig[]>(() => {
-    try {
-      const saved = localStorage.getItem('edu_db_certificate_templates_v2');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
-      }
-    } catch (e) {}
+    if (localTemplates && localTemplates.length > 0) return localTemplates;
     return [];
-  }, [isOpen]);
+  }, [localTemplates]);
 
   // Selected Student & Type State for Single Mode
   const [selectedStudentId, setSelectedStudentId] = useState<string>(
@@ -276,6 +396,13 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [activeTab, setActiveTab] = useState<'form' | 'preview'>(existingRecord ? 'preview' : 'form');
   const [issuedSingleRecord, setIssuedSingleRecord] = useState<GeneratedCertificateRecord | null>(null);
+
+  // Reset modal body scroll whenever tab changes or modal opens
+  useEffect(() => {
+    if (modalContentRef.current) {
+      modalContentRef.current.scrollTop = 0;
+    }
+  }, [activeTab, isOpen]);
 
   // Initialize or reset dynamic form state when Certificate Type or Student changes
   useEffect(() => {
@@ -511,16 +638,60 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
     return selectedBulkStudents[safeIdx] || selectedBulkStudents[0];
   }, [selectedBulkStudents, bulkPreviewIndex]);
 
-  const selectedTemplate = useMemo(() => {
+  const selectedTemplate = useMemo<CertificateTemplateConfig>(() => {
     if (existingRecord?.templateSnapshot) {
       return existingRecord.templateSnapshot;
     }
-    const found = certificateTemplates.find(t => t.certificateTypeId === selectedTypeConfig?.id || t.certificateTypeName === selectedTypeConfig?.name);
-    if (found) return found;
+
+    const targetTypeId = (selectedTypeConfig?.id || selectedTypeId || '').trim().toLowerCase();
+    const targetTypeName = (selectedTypeConfig?.name || '').trim().toLowerCase();
+    const targetTypeCode = (selectedTypeConfig?.code || '').trim().toLowerCase();
+
+    const matched = certificateTemplates.find(t => {
+      const tTypeId = (t.certificateTypeId || '').trim().toLowerCase();
+      const tId = (t.id || '').trim().toLowerCase();
+      const tName = (t.certificateTypeName || (t as any).certificateType || '').trim().toLowerCase();
+      const tTitle = (t.title || '').trim().toLowerCase();
+      const tCode = ((t as any).code || '').trim().toLowerCase();
+
+      return (
+        (targetTypeId && (tTypeId === targetTypeId || tId === targetTypeId || tId === `tpl-${targetTypeId}`)) ||
+        (targetTypeName && (tName === targetTypeName || tTitle === targetTypeName)) ||
+        (targetTypeCode && tCode === targetTypeCode)
+      );
+    });
+
+    // Resolved signatories: prioritize template signatories if non-empty, otherwise global Settings signatories
+    const resolvedSignatories = (matched?.signatories && matched.signatories.length > 0 && matched.signatories.some(s => s.show !== false && s.title?.trim()))
+      ? matched.signatories
+      : (localSignatories && localSignatories.length > 0 && localSignatories.some(s => s.show !== false && s.title?.trim()))
+        ? localSignatories
+        : [
+            { id: '1', title: 'Class Teacher', show: true },
+            { id: '2', title: 'Accounts Officer', show: true },
+            { id: '3', title: 'Principal', name: schoolProfile?.principalName || 'Principal', show: true }
+          ];
+
+    const resolvedShowSeal = matched?.showSeal !== undefined ? matched.showSeal : (localSeal.show !== undefined ? localSeal.show : true);
+    const resolvedSealText = (matched?.sealText || localSeal.sealText || 'OFFICIAL SEAL').trim();
+    const resolvedSealImageUrl = matched?.sealImageUrl || localSeal.sealImageUrl || '';
+
+    if (matched) {
+      return {
+        ...matched,
+        signatories: resolvedSignatories,
+        showSeal: resolvedShowSeal,
+        sealText: resolvedSealText,
+        sealImageUrl: resolvedSealImageUrl,
+        headerStyle: matched.headerStyle || 'Classic Double Border',
+        themeColor: matched.themeColor || '#1e3a8a',
+        title: matched.title || (selectedTypeConfig?.name || 'CERTIFICATE').toUpperCase(),
+      };
+    }
 
     return {
-      id: `TPL-${selectedTypeConfig?.id}`,
-      certificateTypeId: selectedTypeConfig?.id || 'CT-TC',
+      id: `TPL-${selectedTypeConfig?.id || selectedTypeId || 'DEFAULT'}`,
+      certificateTypeId: selectedTypeConfig?.id || selectedTypeId || 'CT-TC',
       certificateTypeName: selectedTypeConfig?.name || 'Certificate',
       title: (selectedTypeConfig?.name || 'CERTIFICATE').toUpperCase(),
       headerStyle: 'Classic Double Border' as const,
@@ -529,15 +700,13 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
       showSchoolHeader: true,
       bodyTemplate: `This is to certify that {{studentName}}, Admission No. {{admissionNumber}}, Class {{class}}, is a student of {{schoolName}}. Issued on {{issueDate}}.`,
       footerText: 'Official Certificate issued by School Authority.',
-      signatories: [
-        { id: '1', title: 'Class Teacher', show: true },
-        { id: '2', title: 'Accounts Officer', show: true },
-        { id: '3', title: 'Principal', name: schoolProfile?.principalName || 'Principal', show: true }
-      ],
-      showSeal: true,
+      signatories: resolvedSignatories,
+      showSeal: resolvedShowSeal,
+      sealText: resolvedSealText,
+      sealImageUrl: resolvedSealImageUrl,
       dateFormat: 'DD/MM/YYYY'
     };
-  }, [certificateTemplates, selectedTypeConfig, existingRecord, schoolProfile]);
+  }, [certificateTemplates, selectedTypeConfig, selectedTypeId, existingRecord, localSignatories, localSeal, schoolProfile]);
 
   // Calculate unique Certificate Number
   const generatedCertNo = useMemo(() => {
@@ -1050,7 +1219,7 @@ export const GenerateCertificateModal: React.FC<GenerateCertificateModalProps> =
         </div>
 
         {/* Modal Body Content */}
-        <div className="flex-1 overflow-y-auto pr-1 space-y-4 print:overflow-visible print:p-0">
+        <div ref={modalContentRef} className="flex-1 overflow-y-auto pr-1 space-y-4 print:overflow-visible print:p-0">
           {/* FORM TAB */}
           <div className={`space-y-5 no-print ${activeTab === 'form' ? 'block' : 'hidden'}`}>
             {/* SINGLE vs BULK SELECTION AREA */}
