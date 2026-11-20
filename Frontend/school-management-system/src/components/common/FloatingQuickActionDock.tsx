@@ -53,32 +53,32 @@ export const FloatingQuickActionDock: React.FC<FloatingQuickActionDockProps> = (
   return (
     <div
       ref={dockRef}
-      className="fixed bottom-6 right-6 z-40 flex flex-col items-end gap-2.5 print:hidden select-none"
+      className="fixed bottom-4 right-4 sm:bottom-5 sm:right-5 z-40 flex flex-col items-end gap-2 print:hidden select-none"
     >
       {/* Rolled out Speed Dial Stack */}
       {isOpen && (
-        <div className="flex flex-col items-end gap-2 mb-1 animate-rollout origin-bottom">
+        <div className="flex flex-col items-end gap-1.5 mb-0.5 animate-rollout origin-bottom">
           {/* Scroll to Top */}
-          <div className="flex items-center gap-2 group">
-            <span className="px-2.5 py-1 text-[11px] font-bold rounded-xl glass-card text-slate-700 dark:text-slate-200 border-primary-interactive shadow-xs opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+          <div className="flex items-center gap-1.5 group">
+            <span className="px-2 py-0.5 text-[10px] font-bold rounded-lg glass-card text-slate-700 dark:text-slate-200 border-primary-interactive shadow-xs opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap">
               Scroll to Top
             </span>
             <button
               type="button"
               onClick={scrollToTop}
               title="Scroll to Top"
-              className={`w-11 h-11 rounded-2xl glass-card border-primary-interactive flex items-center justify-center text-slate-700 dark:text-slate-200 hover:text-[var(--primary-color)] dark:hover:text-white hover-tilt shadow-md cursor-pointer transition-all ${
+              className={`w-8 h-8 rounded-full glass-card border-primary-interactive flex items-center justify-center text-slate-700 dark:text-slate-200 hover:text-[var(--primary-color)] dark:hover:text-white hover-tilt shadow-sm cursor-pointer transition-all ${
                 showScrollTop ? 'pulse-primary' : ''
               }`}
             >
-              <ArrowUp className="w-5 h-5 stroke-[2.2]" />
+              <ArrowUp className="w-3.5 h-3.5 stroke-[2.2]" />
             </button>
           </div>
 
           {/* Quick Search */}
           {onOpenSearch && (
-            <div className="flex items-center gap-2 group">
-              <span className="px-2.5 py-1 text-[11px] font-bold rounded-xl glass-card text-slate-700 dark:text-slate-200 border-primary-interactive shadow-xs opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+            <div className="flex items-center gap-1.5 group">
+              <span className="px-2 py-0.5 text-[10px] font-bold rounded-lg glass-card text-slate-700 dark:text-slate-200 border-primary-interactive shadow-xs opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap">
                 Global Search (Ctrl+K)
               </span>
               <button
@@ -88,17 +88,17 @@ export const FloatingQuickActionDock: React.FC<FloatingQuickActionDockProps> = (
                   onOpenSearch();
                 }}
                 title="Search anything"
-                className="w-11 h-11 rounded-2xl glass-card border-primary-interactive flex items-center justify-center text-slate-700 dark:text-slate-200 hover:text-[var(--primary-color)] dark:hover:text-white hover-tilt shadow-md cursor-pointer transition-all"
+                className="w-8 h-8 rounded-full glass-card border-primary-interactive flex items-center justify-center text-slate-700 dark:text-slate-200 hover:text-[var(--primary-color)] dark:hover:text-white hover-tilt shadow-sm cursor-pointer transition-all"
               >
-                <Search className="w-5 h-5 stroke-[2.2]" />
+                <Search className="w-3.5 h-3.5 stroke-[2.2]" />
               </button>
             </div>
           )}
 
           {/* Theme Studio / Customizer */}
           {onOpenTheme && (
-            <div className="flex items-center gap-2 group">
-              <span className="px-2.5 py-1 text-[11px] font-bold rounded-xl glass-card text-slate-700 dark:text-slate-200 border-primary-interactive shadow-xs opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+            <div className="flex items-center gap-1.5 group">
+              <span className="px-2 py-0.5 text-[10px] font-bold rounded-lg glass-card text-slate-700 dark:text-slate-200 border-primary-interactive shadow-xs opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap">
                 Theme Studio
               </span>
               <button
@@ -108,16 +108,16 @@ export const FloatingQuickActionDock: React.FC<FloatingQuickActionDockProps> = (
                   onOpenTheme();
                 }}
                 title="Customize Theme Colors"
-                className="w-11 h-11 rounded-2xl glass-card border-primary-interactive flex items-center justify-center text-amber-500 hover:text-amber-600 dark:hover:text-amber-400 hover-tilt shadow-md cursor-pointer transition-all"
+                className="w-8 h-8 rounded-full glass-card border-primary-interactive flex items-center justify-center text-amber-500 hover:text-amber-600 dark:hover:text-amber-400 hover-tilt shadow-sm cursor-pointer transition-all"
               >
-                <Palette className="w-5 h-5 stroke-[2.2]" />
+                <Palette className="w-3.5 h-3.5 stroke-[2.2]" />
               </button>
             </div>
           )}
 
           {/* Dark / Light Mode Flip Toggle */}
-          <div className="flex items-center gap-2 group">
-            <span className="px-2.5 py-1 text-[11px] font-bold rounded-xl glass-card text-slate-700 dark:text-slate-200 border-primary-interactive shadow-xs opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+          <div className="flex items-center gap-1.5 group">
+            <span className="px-2 py-0.5 text-[10px] font-bold rounded-lg glass-card text-slate-700 dark:text-slate-200 border-primary-interactive shadow-xs opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap">
               {isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
             </span>
             <button
@@ -126,12 +126,12 @@ export const FloatingQuickActionDock: React.FC<FloatingQuickActionDockProps> = (
                 toggleDarkMode();
               }}
               title={isDarkMode ? 'Light Mode' : 'Dark Mode'}
-              className="w-11 h-11 rounded-2xl glass-card border-primary-interactive flex items-center justify-center text-slate-700 dark:text-amber-400 hover:text-[var(--primary-color)] dark:hover:text-amber-300 hover-tilt shadow-md cursor-pointer transition-all"
+              className="w-8 h-8 rounded-full glass-card border-primary-interactive flex items-center justify-center text-slate-700 dark:text-amber-400 hover:text-[var(--primary-color)] dark:hover:text-amber-300 hover-tilt shadow-sm cursor-pointer transition-all"
             >
               {isDarkMode ? (
-                <Sun className="w-5 h-5 stroke-[2.2] animate-flip-y" />
+                <Sun className="w-3.5 h-3.5 stroke-[2.2] animate-flip-y" />
               ) : (
-                <Moon className="w-5 h-5 stroke-[2.2] animate-flip-y" />
+                <Moon className="w-3.5 h-3.5 stroke-[2.2] animate-flip-y" />
               )}
             </button>
           </div>
@@ -143,18 +143,18 @@ export const FloatingQuickActionDock: React.FC<FloatingQuickActionDockProps> = (
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
         aria-label="Quick Actions Hub"
-        className={`group relative h-12 w-12 sm:h-13 sm:w-13 rounded-3xl btn-glass-primary flex items-center justify-center shadow-xl cursor-pointer transition-all duration-300 ${
-          isOpen ? 'rotate-90 scale-105' : 'hover:scale-110'
+        className={`group relative h-8 w-8 sm:h-9 sm:w-9 rounded-full btn-glass-primary flex items-center justify-center shadow-lg cursor-pointer transition-all duration-300 ${
+          isOpen ? 'rotate-90 scale-105' : 'hover:scale-105'
         }`}
       >
         {/* Subtle Ambient Primary Halo */}
-        <div className="absolute inset-0 rounded-3xl bg-[var(--primary-color)] opacity-40 blur-lg group-hover:opacity-75 transition-opacity pointer-events-none" />
+        <div className="absolute inset-0 rounded-full bg-[var(--primary-color)] opacity-30 blur-md group-hover:opacity-60 transition-opacity pointer-events-none" />
 
         <div className="relative z-10 text-white">
           {isOpen ? (
-            <X className="w-6 h-6 stroke-[2.5]" />
+            <X className="w-4 h-4 stroke-[2.5]" />
           ) : (
-            <Sparkles className="w-6 h-6 stroke-[2.2] transition-transform group-hover:rotate-12" />
+            <Sparkles className="w-4 h-4 stroke-[2.2] transition-transform group-hover:rotate-12" />
           )}
         </div>
       </button>

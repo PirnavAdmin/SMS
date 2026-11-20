@@ -57,6 +57,7 @@ interface BasicStaffFormFieldsProps {
   staffToEdit?: any;
   activeStep?: number;
   onStepChange?: (step: number) => void;
+  onSaveStep?: (currentStep: number, nextStep: number) => void;
 }
 
 const fieldClass =
@@ -183,7 +184,8 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
   onCancel,
   staffToEdit,
   activeStep: propActiveStep,
-  onStepChange
+  onStepChange,
+  onSaveStep
 }) => {
   const { departments = [], designations = [], staff = [], academicClasses = [], subjects = [], branches = [], fetchDesignations, fetchDepartments, fetchBranches } = useData();
 
@@ -384,7 +386,7 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
       if (value.aadhaarNumber?.trim() && !/^\d{12}$/.test(value.aadhaarNumber.trim())) {
         stepErrors.aadhaarNumber = "Aadhaar Number must be exactly 12 digits.";
       }
-      require("panNumber", !!value.panNumber?.trim(), "PAN Number is required.");
+      // PAN Number is optional now. Only validate format if provided.
       if (value.panNumber?.trim() && !/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(value.panNumber.trim().toUpperCase())) {
         stepErrors.panNumber = "Invalid PAN Number format (e.g. ABCDE1234F).";
       }
@@ -1277,7 +1279,7 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
               {/* PAN Number */}
               <div>
                 <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                  PAN Number <span className="text-rose-500">*</span>
+                  PAN Number <span className="text-slate-400 font-normal font-sans text-[11px] ml-1">(Optional)</span>
                 </label>
                 <input
                   type="text"
@@ -1286,9 +1288,7 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                   onChange={e => {
                     const cleanVal = e.target.value.toUpperCase().slice(0, 10);
                     onChange('panNumber', cleanVal);
-                    if (!cleanVal) {
-                      setLocalErrors(prev => ({ ...prev, panNumber: 'PAN Number is required.' }));
-                    } else if (!/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(cleanVal)) {
+                    if (cleanVal && !/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(cleanVal)) {
                       setLocalErrors(prev => ({ ...prev, panNumber: 'Invalid PAN Number format (e.g. ABCDE1234F).' }));
                     } else {
                       setLocalErrors(prev => {
@@ -1300,9 +1300,7 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                   }}
                   onBlur={e => {
                     const val = (e.target.value || '').toUpperCase().slice(0, 10);
-                    if (!val) {
-                      setLocalErrors(prev => ({ ...prev, panNumber: 'PAN Number is required.' }));
-                    } else if (!/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(val)) {
+                    if (val && !/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(val)) {
                       setLocalErrors(prev => ({ ...prev, panNumber: 'Invalid PAN Number format (e.g. ABCDE1234F).' }));
                     } else {
                       setLocalErrors(prev => {
@@ -2723,12 +2721,13 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
             type="button"
             onClick={() => {
               if (validateStep(activeStep)) {
+                onSaveStep?.(activeStep, 6);
                 setActiveStep(6);
               }
             }}
             className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-black text-xs shadow-xs"
           >
-            Preview Details
+            Save & Next
           </button>
         ) : (
           <button
@@ -2736,12 +2735,14 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
             type="button"
             onClick={() => {
               if (validateStep(activeStep)) {
-                setActiveStep(prev => Math.min(6, prev + 1));
+                const next = Math.min(6, activeStep + 1);
+                onSaveStep?.(activeStep, next);
+                setActiveStep(next);
               }
             }}
             className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-black text-xs shadow-xs"
           >
-            Next Step
+            Save & Next
           </button>
         )}
       </div>
