@@ -3,14 +3,17 @@ import React, { useState, useMemo, useEffect } from 'react';
 import {
   User, Mail, Phone, Building, GraduationCap, Briefcase, MapPin, Calendar, 
   Shield, Edit2, X, Check, AlertCircle, BookOpen, Heart, Save, Camera, CheckCircle2, Upload, Trash2,
-  FileText, Download, Eye, Award, ExternalLink, Send, Clock, Loader2
+  FileText, Download, Eye, Award, ExternalLink, Send, Clock, Loader2, UploadCloud
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { useData } from '../../../context/DataContext';
 import { useToast } from '../../../context/ToastContext';
 import { Badge } from '../../common/Badge';
+import { ConfirmModal } from '../../common/ConfirmModal';
+import { Staff } from '../../../types';
 import { getSortOrderForClass } from '../../../utils/classSorter';
 import { StaffLetterModal } from './Letters/StaffLetterModal';
+import { StaffFormModal } from './StaffFormModal';
 import { getLettersForStaff, refreshStaffLettersFromApi } from '../../../utils/staffLetterTemplates';
 import { StaffLetterType, GeneratedStaffLetterRecord, StaffLetterRequest } from '../../../types/staffLetter';
 import { fetchStaffLetterRequestsApi, createStaffLetterRequestApi } from '../../../api/staffLetters';
@@ -646,162 +649,145 @@ export const TeacherProfileView: React.FC = () => {
     };
   }, [dbTeacher, user, dynamicAssignedClasses, dynamicAssignedSections, dynamicAssignedSubjects, localEdit]);
 
-  // Edit Modal State
+  // Edit Modal State using Staff ERP Full Modal (identical to Admin StaffFormModal)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [editErrors, setEditErrors] = useState<{ mobile?: string; emergencyContact?: string; address?: string }>({});
-  const [submitting, setSubmitting] = useState(false);
+  const [editModalInitialStep, setEditModalInitialStep] = useState<number>(1);
 
-  const [formData, setFormData] = useState({
-    fullName: profile.fullName,
-    email: profile.email,
-    profilePhoto: profile.profilePhoto,
-    mobile: profile.mobile,
-    emergencyContact: profile.emergencyContact,
-    gender: profile.gender,
-    bloodGroup: profile.bloodGroup,
-    dateOfBirth: profile.dateOfBirth,
-    address: profile.address,
-    qualification: profile.qualification,
-    experience: profile.experience
-  });
-
-  const handleOpenEditModal = () => {
-    setFormData({
-      fullName: profile.fullName,
-      email: profile.email,
-      profilePhoto: profile.profilePhoto,
-      mobile: profile.mobile,
-      emergencyContact: profile.emergencyContact,
-      gender: profile.gender,
-      bloodGroup: profile.bloodGroup,
-      dateOfBirth: profile.dateOfBirth,
-      address: profile.address,
-      qualification: profile.qualification,
-      experience: profile.experience
-    });
-
-    const initialErrors: { mobile?: string; emergencyContact?: string; address?: string } = {};
-    if (profile.address?.trim()) {
-      const addrCheck = validateAddress(profile.address.trim(), false);
-      if (!addrCheck.isValid) {
-        initialErrors.address = addrCheck.error;
+  const staffMemberForEdit = useMemo<Staff | null>(() => {
+    // 1. If we have a staff record matching dbTeacher.id in DataContext staff
+    let found = staff.find(s => String(s.id) === String(dbTeacher?.id));
+    if (!found && dbTeacher?.empId) {
+      found = staff.find(s => (s.empId && s.empId.toLowerCase() === dbTeacher.empId.toLowerCase()) || ((s as any).employeeId && (s as any).employeeId.toLowerCase() === dbTeacher.empId.toLowerCase()));
+    }
+    if (!found) {
+      const uEmpId = ((user as any)?.empId || (user as any)?.employeeId || profile.employeeId || '').toLowerCase().trim();
+      const uEmail = (user?.email || '').toLowerCase().trim();
+      if (uEmpId || uEmail) {
+        found = staff.find(s =>
+          (uEmpId && ((s.empId && s.empId.toLowerCase() === uEmpId) || ((s as any).employeeId && (s as any).employeeId.toLowerCase() === uEmpId))) ||
+          (uEmail && s.email && s.email.toLowerCase().trim() === uEmail)
+        );
       }
     }
-    setEditErrors(initialErrors);
+
+    const isTeacherStaff = profile.category === 'Teacher' || profile.category === 'Teaching Staff' || (!isWarden && !isAccountant && !isLibrarian && !isDriver);
+
+    if (found) {
+      return {
+        ...found,
+        id: String(found.id || dbTeacher?.id || user?.id || 'staff-self'),
+        empId: found.empId || profile.employeeId || dbTeacher?.empId || '',
+        name: found.name || profile.fullName || `${dbTeacher?.firstName || ''} ${dbTeacher?.lastName || ''}`.trim(),
+        firstName: found.firstName || dbTeacher?.firstName || (profile.fullName ? profile.fullName.split(' ')[0] : 'Staff'),
+        lastName: found.lastName || dbTeacher?.lastName || (profile.fullName ? profile.fullName.split(' ').slice(1).join(' ') : 'Member'),
+        employeeCategory: found.employeeCategory || (isTeacherStaff ? 'Teaching Staff' : 'Non-Teaching Staff'),
+        branch: found.branch || profile.branch || user?.branch || 'Madhapur Branch',
+        department: found.department || profile.department || (isTeacherStaff ? 'Academics' : 'Hostel Management'),
+        designation: found.designation || profile.designation || (isTeacherStaff ? 'Teacher' : 'Hostel Warden'),
+        email: found.email || profile.email || user?.email || '',
+        phone: found.phone || profile.mobile || user?.phone || '',
+        gender: found.gender || profile.gender || 'Male',
+        dob: found.dob || profile.dateOfBirth || '1990-01-01',
+        bloodGroup: found.bloodGroup || profile.bloodGroup || 'O+',
+        presentAddress: found.presentAddress || found.address || profile.address || '',
+        permanentAddress: found.permanentAddress || found.address || profile.address || '',
+        city: found.city || 'Hyderabad',
+        state: found.state || 'Telangana',
+        pinCode: found.pinCode || '500081',
+        country: found.country || 'India',
+        aadhaarNumber: found.aadhaarNumber || (dbTeacher as any)?.aadhaarNumber || '',
+        panNumber: found.panNumber || (dbTeacher as any)?.panNumber || '',
+        joiningDate: found.joiningDate || profile.joiningDate || new Date().toISOString().split('T')[0],
+        employmentType: found.employmentType || 'Full-Time',
+        status: found.status || 'Active',
+        avatar: found.avatar || profile.profilePhoto || user?.avatar || '',
+        qualifications: found.qualifications || (dbTeacher as any)?.qualifications || [],
+        experienceRecords: found.experienceRecords || (dbTeacher as any)?.experienceRecords || [],
+        documents: found.documents || (dbTeacher as any)?.documents || []
+      } as Staff;
+    }
+
+    // Fallback: construct comprehensive Staff object from dbTeacher/profile
+    if (dbTeacher || user) {
+      return {
+        id: String(dbTeacher?.id || user?.id || 'staff-self'),
+        empId: profile.employeeId || dbTeacher?.empId || '',
+        name: profile.fullName || `${dbTeacher?.firstName || ''} ${dbTeacher?.lastName || ''}`.trim() || user?.name || 'Staff Member',
+        firstName: dbTeacher?.firstName || (profile.fullName ? profile.fullName.split(' ')[0] : 'Staff'),
+        lastName: dbTeacher?.lastName || (profile.fullName ? profile.fullName.split(' ').slice(1).join(' ') : 'Member'),
+        employeeCategory: (isTeacherStaff ? 'Teaching Staff' : 'Non-Teaching Staff') as any,
+        branch: profile.branch || user?.branch || 'Madhapur Branch',
+        department: profile.department || (isTeacherStaff ? 'Academics' : 'Hostel Management'),
+        designation: profile.designation || (isTeacherStaff ? 'Teacher' : 'Hostel Warden'),
+        role: profile.designation || (isTeacherStaff ? 'Teacher' : 'Staff'),
+        email: profile.email || user?.email || '',
+        phone: profile.mobile || user?.phone || '',
+        gender: profile.gender || 'Male',
+        dob: profile.dateOfBirth || '1990-01-01',
+        bloodGroup: profile.bloodGroup || 'O+',
+        city: 'Hyderabad',
+        state: 'Telangana',
+        pinCode: '500081',
+        country: 'India',
+        aadhaarNumber: (dbTeacher as any)?.aadhaarNumber || '',
+        panNumber: (dbTeacher as any)?.panNumber || '',
+        joiningDate: profile.joiningDate || new Date().toISOString().split('T')[0],
+        status: 'Active',
+        employmentType: 'Full-Time',
+        address: profile.address || '',
+        presentAddress: profile.address || '',
+        permanentAddress: profile.address || '',
+        avatar: profile.profilePhoto || user?.avatar || '',
+        qualifications: (dbTeacher as any)?.qualifications || [],
+        experienceRecords: (dbTeacher as any)?.experienceRecords || [],
+        documents: (dbTeacher as any)?.documents || []
+      } as Staff;
+    }
+
+    return null;
+  }, [dbTeacher, staff, user, profile, isWarden, isAccountant, isLibrarian, isDriver]);
+
+  const handleOpenEditModal = (step = 1) => {
+    setEditModalInitialStep(typeof step === 'number' ? step : 1);
     setIsEditModalOpen(true);
   };
 
-  const handleSaveProfile = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Custom Delete Document Modal State
+  const [docToDelete, setDocToDelete] = useState<{ id?: string; index: number; name: string } | null>(null);
+  const [isDeletingDoc, setIsDeletingDoc] = useState(false);
 
-    const cleanMobile = (formData.mobile || '').replace(/\D/g, '');
-    const mobileCheck = validate10DigitPhone(cleanMobile);
-    if (!mobileCheck.isValid) {
-      setEditErrors(prev => ({ ...prev, mobile: mobileCheck.error }));
-      addToast('error', 'Invalid Mobile Number', mobileCheck.error || 'Please enter a valid 10-digit mobile number.');
-      return;
-    }
+  // Document Preview Modal State
+  const [viewingDoc, setViewingDoc] = useState<{ name: string; type: string; url: string } | null>(null);
 
-    if (formData.emergencyContact?.trim()) {
-      const cleanEm = formData.emergencyContact.replace(/\D/g, '');
-      const emCheck = validatePhoneNumber(cleanEm, false);
-      if (!emCheck.isValid) {
-        setEditErrors(prev => ({ ...prev, emergencyContact: emCheck.error }));
-        addToast('error', 'Invalid Emergency Contact', emCheck.error || 'Please enter a valid emergency contact.');
-        return;
-      }
-    }
+  const handleConfirmDeleteDoc = async () => {
+    if (!docToDelete) return;
 
-    if (formData.address?.trim()) {
-      const addrCheck = validateAddress(formData.address.trim(), false);
-      if (!addrCheck.isValid) {
-        setEditErrors(prev => ({ ...prev, address: addrCheck.error }));
-        addToast('error', 'Incomplete Address', addrCheck.error || 'Please enter sufficient address details.');
-        return;
-      }
-    }
-
-    setEditErrors({});
-    setSubmitting(true);
-
+    setIsDeletingDoc(true);
     try {
-      const updatedEdits = {
-        fullName: formData.fullName,
-        email: formData.email,
-        profilePhoto: formData.profilePhoto,
-        mobile: formData.mobile,
-        emergencyContact: formData.emergencyContact,
-        gender: formData.gender,
-        bloodGroup: formData.bloodGroup,
-        dateOfBirth: formData.dateOfBirth,
-        address: formData.address,
-        qualification: formData.qualification,
-        experience: formData.experience
-      };
-
-      setLocalEdit(updatedEdits);
-      localStorage.setItem(userStorageKey, JSON.stringify(updatedEdits));
-
-      // Sync directly to backend Teacher Profile API
-      try {
-        await updateTeacherProfileMe({
-          profilePhoto: formData.profilePhoto,
-          mobile: formData.mobile,
-          address: formData.address,
-          emergencyContact: formData.emergencyContact
-        });
-      } catch (apiErr) {
-        console.warn('Teacher Profile API update warning:', apiErr);
-      }
-
-      // Sync directly to DataContext staff store if staff record exists
-      if (dbTeacher && dbTeacher.id && updateStaff) {
-        const nameParts = formData.fullName.split(' ');
-        const firstName = nameParts[0] || '';
-        const lastName = nameParts.slice(1).join(' ') || '';
-
-        updateStaff(dbTeacher.id, {
-          firstName: firstName,
-          lastName: lastName,
-          email: formData.email,
-          phone: formData.mobile,
-          gender: formData.gender,
-          dob: formData.dateOfBirth,
-          bloodGroup: formData.bloodGroup,
-          address: formData.address,
-          avatar: formData.profilePhoto,
-          qualification: formData.qualification,
-          experience: formData.experience,
-          emergencyContact: formData.emergencyContact
-        } as any);
-      }
-
-      // Sync directly to driverMasters store if user is a driver
-      if (isDriver && updateDriverMaster) {
-        const dMatch = driverMasters.find(d =>
-          (user?.email && d.email?.toLowerCase() === user.email.toLowerCase()) ||
-          (user?.name && d.driverName?.toLowerCase() === user.name.toLowerCase()) ||
-          (user?.id && String(d.id) === String(user.id)) ||
-          (dbTeacher?.id && String(d.id) === String(dbTeacher.id))
-        );
-        if (dMatch) {
-          updateDriverMaster(dMatch.id, {
-            mobileNumber: formData.mobile,
-            emergencyContact: formData.emergencyContact,
-            address: formData.address,
-            bloodGroup: formData.bloodGroup
-          });
+      const currentDocs = staffMemberForEdit?.documents || (dbTeacher as any)?.documents || [];
+      const updatedDocs = currentDocs.filter((d: any, idx: number) => {
+        if (docToDelete.id && (d.id === docToDelete.id || String(d.id) === String(docToDelete.id))) {
+          return false;
         }
+        if (idx === docToDelete.index) {
+          return false;
+        }
+        return true;
+      });
+
+      const targetId = staffMemberForEdit?.staffId || staffMemberForEdit?.id || dbTeacher?.staffId || dbTeacher?.id || profile.staffId || profile.employeeId;
+      if (targetId) {
+        await updateStaff(targetId, { documents: updatedDocs });
       }
 
+      addToast('success', 'Document Deleted', `"${docToDelete.name}" has been removed from your profile.`);
+      setDocToDelete(null);
       await fetchProfileData();
-      setIsEditModalOpen(false);
-      addToast('success', 'Profile Updated', 'Profile details saved and synced successfully!');
     } catch (err: any) {
-      console.error('Update profile error:', err);
-      addToast('error', 'Update Failed', 'Unable to save profile changes.');
+      console.error('Failed to delete document:', err);
+      addToast('error', 'Delete Failed', 'Could not delete the document. Please try again.');
     } finally {
-      setSubmitting(false);
+      setIsDeletingDoc(false);
     }
   };
 
@@ -851,9 +837,8 @@ export const TeacherProfileView: React.FC = () => {
 
   const handleOpenRequestModal = (type: 'relieving' | 'experience') => {
     setRequestModalType(type);
-    setRequestReason(type === 'relieving' ? 'Career advancement & personal reasons' : 'Official documentation & verification');
-    const defaultRelDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    setRequestRelievingDate(defaultRelDate);
+    setRequestReason('');
+    setRequestRelievingDate('');
     setRequestComments('');
     setIsRequestModalOpen(true);
   };
@@ -866,8 +851,13 @@ export const TeacherProfileView: React.FC = () => {
     const empId = profile.employeeId || dbTeacher?.empId || (user as any)?.empId || '';
     const staffName = profile.fullName || user?.name || 'Staff Member';
 
+    if (requestModalType === 'relieving' && !requestRelievingDate) {
+      addToast('warning', 'Relieving Date Required', 'Please select a proposed relieving date.');
+      return;
+    }
+
     if (!requestReason.trim()) {
-      addToast('warning', 'Reason Required', 'Please provide a reason/purpose for your request.');
+      addToast('warning', 'Reason Required', `Please provide a ${requestModalType === 'relieving' ? 'reason for relieving' : 'purpose of experience certificate'}.`);
       return;
     }
 
@@ -996,7 +986,8 @@ export const TeacherProfileView: React.FC = () => {
                 />
               ) : null}
               <div
-                className={`w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-gradient-to-br from-sky-500 to-blue-600 text-white font-black text-base sm:text-lg items-center justify-center shadow-sm ${
+                style={{ backgroundColor: 'var(--secondary-color, #f59e0b)' }}
+                className={`w-12 h-12 sm:w-14 sm:h-14 rounded-xl text-white font-black text-base sm:text-lg items-center justify-center shadow-sm ${
                   profile.profilePhoto || profile.avatar ? 'hidden' : 'flex'
                 }`}
               >
@@ -1241,10 +1232,20 @@ export const TeacherProfileView: React.FC = () => {
         {/* Card 4: Qualifications & Background */}
         <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 shadow-sm border border-sky-200 dark:border-slate-700/80 flex flex-col justify-between h-full space-y-4">
           <div>
-            <h2 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2 border-b pb-3 border-slate-100 dark:border-slate-800">
-              <GraduationCap className="w-5 h-5 text-sky-600 dark:text-sky-400" />
-              Qualifications & Background
-            </h2>
+            <div className="flex items-center justify-between border-b pb-3 border-slate-100 dark:border-slate-800">
+              <h2 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                <GraduationCap className="w-5 h-5 text-sky-600 dark:text-sky-400" />
+                Qualifications & Background
+              </h2>
+              <button
+                type="button"
+                onClick={() => handleOpenEditModal(3)}
+                className="px-2.5 py-1 rounded-xl text-xs font-bold text-brand-600 dark:text-brand-400 hover:bg-brand-50 dark:hover:bg-brand-950/40 border border-brand-200 dark:border-brand-800/40 flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer"
+              >
+                <Edit2 className="w-3.5 h-3.5" />
+                <span>Edit</span>
+              </button>
+            </div>
 
             <div className="space-y-3 mt-4">
               <div>
@@ -1268,6 +1269,107 @@ export const TeacherProfileView: React.FC = () => {
           </div>
         </div>
 
+      </div>
+
+      {/* Employee Documents & Certifications Section */}
+      <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-6 shadow-sm border border-sky-300 dark:border-sky-800 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-3 border-slate-100 dark:border-slate-800">
+          <div>
+            <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white flex items-center gap-2.5">
+              <UploadCloud className="w-5 h-5 text-sky-600 dark:text-sky-400" />
+              Employee Documents & Certifications
+            </h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Official identity verification, academic degrees, and institutional compliance records
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => handleOpenEditModal(5)}
+            className="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs flex items-center gap-2 transition shadow-xs cursor-pointer self-start sm:self-auto shrink-0"
+          >
+            <Upload className="w-3.5 h-3.5" />
+            <span>Upload / Manage Documents</span>
+          </button>
+        </div>
+
+        {staffMemberForEdit?.documents && staffMemberForEdit.documents.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+            {staffMemberForEdit.documents.map((doc: any, idx: number) => {
+              const docName = doc.title || doc.name || doc.fileName || doc.documentType || doc.docType || 'Document';
+              const docTypeStr = doc.docType || doc.type || doc.documentType || 'Official Record';
+              const docUrl = resolveMediaUrl(doc.fileUrl || '');
+              return (
+                <div
+                  key={doc.id || idx}
+                  className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-850/60 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 hover:border-sky-300 dark:hover:border-sky-700 transition"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-9 h-9 rounded-xl bg-sky-100 dark:bg-sky-950/80 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
+                      <FileText className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <h4 className="text-xs font-bold text-slate-900 dark:text-white truncate" title={docName}>
+                        {docName}
+                      </h4>
+                      <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-400">
+                        <span className="font-semibold text-sky-700 dark:text-sky-300">{docTypeStr}</span>
+                        {doc.uploadedAt || doc.uploadDate ? (
+                          <span>&bull; {formatDisplayDate(doc.uploadedAt || doc.uploadDate)}</span>
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {docUrl ? (
+                      <button
+                        type="button"
+                        onClick={() => setViewingDoc({ name: docName, type: docTypeStr, url: docUrl })}
+                        className="p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sky-600 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-slate-700 transition shrink-0 cursor-pointer"
+                        title="View Document"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                    ) : (
+                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-950/50 px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-800 shrink-0">
+                        On File
+                      </span>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => setDocToDelete({ id: doc.id, index: idx, name: docName })}
+                      className="p-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/60 transition shrink-0 cursor-pointer"
+                      title="Delete Document"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="p-6 rounded-2xl bg-slate-50/70 dark:bg-slate-850/40 border border-dashed border-slate-200 dark:border-slate-800 text-center space-y-2">
+            <div className="w-10 h-10 rounded-2xl bg-sky-50 dark:bg-sky-950/60 text-sky-500 mx-auto flex items-center justify-center">
+              <UploadCloud className="w-5 h-5" />
+            </div>
+            <div className="space-y-0.5">
+              <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">No institutional documents uploaded yet</h4>
+              <p className="text-[11px] text-slate-400 max-w-md mx-auto">
+                Upload your Aadhaar Card, PAN Card, educational certificates, and experience documents to keep your profile verified.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => handleOpenEditModal(5)}
+              className="mt-1 px-4 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs inline-flex items-center gap-1.5 shadow-xs cursor-pointer transition"
+            >
+              <Upload className="w-3.5 h-3.5" /> Upload Documents Now
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Official Institutional Letters & HR Documents Section */}
@@ -1443,403 +1545,25 @@ export const TeacherProfileView: React.FC = () => {
           </div>
         </div>
 
-        {/* Issued Documents Audit List if any records exist */}
-        {staffLetters.length > 0 && (
-          <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 space-y-2">
-            <div className="flex items-center justify-between">
-              <h4 className="text-xs font-black uppercase tracking-wider text-slate-400">Official Document Issuance & Dispatch Log</h4>
-              <span className="text-[10px] font-bold text-slate-400 font-mono">{staffLetters.length} Document{staffLetters.length === 1 ? '' : 's'} on File</span>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
-              {staffLetters.map(rec => (
-                <div key={rec.id} className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/60 flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-bold text-slate-800 dark:text-white capitalize">
-                      Dispatched {rec.letterType === 'offer' ? 'Appointment Contract' : `${rec.letterType} Letter`}
-                    </p>
-                    <p className="text-[10px] text-slate-400 font-mono">Ref: {rec.letterNumber || rec.payload?.refNo} • {rec.issueDate || rec.payload?.issueDate}</p>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setSelectedLetterType(rec.letterType);
-                      setSelectedLetterRecord(rec);
-                      setLetterModalOpen(true);
-                    }}
-                    className="p-1.5 rounded-lg bg-sky-50 dark:bg-sky-950/60 text-sky-600 hover:bg-sky-100 cursor-pointer"
-                    title="View Document Dispatch Copy"
-                  >
-                    <Eye className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+
       </div>
 
-      {/* Edit My Profile Modal */}
-      {isEditModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
-          <div className="glass-card max-w-xl w-full p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4 shadow-2xl overflow-y-auto max-h-[90vh] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
-              <div>
-                <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-                  <Edit2 className="w-4 h-4 text-sky-600" /> Edit {isWarden ? 'Warden' : isAccountant ? 'Accountant' : isLibrarian ? 'Librarian' : isDriver ? 'Driver' : (dbTeacher?.designation || 'Teacher')} Profile
-                </h3>
-              </div>
-              <button
-                onClick={() => setIsEditModalOpen(false)}
-                className="p-1 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveProfile} className="space-y-3.5 text-xs">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300 flex items-center justify-between">
-                    <span>Full Name</span>
-                    <span className="text-[10px] text-slate-400 font-semibold">🔒 Official Record</span>
-                  </label>
-                  <input
-                    type="text"
-                    disabled
-                    value={formData.fullName}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-500 font-bold outline-none cursor-not-allowed"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300 flex items-center justify-between">
-                    <span>Email Address</span>
-                    <span className="text-[10px] text-slate-400 font-semibold">🔒 Login Identity</span>
-                  </label>
-                  <input
-                    type="email"
-                    disabled
-                    value={formData.email}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-slate-500 font-medium outline-none cursor-not-allowed"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Profile Photo</label>
-                <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
-                  {formData.profilePhoto ? (
-                    <img
-                      src={formData.profilePhoto}
-                      alt="Profile Preview"
-                      className="w-14 h-14 rounded-xl object-cover ring-2 ring-sky-500/20 shrink-0"
-                    />
-                  ) : (
-                    <div className="w-14 h-14 rounded-xl bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-400 dark:text-slate-500 shrink-0">
-                      <User className="w-7 h-7" />
-                    </div>
-                  )}
-
-                  <div className="space-y-1.5 flex-1">
-                    <div className="flex items-center gap-2">
-                      <label className="px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-xs cursor-pointer flex items-center gap-1.5 transition">
-                        <Upload className="w-3.5 h-3.5" /> Upload Photo
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              const reader = new FileReader();
-                              reader.onloadend = () => {
-                                setFormData((prev: any) => ({ ...prev, profilePhoto: reader.result as string }));
-                              };
-                              reader.readAsDataURL(file);
-                            }
-                          }}
-                          className="hidden"
-                        />
-                      </label>
-                      {formData.profilePhoto && (
-                        <button
-                          type="button"
-                          onClick={() => setFormData((prev: any) => ({ ...prev, profilePhoto: "" }))}
-                          className="px-3 py-1.5 rounded-xl bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 hover:bg-rose-100 font-bold text-xs flex items-center gap-1 transition cursor-pointer"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" /> Remove
-                        </button>
-                      )}
-                    </div>
-                    <p className="text-[10px] text-slate-400 font-medium">Supports JPG, PNG, WEBP files (Max 2MB)</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">
-                    Mobile Number <span className="text-rose-500 font-bold ml-0.5">*</span>
-                  </label>
-                  <input
-                    type="tel"
-                    required
-                    maxLength={10}
-                    value={formData.mobile}
-                    onKeyDown={e => {
-                      if (e.key >= '0' && e.key <= '9' && !e.ctrlKey && !e.metaKey && !e.altKey) {
-                        const input = e.currentTarget;
-                        const selLen = (input.selectionEnd ?? 0) - (input.selectionStart ?? 0);
-                        const digits = (formData.mobile || '').replace(/\D/g, '');
-                        if (digits.length >= 10 && selLen === 0) {
-                          e.preventDefault();
-                          setEditErrors(prev => ({
-                            ...prev,
-                            mobile: 'Mobile number cannot exceed 10 digits.'
-                          }));
-                        }
-                      }
-                    }}
-                    onPaste={e => {
-                      const pasted = e.clipboardData.getData('text') || '';
-                      const digits = pasted.replace(/\D/g, '');
-                      const cur = (formData.mobile || '').replace(/\D/g, '');
-                      if (cur.length + digits.length > 10) {
-                        setEditErrors(prev => ({
-                          ...prev,
-                          mobile: 'Mobile number cannot exceed 10 digits.'
-                        }));
-                      }
-                    }}
-                    onChange={e => {
-                      const raw = e.target.value;
-                      const digits = raw.replace(/\D/g, '');
-                      if (digits.length > 10) {
-                        setFormData({ ...formData, mobile: digits.slice(0, 10) });
-                        setEditErrors(prev => ({
-                          ...prev,
-                          mobile: 'Mobile number cannot exceed 10 digits.'
-                        }));
-                        return;
-                      }
-                      setFormData({ ...formData, mobile: digits });
-                      if (digits.length === 10) {
-                        const res = validate10DigitPhone(digits);
-                        setEditErrors(prev => ({ ...prev, mobile: res.isValid ? undefined : res.error }));
-                      } else if (digits.length > 0 && !/^[6-9]/.test(digits)) {
-                        setEditErrors(prev => ({
-                          ...prev,
-                          mobile: 'Mobile number must start with 6, 7, 8, or 9.'
-                        }));
-                      } else {
-                        setEditErrors(prev => ({ ...prev, mobile: undefined }));
-                      }
-                    }}
-                    placeholder="e.g. 9876543210"
-                    className={`w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-mono font-bold outline-none ${
-                      editErrors.mobile ? 'border-rose-500 ring-1 ring-rose-500' : 'border-slate-200 dark:border-slate-700'
-                    }`}
-                  />
-                  {editErrors.mobile && (
-                    <p className="text-[11px] font-bold text-rose-500 mt-1 flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3 shrink-0" />
-                      <span>{editErrors.mobile}</span>
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">
-                    Emergency Contact <span className="text-rose-500 font-bold ml-0.5">*</span>
-                  </label>
-                  <input
-                    type="tel"
-                    required
-                    maxLength={10}
-                    value={formData.emergencyContact}
-                    onKeyDown={e => {
-                      if (e.key >= '0' && e.key <= '9' && !e.ctrlKey && !e.metaKey && !e.altKey) {
-                        const input = e.currentTarget;
-                        const selLen = (input.selectionEnd ?? 0) - (input.selectionStart ?? 0);
-                        const digits = (formData.emergencyContact || '').replace(/\D/g, '');
-                        if (digits.length >= 10 && selLen === 0) {
-                          e.preventDefault();
-                          setEditErrors(prev => ({
-                            ...prev,
-                            emergencyContact: 'Emergency contact cannot exceed 10 digits.'
-                          }));
-                        }
-                      }
-                    }}
-                    onPaste={e => {
-                      const pasted = e.clipboardData.getData('text') || '';
-                      const digits = pasted.replace(/\D/g, '');
-                      const cur = (formData.emergencyContact || '').replace(/\D/g, '');
-                      if (cur.length + digits.length > 10) {
-                        setEditErrors(prev => ({
-                          ...prev,
-                          emergencyContact: 'Emergency contact cannot exceed 10 digits.'
-                        }));
-                      }
-                    }}
-                    onChange={e => {
-                      const raw = e.target.value;
-                      const digits = raw.replace(/\D/g, '');
-                      if (digits.length > 10) {
-                        setFormData({ ...formData, emergencyContact: digits.slice(0, 10) });
-                        setEditErrors(prev => ({
-                          ...prev,
-                          emergencyContact: 'Emergency contact cannot exceed 10 digits.'
-                        }));
-                        return;
-                      }
-                      setFormData({ ...formData, emergencyContact: digits });
-                      if (digits.length === 10) {
-                        const res = validatePhoneNumber(digits, false);
-                        setEditErrors(prev => ({ ...prev, emergencyContact: res.isValid ? undefined : res.error }));
-                      } else if (digits.length > 0 && !/^[6-9]/.test(digits)) {
-                        setEditErrors(prev => ({
-                          ...prev,
-                          emergencyContact: 'Mobile number must start with 6, 7, 8, or 9.'
-                        }));
-                      } else {
-                        setEditErrors(prev => ({ ...prev, emergencyContact: undefined }));
-                      }
-                    }}
-                    placeholder="e.g. 9876543210"
-                    className={`w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-mono font-bold outline-none ${
-                      editErrors.emergencyContact ? 'border-rose-500 ring-1 ring-rose-500' : 'border-slate-200 dark:border-slate-700'
-                    }`}
-                  />
-                  {editErrors.emergencyContact && (
-                    <p className="text-[11px] font-bold text-rose-500 mt-1 flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3 shrink-0" />
-                      <span>{editErrors.emergencyContact}</span>
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Gender</label>
-                  <select
-                    value={formData.gender}
-                    onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-bold outline-none"
-                  >
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Blood Group</label>
-                  <select
-                    value={formData.bloodGroup}
-                    onChange={(e) => setFormData({ ...formData, bloodGroup: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-bold outline-none"
-                  >
-                    <option value="A+">A+</option>
-                    <option value="A-">A-</option>
-                    <option value="B+">B+</option>
-                    <option value="B-">B-</option>
-                    <option value="O+">O+</option>
-                    <option value="O-">O-</option>
-                    <option value="AB+">AB+</option>
-                    <option value="AB-">AB-</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Date of Birth</label>
-                  <input
-                    type="date"
-                    value={formData.dateOfBirth}
-                    onChange={(e) => setFormData({ ...formData, dateOfBirth: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-mono font-bold outline-none"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Academic Qualifications</label>
-                <input
-                  type="text"
-                  value={formData.qualification}
-                  onChange={(e) => setFormData({ ...formData, qualification: e.target.value })}
-                  placeholder="M.Sc. Mathematics, B.Ed."
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-bold outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Work Experience</label>
-                <input
-                  type="text"
-                  value={formData.experience}
-                  onChange={(e) => setFormData({ ...formData, experience: e.target.value })}
-                  placeholder="8 Years Teaching Experience"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-bold outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">Residential Address</label>
-                <textarea
-                  rows={2}
-                  value={formData.address}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setFormData({ ...formData, address: val });
-                    if (val.trim()) {
-                      const res = validateAddress(val.trim(), false);
-                      setEditErrors(prev => ({ ...prev, address: res.isValid ? undefined : res.error }));
-                    } else {
-                      setEditErrors(prev => ({ ...prev, address: undefined }));
-                    }
-                  }}
-                  onBlur={(e) => {
-                    const val = e.target.value.trim();
-                    if (val) {
-                      const res = validateAddress(val, false);
-                      setEditErrors(prev => ({ ...prev, address: res.isValid ? undefined : res.error }));
-                    } else {
-                      setEditErrors(prev => ({ ...prev, address: undefined }));
-                    }
-                  }}
-                  className={`w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border text-slate-900 dark:text-white font-medium outline-none leading-relaxed ${
-                    editErrors.address ? 'border-rose-500 focus:border-rose-500' : 'border-slate-200 dark:border-slate-700'
-                  }`}
-                  placeholder="e.g. Flat 302, Green Valley Apartments, Madhapur"
-                />
-                {editErrors.address && (
-                  <p className="text-[11px] font-bold text-rose-500 mt-1 flex items-center gap-1">
-                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                    <span>{editErrors.address}</span>
-                  </p>
-                )}
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setIsEditModalOpen(false)}
-                  className="px-4 py-2 rounded-xl border font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting || Boolean(editErrors.mobile || editErrors.emergencyContact || editErrors.address)}
-                  className="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold flex items-center gap-1.5 shadow-md cursor-pointer disabled:opacity-50"
-                >
-                  <Save className="w-4 h-4" /> Save Profile
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* Staff ERP Full Modal (With Employment Details restricted to Admin only) */}
+      <StaffFormModal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          fetchProfileData();
+        }}
+        staffToEdit={staffMemberForEdit}
+        defaultCategory={
+          profile.category === 'Teacher' || profile.category === 'Teaching Staff' || (!isWarden && !isAccountant && !isLibrarian && !isDriver)
+            ? 'Teaching Staff'
+            : 'Non-Teaching Staff'
+        }
+        initialStep={editModalInitialStep === 2 ? 1 : editModalInitialStep}
+        canEditEmployment={false}
+      />
 
       {/* Submit Official Letter Request Modal */}
       {isRequestModalOpen && (
@@ -1954,6 +1678,105 @@ export const TeacherProfileView: React.FC = () => {
           existingRecord={selectedLetterRecord}
           readOnly={true}
         />
+      )}
+
+      {/* Custom Delete Document Confirmation Alert Modal */}
+      {docToDelete && (
+        <ConfirmModal
+          isOpen={true}
+          title="Delete Uploaded Document"
+          subtitle="This action cannot be undone."
+          variant="danger"
+          confirmText="Yes, Delete Document"
+          cancelLabel="Cancel"
+          isLoading={isDeletingDoc}
+          onCancel={() => setDocToDelete(null)}
+          onConfirm={handleConfirmDeleteDoc}
+          message={
+            <div className="space-y-2.5">
+              <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed font-medium">
+                Are you sure you want to permanently delete{' '}
+                <strong className="text-slate-900 dark:text-white font-extrabold font-mono">
+                  "{docToDelete.name}"
+                </strong>{' '}
+                from your employee file?
+              </p>
+              <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 text-rose-700 dark:text-rose-300 text-xs">
+                ⚠️ This document will be unattached from your institutional records. You can upload a new copy at any time.
+              </div>
+            </div>
+          }
+        />
+      )}
+
+      {/* Document Preview Modal */}
+      {viewingDoc && (
+        <div className="fixed inset-0 z-[60] bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4" onClick={() => setViewingDoc(null)}>
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-lg w-full p-4 space-y-3 shadow-xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-black text-slate-900 dark:text-white text-sm">{viewingDoc.type}</h3>
+                <p className="text-[10px] text-slate-400">{viewingDoc.name}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setViewingDoc(null)}
+                className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 font-bold"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="p-4 bg-slate-100 dark:bg-slate-950 rounded-xl flex items-center justify-center min-h-[220px] max-h-[380px] overflow-auto">
+              {viewingDoc.url && (
+                viewingDoc.url.startsWith('data:image/') ||
+                /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(viewingDoc.url) ||
+                /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(viewingDoc.name)
+              ) ? (
+                <img 
+                  src={viewingDoc.url} 
+                  alt={viewingDoc.name} 
+                  className="max-w-full max-h-[340px] object-contain rounded-lg shadow-sm"
+                />
+              ) : viewingDoc.url && (
+                viewingDoc.url.startsWith('data:application/pdf') ||
+                /\.pdf$/i.test(viewingDoc.name) ||
+                /\.pdf$/i.test(viewingDoc.url)
+              ) ? (
+                <iframe
+                  src={viewingDoc.url}
+                  title={viewingDoc.name}
+                  className="w-full h-[340px] rounded-lg border border-slate-200 dark:border-slate-800"
+                />
+              ) : (
+                <div className="text-center p-4">
+                  <FileText className="w-12 h-12 text-sky-500 mx-auto mb-2" />
+                  <p className="text-slate-700 dark:text-slate-300 font-bold text-xs">
+                    {viewingDoc.name}
+                  </p>
+                  <p className="text-slate-400 text-[10px] mt-1">
+                    Direct inline preview is not supported for this file type. You can download and view it.
+                  </p>
+                </div>
+              )}
+            </div>
+            <div className="flex justify-end gap-2">
+              <a
+                href={viewingDoc.url}
+                download={viewingDoc.name}
+                className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs cursor-pointer"
+              >
+                Download Document
+              </a>
+              <button
+                type="button"
+                onClick={() => setViewingDoc(null)}
+                className="px-4 py-2 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

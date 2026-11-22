@@ -23,6 +23,8 @@ interface StaffFormModalProps {
   onClose: () => void;
   staffToEdit?: Staff | null;
   defaultCategory?: string;
+  initialStep?: number;
+  canEditEmployment?: boolean;
 }
 
 export const StaffFormModal: React.FC<StaffFormModalProps> = ({
@@ -30,10 +32,25 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
   onClose,
   staffToEdit,
   defaultCategory = "",
+  initialStep = 1,
+  canEditEmployment: propCanEditEmployment,
 }) => {
   const { staff, addStaff, updateStaff, departments, designations, fetchDesignations, fetchDepartments } = useData();
-  const { selectedBranch } = useAuth();
+  const { selectedBranch, user } = useAuth();
   const { addToast } = useToast();
+
+  const userRole = (user?.role || '').toLowerCase();
+  const isAdmin = userRole.includes('admin') || userRole.includes('super');
+  const canEditEmployment = propCanEditEmployment !== undefined ? propCanEditEmployment : isAdmin;
+
+  const resolvedInitialStep = !canEditEmployment && initialStep === 2 ? 1 : (initialStep || 1);
+  const [activeStep, setActiveStep] = useState<number>(resolvedInitialStep);
+
+  useEffect(() => {
+    if (isOpen) {
+      setActiveStep(!canEditEmployment && initialStep === 2 ? 1 : (initialStep || 1));
+    }
+  }, [isOpen, initialStep, canEditEmployment]);
 
   const [form, setForm] = useState<BasicStaffFormState>(() => {
     const initialCategory = staffToEdit ? normalizeStaffType(staffToEdit.employeeCategory) : "";
@@ -117,10 +134,11 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
         })),
         documents: (staffToEdit.documents || []).map((d: any) => ({
           id: d.id || `DOC-${Date.now()}-${Math.random()}`,
-          docType: d.type || "",
-          fileName: d.title || d.name || "",
+          docType: d.docType || d.type || d.documentType || "",
+          fileName: d.fileName || d.title || d.name || "",
           fileUrl: d.fileUrl || "",
-          uploadedAt: d.uploadedDate || d.uploadDate || ""
+          fileSize: d.fileSize || d.size || "",
+          uploadedAt: d.uploadedAt || d.uploadedDate || d.uploadDate || ""
         })),
       });
     } else {
@@ -284,23 +302,25 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
       }
     }
 
-    // Validate department & designation against staff type & department
-    const allowedDepts = getDepartmentOptions(
-      form.employeeCategory,
-      departments,
-    );
-    const allowedDesignations = getDesignationOptions(
-      form.employeeCategory,
-      form.department,
-      designations,
-    );
+    // Validate department & designation against staff type & department only if user has access to edit employment
+    if (canEditEmployment) {
+      const allowedDepts = getDepartmentOptions(
+        form.employeeCategory,
+        departments,
+      );
+      const allowedDesignations = getDesignationOptions(
+        form.employeeCategory,
+        form.department,
+        designations,
+      );
 
-    if (form.department && !allowedDepts.includes(form.department)) {
-      nextErrors.department = `"${form.department}" is not a valid department for ${form.employeeCategory}.`;
-    }
+      if (form.department && !allowedDepts.includes(form.department)) {
+        nextErrors.department = `"${form.department}" is not a valid department for ${form.employeeCategory}.`;
+      }
 
-    if (form.designation && !allowedDesignations.includes(form.designation)) {
-      nextErrors.designation = `"${form.designation}" is not a valid designation for ${form.department || form.employeeCategory}.`;
+      if (form.designation && !allowedDesignations.includes(form.designation)) {
+        nextErrors.designation = `"${form.designation}" is not a valid designation for ${form.department || form.employeeCategory}.`;
+      }
     }
 
     console.log("Full Submission Validation Errors:", nextErrors);
@@ -415,11 +435,14 @@ export const StaffFormModal: React.FC<StaffFormModalProps> = ({
             errors={errors}
             onChange={handleChange}
             onCategoryChange={handleCategoryChange}
-            employeeIdReadOnly={false}
+            employeeIdReadOnly={!canEditEmployment || Boolean(staffToEdit)}
             compact
             isSubmitting={submitting}
             onCancel={onClose}
             staffToEdit={staffToEdit}
+            activeStep={activeStep}
+            onStepChange={setActiveStep}
+            canEditEmployment={canEditEmployment}
           />
         </form>
       </div>

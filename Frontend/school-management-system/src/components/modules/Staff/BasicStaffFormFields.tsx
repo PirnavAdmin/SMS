@@ -58,6 +58,7 @@ interface BasicStaffFormFieldsProps {
   activeStep?: number;
   onStepChange?: (step: number) => void;
   onSaveStep?: (currentStep: number, nextStep: number) => void;
+  canEditEmployment?: boolean;
 }
 
 const fieldClass =
@@ -185,7 +186,8 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
   staffToEdit,
   activeStep: propActiveStep,
   onStepChange,
-  onSaveStep
+  onSaveStep,
+  canEditEmployment = true,
 }) => {
   const { departments = [], designations = [], staff = [], academicClasses = [], subjects = [], branches = [], fetchDesignations, fetchDepartments, fetchBranches } = useData();
 
@@ -768,20 +770,85 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
     onChange('experiences', value.experiences.filter(e => e.id !== id));
   };
 
-  // Document Upload Handler
+  const formatUploadedDate = (dateStr?: string) => {
+    if (!dateStr) return 'Recently';
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    } catch {
+      return dateStr;
+    }
+  };
+
+  // Document Upload Handler with Validation & Size Enforcement
   const handleDocumentFileUpload = (e: React.ChangeEvent<HTMLInputElement>, docType: string) => {
-    const file = e.target.files?.[0];
+    const inputElement = e.target;
+    const file = inputElement.files?.[0];
     if (!file) return;
+
+    if (!docType || !docType.trim()) {
+      addToast('warning', 'Document Type Required', 'Please select a document type before choosing a file.');
+      inputElement.value = '';
+      return;
+    }
+
+    // 1. Validate Empty File
+    if (file.size <= 0) {
+      addToast('warning', 'Invalid File', 'The selected file is empty (0 bytes). Please select a valid document.');
+      inputElement.value = '';
+      return;
+    }
+
+    // 2. Validate Maximum File Size (3MB)
+    const MAX_FILE_SIZE_BYTES = 3 * 1024 * 1024;
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      const sizeInMB = (file.size / (1024 * 1024)).toFixed(2);
+      addToast(
+        'warning',
+        'File Size Exceeded',
+        `Selected file size is ${sizeInMB} MB. Maximum allowed file size is 3MB.`
+      );
+      inputElement.value = '';
+      return;
+    }
+
+    // 3. Validate File Format & Extension (explicitly supporting JPEG, JPG, PNG, WEBP, PDF, DOC, DOCX)
+    const extension = file.name.split('.').pop()?.toLowerCase() || '';
+    const allowedExtensions = ['jpeg', 'jpg', 'png', 'webp', 'pdf', 'doc', 'docx'];
+    if (!allowedExtensions.includes(extension)) {
+      addToast(
+        'warning',
+        'Unsupported File Format',
+        `"${extension ? `.${extension}` : 'Unknown'}" file format is not allowed. Please upload a JPEG, JPG, PNG, WEBP, PDF, or Word document.`
+      );
+      inputElement.value = '';
+      return;
+    }
+
+    // MIME type validation check
+    const isImageExt = ['jpeg', 'jpg', 'png', 'webp'].includes(extension);
+    if (isImageExt && file.type && !file.type.startsWith('image/')) {
+      addToast('warning', 'Invalid Image File', 'The selected file does not appear to be a valid image format.');
+      inputElement.value = '';
+      return;
+    }
+
+    // Format human-readable file size (MB if >= 1MB, else KB)
+    const formattedSize = file.size >= 1024 * 1024
+      ? `${(file.size / (1024 * 1024)).toFixed(2)} MB`
+      : `${Math.max(1, Math.round(file.size / 1024))} KB`;
 
     const reader = new FileReader();
     reader.onloadend = () => {
+      const resultDataUrl = reader.result as string;
       const newDoc: StaffUploadedDocItem = {
         id: `DOC-${Date.now()}`,
         docType,
         fileName: file.name,
-        fileUrl: reader.result as string,
-        fileSize: `${(file.size / 1024).toFixed(1)} KB`,
-        uploadedAt: new Date().toLocaleDateString()
+        fileUrl: resultDataUrl,
+        fileSize: formattedSize,
+        uploadedAt: new Date().toISOString()
       };
 
       // Remove existing doc of same type if present
@@ -789,9 +856,18 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
       onChange('documents', [...filteredDocs, newDoc]);
 
       if (docType === 'Passport Size Photo') {
-        onChange('photoUrl', reader.result as string);
+        onChange('photoUrl', resultDataUrl);
       }
+
+      addToast('success', 'Document Uploaded', `${docType} ("${file.name}") uploaded successfully.`);
+      inputElement.value = '';
     };
+
+    reader.onerror = () => {
+      addToast('error', 'Upload Error', 'Failed to read the file. Please try selecting it again.');
+      inputElement.value = '';
+    };
+
     reader.readAsDataURL(file);
   };
 
@@ -837,29 +913,52 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
     }
   ];
 
-  const steps = [
-    { number: 1, title: '1. Personal Info', icon: User },
-    { number: 2, title: '2. Employment Details', icon: Briefcase },
-    { number: 3, title: '3. Qualification', icon: GraduationCap },
-    { number: 4, title: '4. Experience', icon: Award },
-    { number: 5, title: '5. Upload Documents', icon: Upload },
-    { number: 6, title: '6. Preview', icon: CheckCircle2 }
-  ];
+  const steps = React.useMemo(() => {
+    if (canEditEmployment) {
+      return [
+        { number: 1, title: '1. Personal Info', icon: User },
+        { number: 2, title: '2. Employment Details', icon: Briefcase },
+        { number: 3, title: '3. Qualification', icon: GraduationCap },
+        { number: 4, title: '4. Experience', icon: Award },
+        { number: 5, title: '5. Upload Documents', icon: Upload },
+        { number: 6, title: '6. Preview', icon: CheckCircle2 }
+      ];
+    }
+    return [
+      { number: 1, title: '1. Personal Info', icon: User },
+      { number: 3, title: '2. Qualification', icon: GraduationCap },
+      { number: 4, title: '3. Experience', icon: Award },
+      { number: 5, title: '4. Upload Documents', icon: Upload },
+      { number: 6, title: '5. Preview', icon: CheckCircle2 }
+    ];
+  }, [canEditEmployment]);
+
+  React.useEffect(() => {
+    if (!canEditEmployment && activeStep === 2) {
+      setActiveStep(1);
+    }
+  }, [canEditEmployment, activeStep, setActiveStep]);
+
+  const currentStepIndex = steps.findIndex(s => s.number === activeStep);
 
   return (
     <div className="space-y-3.5 animate-in fade-in duration-200 text-xs">
       
       <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-2 shadow-2xs overflow-x-auto">
         <div className="flex flex-row gap-1.5 w-full pr-2">
-          {steps.map(step => {
+          {steps.map((step, idx) => {
             const Icon = step.icon;
             const isActive = activeStep === step.number;
-            const isCompleted = activeStep > step.number;
+            const isCompleted = currentStepIndex > idx;
             return (
               <button
                 type="button"
                 key={step.number}
-                onClick={() => setActiveStep(step.number)}
+                onClick={() => {
+                  if (idx <= currentStepIndex || validateStep(activeStep)) {
+                    setActiveStep(step.number);
+                  }
+                }}
                 className={`flex-auto shrink-0 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl font-bold transition-all ${
                   isActive
                     ? 'bg-brand-600 text-white shadow-xs'
@@ -893,14 +992,22 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
             <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
               {/* Staff Type */}
               <div>
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                  Staff Type <span className="text-rose-500">*</span>
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                  <span>Staff Type <span className="text-rose-500">*</span></span>
+                  {!canEditEmployment && (
+                    <span className="text-[10px] text-slate-400 font-semibold">🔒 Official Record</span>
+                  )}
                 </label>
                 <div className="relative mt-1.5">
                   <select
+                    disabled={!canEditEmployment}
                     value={value.employeeCategory || ''}
                     onChange={e => handleStaffTypeSelect(e.target.value)}
-                    className={`w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 px-3.5 py-2 text-xs outline-none transition focus:border-brand-500 font-medium appearance-none cursor-pointer pr-10 ${
+                    className={`w-full rounded-xl border border-slate-200 dark:border-slate-800 ${
+                      !canEditEmployment
+                        ? 'bg-slate-100 dark:bg-slate-900 text-slate-500 font-bold cursor-not-allowed'
+                        : 'bg-white dark:bg-slate-950 font-medium cursor-pointer'
+                    } px-3.5 py-2 text-xs outline-none transition focus:border-brand-500 appearance-none pr-10 ${
                       !value.employeeCategory ? 'text-slate-400 dark:text-slate-500' : 'text-slate-900 dark:text-white'
                     } ${errors.employeeCategory ? 'border-rose-500 text-rose-700' : ''}`}
                   >
@@ -1523,7 +1630,7 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
       {/* ---------------------------------------------------- */}
       {/* SECTION 2: EMPLOYMENT DETAILS                        */}
       {/* ---------------------------------------------------- */}
-      {activeStep === 2 && (
+      {activeStep === 2 && canEditEmployment && (
         <div className="space-y-4 animate-in fade-in duration-150">
           <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-4 space-y-4">
             <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-2.5">
@@ -2409,7 +2516,7 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
 
                 <div>
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                    Choose File <span className="text-slate-400 font-normal">(Max Size: 3MB)</span>
+                    Choose File <span className="text-slate-400 font-normal">(PDF, JPEG, PNG, DOC • Max: 3MB)</span>
                   </label>
                   <label
                     className={`flex items-center justify-center gap-2 p-2 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 hover:bg-brand-50/50 cursor-pointer transition text-slate-500 text-xs font-bold ${!selectedDocType ? "opacity-50 cursor-not-allowed pointer-events-none" : ""}`}
@@ -2419,22 +2526,17 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                     <input
                       type="file"
                       disabled={!selectedDocType}
-                      accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+                      accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,image/jpeg,image/png,image/webp,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                       onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file && file.size > 3 * 1024 * 1024) {
-                          addToast("warning", "File Too Large", "Maximum allowed file size is 3MB.");
-                          e.target.value = ""; // Reset
-                          return;
-                        }
-                        if (file) {
-                          handleDocumentFileUpload(e, selectedDocType);
-                          setSelectedDocType(""); // Reset selection
-                        }
+                        handleDocumentFileUpload(e, selectedDocType);
+                        setSelectedDocType(""); // Reset selection
                       }}
                       className="hidden"
                     />
                   </label>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">
+                    Accepts JPEG, JPG, PNG, WEBP, PDF, DOC, DOCX up to 3MB
+                  </p>
                 </div>
               </div>
             </div>
@@ -2461,7 +2563,7 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                           </span>
                         </div>
                         <p className="truncate text-[10px] font-medium text-slate-550 dark:text-slate-400">{uploaded.fileName}</p>
-                        <p className="text-[9px] text-slate-400 font-bold">{uploaded.fileSize} • {uploaded.uploadedAt}</p>
+                        <p className="text-[9px] text-slate-400 font-bold">{uploaded.fileSize} • {formatUploadedDate(uploaded.uploadedAt)}</p>
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
                         <button
@@ -2691,18 +2793,22 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
       <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
         <button
           type="button"
-          disabled={activeStep === 1}
-          onClick={() => setActiveStep(prev => Math.max(1, prev - 1))}
+          disabled={currentStepIndex <= 0}
+          onClick={() => {
+            if (currentStepIndex > 0) {
+              setActiveStep(steps[currentStepIndex - 1].number);
+            }
+          }}
           className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs disabled:opacity-40"
         >
           Previous Step
         </button>
 
         <span className="text-[11px] font-bold text-slate-400">
-          Step {activeStep} of 6
+          Step {currentStepIndex >= 0 ? currentStepIndex + 1 : 1} of {steps.length}
         </span>
 
-        {activeStep === 6 ? (
+        {currentStepIndex === steps.length - 1 ? (
           <button
             key="submit-staff-btn"
             type="submit"
@@ -2715,29 +2821,17 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
                 ? 'Save Changes'
                 : 'Create Employee Record'}
           </button>
-        ) : activeStep === 5 ? (
-          <button
-            key="preview-staff-btn"
-            type="button"
-            onClick={() => {
-              if (validateStep(activeStep)) {
-                onSaveStep?.(activeStep, 6);
-                setActiveStep(6);
-              }
-            }}
-            className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-black text-xs shadow-xs"
-          >
-            Save & Next
-          </button>
         ) : (
           <button
             key="next-staff-btn"
             type="button"
             onClick={() => {
               if (validateStep(activeStep)) {
-                const next = Math.min(6, activeStep + 1);
-                onSaveStep?.(activeStep, next);
-                setActiveStep(next);
+                if (currentStepIndex < steps.length - 1) {
+                  const nextStepNum = steps[currentStepIndex + 1].number;
+                  onSaveStep?.(activeStep, nextStepNum);
+                  setActiveStep(nextStepNum);
+                }
               }
             }}
             className="px-4 py-2 rounded-xl bg-brand-600 hover:bg-brand-500 text-white font-black text-xs shadow-xs"
@@ -2758,21 +2852,37 @@ export const BasicStaffFormFields: React.FC<BasicStaffFormFieldsProps> = ({
               </div>
               <button onClick={() => setPreviewDoc(null)} className="p-1 rounded-lg hover:bg-slate-100 text-slate-500 font-bold">✕</button>
             </div>
-            <div className="p-4 bg-slate-101 dark:bg-slate-950 rounded-xl flex items-center justify-center min-h-[220px] max-h-[380px] overflow-auto">
+            <div className="p-4 bg-slate-100 dark:bg-slate-950 rounded-xl flex items-center justify-center min-h-[220px] max-h-[380px] overflow-auto">
               {previewDoc.fileUrl && (
                 previewDoc.fileUrl.startsWith('data:image/') ||
-                /\.(png|jpe?g|gif|webp|bmp)$/i.test(previewDoc.fileUrl) ||
-                previewDoc.fileName.match(/\.(png|jpe?g|gif|webp|bmp)$/i)
+                /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(previewDoc.fileUrl) ||
+                previewDoc.fileName.match(/\.(png|jpe?g|gif|webp|bmp|svg)$/i)
               ) ? (
                 <img 
                   src={previewDoc.fileUrl} 
                   alt={previewDoc.fileName} 
                   className="max-w-full max-h-[340px] object-contain rounded-lg shadow-sm"
                 />
+              ) : previewDoc.fileUrl && (
+                previewDoc.fileUrl.startsWith('data:application/pdf') ||
+                /\.pdf$/i.test(previewDoc.fileName) ||
+                /\.pdf$/i.test(previewDoc.fileUrl)
+              ) ? (
+                <iframe
+                  src={previewDoc.fileUrl}
+                  title={previewDoc.fileName}
+                  className="w-full h-[340px] rounded-lg border border-slate-200 dark:border-slate-800"
+                />
               ) : (
-                <p className="text-slate-550 font-bold text-xs text-center">
-                  Document preview for <strong>{previewDoc.fileName}</strong> is ready.
-                </p>
+                <div className="text-center p-4">
+                  <FileText className="w-12 h-12 text-brand-500 mx-auto mb-2" />
+                  <p className="text-slate-700 dark:text-slate-300 font-bold text-xs">
+                    {previewDoc.fileName}
+                  </p>
+                  <p className="text-slate-400 text-[10px] mt-1">
+                    Direct inline preview is not supported for this file type. You can download and inspect it.
+                  </p>
+                </div>
               )}
             </div>
             <div className="flex justify-end gap-2">
