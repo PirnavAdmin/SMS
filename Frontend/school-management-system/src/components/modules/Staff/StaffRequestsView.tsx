@@ -61,6 +61,16 @@ export const StaffRequestsView: React.FC<StaffRequestsViewProps> = ({ onNavigate
   const [rejectionReasonInput, setRejectionReasonInput] = useState<string>('');
   const [isProcessingAction, setIsProcessingAction] = useState<boolean>(false);
 
+  // Full Reason Display Modal State
+  const [reasonModalData, setReasonModalData] = useState<{
+    staffName: string;
+    empId?: string;
+    requestType: string;
+    reason: string;
+    relievingDate?: string;
+    comments?: string;
+  } | null>(null);
+
   const fetchAllData = async () => {
     try {
       setIsLoading(true);
@@ -275,7 +285,6 @@ export const StaffRequestsView: React.FC<StaffRequestsViewProps> = ({ onNavigate
 
         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
           <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500">
-            <span>Status:</span>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
@@ -289,7 +298,6 @@ export const StaffRequestsView: React.FC<StaffRequestsViewProps> = ({ onNavigate
           </div>
 
           <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500">
-            <span>Type:</span>
             <select
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
@@ -306,14 +314,14 @@ export const StaffRequestsView: React.FC<StaffRequestsViewProps> = ({ onNavigate
       {/* Requests Table */}
       <div className="bg-white dark:bg-slate-900 rounded-3xl overflow-hidden border border-sky-300 dark:border-sky-800 shadow-sm p-4">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
+          <table className="w-full text-center border-collapse text-xs">
             <thead>
               <tr className="bg-slate-100/70 dark:bg-slate-800/60 text-slate-500 font-bold uppercase border-b border-slate-200 dark:border-slate-800 text-[10px] tracking-wider">
                 <th className="py-3 px-3 text-center w-12">S.No</th>
-                <th className="py-3 px-3 text-left">Staff Member</th>
-                <th className="py-3 px-3 text-left">Department & Role</th>
+                <th className="py-3 px-3 text-center">Staff Member</th>
+                <th className="py-3 px-3 text-center">Department</th>
                 <th className="py-3 px-3 text-center">Request Type</th>
-                <th className="py-3 px-3 text-left">Reason / Purpose</th>
+                <th className="py-3 px-3 text-center">Reason / Purpose</th>
                 <th className="py-3 px-3 text-center">Requested At</th>
                 <th className="py-3 px-3 text-center">Status</th>
                 <th className="py-3 px-3 text-center">Actions</th>
@@ -336,41 +344,64 @@ export const StaffRequestsView: React.FC<StaffRequestsViewProps> = ({ onNavigate
                 filteredRequests.map((req, idx) => (
                   <tr key={req.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/60 transition">
                     <td className="py-3 px-3 text-center text-slate-400 font-bold">{idx + 1}</td>
-                    <td className="py-3 px-3">
+                    <td className="py-3 px-3 text-center">
                       <p className="font-bold text-slate-900 dark:text-white">{req.staffName}</p>
                       <p className="text-[10px] text-slate-400 font-mono">ID: {req.staffEmpId || req.staffId || 'N/A'}</p>
                     </td>
-                    <td className="py-3 px-3">
-                      <p className="font-bold text-slate-700 dark:text-slate-300">{req.designation || 'Staff Member'}</p>
-                      <p className="text-[10px] text-slate-400">
-                        {req.department || 'Academics'} {req.branch ? `• ${req.branch}` : ''}
-                      </p>
+                    <td className="py-3 px-3 text-center">
+                      <p className="font-bold text-slate-800 dark:text-slate-200">{req.department || 'Academics'}</p>
+                      {req.branch && (
+                        <p className="text-[10px] text-slate-400 mt-0.5">{req.branch}</p>
+                      )}
                     </td>
                     <td className="py-3 px-3 text-center">
                       <span
-                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold border ${
+                        className={`inline-block px-3 py-1 rounded-full text-[11px] font-bold border ${
                           req.requestType === 'relieving'
                             ? 'bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800'
                             : 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800'
                         }`}
                       >
-                        {req.requestType === 'relieving' ? <Shield className="w-3 h-3" /> : <Award className="w-3 h-3" />}
                         {req.requestType === 'relieving' ? 'Relieving Letter' : 'Experience Certificate'}
                       </span>
                     </td>
-                    <td className="py-3 px-3 max-w-xs">
-                      <p className="text-xs text-slate-800 dark:text-slate-200 line-clamp-2">{req.reason || 'Not specified'}</p>
-                      {req.relievingDate && (
-                        <p className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold mt-0.5">
-                          Proposed Relieving: {req.relievingDate}
-                        </p>
-                      )}
-                      {req.comments && (
-                        <p className="text-[10px] text-slate-400 italic line-clamp-1 mt-0.5">Note: {req.comments}</p>
-                      )}
-                      {req.rejectionReason && (
-                        <p className="text-[10px] text-rose-500 font-medium mt-0.5">Rejection Reason: {req.rejectionReason}</p>
-                      )}
+                    <td className="py-3 px-3 text-center max-w-xs">
+                      <div className="flex flex-col items-center justify-center">
+                        {req.reason && req.reason.length > 20 ? (
+                          <p className="text-xs text-slate-800 dark:text-slate-200 font-medium">
+                            {req.reason.slice(0, 20)}...{' '}
+                            <button
+                              type="button"
+                              onClick={() => setReasonModalData({
+                                staffName: req.staffName,
+                                empId: req.staffEmpId || req.staffId,
+                                requestType: req.requestType,
+                                reason: req.reason,
+                                relievingDate: req.relievingDate,
+                                comments: req.comments,
+                              })}
+                              className="text-sky-600 hover:text-sky-700 dark:text-sky-400 dark:hover:text-sky-300 font-bold underline cursor-pointer ml-1 inline-block"
+                            >
+                              Show
+                            </button>
+                          </p>
+                        ) : (
+                          <p className="text-xs text-slate-800 dark:text-slate-200 font-medium">
+                            {req.reason || 'Not specified'}
+                          </p>
+                        )}
+                        {req.relievingDate && (
+                          <p className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold mt-0.5">
+                            Proposed Relieving: {req.relievingDate}
+                          </p>
+                        )}
+                        {req.comments && (
+                          <p className="text-[10px] text-slate-400 italic line-clamp-1 mt-0.5">Note: {req.comments}</p>
+                        )}
+                        {req.rejectionReason && (
+                          <p className="text-[10px] text-rose-500 font-medium mt-0.5">Rejection Reason: {req.rejectionReason}</p>
+                        )}
+                      </div>
                     </td>
                     <td className="py-3 px-3 text-center text-slate-500 font-mono text-[11px]">
                       {req.createdAt ? String(req.createdAt).split('T')[0] : 'Today'}
@@ -513,6 +544,91 @@ export const StaffRequestsView: React.FC<StaffRequestsViewProps> = ({ onNavigate
                 className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-xs cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
               >
                 {isProcessingAction ? 'Rejecting...' : 'Confirm Rejection'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reason Details Modal */}
+      {reasonModalData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-lg w-full shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
+            <div className="flex items-start justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div>
+                <h3 className="text-base font-black text-slate-900 dark:text-white">
+                  Request Reason & Details
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Staff: <span className="font-bold text-slate-800 dark:text-slate-200">{reasonModalData.staffName}</span>
+                  {reasonModalData.empId ? ` (${reasonModalData.empId})` : ''}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setReasonModalData(null)}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 dark:hover:text-slate-300 transition-colors cursor-pointer"
+                title="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                  Request Type
+                </span>
+                <span
+                  className={`inline-block px-3 py-1 rounded-full text-xs font-bold border ${
+                    reasonModalData.requestType === 'relieving'
+                      ? 'bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800'
+                      : 'bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800'
+                  }`}
+                >
+                  {reasonModalData.requestType === 'relieving' ? 'Relieving Letter' : 'Experience Certificate'}
+                </span>
+              </div>
+
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                  Full Reason / Purpose
+                </span>
+                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-200 leading-relaxed max-h-60 overflow-y-auto whitespace-pre-wrap">
+                  {reasonModalData.reason}
+                </div>
+              </div>
+
+              {reasonModalData.relievingDate && (
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                    Proposed Relieving Date
+                  </span>
+                  <p className="text-xs font-bold text-amber-600 dark:text-amber-400 font-mono">
+                    {reasonModalData.relievingDate}
+                  </p>
+                </div>
+              )}
+
+              {reasonModalData.comments && (
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                    Additional Notes / Comments
+                  </span>
+                  <p className="text-xs text-slate-600 dark:text-slate-300 italic bg-slate-50 dark:bg-slate-800/40 p-2.5 rounded-xl border border-slate-200/80 dark:border-slate-700/80">
+                    {reasonModalData.comments}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end pt-3 border-t border-slate-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setReasonModalData(null)}
+                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 transition-colors cursor-pointer"
+              >
+                Close
               </button>
             </div>
           </div>

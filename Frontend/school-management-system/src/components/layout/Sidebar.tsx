@@ -827,7 +827,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       : safeRole === "teacher" || safeRole.includes("warden") || safeRole.includes("accountant") || safeRole === "finance" || safeRole.includes("librarian")
       ? [
           { id: "teacher-profile", label: "My Profile", icon: User },
-          { id: "staff-requests", label: "My Requests", icon: FileCheck },
           {
             id: "staff-attendance",
             label: "My Attendance",

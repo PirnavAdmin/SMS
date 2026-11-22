@@ -1,4 +1,4 @@
-import { Staff, SchoolProfile } from '../types';
+import { Staff, SchoolProfile, SalaryStructure, EmployeeSalaryAssignment } from '../types';
 import { GeneratedStaffLetterRecord, StaffLetterPayload, StaffLetterSalaryBreakdown, StaffLetterType } from '../types/staffLetter';
 import { createOrSaveStaffLetterApi, deleteStaffLetterApi, fetchStaffLettersApi } from '../api/staffLetters';
 
@@ -18,6 +18,178 @@ export const calculateSalaryBreakdown = (monthlySalary: number): StaffLetterSala
     grossMonthly,
     annualCtc,
   };
+};
+
+export const resolveStaffSalaryBreakdown = (
+  staff?: Partial<Staff> | null,
+  salaryStructures?: SalaryStructure[],
+  employeeSalaryAssignments?: EmployeeSalaryAssignment[],
+  existingBreakdown?: StaffLetterSalaryBreakdown | null
+): StaffLetterSalaryBreakdown => {
+  if (
+    existingBreakdown &&
+    existingBreakdown.grossMonthly > 0 &&
+    (existingBreakdown.basic > 0 || existingBreakdown.annualCtc > 0)
+  ) {
+    return existingBreakdown;
+  }
+
+  if (!staff) {
+    return calculateSalaryBreakdown(0);
+  }
+
+  const staffIdStr = String(staff.id || '');
+  const empIdStr = String(staff.empId || '');
+  const fullNameStr = `${staff.firstName || ''} ${staff.lastName || ''}`.trim().toLowerCase();
+  const desigStr = (staff.designation || (staff as any).role || '').toLowerCase().trim();
+
+  // 1. Try resolving from active EmployeeSalaryAssignments
+  let matchingAssignment: EmployeeSalaryAssignment | undefined;
+  if (employeeSalaryAssignments && employeeSalaryAssignments.length > 0) {
+    matchingAssignment = employeeSalaryAssignments.find((a) => {
+      const matchEmp = (staffIdStr && String(a.employeeId) === staffIdStr) || (empIdStr && a.empId === empIdStr);
+      const matchName = fullNameStr && a.employeeName && a.employeeName.toLowerCase().trim() === fullNameStr;
+      return (matchEmp || matchName) && a.status === 'Active';
+    });
+  }
+
+  // 2. Try resolving from SalaryStructures
+  let matchingStructure: SalaryStructure | undefined;
+  if (salaryStructures && salaryStructures.length > 0) {
+    if (matchingAssignment?.salaryStructureId) {
+      matchingStructure = salaryStructures.find(
+        (s) => String(s.id) === String(matchingAssignment!.salaryStructureId)
+      );
+    }
+
+    if (!matchingStructure && matchingAssignment?.salaryStructureName) {
+      matchingStructure = salaryStructures.find(
+        (s) => s.structureName.toLowerCase().trim() === matchingAssignment!.salaryStructureName.toLowerCase().trim()
+      );
+    }
+
+    if (!matchingStructure && (staff as any).salaryStructureId) {
+      matchingStructure = salaryStructures.find(
+        (s) => String(s.id) === String((staff as any).salaryStructureId)
+      );
+    }
+
+    if (!matchingStructure && (staff as any).salaryStructureName) {
+      matchingStructure = salaryStructures.find(
+        (s) => s.structureName.toLowerCase().trim() === (staff as any).salaryStructureName.toLowerCase().trim()
+      );
+    }
+
+    if (!matchingStructure) {
+      matchingStructure = salaryStructures.find(
+        (s) =>
+          ((s as any).staffId && (String((s as any).staffId) === staffIdStr || (s as any).staffId === empIdStr)) ||
+          ((s as any).employeeId && String((s as any).employeeId) === staffIdStr)
+      );
+    }
+
+    if (!matchingStructure && desigStr) {
+      matchingStructure = salaryStructures.find(
+        (s) => s.status === 'Active' && s.designation && s.designation.toLowerCase().trim() === desigStr
+      );
+    }
+
+    if (!matchingStructure && desigStr) {
+      matchingStructure = salaryStructures.find((s) => {
+        if (s.status !== 'Active') return false;
+        const structName = s.structureName.toLowerCase().trim();
+        const structDesig = (s.designation || '').toLowerCase().trim();
+        return (
+          desigStr.includes(structName) ||
+          structName.includes(desigStr) ||
+          (structDesig && desigStr.includes(structDesig))
+        );
+      });
+    }
+  }
+
+  // 3. If a structure was found, compute detailed breakdown
+  if (matchingStructure) {
+    const earnings = matchingStructure.earnings || [];
+    const basicLine = earnings.find((e) => /basic/i.test(e.name));
+    const hraLine = earnings.find((e) => /hra|house/i.test(e.name));
+    const travelLine = earnings.find((e) => /travel|transport|conveyance/i.test(e.name));
+
+    const structGross = Number(
+      matchingStructure.grossSalary ||
+      earnings.reduce((sum, e) => sum + (Number(e.amount) || 0), 0) ||
+      matchingAssignment?.monthlyGross ||
+      0
+    );
+
+    if (structGross > 0) {
+      const basic = Number(
+        matchingAssignment?.overrideBasicSalary ??
+        (basicLine?.amount && basicLine.amount > 0 ? basicLine.amount : Math.round(structGross * 0.5))
+      );
+      const hra = Number(
+        hraLine?.amount && hraLine.amount > 0 ? hraLine.amount : Math.round(structGross * 0.2)
+      );
+      const transportAllowance = Number(
+        travelLine?.amount && travelLine.amount > 0 ? travelLine.amount : Math.round(structGross * 0.1)
+      );
+
+      const otherEarningsSum = earnings
+        .filter((e) => e !== basicLine && e !== hraLine && e !== travelLine)
+        .reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+
+      const specialAllowance = otherEarningsSum > 0
+        ? otherEarningsSum
+        : Math.max(0, structGross - (basic + hra + transportAllowance));
+
+      return {
+        basic,
+        hra,
+        transportAllowance,
+        specialAllowance,
+        grossMonthly: structGross,
+        annualCtc: structGross * 12,
+      };
+    }
+  }
+
+  // 4. If assignment has gross salary
+  if (matchingAssignment && (matchingAssignment.monthlyGross || matchingAssignment.overrideBasicSalary)) {
+    const gross = Number(matchingAssignment.monthlyGross || 0);
+    if (gross > 0) {
+      const basic = Number(matchingAssignment.overrideBasicSalary || Math.round(gross * 0.5));
+      const allowances = Number(matchingAssignment.overrideAllowances || Math.max(0, gross - basic));
+      const hra = Math.round(basic * 0.4);
+      const transport = Math.min(1600, Math.round(gross * 0.1));
+      const special = Math.max(0, allowances - (hra + transport));
+      return {
+        basic,
+        hra,
+        transportAllowance: transport,
+        specialAllowance: special,
+        grossMonthly: gross,
+        annualCtc: gross * 12,
+      };
+    }
+  }
+
+  // 5. Fallback to staff model properties (grossSalary, monthlySalary, salary)
+  const candidateGross = [
+    staff.grossSalary,
+    (staff as any).monthlyGross,
+    (staff as any).monthlySalary,
+    (staff as any).basicSalary,
+    staff.salary,
+    (staff as any).netSalary,
+  ]
+    .map((v) => (typeof v === 'number' ? v : parseFloat(String(v || '0'))))
+    .find((v) => typeof v === 'number' && !isNaN(v) && v > 0);
+
+  if (candidateGross && candidateGross > 0) {
+    return calculateSalaryBreakdown(candidateGross);
+  }
+
+  return calculateSalaryBreakdown(0);
 };
 
 export const generateLetterRefNo = (type: StaffLetterType, empId?: string): string => {
@@ -135,16 +307,16 @@ export const getEmptyLetterPayload = (
 export const getDefaultLetterPayload = (
   type: StaffLetterType,
   staff?: Staff | null,
-  schoolProfile?: SchoolProfile
+  schoolProfile?: SchoolProfile,
+  salaryStructures?: SalaryStructure[],
+  employeeSalaryAssignments?: EmployeeSalaryAssignment[]
 ): StaffLetterPayload => {
   if (!staff) {
     return getEmptyLetterPayload(type, schoolProfile);
   }
 
   const todayStr = new Date().toISOString().split('T')[0];
-  const monthlySalary = typeof staff.salary === 'number'
-    ? staff.salary
-    : parseFloat(String(staff.salary || (staff as any).basicSalary || (staff as any).grossSalary || (staff as any).netSalary || '0')) || 35000;
+  const salaryBreakdown = resolveStaffSalaryBreakdown(staff, salaryStructures, employeeSalaryAssignments);
 
   const fullName = `${staff.firstName || ''} ${staff.lastName || ''}`.trim() || (staff as any).name || '';
 
@@ -183,7 +355,7 @@ export const getDefaultLetterPayload = (
     branch: staffBranch,
     joiningDate: staffJoiningDate,
     relievingDate: type !== 'offer' ? todayStr : undefined,
-    salaryBreakdown: calculateSalaryBreakdown(monthlySalary),
+    salaryBreakdown: salaryBreakdown,
     probationMonths: defaultProbationMonths,
     noticePeriodDays: defaultNoticePeriodDays,
     workingHours: dynamicWorkingHours,
@@ -217,9 +389,11 @@ export const createStaffLetterRecord = (
   type: StaffLetterType,
   staff: Staff,
   schoolProfile?: SchoolProfile,
-  customIssueDate?: string
+  customIssueDate?: string,
+  salaryStructures?: SalaryStructure[],
+  employeeSalaryAssignments?: EmployeeSalaryAssignment[]
 ): GeneratedStaffLetterRecord => {
-  const payload = getDefaultLetterPayload(type, staff, schoolProfile);
+  const payload = getDefaultLetterPayload(type, staff, schoolProfile, salaryStructures, employeeSalaryAssignments);
   if (customIssueDate) {
     payload.issueDate = customIssueDate;
   }

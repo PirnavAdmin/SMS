@@ -1279,23 +1279,22 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
         {/* Hostel Students Roster Table */}
         <div className="glass-card rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-xs">
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
+            <table className="w-full text-center border-collapse text-xs">
               <thead>
                 <tr className="bg-slate-50 dark:bg-slate-800/60 text-slate-500 font-extrabold uppercase tracking-wider border-b border-slate-100 dark:border-slate-800">
-                  <th className="py-2 px-3">Student ID</th>
-                  <th className="py-2 px-3 whitespace-nowrap min-w-[5.5rem]">Roll No</th>
-                  <th className="py-2 px-3">Student Name</th>
-                  <th className="py-2 px-3">Class & Sec</th>
-                  <th className="py-2 px-3">Hostel Block & Room</th>
-                  <th className="py-2 px-3">Guardian Contact</th>
-                  <th className="py-2 px-3">Status</th>
-                  <th className="py-2 px-3 text-right">Actions</th>
+                  <th className="py-2.5 px-3 text-center">Student ID</th>
+                  <th className="py-2.5 px-3 text-center">Student Name</th>
+                  <th className="py-2.5 px-3 text-center">Class & Sec</th>
+                  <th className="py-2.5 px-3 text-center">Hostel Block & Room</th>
+                  <th className="py-2.5 px-3 text-center">Guardian Contact</th>
+                  <th className="py-2.5 px-3 text-center">Status</th>
+                  <th className="py-2.5 px-3 text-center">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-medium">
                 {wardenPaginatedStudents.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="text-center py-12 text-slate-400 font-bold">
+                    <td colSpan={7} className="text-center py-12 text-slate-400 font-bold">
                       No hostel resident students match the selected block and class filters.
                     </td>
                   </tr>
@@ -1308,38 +1307,24 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
                         String(a.studentName).toLowerCase().trim() === `${s.firstName} ${s.lastName}`.toLowerCase().trim()
                       )
                     );
-                    const displayBlock = matchingAlloc?.hostelName || (s as any).hostelBlock || (s as any).blockName || 'Block A (Ramachandra)';
+                    const displayBlock = matchingAlloc?.hostelName || (s as any).hostelBlock || (s as any).blockName || 'Bhanu Block';
                     const displayRoom = matchingAlloc?.roomNumber || (s as any).roomNo || (s as any).roomNumber || '101';
                     const displayBed = matchingAlloc?.bedNumber || (s as any).bedNo || (s as any).bedNumber || 'BED-1';
 
                     return (
                       <tr key={s.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
-                        <td className="py-2 px-3 font-mono font-bold text-brand-600 dark:text-brand-400">
+                        <td className="py-2.5 px-3 font-mono font-bold text-brand-600 dark:text-brand-400 text-center">
                           {s.id}
                         </td>
-                        <td className="py-2 px-3 font-mono text-slate-600 dark:text-slate-400 whitespace-nowrap min-w-[5.5rem]">
-                          {s.rollNo}
+                        <td className="py-2.5 px-3 text-center">
+                          <span className="font-bold text-slate-900 dark:text-white block">{s.firstName} {s.lastName}</span>
+                          <span className="text-[10px] text-sky-600 dark:text-sky-400 font-semibold block">Residential / Hosteller</span>
                         </td>
-                        <td className="py-2 px-3">
-                          <div className="flex items-center gap-2.5">
-                            {s.photoUrl ? (
-                              <img src={s.photoUrl} alt="" className="w-8 h-8 rounded-full object-cover border border-slate-200" />
-                            ) : (
-                              <div className="w-8 h-8 rounded-full bg-sky-100 text-sky-700 font-black flex items-center justify-center text-xs">
-                                {s.firstName?.[0] || 'S'}
-                              </div>
-                            )}
-                            <div>
-                              <span className="font-bold text-slate-900 dark:text-white block">{s.firstName} {s.lastName}</span>
-                              <span className="text-[10px] text-sky-600 dark:text-sky-400 font-semibold">Residential / Hosteller</span>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="py-2 px-3 font-extrabold text-slate-800 dark:text-slate-200">
+                        <td className="py-2.5 px-3 font-extrabold text-slate-800 dark:text-slate-200 text-center">
                           {s.className} - {s.section}
                         </td>
-                        <td className="py-2 px-3">
-                          <div className="flex flex-col">
+                        <td className="py-2.5 px-3 text-center">
+                          <div className="flex flex-col items-center justify-center">
                             <span className="font-extrabold text-slate-900 dark:text-white">
                               {displayBlock}
                             </span>
@@ -1348,26 +1333,27 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
                             </span>
                           </div>
                         </td>
-                      <td className="py-2 px-3 text-slate-600 dark:text-slate-400 font-mono">
-                        {s.fatherPhone || s.guardianPhone || s.contactPhone || '9876543210'}
-                      </td>
-                      <td className="py-2 px-3">
-                        <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 font-extrabold text-[10px] border border-emerald-200 dark:border-emerald-900/40">
-                          {s.status || 'Active'}
-                        </span>
-                      </td>
-                      <td className="py-2 px-3 text-right">
-                        <button
-                          onClick={() => setSelectedStudent(s)}
-                          className="px-3 py-1 rounded-xl bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 font-bold hover:bg-sky-100 transition-colors text-xs cursor-pointer inline-flex items-center gap-1"
-                        >
-                          <Eye className="w-3.5 h-3.5" /> View Profile
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
+                        <td className="py-2.5 px-3 text-slate-600 dark:text-slate-400 font-mono text-center">
+                          {s.fatherPhone || s.guardianPhone || s.contactPhone || '9876543210'}
+                        </td>
+                        <td className="py-2.5 px-3 text-center">
+                          <span className="inline-block px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 font-extrabold text-[10px] border border-emerald-200 dark:border-emerald-900/40">
+                            {s.status || 'Active'}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3 text-center">
+                          <button
+                            onClick={() => setSelectedStudent(s)}
+                            title="View Profile"
+                            className="p-1.5 rounded-xl bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 font-bold hover:bg-sky-100 dark:hover:bg-sky-900/60 transition-colors text-xs cursor-pointer inline-flex items-center justify-center hover:scale-105 active:scale-95"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>

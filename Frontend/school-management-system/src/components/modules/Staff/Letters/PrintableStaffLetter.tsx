@@ -5,6 +5,7 @@ import { formatDateDDMMYYYY } from '../../../../utils/dateValidation';
 import { formatCurrency } from '../../../../utils/currency';
 import { SchoolPrintHeader } from '../../../common/SchoolPrintHeader';
 import { useData } from '../../../../context/DataContext';
+import { resolveStaffSalaryBreakdown } from '../../../../utils/staffLetterTemplates';
 
 interface PrintableStaffLetterProps {
   type: StaffLetterType;
@@ -17,9 +18,38 @@ export const PrintableStaffLetter: React.FC<PrintableStaffLetterProps> = ({
   payload,
   schoolProfile,
 }) => {
-  const { schoolProfile: contextSchoolProfile } = useData();
+  const {
+    schoolProfile: contextSchoolProfile,
+    salaryStructures = [],
+    employeeSalaryAssignments = [],
+    staff: allStaff = [],
+  } = useData();
   const activeSchoolProfile = schoolProfile || contextSchoolProfile;
   const schoolName = activeSchoolProfile?.name || 'School Administration';
+
+  const matchedStaff = useMemo(() => {
+    const sId = String(payload.empId || '').trim().toLowerCase();
+    const cName = (payload.candidateName || '').trim().toLowerCase();
+    return (allStaff || []).find((s) => {
+      const idMatch = sId && (String(s.id).toLowerCase() === sId || String(s.empId).toLowerCase() === sId);
+      const nameMatch = cName && `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase() === cName;
+      return idMatch || nameMatch;
+    });
+  }, [allStaff, payload.empId, payload.candidateName]);
+
+  const effectiveSalaryBreakdown = useMemo(() => {
+    return resolveStaffSalaryBreakdown(
+      matchedStaff || {
+        id: payload.empId,
+        empId: payload.empId,
+        designation: payload.designation,
+        firstName: payload.candidateName,
+      },
+      salaryStructures,
+      employeeSalaryAssignments,
+      payload.salaryBreakdown
+    );
+  }, [matchedStaff, salaryStructures, employeeSalaryAssignments, payload.salaryBreakdown, payload.empId, payload.designation, payload.candidateName]);
 
   const formattedIssueDate = formatDateDDMMYYYY(payload.issueDate) || payload.issueDate;
   const formattedJoiningDate = formatDateDDMMYYYY(payload.joiningDate) || payload.joiningDate;
@@ -175,7 +205,7 @@ export const PrintableStaffLetter: React.FC<PrintableStaffLetterProps> = ({
             </div>
 
             {/* Compensation Details Table */}
-            {payload.salaryBreakdown && (
+            {(payload.salaryBreakdown || effectiveSalaryBreakdown.grossMonthly > 0) && (
               <div style={{ margin: '8px 0', pageBreakInside: 'avoid', breakInside: 'avoid' }} className="my-2 print:break-inside-avoid print:page-break-inside-avoid">
                 <p style={{ fontWeight: 'bold', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.04em', color: '#1e293b', marginBottom: '4px' }}>
                   Compensation & Remuneration Structure (CTC):
@@ -192,23 +222,23 @@ export const PrintableStaffLetter: React.FC<PrintableStaffLetterProps> = ({
                     <tbody style={{ fontFamily: 'monospace' }} className="divide-y divide-slate-100 font-mono">
                       <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
                         <td style={{ padding: '4px 8px', fontFamily: 'sans-serif', fontWeight: 500, color: '#334155' }}>Basic Pay</td>
-                        <td style={{ padding: '4px 8px', textAlign: 'right', fontWeight: 'bold' }}>{formatCurrency(payload.salaryBreakdown.basic)}</td>
-                        <td style={{ padding: '4px 8px', textAlign: 'right', color: '#475569' }}>{formatCurrency(payload.salaryBreakdown.basic * 12)}</td>
+                        <td style={{ padding: '4px 8px', textAlign: 'right', fontWeight: 'bold' }}>{formatCurrency(effectiveSalaryBreakdown.basic)}</td>
+                        <td style={{ padding: '4px 8px', textAlign: 'right', color: '#475569' }}>{formatCurrency(effectiveSalaryBreakdown.basic * 12)}</td>
                       </tr>
                       <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
                         <td style={{ padding: '4px 8px', fontFamily: 'sans-serif', fontWeight: 500, color: '#334155' }}>House Rent Allowance (HRA)</td>
-                        <td style={{ padding: '4px 8px', textAlign: 'right', fontWeight: 'bold' }}>{formatCurrency(payload.salaryBreakdown.hra)}</td>
-                        <td style={{ padding: '4px 8px', textAlign: 'right', color: '#475569' }}>{formatCurrency(payload.salaryBreakdown.hra * 12)}</td>
+                        <td style={{ padding: '4px 8px', textAlign: 'right', fontWeight: 'bold' }}>{formatCurrency(effectiveSalaryBreakdown.hra)}</td>
+                        <td style={{ padding: '4px 8px', textAlign: 'right', color: '#475569' }}>{formatCurrency(effectiveSalaryBreakdown.hra * 12)}</td>
                       </tr>
                       <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
                         <td style={{ padding: '4px 8px', fontFamily: 'sans-serif', fontWeight: 500, color: '#334155' }}>Transport & Special Allowances</td>
-                        <td style={{ padding: '4px 8px', textAlign: 'right', fontWeight: 'bold' }}>{formatCurrency(payload.salaryBreakdown.specialAllowance + payload.salaryBreakdown.transportAllowance)}</td>
-                        <td style={{ padding: '4px 8px', textAlign: 'right', color: '#475569' }}>{formatCurrency((payload.salaryBreakdown.specialAllowance + payload.salaryBreakdown.transportAllowance) * 12)}</td>
+                        <td style={{ padding: '4px 8px', textAlign: 'right', fontWeight: 'bold' }}>{formatCurrency(effectiveSalaryBreakdown.specialAllowance + effectiveSalaryBreakdown.transportAllowance)}</td>
+                        <td style={{ padding: '4px 8px', textAlign: 'right', color: '#475569' }}>{formatCurrency((effectiveSalaryBreakdown.specialAllowance + effectiveSalaryBreakdown.transportAllowance) * 12)}</td>
                       </tr>
                       <tr style={{ backgroundColor: '#f8fafc', fontWeight: 900, color: '#0f172a', borderTop: '2px solid #94a3b8' }}>
                         <td style={{ padding: '5px 8px', fontFamily: 'sans-serif' }}>Total Gross Salary (Cost to School CTC)</td>
-                        <td style={{ padding: '5px 8px', textAlign: 'right', color: '#0369a1' }}>{formatCurrency(payload.salaryBreakdown.grossMonthly)}</td>
-                        <td style={{ padding: '5px 8px', textAlign: 'right', color: '#0369a1' }}>{formatCurrency(payload.salaryBreakdown.annualCtc)}</td>
+                        <td style={{ padding: '5px 8px', textAlign: 'right', color: '#0369a1' }}>{formatCurrency(effectiveSalaryBreakdown.grossMonthly)}</td>
+                        <td style={{ padding: '5px 8px', textAlign: 'right', color: '#0369a1' }}>{formatCurrency(effectiveSalaryBreakdown.annualCtc)}</td>
                       </tr>
                     </tbody>
                   </table>

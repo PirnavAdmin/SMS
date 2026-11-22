@@ -31,6 +31,7 @@ import { useToast } from '../../../../context/ToastContext';
 import { PrintableStaffLetter } from './PrintableStaffLetter';
 import {
   calculateSalaryBreakdown,
+  resolveStaffSalaryBreakdown,
   getDefaultLetterPayload,
   getEmptyLetterPayload,
   getStaffRealAddress,
@@ -67,8 +68,25 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
   onNavigate,
   existingLetters,
 }) => {
-  const { staff: allStaff = [], schoolProfile, updateStaff } = useData();
+  const {
+    staff: allStaff = [],
+    schoolProfile,
+    updateStaff,
+    salaryStructures = [],
+    employeeSalaryAssignments = [],
+    fetchSalaryStructures,
+    fetchSalaryAssignments,
+  } = useData();
   const { addToast } = useToast();
+
+  useEffect(() => {
+    if (fetchSalaryStructures && (!salaryStructures || salaryStructures.length === 0)) {
+      fetchSalaryStructures();
+    }
+    if (fetchSalaryAssignments && (!employeeSalaryAssignments || employeeSalaryAssignments.length === 0)) {
+      fetchSalaryAssignments();
+    }
+  }, []);
 
   const effectiveStaffList = useMemo(() => {
     if (allStaff && allStaff.length > 0) return allStaff;
@@ -254,10 +272,16 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
     if (existingRecord) {
       const pl = { ...existingRecord.payload };
       if (!pl.signatureImageUrl && globalSig) pl.signatureImageUrl = globalSig;
+      const targetStaff = staff || (allStaff && allStaff.length > 0 ? allStaff.find(
+        (s) => s.id === existingRecord.staffId || s.empId === existingRecord.staffEmpId
+      ) : undefined) || currentStaff;
+      if (!pl.salaryBreakdown || pl.salaryBreakdown.grossMonthly <= 0) {
+        pl.salaryBreakdown = resolveStaffSalaryBreakdown(targetStaff, salaryStructures, employeeSalaryAssignments, pl.salaryBreakdown);
+      }
       return pl;
     }
     if (currentStaff || staff) {
-      const defaultPl = getDefaultLetterPayload(initialType, currentStaff || staff, schoolProfile);
+      const defaultPl = getDefaultLetterPayload(initialType, currentStaff || staff, schoolProfile, salaryStructures, employeeSalaryAssignments);
       if (!defaultPl.signatureImageUrl && globalSig) defaultPl.signatureImageUrl = globalSig;
       return defaultPl;
     }
@@ -322,11 +346,15 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
       const targetStaff = staff || (existingRecord ? effectiveStaffList.find(
         (s) => s.id === existingRecord.staffId || s.empId === existingRecord.staffEmpId
       ) : undefined) || currentStaff;
-      const basePayload = getDefaultLetterPayload(existingRecord.letterType, targetStaff, schoolProfile);
+      const basePayload = getDefaultLetterPayload(existingRecord.letterType, targetStaff, schoolProfile, salaryStructures, employeeSalaryAssignments);
       const existingPl = existingRecord.payload || {};
+      const resolvedSb = resolveStaffSalaryBreakdown(targetStaff, salaryStructures, employeeSalaryAssignments, existingPl.salaryBreakdown);
       setPayload({
         ...basePayload,
         ...existingPl,
+        salaryBreakdown: (existingPl.salaryBreakdown && existingPl.salaryBreakdown.grossMonthly > 0)
+          ? existingPl.salaryBreakdown
+          : resolvedSb,
         refNo: existingRecord.letterNumber || (existingPl as any)?.refNo || basePayload.refNo,
         issueDate: existingRecord.issueDate || (existingPl as any)?.issueDate || basePayload.issueDate,
         candidateName: existingRecord.staffName || (existingPl as any)?.candidateName || basePayload.candidateName,
@@ -343,7 +371,7 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
       setCurrentStaff(staff);
       setActiveType(initialType);
       setActiveView('edit');
-      const defaultPl = getDefaultLetterPayload(initialType, staff, schoolProfile);
+      const defaultPl = getDefaultLetterPayload(initialType, staff, schoolProfile, salaryStructures, employeeSalaryAssignments);
       const globalSig = getGlobalSignature();
       if (!defaultPl.signatureImageUrl && globalSig) {
         defaultPl.signatureImageUrl = globalSig;
@@ -449,7 +477,7 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
       }
 
       const globalSig = getGlobalSignature();
-      const pl = getDefaultLetterPayload(activeType, found, schoolProfile);
+      const pl = getDefaultLetterPayload(activeType, found, schoolProfile, salaryStructures, employeeSalaryAssignments);
       if (payload.signatureImageUrl) pl.signatureImageUrl = payload.signatureImageUrl;
       else if (globalSig) pl.signatureImageUrl = globalSig;
       if (payload.authorizedSignatoryName) pl.authorizedSignatoryName = payload.authorizedSignatoryName;
@@ -487,7 +515,7 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
           `${currentStaff.firstName} ${currentStaff.lastName} already has a released ${newType === 'offer' ? 'Offer' : 'Relieving'} Letter. Please select another employee.`
         );
       } else {
-        const pl = getDefaultLetterPayload(newType, currentStaff, schoolProfile);
+        const pl = getDefaultLetterPayload(newType, currentStaff, schoolProfile, salaryStructures, employeeSalaryAssignments);
         if (payload.signatureImageUrl) pl.signatureImageUrl = payload.signatureImageUrl;
         else if (globalSig) pl.signatureImageUrl = globalSig;
         if (payload.authorizedSignatoryName) pl.authorizedSignatoryName = payload.authorizedSignatoryName;
@@ -499,6 +527,19 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
       }
     }
   };
+
+  // Auto-resolve salary breakdown from salary structures if current payload has 0
+  useEffect(() => {
+    if (activeType === 'offer' && currentStaff && (!payload.salaryBreakdown || payload.salaryBreakdown.grossMonthly <= 0)) {
+      const resolved = resolveStaffSalaryBreakdown(currentStaff, salaryStructures, employeeSalaryAssignments, payload.salaryBreakdown);
+      if (resolved && resolved.grossMonthly > 0) {
+        setPayload((prev) => ({
+          ...prev,
+          salaryBreakdown: resolved,
+        }));
+      }
+    }
+  }, [activeType, currentStaff, salaryStructures, employeeSalaryAssignments, payload.salaryBreakdown?.grossMonthly]);
 
   const handleSalaryChange = (newMonthly: number) => {
     const breakdown = calculateSalaryBreakdown(newMonthly);

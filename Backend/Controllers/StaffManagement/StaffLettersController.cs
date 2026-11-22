@@ -115,7 +115,8 @@ public class StaffLettersController : ControllerBase
                 .OrderByDescending(l => l.CreatedAt)
                 .ToListAsync();
 
-            var dtos = letters.Select(l =>
+            var dtos = new List<StaffLetterRecordDto>();
+            foreach (var l in letters)
             {
                 object? payloadObj = null;
                 if (!string.IsNullOrWhiteSpace(l.PayloadJson))
@@ -127,7 +128,9 @@ public class StaffLettersController : ControllerBase
                     catch { }
                 }
 
-                return new StaffLetterRecordDto
+                payloadObj = await EnsureSalaryBreakdownInPayloadAsync(l.LetterType, l.StaffId, l.StaffEmpId, l.Designation, payloadObj, l);
+
+                dtos.Add(new StaffLetterRecordDto
                 {
                     Id = l.Id,
                     LetterNumber = l.LetterNumber,
@@ -143,8 +146,8 @@ public class StaffLettersController : ControllerBase
                     Status = l.Status,
                     Payload = payloadObj,
                     CreatedAt = l.CreatedAt
-                };
-            }).ToList();
+                });
+            }
 
             return Ok(new
             {
@@ -184,6 +187,8 @@ public class StaffLettersController : ControllerBase
                 }
                 catch { }
             }
+
+            payloadObj = await EnsureSalaryBreakdownInPayloadAsync(letter.LetterType, letter.StaffId, letter.StaffEmpId, letter.Designation, payloadObj, letter);
 
             var dto = new StaffLetterRecordDto
             {
@@ -231,7 +236,8 @@ public class StaffLettersController : ControllerBase
             string payloadJson = "";
             if (dto.Payload != null)
             {
-                payloadJson = JsonSerializer.Serialize(dto.Payload);
+                var enriched = await EnsureSalaryBreakdownInPayloadAsync(dto.LetterType, dto.StaffId, dto.StaffEmpId, dto.Designation, dto.Payload);
+                payloadJson = JsonSerializer.Serialize(enriched ?? dto.Payload);
             }
 
             if (existing != null)
@@ -344,7 +350,8 @@ public class StaffLettersController : ControllerBase
 
             if (dto.Payload != null)
             {
-                letter.PayloadJson = JsonSerializer.Serialize(dto.Payload);
+                var enriched = await EnsureSalaryBreakdownInPayloadAsync(dto.LetterType ?? letter.LetterType, dto.StaffId ?? letter.StaffId, dto.StaffEmpId ?? letter.StaffEmpId, dto.Designation ?? letter.Designation, dto.Payload);
+                letter.PayloadJson = JsonSerializer.Serialize(enriched ?? dto.Payload);
             }
 
             letter.LetterNumber = dto.LetterNumber ?? letter.LetterNumber;
@@ -783,5 +790,138 @@ public class StaffLettersController : ControllerBase
         {
             return StatusCode(500, new { success = false, message = ex.Message });
         }
+    }
+
+    private async Task<object?> EnsureSalaryBreakdownInPayloadAsync(
+        string? letterType, 
+        string? staffId, 
+        string? staffEmpId, 
+        string? designation, 
+        object? payloadObj, 
+        StaffLetter? letterToUpdate = null)
+    {
+        if (letterType?.Trim().ToLower() != "offer" || payloadObj == null) return payloadObj;
+
+        try
+        {
+            var json = JsonSerializer.Serialize(payloadObj);
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+
+            bool needsBreakdown = true;
+            if (root.TryGetProperty("salaryBreakdown", out var sb) && sb.ValueKind == JsonValueKind.Object)
+            {
+                if (sb.TryGetProperty("grossMonthly", out var gm) && gm.GetDecimal() > 0)
+                {
+                    needsBreakdown = false;
+                }
+            }
+
+            if (!needsBreakdown) return payloadObj;
+
+            // Find staff
+            Staff? staff = null;
+            if (!string.IsNullOrEmpty(staffEmpId))
+            {
+                staff = await _context.Staff.FirstOrDefaultAsync(s => s.EmployeeId == staffEmpId);
+            }
+            if (staff == null && !string.IsNullOrEmpty(staffId))
+            {
+                staff = await _context.Staff.FirstOrDefaultAsync(s => s.StaffId.ToString() == staffId || s.EmployeeId == staffId);
+            }
+
+            // Find salary structure
+            SalaryStructure? structure = null;
+            if (staff?.SalaryStructureId != null)
+            {
+                structure = await _context.SalaryStructures
+                    .Include(s => s.Items)
+                    .FirstOrDefaultAsync(s => s.StructureId == staff.SalaryStructureId);
+            }
+
+            if (structure == null && !string.IsNullOrEmpty(designation))
+            {
+                var normDesig = designation.Trim().ToLower();
+                structure = await _context.SalaryStructures
+                    .Include(s => s.Items)
+                    .FirstOrDefaultAsync(s => s.Status == "Active" && s.Designation != null && s.Designation.ToLower() == normDesig);
+            }
+
+            if (structure == null && !string.IsNullOrEmpty(designation))
+            {
+                var normDesig = designation.Trim().ToLower();
+                structure = await _context.SalaryStructures
+                    .Include(s => s.Items)
+                    .FirstOrDefaultAsync(s => s.Status == "Active" && (s.StructureName.ToLower().Contains(normDesig) || normDesig.Contains(s.StructureName.ToLower())));
+            }
+
+            if (structure == null && !string.IsNullOrEmpty(designation) && designation.ToLower().Contains("warden"))
+            {
+                structure = await _context.SalaryStructures
+                    .Include(s => s.Items)
+                    .FirstOrDefaultAsync(s => s.Status == "Active" && (s.StructureName.ToLower().Contains("warden") || (s.Designation != null && s.Designation.ToLower().Contains("warden"))));
+            }
+
+            decimal gross = 0;
+            decimal basic = 0;
+            decimal hra = 0;
+            decimal transport = 0;
+            decimal special = 0;
+
+            if (structure != null)
+            {
+                gross = structure.MonthlyGrossSalary;
+                var items = structure.Items ?? new List<SalaryStructureItem>();
+                var basicItem = items.FirstOrDefault(i => i.ComponentName.ToLower().Contains("basic"));
+                var hraItem = items.FirstOrDefault(i => i.ComponentName.ToLower().Contains("hra") || i.ComponentName.ToLower().Contains("house"));
+                var transportItem = items.FirstOrDefault(i => i.ComponentName.ToLower().Contains("travel") || i.ComponentName.ToLower().Contains("transport") || i.ComponentName.ToLower().Contains("conveyance"));
+
+                basic = basicItem?.Amount ?? Math.Round(gross * 0.5m);
+                hra = hraItem?.Amount ?? Math.Round(gross * 0.2m);
+                transport = transportItem?.Amount ?? Math.Round(gross * 0.1m);
+
+                var otherItemsSum = items
+                    .Where(i => i.ComponentType.ToLower() == "earning" && i != basicItem && i != hraItem && i != transportItem)
+                    .Sum(i => i.Amount);
+
+                special = otherItemsSum > 0 ? otherItemsSum : Math.Max(0, gross - (basic + hra + transport));
+            }
+            else if (staff != null && (staff.GrossSalary > 0 || staff.MonthlySalary > 0))
+            {
+                gross = staff.GrossSalary ?? staff.MonthlySalary ?? 0;
+                basic = Math.Round(gross * 0.5m);
+                hra = Math.Round(gross * 0.2m);
+                transport = Math.Round(gross * 0.1m);
+                special = Math.Max(0, gross - (basic + hra + transport));
+            }
+
+            if (gross > 0)
+            {
+                var dict = JsonSerializer.Deserialize<Dictionary<string, object>>(json) ?? new Dictionary<string, object>();
+                dict["salaryBreakdown"] = new
+                {
+                    basic = (double)basic,
+                    hra = (double)hra,
+                    transportAllowance = (double)transport,
+                    specialAllowance = (double)special,
+                    grossMonthly = (double)gross,
+                    annualCtc = (double)(gross * 12)
+                };
+
+                if (letterToUpdate != null)
+                {
+                    letterToUpdate.PayloadJson = JsonSerializer.Serialize(dict);
+                    await _context.SaveChangesAsync();
+                }
+
+                return dict;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[StaffLettersController] Error enriching salary breakdown: {ex.Message}");
+        }
+
+        return payloadObj;
     }
 }

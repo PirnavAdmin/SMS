@@ -570,7 +570,6 @@ const MainLayout: React.FC = () => {
       case "staff-requests":
         if (userRole === "parent" || userRole === "student")
           return <ParentTeacherInfoView />;
-        if (userRole === "teacher" || userRole === "hostel warden" || userRole === "warden" || userRole === "accountant" || userRole === "finance" || userRole === "librarian" || userRole === "driver" || userRole === "staff") return <TeacherProfileView />;
         return <StaffRequestsView onNavigate={setActiveModule} />;
       case "staff":
       case "staff-teachers":
