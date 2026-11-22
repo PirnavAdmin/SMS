@@ -5,7 +5,7 @@ import { formatDateDDMMYYYY } from '../../../../utils/dateValidation';
 import { formatCurrency } from '../../../../utils/currency';
 import { SchoolPrintHeader } from '../../../common/SchoolPrintHeader';
 import { useData } from '../../../../context/DataContext';
-import { resolveStaffSalaryBreakdown } from '../../../../utils/staffLetterTemplates';
+import { resolveStaffSalaryBreakdown, calculateSalaryBreakdown } from '../../../../utils/staffLetterTemplates';
 
 interface PrintableStaffLetterProps {
   type: StaffLetterType;
@@ -38,18 +38,34 @@ export const PrintableStaffLetter: React.FC<PrintableStaffLetterProps> = ({
   }, [allStaff, payload.empId, payload.candidateName]);
 
   const effectiveSalaryBreakdown = useMemo(() => {
-    return resolveStaffSalaryBreakdown(
-      matchedStaff || {
-        id: payload.empId,
-        empId: payload.empId,
-        designation: payload.designation,
-        firstName: payload.candidateName,
-      },
+    // 1. Resolve from staff manual assignment
+    const fromStaff = resolveStaffSalaryBreakdown(
+      matchedStaff,
       salaryStructures,
-      employeeSalaryAssignments,
-      payload.salaryBreakdown
+      employeeSalaryAssignments
     );
-  }, [matchedStaff, salaryStructures, employeeSalaryAssignments, payload.salaryBreakdown, payload.empId, payload.designation, payload.candidateName]);
+    if (fromStaff.grossMonthly > 0) {
+      return fromStaff;
+    }
+
+    // 2. If payload has a valid salary breakdown, verify it's not a stale unassigned role-inheritance copy
+    if (payload.salaryBreakdown && payload.salaryBreakdown.grossMonthly > 0) {
+      const isStaleRoleInherited = (salaryStructures || []).some(s =>
+        s.status === 'Active' &&
+        s.grossSalary === payload.salaryBreakdown!.grossMonthly &&
+        (
+          (s.designation && payload.designation && s.designation.toLowerCase().trim() === payload.designation.toLowerCase().trim()) ||
+          (s.structureName && s.structureName.toLowerCase().includes('warden') && (payload.designation || '').toLowerCase().includes('warden'))
+        ) &&
+        (!((s as any).staffId) || (String((s as any).staffId) !== String(matchedStaff?.id) && String((s as any).staffId) !== String(matchedStaff?.empId)))
+      );
+      if (!isStaleRoleInherited) {
+        return payload.salaryBreakdown;
+      }
+    }
+
+    return calculateSalaryBreakdown(0);
+  }, [matchedStaff, salaryStructures, employeeSalaryAssignments, payload.salaryBreakdown, payload.designation]);
 
   const formattedIssueDate = formatDateDDMMYYYY(payload.issueDate) || payload.issueDate;
   const formattedJoiningDate = formatDateDDMMYYYY(payload.joiningDate) || payload.joiningDate;
@@ -205,7 +221,7 @@ export const PrintableStaffLetter: React.FC<PrintableStaffLetterProps> = ({
             </div>
 
             {/* Compensation Details Table */}
-            {(payload.salaryBreakdown || effectiveSalaryBreakdown.grossMonthly > 0) && (
+            {(effectiveSalaryBreakdown && effectiveSalaryBreakdown.grossMonthly > 0) && (
               <div style={{ margin: '8px 0', pageBreakInside: 'avoid', breakInside: 'avoid' }} className="my-2 print:break-inside-avoid print:page-break-inside-avoid">
                 <p style={{ fontWeight: 'bold', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.04em', color: '#1e293b', marginBottom: '4px' }}>
                   Compensation & Remuneration Structure (CTC):

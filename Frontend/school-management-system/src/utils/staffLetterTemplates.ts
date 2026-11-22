@@ -26,24 +26,22 @@ export const resolveStaffSalaryBreakdown = (
   employeeSalaryAssignments?: EmployeeSalaryAssignment[],
   existingBreakdown?: StaffLetterSalaryBreakdown | null
 ): StaffLetterSalaryBreakdown => {
-  if (
-    existingBreakdown &&
-    existingBreakdown.grossMonthly > 0 &&
-    (existingBreakdown.basic > 0 || existingBreakdown.annualCtc > 0)
-  ) {
-    return existingBreakdown;
-  }
-
   if (!staff) {
+    if (
+      existingBreakdown &&
+      existingBreakdown.grossMonthly > 0 &&
+      (existingBreakdown.basic > 0 || existingBreakdown.annualCtc > 0)
+    ) {
+      return existingBreakdown;
+    }
     return calculateSalaryBreakdown(0);
   }
 
   const staffIdStr = String(staff.id || '');
   const empIdStr = String(staff.empId || '');
   const fullNameStr = `${staff.firstName || ''} ${staff.lastName || ''}`.trim().toLowerCase();
-  const desigStr = (staff.designation || (staff as any).role || '').toLowerCase().trim();
 
-  // 1. Try resolving from active EmployeeSalaryAssignments
+  // 1. Try resolving strictly from active EmployeeSalaryAssignments for this staff
   let matchingAssignment: EmployeeSalaryAssignment | undefined;
   if (employeeSalaryAssignments && employeeSalaryAssignments.length > 0) {
     matchingAssignment = employeeSalaryAssignments.find((a) => {
@@ -53,7 +51,7 @@ export const resolveStaffSalaryBreakdown = (
     });
   }
 
-  // 2. Try resolving from SalaryStructures
+  // 2. Try resolving from SalaryStructures manually linked to this staff
   let matchingStructure: SalaryStructure | undefined;
   if (salaryStructures && salaryStructures.length > 0) {
     if (matchingAssignment?.salaryStructureId) {
@@ -87,28 +85,10 @@ export const resolveStaffSalaryBreakdown = (
           ((s as any).employeeId && String((s as any).employeeId) === staffIdStr)
       );
     }
-
-    if (!matchingStructure && desigStr) {
-      matchingStructure = salaryStructures.find(
-        (s) => s.status === 'Active' && s.designation && s.designation.toLowerCase().trim() === desigStr
-      );
-    }
-
-    if (!matchingStructure && desigStr) {
-      matchingStructure = salaryStructures.find((s) => {
-        if (s.status !== 'Active') return false;
-        const structName = s.structureName.toLowerCase().trim();
-        const structDesig = (s.designation || '').toLowerCase().trim();
-        return (
-          desigStr.includes(structName) ||
-          structName.includes(desigStr) ||
-          (structDesig && desigStr.includes(structDesig))
-        );
-      });
-    }
+    // Note: Do NOT fall back to matching by role/designation! Salary structures must only be taken if manually assigned.
   }
 
-  // 3. If a structure was found, compute detailed breakdown
+  // 3. If a manually assigned structure was found, compute detailed breakdown
   if (matchingStructure) {
     const earnings = matchingStructure.earnings || [];
     const basicLine = earnings.find((e) => /basic/i.test(e.name));
@@ -173,7 +153,7 @@ export const resolveStaffSalaryBreakdown = (
     }
   }
 
-  // 5. Fallback to staff model properties (grossSalary, monthlySalary, salary)
+  // 5. Fallback: only if staff has an explicit personal gross salary with an assigned structure
   const candidateGross = [
     staff.grossSalary,
     (staff as any).monthlyGross,
@@ -185,10 +165,11 @@ export const resolveStaffSalaryBreakdown = (
     .map((v) => (typeof v === 'number' ? v : parseFloat(String(v || '0'))))
     .find((v) => typeof v === 'number' && !isNaN(v) && v > 0);
 
-  if (candidateGross && candidateGross > 0) {
+  if (candidateGross && candidateGross > 0 && ((staff as any).salaryStructureId || matchingAssignment)) {
     return calculateSalaryBreakdown(candidateGross);
   }
 
+  // If the staff has no assigned salary structure in payroll, return 0 breakdown
   return calculateSalaryBreakdown(0);
 };
 

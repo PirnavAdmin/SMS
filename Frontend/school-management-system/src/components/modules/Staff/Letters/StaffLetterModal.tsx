@@ -275,8 +275,24 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
       const targetStaff = staff || (allStaff && allStaff.length > 0 ? allStaff.find(
         (s) => s.id === existingRecord.staffId || s.empId === existingRecord.staffEmpId
       ) : undefined) || currentStaff;
-      if (!pl.salaryBreakdown || pl.salaryBreakdown.grossMonthly <= 0) {
-        pl.salaryBreakdown = resolveStaffSalaryBreakdown(targetStaff, salaryStructures, employeeSalaryAssignments, pl.salaryBreakdown);
+      const resolved = resolveStaffSalaryBreakdown(targetStaff, salaryStructures, employeeSalaryAssignments);
+      const isStaleRoleInherited = pl.salaryBreakdown && pl.salaryBreakdown.grossMonthly > 0 &&
+        (salaryStructures || []).some(s =>
+          s.status === 'Active' &&
+          s.grossSalary === pl.salaryBreakdown!.grossMonthly &&
+          (
+            (s.designation && existingRecord.designation && s.designation.toLowerCase().trim() === existingRecord.designation.toLowerCase().trim()) ||
+            (s.structureName && s.structureName.toLowerCase().includes('warden') && (existingRecord.designation || '').toLowerCase().includes('warden'))
+          ) &&
+          (!((s as any).staffId) || (String((s as any).staffId) !== String(targetStaff?.id) && String((s as any).staffId) !== String(targetStaff?.empId)))
+        );
+
+      if (isStaleRoleInherited) {
+        pl.salaryBreakdown = calculateSalaryBreakdown(0);
+      } else if (resolved.grossMonthly > 0) {
+        pl.salaryBreakdown = resolved;
+      } else if (!pl.salaryBreakdown) {
+        pl.salaryBreakdown = calculateSalaryBreakdown(0);
       }
       return pl;
     }
@@ -348,13 +364,28 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
       ) : undefined) || currentStaff;
       const basePayload = getDefaultLetterPayload(existingRecord.letterType, targetStaff, schoolProfile, salaryStructures, employeeSalaryAssignments);
       const existingPl = existingRecord.payload || {};
-      const resolvedSb = resolveStaffSalaryBreakdown(targetStaff, salaryStructures, employeeSalaryAssignments, existingPl.salaryBreakdown);
+      const resolvedSb = resolveStaffSalaryBreakdown(targetStaff, salaryStructures, employeeSalaryAssignments);
+      const isStaleRoleInherited = existingPl.salaryBreakdown && existingPl.salaryBreakdown.grossMonthly > 0 &&
+        (salaryStructures || []).some(s =>
+          s.status === 'Active' &&
+          s.grossSalary === existingPl.salaryBreakdown!.grossMonthly &&
+          (
+            (s.designation && existingRecord.designation && s.designation.toLowerCase().trim() === existingRecord.designation.toLowerCase().trim()) ||
+            (s.structureName && s.structureName.toLowerCase().includes('warden') && (existingRecord.designation || '').toLowerCase().includes('warden'))
+          ) &&
+          (!((s as any).staffId) || (String((s as any).staffId) !== String(targetStaff?.id) && String((s as any).staffId) !== String(targetStaff?.empId)))
+        );
+
+      const finalSb = isStaleRoleInherited
+        ? calculateSalaryBreakdown(0)
+        : resolvedSb.grossMonthly > 0
+        ? resolvedSb
+        : (existingPl.salaryBreakdown || calculateSalaryBreakdown(0));
+
       setPayload({
         ...basePayload,
         ...existingPl,
-        salaryBreakdown: (existingPl.salaryBreakdown && existingPl.salaryBreakdown.grossMonthly > 0)
-          ? existingPl.salaryBreakdown
-          : resolvedSb,
+        salaryBreakdown: finalSb,
         refNo: existingRecord.letterNumber || (existingPl as any)?.refNo || basePayload.refNo,
         issueDate: existingRecord.issueDate || (existingPl as any)?.issueDate || basePayload.issueDate,
         candidateName: existingRecord.staffName || (existingPl as any)?.candidateName || basePayload.candidateName,
@@ -531,7 +562,7 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
   // Auto-resolve salary breakdown from salary structures if current payload has 0
   useEffect(() => {
     if (activeType === 'offer' && currentStaff && (!payload.salaryBreakdown || payload.salaryBreakdown.grossMonthly <= 0)) {
-      const resolved = resolveStaffSalaryBreakdown(currentStaff, salaryStructures, employeeSalaryAssignments, payload.salaryBreakdown);
+      const resolved = resolveStaffSalaryBreakdown(currentStaff, salaryStructures, employeeSalaryAssignments);
       if (resolved && resolved.grossMonthly > 0) {
         setPayload((prev) => ({
           ...prev,

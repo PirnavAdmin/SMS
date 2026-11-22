@@ -1292,7 +1292,7 @@ export const TeacherProfileView: React.FC = () => {
                 </div>
                 {staffLetters.some(l => l.letterType === 'offer' && l.status === 'Issued') ? (
                   <span className="h-6 px-3 rounded-full text-[11px] font-bold border border-emerald-300 text-emerald-700 bg-emerald-50/50 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300 inline-flex items-center justify-center shrink-0 leading-none">
-                    Active Contract on File
+                    Issued
                   </span>
                 ) : (
                   <span className="h-6 px-3 rounded-full text-[11px] font-bold border border-slate-200 text-slate-500 bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400 inline-flex items-center justify-center shrink-0 leading-none">

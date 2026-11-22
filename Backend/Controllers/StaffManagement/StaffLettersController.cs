@@ -808,16 +808,14 @@ public class StaffLettersController : ControllerBase
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
 
-            bool needsBreakdown = true;
+            decimal currentGrossInPayload = 0;
             if (root.TryGetProperty("salaryBreakdown", out var sb) && sb.ValueKind == JsonValueKind.Object)
             {
-                if (sb.TryGetProperty("grossMonthly", out var gm) && gm.GetDecimal() > 0)
+                if (sb.TryGetProperty("grossMonthly", out var gm))
                 {
-                    needsBreakdown = false;
+                    currentGrossInPayload = gm.GetDecimal();
                 }
             }
-
-            if (!needsBreakdown) return payloadObj;
 
             // Find staff
             Staff? staff = null;
@@ -830,7 +828,7 @@ public class StaffLettersController : ControllerBase
                 staff = await _context.Staff.FirstOrDefaultAsync(s => s.StaffId.ToString() == staffId || s.EmployeeId == staffId);
             }
 
-            // Find salary structure
+            // Find salary structure strictly through MANUAL assignment to this specific staff member
             SalaryStructure? structure = null;
             if (staff?.SalaryStructureId != null)
             {
@@ -839,63 +837,69 @@ public class StaffLettersController : ControllerBase
                     .FirstOrDefaultAsync(s => s.StructureId == staff.SalaryStructureId);
             }
 
-            if (structure == null && !string.IsNullOrEmpty(designation))
+            if (structure == null && staff != null)
             {
-                var normDesig = designation.Trim().ToLower();
-                structure = await _context.SalaryStructures
-                    .Include(s => s.Items)
-                    .FirstOrDefaultAsync(s => s.Status == "Active" && s.Designation != null && s.Designation.ToLower() == normDesig);
+                var assignment = await _context.EmployeeSalaryAssignments
+                    .Where(a => a.StaffId == staff.StaffId && a.Status == "Active")
+                    .OrderByDescending(a => a.AssignmentId)
+                    .FirstOrDefaultAsync();
+
+                if (assignment != null)
+                {
+                    structure = await _context.SalaryStructures
+                        .Include(s => s.Items)
+                        .FirstOrDefaultAsync(s => s.StructureId == assignment.StructureId);
+                }
             }
 
-            if (structure == null && !string.IsNullOrEmpty(designation))
+            // If staff has no manually assigned salary structure:
+            if (structure == null)
             {
-                var normDesig = designation.Trim().ToLower();
-                structure = await _context.SalaryStructures
-                    .Include(s => s.Items)
-                    .FirstOrDefaultAsync(s => s.Status == "Active" && (s.StructureName.ToLower().Contains(normDesig) || normDesig.Contains(s.StructureName.ToLower())));
+                // If staff has no assigned structure but payload had an auto-assigned breakdown (e.g. from role inheritance), reset it to 0
+                if (currentGrossInPayload > 0)
+                {
+                    var dict = JsonSerializer.Deserialize<Dictionary<string, object>>(json) ?? new Dictionary<string, object>();
+                    dict["salaryBreakdown"] = new
+                    {
+                        basic = 0.0,
+                        hra = 0.0,
+                        transportAllowance = 0.0,
+                        specialAllowance = 0.0,
+                        grossMonthly = 0.0,
+                        annualCtc = 0.0
+                    };
+
+                    if (letterToUpdate != null)
+                    {
+                        letterToUpdate.PayloadJson = JsonSerializer.Serialize(dict);
+                        await _context.SaveChangesAsync();
+                    }
+
+                    return dict;
+                }
+
+                return payloadObj;
             }
 
-            if (structure == null && !string.IsNullOrEmpty(designation) && designation.ToLower().Contains("warden"))
-            {
-                structure = await _context.SalaryStructures
-                    .Include(s => s.Items)
-                    .FirstOrDefaultAsync(s => s.Status == "Active" && (s.StructureName.ToLower().Contains("warden") || (s.Designation != null && s.Designation.ToLower().Contains("warden"))));
-            }
+            // Staff has an assigned structure: compute breakdown from structure
+            decimal gross = structure.MonthlyGrossSalary;
+            var items = structure.Items ?? new List<SalaryStructureItem>();
+            var basicItem = items.FirstOrDefault(i => i.ComponentName.ToLower().Contains("basic"));
+            var hraItem = items.FirstOrDefault(i => i.ComponentName.ToLower().Contains("hra") || i.ComponentName.ToLower().Contains("house"));
+            var transportItem = items.FirstOrDefault(i => i.ComponentName.ToLower().Contains("travel") || i.ComponentName.ToLower().Contains("transport") || i.ComponentName.ToLower().Contains("conveyance"));
 
-            decimal gross = 0;
-            decimal basic = 0;
-            decimal hra = 0;
-            decimal transport = 0;
-            decimal special = 0;
+            decimal basic = basicItem?.Amount ?? Math.Round(gross * 0.5m);
+            decimal hra = hraItem?.Amount ?? Math.Round(gross * 0.2m);
+            decimal transport = transportItem?.Amount ?? Math.Round(gross * 0.1m);
 
-            if (structure != null)
-            {
-                gross = structure.MonthlyGrossSalary;
-                var items = structure.Items ?? new List<SalaryStructureItem>();
-                var basicItem = items.FirstOrDefault(i => i.ComponentName.ToLower().Contains("basic"));
-                var hraItem = items.FirstOrDefault(i => i.ComponentName.ToLower().Contains("hra") || i.ComponentName.ToLower().Contains("house"));
-                var transportItem = items.FirstOrDefault(i => i.ComponentName.ToLower().Contains("travel") || i.ComponentName.ToLower().Contains("transport") || i.ComponentName.ToLower().Contains("conveyance"));
+            var otherItemsSum = items
+                .Where(i => i.ComponentType.ToLower() == "earning" && i != basicItem && i != hraItem && i != transportItem)
+                .Sum(i => i.Amount);
 
-                basic = basicItem?.Amount ?? Math.Round(gross * 0.5m);
-                hra = hraItem?.Amount ?? Math.Round(gross * 0.2m);
-                transport = transportItem?.Amount ?? Math.Round(gross * 0.1m);
+            decimal special = otherItemsSum > 0 ? otherItemsSum : Math.Max(0, gross - (basic + hra + transport));
 
-                var otherItemsSum = items
-                    .Where(i => i.ComponentType.ToLower() == "earning" && i != basicItem && i != hraItem && i != transportItem)
-                    .Sum(i => i.Amount);
-
-                special = otherItemsSum > 0 ? otherItemsSum : Math.Max(0, gross - (basic + hra + transport));
-            }
-            else if (staff != null && (staff.GrossSalary > 0 || staff.MonthlySalary > 0))
-            {
-                gross = staff.GrossSalary ?? staff.MonthlySalary ?? 0;
-                basic = Math.Round(gross * 0.5m);
-                hra = Math.Round(gross * 0.2m);
-                transport = Math.Round(gross * 0.1m);
-                special = Math.Max(0, gross - (basic + hra + transport));
-            }
-
-            if (gross > 0)
+            // If the payload needs to be enriched or updated with this assigned structure:
+            if (gross > 0 && (currentGrossInPayload <= 0 || currentGrossInPayload != gross))
             {
                 var dict = JsonSerializer.Deserialize<Dictionary<string, object>>(json) ?? new Dictionary<string, object>();
                 dict["salaryBreakdown"] = new
