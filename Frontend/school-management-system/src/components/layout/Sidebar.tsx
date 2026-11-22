@@ -55,6 +55,7 @@ import { hasModuleAccess } from "../../utils/rbac";
 import { resolveMediaUrl } from "../../utils/mediaUtils";
 import { normalizeStudentType } from "../../utils/studentTypeUtils";
 import { fetchCompanyProfileApi } from "../../api/superadmin";
+import { fetchPendingStaffRequestsCountApi } from "../../api/staffLetters";
 
 interface SidebarProps {
   activeModule: string;
@@ -656,6 +657,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
     (a) => a?.status === "Pending",
   ).length;
 
+  const [pendingStaffRequestsCount, setPendingStaffRequestsCount] = useState<number>(0);
+
+  React.useEffect(() => {
+    let active = true;
+    const fetchPendingCount = async () => {
+      try {
+        const res = await fetchPendingStaffRequestsCountApi();
+        if (active && typeof res?.count === "number") {
+          setPendingStaffRequestsCount(res.count);
+        }
+      } catch (err) {
+        // silent
+      }
+    };
+    fetchPendingCount();
+    window.addEventListener("staff_requests_updated", fetchPendingCount);
+    return () => {
+      active = false;
+      window.removeEventListener("staff_requests_updated", fetchPendingCount);
+    };
+  }, []);
+
   const financeSubItems =
     safeRole === "parent" || safeRole === "student"
       ? []
@@ -804,6 +827,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       : safeRole === "teacher" || safeRole.includes("warden") || safeRole.includes("accountant") || safeRole === "finance" || safeRole.includes("librarian")
       ? [
           { id: "teacher-profile", label: "My Profile", icon: User },
+          { id: "staff-requests", label: "My Requests", icon: FileCheck },
           {
             id: "staff-attendance",
             label: "My Attendance",
@@ -814,6 +838,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
         ]
       : [
           { id: "staff-directory", label: "Staff Directory", icon: Users },
+          {
+            id: "staff-requests",
+            label: "Staff Requests",
+            icon: FileCheck,
+            badge: pendingStaffRequestsCount > 0 ? `${pendingStaffRequestsCount}` : undefined,
+          },
           { id: "staff-letters", label: "Offer & Relieving", icon: FileText },
           {
             id: "staff-attendance",
@@ -2049,7 +2079,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                               : "Faculty & Staff"
                             : undefined
                         }
-                        className={`flex items-center transition-all ${
+                        className={`flex items-center relative transition-all ${
                           effectiveCollapsed
                             ? "w-11 h-11 p-0 rounded-2xl justify-center mx-auto"
                             : "w-full justify-between px-3 py-2 rounded-xl text-xs"
@@ -2098,10 +2128,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             </span>
                           )}
                         </div>
-                        {!effectiveCollapsed && staffSubItems.length > 0 && (
-                          <ChevronDown
-                            className={`w-3.5 h-3.5 transition-transform duration-200 ${staffExpanded ? "rotate-180" : ""}`}
-                          />
+                        {!effectiveCollapsed && (
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {pendingStaffRequestsCount > 0 && !staffExpanded && (
+                              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-black bg-rose-500 text-white shadow-xs animate-pulse">
+                                {pendingStaffRequestsCount}
+                              </span>
+                            )}
+                            {staffSubItems.length > 0 && (
+                              <ChevronDown
+                                className={`w-3.5 h-3.5 transition-transform duration-200 ${staffExpanded ? "rotate-180" : ""}`}
+                              />
+                            )}
+                          </div>
+                        )}
+                        {effectiveCollapsed && pendingStaffRequestsCount > 0 && (
+                          <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white dark:ring-slate-900 animate-pulse" />
                         )}
                       </button>
 
@@ -2145,16 +2187,29 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 data-active={isSubActive ? "true" : undefined}
                                 onClick={() => handleNav(sub.id)}
                                 title={sub.label}
-                                className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                                className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                                   isSubActive
                                     ? "btn-glass-primary font-bold shadow-xs"
                                     : "text-slate-600 dark:text-slate-300 hover:bg-white/60 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-white"
                                 }`}
                               >
-                                <SubIcon
-                                  className={`w-3.5 h-3.5 shrink-0 ${isSubActive ? "text-white" : "text-slate-400 dark:text-slate-400"}`}
-                                />
-                                <span className="truncate text-left">{sub.label}</span>
+                                <div className="flex items-center gap-2.5 truncate">
+                                  <SubIcon
+                                    className={`w-3.5 h-3.5 shrink-0 ${isSubActive ? "text-white" : "text-slate-400 dark:text-slate-400"}`}
+                                  />
+                                  <span className="truncate text-left">{sub.label}</span>
+                                </div>
+                                {(sub as any).badge && (
+                                  <span
+                                    className={`px-1.5 py-0.5 rounded-full text-[10px] font-black shadow-xs ${
+                                      isSubActive
+                                        ? "bg-white text-sky-600"
+                                        : "bg-rose-500 text-white animate-pulse"
+                                    }`}
+                                  >
+                                    {(sub as any).badge}
+                                  </span>
+                                )}
                               </button>
                             );
                           })}

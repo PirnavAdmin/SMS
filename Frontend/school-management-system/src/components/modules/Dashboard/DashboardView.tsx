@@ -9,6 +9,7 @@ import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { Badge } from '../../common/Badge';
 import { fetchDashboardSummaryApi, DashboardSummaryResponse } from '../../../api/dashboard';
+import { fetchPendingStaffRequestsCountApi } from '../../../api/staffLetters';
 
 import { TeacherDashboardView } from './TeacherDashboardView';
 import { ParentDashboardView } from './ParentDashboardView';
@@ -817,6 +818,28 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
   const pendingLeaves = leaveApplications?.filter(l => l.status === 'Pending') || [];
   const pendingAdmissions = admissions?.filter(a => a.status === 'Pending') || [];
 
+  const [pendingStaffRequestsCount, setPendingStaffRequestsCount] = useState<number>(0);
+
+  useEffect(() => {
+    let active = true;
+    const fetchPendingRequests = async () => {
+      try {
+        const res = await fetchPendingStaffRequestsCountApi();
+        if (active && typeof res?.count === 'number') {
+          setPendingStaffRequestsCount(res.count);
+        }
+      } catch (err) {
+        // silent
+      }
+    };
+    fetchPendingRequests();
+    window.addEventListener('staff_requests_updated', fetchPendingRequests);
+    return () => {
+      active = false;
+      window.removeEventListener('staff_requests_updated', fetchPendingRequests);
+    };
+  }, []);
+
   const upcomingEventsAndHolidays = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -1293,7 +1316,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
             <PendingApprovalsCard
               onNavigate={onNavigate}
               admissionsCount={summaryData ? summaryData.pendingAdmissions : pendingAdmissions.length}
-              staffCount={(staff || []).filter(s => s.profileStatus === 'Incomplete').length}
+              staffCount={((staff || []).filter(s => s.profileStatus === 'Incomplete').length) + pendingStaffRequestsCount}
               leavesCount={pendingLeaves.length}
               feeCount={summaryData?.pendingFeeConcessions ?? 0}
               isLibrarian={isLibrarian}

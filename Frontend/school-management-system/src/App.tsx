@@ -28,6 +28,7 @@ import { StudentPromotionView } from "./components/modules/Students/Student Prom
 import { CertificatesView } from "./components/modules/Certificates/CertificatesView";
 import { AlumniView } from "./components/modules/Students/AlumniView";
 import { StaffList } from "./components/modules/Staff/StaffList";
+import { StaffRequestsView } from "./components/modules/Staff/StaffRequestsView";
 import { TeacherProfileView } from "./components/modules/Staff/TeacherProfileView";
 import { StaffRegistrationPage } from "./components/modules/Staff/StaffRegistrationPage";
 import { LeaveManagementView } from "./components/modules/Staff/LeaveManagementView";
@@ -566,6 +567,11 @@ const MainLayout: React.FC = () => {
           return <DriverProfileView />;
         }
         return <TeacherProfileView />;
+      case "staff-requests":
+        if (userRole === "parent" || userRole === "student")
+          return <ParentTeacherInfoView />;
+        if (userRole === "teacher" || userRole === "hostel warden" || userRole === "warden" || userRole === "accountant" || userRole === "finance" || userRole === "librarian" || userRole === "driver" || userRole === "staff") return <TeacherProfileView />;
+        return <StaffRequestsView onNavigate={setActiveModule} />;
       case "staff":
       case "staff-teachers":
       case "staff-directory":

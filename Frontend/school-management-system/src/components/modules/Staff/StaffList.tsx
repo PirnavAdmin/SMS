@@ -1,5 +1,5 @@
 // @ts-nocheck
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import {
   Users,
   Search,
@@ -24,8 +24,20 @@ import {
   UploadCloud,
   FileSpreadsheet,
   AlertCircle,
+  FileCheck,
+  Clock,
+  Send,
+  CheckCircle2,
+  FileText,
+  Award,
 } from "lucide-react";
 import { Staff } from "../../../types";
+import { StaffLetterRequest, StaffLetterType } from "../../../types/staffLetter";
+import {
+  fetchStaffLetterRequestsApi,
+  updateStaffLetterRequestStatusApi,
+  deleteStaffLetterRequestApi,
+} from "../../../api/staffLetters";
 import { useData } from "../../../context/DataContext";
 import { useToast } from "../../../context/ToastContext";
 import { Badge } from "../../common/Badge";
@@ -112,9 +124,15 @@ export const StaffList: React.FC<{
   } = useData();
   const { addToast } = useToast();
 
-  const [activeCategory, setActiveCategory] = useState<string>(
-    normalizeStaffType(initialCategory || "Teaching Staff"),
-  );
+  const [activeCategory, setActiveCategory] = useState<string>(() => {
+    return normalizeStaffType(initialCategory || "Teaching Staff");
+  });
+
+  useEffect(() => {
+    if (initialCategory) {
+      setActiveCategory(normalizeStaffType(initialCategory));
+    }
+  }, [initialCategory]);
 
   const [loading, setLoading] = useState<boolean>(true);
   const [tabLoading, setTabLoading] = useState<boolean>(false);
@@ -186,6 +204,52 @@ export const StaffList: React.FC<{
   const [staffToEdit, setStaffToEdit] = useState<Staff | null>(null);
   const [selectedStaff, setSelectedStaff] = useState<Staff | null>(null);
   const [letterStaffTarget, setLetterStaffTarget] = useState<Staff | null>(null);
+  const [letterInitialType, setLetterInitialType] = useState<StaffLetterType>("offer");
+
+  // Staff Letter Requests State
+  const [staffRequests, setStaffRequests] = useState<StaffLetterRequest[]>([]);
+
+  const fetchAllStaffRequests = async () => {
+    try {
+      const res = await fetchStaffLetterRequestsApi();
+      if (Array.isArray(res?.data)) {
+        setStaffRequests(res.data);
+      }
+    } catch (err) {
+      console.warn("Could not fetch staff letter requests:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchAllStaffRequests();
+    window.addEventListener("staff_requests_updated", fetchAllStaffRequests);
+    return () => window.removeEventListener("staff_requests_updated", fetchAllStaffRequests);
+  }, []);
+
+  const handleGenerateLetterForRequest = (req: StaffLetterRequest) => {
+    const matched = (staff || []).find(
+      (s) =>
+        (req.staffId && s.id === req.staffId) ||
+        (req.staffEmpId && (s.empId === req.staffEmpId || (s as any).employeeId === req.staffEmpId))
+    );
+
+    const targetStaff = matched || {
+      id: req.staffId || "",
+      empId: req.staffEmpId || "",
+      firstName: req.staffName.split(" ")[0] || "Staff",
+      lastName: req.staffName.split(" ").slice(1).join(" ") || "",
+      department: req.department,
+      designation: req.designation,
+      branch: req.branch || selectedBranch || "",
+      email: "",
+      phone: "",
+      role: req.designation,
+      status: "Active"
+    };
+
+    setLetterInitialType(req.requestType as StaffLetterType);
+    setLetterStaffTarget(targetStaff as Staff);
+  };
   const [staffToDelete, setStaffToDelete] = useState<Staff | null>(null);
   const [statusConfirmTarget, setStatusConfirmTarget] = useState<{ staff: Staff; nextStatus: "Active" | "Inactive" | "Resigned" } | null>(null);
   const [isExporting, setIsExporting] = useState(false);
@@ -860,21 +924,28 @@ export const StaffList: React.FC<{
             key: "Teaching Staff",
             label: "Teaching Staff",
             icon: GraduationCap,
+            count: (staff || []).filter(
+              (s) => {
+                if (getStaffCategory(s) !== "Teaching Staff") return false;
+                if (!selectedBranch || selectedBranch === "All" || selectedBranch === "All Branches" || selectedBranch === "All Campuses") return true;
+                return (s.branch || "").trim().toLowerCase() === selectedBranch.trim().toLowerCase();
+              }
+            ).length,
           },
           {
             key: "Non-Teaching Staff",
             label: "Non-Teaching Staff",
             icon: Briefcase,
+            count: (staff || []).filter(
+              (s) => {
+                if (getStaffCategory(s) !== "Non-Teaching Staff") return false;
+                if (!selectedBranch || selectedBranch === "All" || selectedBranch === "All Branches" || selectedBranch === "All Campuses") return true;
+                return (s.branch || "").trim().toLowerCase() === selectedBranch.trim().toLowerCase();
+              }
+            ).length,
           },
         ].map((tab) => {
           const Icon = tab.icon;
-          const count = (staff || []).filter(
-            (s) => {
-              if (getStaffCategory(s) !== tab.key) return false;
-              if (!selectedBranch || selectedBranch === "All" || selectedBranch === "All Branches" || selectedBranch === "All Campuses") return true;
-              return (s.branch || "").trim().toLowerCase() === selectedBranch.trim().toLowerCase();
-            }
-          ).length;
           const isActive = activeCategory === tab.key;
           return (
             <button
@@ -886,7 +957,11 @@ export const StaffList: React.FC<{
                   : "text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
               }`}
             >
-              <Icon className="w-3.5 h-3.5" /> {tab.label} ({count})
+              <Icon className="w-3.5 h-3.5" />
+              <span>{tab.label}</span>
+              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${isActive ? 'bg-brand-50 text-brand-700 dark:bg-brand-950 dark:text-brand-300' : 'bg-slate-200/60 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}>
+                {tab.count}
+              </span>
             </button>
           );
         })}
@@ -1199,6 +1274,18 @@ export const StaffList: React.FC<{
                                 ? "Non-Teaching Staff"
                                 : st.role || "Non-Teaching Staff"}
                           </p>
+                          {(() => {
+                            const pendingReq = staffRequests.find(
+                              (r) => r.status === "Pending" && (r.staffId === st.id || r.staffEmpId === st.empId)
+                            );
+                            if (!pendingReq) return null;
+                            return (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300 mt-1">
+                                <Clock className="w-2.5 h-2.5" />
+                                {pendingReq.requestType === 'relieving' ? 'Relieving Requested' : 'Experience Requested'}
+                              </span>
+                            );
+                          })()}
                         </button>
                       </td>
                       <td className="py-3 px-4 text-center">{st.department || "N/A"}</td>
@@ -1260,6 +1347,21 @@ export const StaffList: React.FC<{
                           >
                             <Edit className="w-4 h-4" />
                           </button>
+                          {(() => {
+                            const pendingReq = staffRequests.find(
+                              (r) => r.status === "Pending" && (r.staffId === st.id || r.staffEmpId === st.empId)
+                            );
+                            if (!pendingReq) return null;
+                            return (
+                              <button
+                                onClick={() => handleGenerateLetterForRequest(pendingReq)}
+                                className="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center hover:bg-amber-600 active:scale-90 transition-transform cursor-pointer shadow-xs"
+                                title={`Generate & Approve ${pendingReq.requestType === 'relieving' ? 'Relieving' : 'Experience'} Request`}
+                              >
+                                <FileText className="w-4 h-4" />
+                              </button>
+                            );
+                          })()}
 
                           {st.status === "Active" ? (
                             <>
@@ -1337,9 +1439,12 @@ export const StaffList: React.FC<{
         <StaffLetterModal
           staff={letterStaffTarget}
           isOpen={!!letterStaffTarget}
-          onClose={() => setLetterStaffTarget(null)}
+          onClose={() => {
+            setLetterStaffTarget(null);
+            fetchAllStaffRequests();
+          }}
           onNavigate={onNavigate}
-          initialType="offer"
+          initialType={letterInitialType}
         />
       )}
 

@@ -48,3 +48,45 @@ public class GlobalLetterSettingsDto
     public string? SealImageUrl { get; set; }
     public List<string>? MasterTerms { get; set; }
 }
+
+public class StaffLetterRequestDto
+{
+    public string Id { get; set; } = string.Empty;
+    public string RequestType { get; set; } = "relieving";
+    public string StaffId { get; set; } = string.Empty;
+    public string StaffEmpId { get; set; } = string.Empty;
+    public string StaffName { get; set; } = string.Empty;
+    public string Designation { get; set; } = string.Empty;
+    public string Department { get; set; } = string.Empty;
+    public string Branch { get; set; } = string.Empty;
+    public string Reason { get; set; } = string.Empty;
+    public string RelievingDate { get; set; } = string.Empty;
+    public string Comments { get; set; } = string.Empty;
+    public string Status { get; set; } = "Pending";
+    public string RejectionReason { get; set; } = string.Empty;
+    public string GeneratedLetterId { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+
+public class CreateStaffLetterRequestDto
+{
+    public string? Id { get; set; }
+    public string RequestType { get; set; } = "relieving";
+    public string StaffId { get; set; } = string.Empty;
+    public string StaffEmpId { get; set; } = string.Empty;
+    public string StaffName { get; set; } = string.Empty;
+    public string Designation { get; set; } = string.Empty;
+    public string Department { get; set; } = string.Empty;
+    public string Branch { get; set; } = string.Empty;
+    public string Reason { get; set; } = string.Empty;
+    public string RelievingDate { get; set; } = string.Empty;
+    public string Comments { get; set; } = string.Empty;
+}
+
+public class UpdateStaffLetterRequestStatusDto
+{
+    public string Status { get; set; } = "Approved"; // "Approved", "Rejected"
+    public string? RejectionReason { get; set; }
+    public string? GeneratedLetterId { get; set; }
+}

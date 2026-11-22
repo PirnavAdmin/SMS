@@ -296,6 +296,20 @@ export const deleteStaffLetterRecord = (id: string): GeneratedStaffLetterRecord[
   return inMemoryLetters;
 };
 
+export const refreshStaffLettersFromApi = async (): Promise<GeneratedStaffLetterRecord[]> => {
+  try {
+    const res = await fetchStaffLettersApi();
+    if (Array.isArray(res?.data)) {
+      inMemoryLetters = res.data;
+      window.dispatchEvent(new Event('staff_letters_updated'));
+      return inMemoryLetters;
+    }
+  } catch (err) {
+    console.warn('Failed to fetch staff letters from API:', err);
+  }
+  return inMemoryLetters;
+};
+
 export const getLettersForStaff = (staffIdOrEmpId: string): GeneratedStaffLetterRecord[] => {
   if (!isFetchedFromApi) {
     getStoredStaffLetters();

@@ -13,7 +13,7 @@ using SMS.Api.Dtos;
 using SMS.Api.Models;
 
 [ApiController]
-[Authorize(Roles = "SuperAdmin,Super Admin,Admin,Principal,HR")]
+[Authorize]
 [Route("api/staff-letters")]
 public class StaffLettersController : ControllerBase
 {
@@ -66,8 +66,30 @@ public class StaffLettersController : ControllerBase
                     PRIMARY KEY (`Id`)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
 
+            var createRequestsSql = @"
+                CREATE TABLE IF NOT EXISTS `staff_letter_requests` (
+                    `Id` VARCHAR(100) NOT NULL,
+                    `RequestType` VARCHAR(50) NOT NULL,
+                    `StaffId` VARCHAR(50) NULL,
+                    `StaffEmpId` VARCHAR(50) NULL,
+                    `StaffName` VARCHAR(200) NOT NULL,
+                    `Designation` VARCHAR(150) NULL,
+                    `Department` VARCHAR(150) NULL,
+                    `Branch` VARCHAR(150) NULL,
+                    `Reason` TEXT NULL,
+                    `RelievingDate` VARCHAR(50) NULL,
+                    `Comments` TEXT NULL,
+                    `Status` VARCHAR(50) NOT NULL DEFAULT 'Pending',
+                    `RejectionReason` TEXT NULL,
+                    `GeneratedLetterId` VARCHAR(100) NULL,
+                    `CreatedAt` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+                    `UpdatedAt` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+                    PRIMARY KEY (`Id`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;";
+
             await _context.Database.ExecuteSqlRawAsync(createStaffLettersSql);
             await _context.Database.ExecuteSqlRawAsync(createGlobalSettingsSql);
+            await _context.Database.ExecuteSqlRawAsync(createRequestsSql);
 
             lock (_lock)
             {
@@ -249,6 +271,28 @@ public class StaffLettersController : ControllerBase
                     UpdatedAt = DateTime.UtcNow
                 };
                 _context.StaffLetters.Add(newLetter);
+            }
+
+            // Auto-approve and link any matching pending staff letter request
+            var letterTypeNormalized = (dto.LetterType ?? "").Trim().ToLower();
+            if (letterTypeNormalized == "relieving" || letterTypeNormalized == "experience")
+            {
+                var sId = (dto.StaffId ?? "").Trim().ToLower();
+                var empId = (dto.StaffEmpId ?? "").Trim().ToLower();
+                var pendingReq = await _context.StaffLetterRequests
+                    .Where(r => r.RequestType.ToLower() == letterTypeNormalized &&
+                                r.Status == "Pending" &&
+                                ((!string.IsNullOrEmpty(sId) && r.StaffId.ToLower() == sId) ||
+                                 (!string.IsNullOrEmpty(empId) && r.StaffEmpId.ToLower() == empId)))
+                    .OrderByDescending(r => r.CreatedAt)
+                    .FirstOrDefaultAsync();
+
+                if (pendingReq != null)
+                {
+                    pendingReq.Status = "Approved";
+                    pendingReq.GeneratedLetterId = letterId;
+                    pendingReq.UpdatedAt = DateTime.UtcNow;
+                }
             }
 
             await _context.SaveChangesAsync();
@@ -499,6 +543,245 @@ public class StaffLettersController : ControllerBase
         catch (Exception ex)
         {
             return StatusCode(500, new { success = false, message = "Failed to save settings: " + ex.Message });
+        }
+    }
+
+    // ==========================================
+    // STAFF LETTER REQUESTS (RELIEVING / EXPERIENCE)
+    // ==========================================
+
+    // GET: api/staff-letters/requests
+    [HttpGet("requests")]
+    [Authorize]
+    public async Task<IActionResult> GetStaffLetterRequests(
+        [FromQuery] string? staffId,
+        [FromQuery] string? status,
+        [FromQuery] string? requestType)
+    {
+        try
+        {
+            await EnsureTablesExistAsync();
+
+            var query = _context.StaffLetterRequests.AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(staffId))
+            {
+                var sId = staffId.Trim().ToLower();
+                query = query.Where(r => r.StaffId.ToLower() == sId || r.StaffEmpId.ToLower() == sId);
+            }
+
+            if (!string.IsNullOrWhiteSpace(status) && status.ToLower() != "all")
+            {
+                var st = status.Trim().ToLower();
+                query = query.Where(r => r.Status.ToLower() == st);
+            }
+
+            if (!string.IsNullOrWhiteSpace(requestType) && requestType.ToLower() != "all")
+            {
+                var rt = requestType.Trim().ToLower();
+                query = query.Where(r => r.RequestType.ToLower() == rt);
+            }
+
+            var list = await query
+                .OrderByDescending(r => r.CreatedAt)
+                .Select(r => new StaffLetterRequestDto
+                {
+                    Id = r.Id,
+                    RequestType = r.RequestType,
+                    StaffId = r.StaffId,
+                    StaffEmpId = r.StaffEmpId,
+                    StaffName = r.StaffName,
+                    Designation = r.Designation,
+                    Department = r.Department,
+                    Branch = r.Branch,
+                    Reason = r.Reason,
+                    RelievingDate = r.RelievingDate,
+                    Comments = r.Comments,
+                    Status = r.Status,
+                    RejectionReason = r.RejectionReason,
+                    GeneratedLetterId = r.GeneratedLetterId,
+                    CreatedAt = r.CreatedAt,
+                    UpdatedAt = r.UpdatedAt
+                })
+                .ToListAsync();
+
+            return Ok(new
+            {
+                success = true,
+                data = list
+            });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { success = false, message = "Failed to fetch staff letter requests: " + ex.Message });
+        }
+    }
+
+    // GET: api/staff-letters/requests/pending-count
+    [HttpGet("requests/pending-count")]
+    [Authorize]
+    public async Task<IActionResult> GetPendingRequestsCount()
+    {
+        try
+        {
+            await EnsureTablesExistAsync();
+
+            var count = await _context.StaffLetterRequests
+                .Where(r => r.Status == "Pending")
+                .CountAsync();
+
+            return Ok(new
+            {
+                success = true,
+                count = count
+            });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { success = false, message = ex.Message });
+        }
+    }
+
+    // POST: api/staff-letters/requests
+    [HttpPost("requests")]
+    [Authorize]
+    public async Task<IActionResult> CreateStaffLetterRequest([FromBody] CreateStaffLetterRequestDto dto)
+    {
+        if (dto == null) return BadRequest("Invalid request payload.");
+
+        try
+        {
+            await EnsureTablesExistAsync();
+
+            var prefix = (dto.RequestType ?? "relieving").ToLower() == "experience" ? "REQ-EXP" : "REQ-REL";
+            var requestId = string.IsNullOrWhiteSpace(dto.Id)
+                ? $"{prefix}-{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}-{new Random().Next(100, 999)}"
+                : dto.Id;
+
+            var newRequest = new StaffLetterRequest
+            {
+                Id = requestId,
+                RequestType = dto.RequestType?.Trim().ToLower() ?? "relieving",
+                StaffId = dto.StaffId?.Trim() ?? "",
+                StaffEmpId = dto.StaffEmpId?.Trim() ?? "",
+                StaffName = dto.StaffName?.Trim() ?? "",
+                Designation = dto.Designation?.Trim() ?? "",
+                Department = dto.Department?.Trim() ?? "",
+                Branch = dto.Branch?.Trim() ?? "",
+                Reason = dto.Reason?.Trim() ?? "",
+                RelievingDate = dto.RelievingDate?.Trim() ?? "",
+                Comments = dto.Comments?.Trim() ?? "",
+                Status = "Pending",
+                RejectionReason = "",
+                GeneratedLetterId = "",
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            _context.StaffLetterRequests.Add(newRequest);
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                success = true,
+                message = "Request submitted successfully. HR/Admin has been notified.",
+                data = new StaffLetterRequestDto
+                {
+                    Id = newRequest.Id,
+                    RequestType = newRequest.RequestType,
+                    StaffId = newRequest.StaffId,
+                    StaffEmpId = newRequest.StaffEmpId,
+                    StaffName = newRequest.StaffName,
+                    Designation = newRequest.Designation,
+                    Department = newRequest.Department,
+                    Branch = newRequest.Branch,
+                    Reason = newRequest.Reason,
+                    RelievingDate = newRequest.RelievingDate,
+                    Comments = newRequest.Comments,
+                    Status = newRequest.Status,
+                    RejectionReason = newRequest.RejectionReason,
+                    GeneratedLetterId = newRequest.GeneratedLetterId,
+                    CreatedAt = newRequest.CreatedAt,
+                    UpdatedAt = newRequest.UpdatedAt
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { success = false, message = "Failed to submit request: " + ex.Message });
+        }
+    }
+
+    // PUT: api/staff-letters/requests/{id}/status
+    [HttpPut("requests/{id}/status")]
+    [Authorize]
+    public async Task<IActionResult> UpdateRequestStatus(string id, [FromBody] UpdateStaffLetterRequestStatusDto dto)
+    {
+        if (dto == null) return BadRequest("Invalid status payload.");
+
+        try
+        {
+            await EnsureTablesExistAsync();
+
+            var req = await _context.StaffLetterRequests.FirstOrDefaultAsync(r => r.Id == id);
+            if (req == null)
+            {
+                return NotFound(new { success = false, message = "Staff letter request not found." });
+            }
+
+            req.Status = dto.Status ?? req.Status;
+            if (!string.IsNullOrWhiteSpace(dto.RejectionReason))
+            {
+                req.RejectionReason = dto.RejectionReason;
+            }
+            if (!string.IsNullOrWhiteSpace(dto.GeneratedLetterId))
+            {
+                req.GeneratedLetterId = dto.GeneratedLetterId;
+            }
+            req.UpdatedAt = DateTime.UtcNow;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                success = true,
+                message = $"Request status updated to '{req.Status}'.",
+                data = req
+            });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { success = false, message = ex.Message });
+        }
+    }
+
+    // DELETE: api/staff-letters/requests/{id}
+    [HttpDelete("requests/{id}")]
+    [Authorize]
+    public async Task<IActionResult> DeleteStaffLetterRequest(string id)
+    {
+        try
+        {
+            await EnsureTablesExistAsync();
+
+            var req = await _context.StaffLetterRequests.FirstOrDefaultAsync(r => r.Id == id);
+            if (req == null)
+            {
+                return NotFound(new { success = false, message = "Request not found." });
+            }
+
+            _context.StaffLetterRequests.Remove(req);
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                success = true,
+                message = "Request removed successfully."
+            });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { success = false, message = ex.Message });
         }
     }
 }

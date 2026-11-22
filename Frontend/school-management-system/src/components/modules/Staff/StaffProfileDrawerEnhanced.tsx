@@ -21,7 +21,8 @@ import {
   Calendar
 } from 'lucide-react';
 import { Staff, StaffDocument, StaffEducationRecord, StaffExperienceRecord } from '../../../types';
-import { StaffLetterType, GeneratedStaffLetterRecord } from '../../../types/staffLetter';
+import { StaffLetterType, GeneratedStaffLetterRecord, StaffLetterRequest } from '../../../types/staffLetter';
+import { fetchStaffLetterRequestsApi } from '../../../api/staffLetters';
 import { useData } from '../../../context/DataContext';
 import { Badge } from '../../common/Badge';
 import { formatCurrency } from '../../../utils/currency';
@@ -380,16 +381,30 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
     return unique;
   }, [staffLetters]);
 
-  const refreshStaffLetters = () => {
+  const [staffRequests, setStaffRequests] = useState<StaffLetterRequest[]>([]);
+
+  const refreshStaffLetters = async () => {
     if (staff?.id || staff?.empId) {
       setStaffLetters(getLettersForStaff(staff.empId || staff.id));
+      try {
+        const res = await fetchStaffLetterRequestsApi({ staffId: staff.empId || staff.id });
+        if (Array.isArray(res?.data)) {
+          setStaffRequests(res.data);
+        }
+      } catch (err) {
+        console.warn('Could not fetch requests in drawer:', err);
+      }
     }
   };
 
   useEffect(() => {
     refreshStaffLetters();
     window.addEventListener('staff_letters_updated', refreshStaffLetters);
-    return () => window.removeEventListener('staff_letters_updated', refreshStaffLetters);
+    window.addEventListener('staff_requests_updated', refreshStaffLetters);
+    return () => {
+      window.removeEventListener('staff_letters_updated', refreshStaffLetters);
+      window.removeEventListener('staff_requests_updated', refreshStaffLetters);
+    };
   }, [staff?.id, staff?.empId]);
 
   useEffect(() => {
@@ -1185,6 +1200,40 @@ export const StaffProfileDrawer: React.FC<StaffProfileDrawerProps> = ({ staff: s
             </button>
           </div>
         </div>
+
+        {/* Pending Requests Notice for this staff member */}
+        {staffRequests.filter((r) => r.status === 'Pending').map((pReq) => (
+          <div
+            key={pReq.id}
+            className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+          >
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 rounded-xl bg-amber-500 text-white shrink-0">
+                <Clock className="w-4 h-4" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-amber-900 dark:text-amber-200">
+                  Pending Request: {pReq.requestType === 'relieving' ? 'Relieving & Clearance Letter' : 'Experience Certificate'}
+                </p>
+                <p className="text-[11px] text-amber-700 dark:text-amber-300">
+                  Requested on {pReq.createdAt ? String(pReq.createdAt).split('T')[0] : 'Recently'}. Reason: {pReq.reason || 'Not specified'}
+                  {pReq.relievingDate ? ` • Relieving: ${pReq.relievingDate}` : ''}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedLetterType(pReq.requestType);
+                setSelectedLetterRecord(undefined);
+                setLetterModalOpen(true);
+              }}
+              className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
+            >
+              <FileText className="w-3.5 h-3.5" /> Generate & Approve
+            </button>
+          </div>
+        ))}
 
         {/* List of Issued Letters for this staff member */}
         <div className="space-y-2">

@@ -3,7 +3,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import {
   User, Mail, Phone, Building, GraduationCap, Briefcase, MapPin, Calendar, 
   Shield, Edit2, X, Check, AlertCircle, BookOpen, Heart, Save, Camera, CheckCircle2, Upload, Trash2,
-  FileText, Download, Eye, Award, ExternalLink
+  FileText, Download, Eye, Award, ExternalLink, Send, Clock, Loader2
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { useData } from '../../../context/DataContext';
@@ -11,8 +11,9 @@ import { useToast } from '../../../context/ToastContext';
 import { Badge } from '../../common/Badge';
 import { getSortOrderForClass } from '../../../utils/classSorter';
 import { StaffLetterModal } from './Letters/StaffLetterModal';
-import { getLettersForStaff } from '../../../utils/staffLetterTemplates';
-import { StaffLetterType, GeneratedStaffLetterRecord } from '../../../types/staffLetter';
+import { getLettersForStaff, refreshStaffLettersFromApi } from '../../../utils/staffLetterTemplates';
+import { StaffLetterType, GeneratedStaffLetterRecord, StaffLetterRequest } from '../../../types/staffLetter';
+import { fetchStaffLetterRequestsApi, createStaffLetterRequestApi } from '../../../api/staffLetters';
 import { resolveMediaUrl } from '../../../utils/mediaUtils';
 import {
   validate10DigitPhone,
@@ -810,18 +811,94 @@ export const TeacherProfileView: React.FC = () => {
   const [selectedLetterRecord, setSelectedLetterRecord] = useState<GeneratedStaffLetterRecord | undefined>(undefined);
   const [staffLetters, setStaffLetters] = useState<GeneratedStaffLetterRecord[]>([]);
 
-  const refreshStaffLetters = () => {
+  // Staff Letter Requests State
+  const [staffRequests, setStaffRequests] = useState<StaffLetterRequest[]>([]);
+  const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
+  const [requestModalType, setRequestModalType] = useState<'relieving' | 'experience'>('relieving');
+  const [requestSubmitting, setRequestSubmitting] = useState(false);
+  const [requestReason, setRequestReason] = useState('');
+  const [requestRelievingDate, setRequestRelievingDate] = useState('');
+  const [requestComments, setRequestComments] = useState('');
+
+  const refreshStaffLettersAndRequests = async () => {
     const sId = profile.employeeId || dbTeacher?.empId || dbTeacher?.id || (user as any)?.empId || user?.id;
     if (sId) {
       setStaffLetters(getLettersForStaff(sId));
+      try {
+        await refreshStaffLettersFromApi();
+        setStaffLetters(getLettersForStaff(sId));
+      } catch {}
+      try {
+        const res = await fetchStaffLetterRequestsApi({ staffId: String(sId) });
+        if (Array.isArray(res?.data)) {
+          setStaffRequests(res.data);
+        }
+      } catch (err) {
+        console.warn('Could not load staff requests:', err);
+      }
     }
   };
 
   useEffect(() => {
-    refreshStaffLetters();
-    window.addEventListener('staff_letters_updated', refreshStaffLetters);
-    return () => window.removeEventListener('staff_letters_updated', refreshStaffLetters);
+    refreshStaffLettersAndRequests();
+    window.addEventListener('staff_letters_updated', refreshStaffLettersAndRequests);
+    window.addEventListener('staff_requests_updated', refreshStaffLettersAndRequests);
+    return () => {
+      window.removeEventListener('staff_letters_updated', refreshStaffLettersAndRequests);
+      window.removeEventListener('staff_requests_updated', refreshStaffLettersAndRequests);
+    };
   }, [profile.employeeId, dbTeacher?.id, dbTeacher?.empId, user?.id]);
+
+  const handleOpenRequestModal = (type: 'relieving' | 'experience') => {
+    setRequestModalType(type);
+    setRequestReason(type === 'relieving' ? 'Career advancement & personal reasons' : 'Official documentation & verification');
+    const defaultRelDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    setRequestRelievingDate(defaultRelDate);
+    setRequestComments('');
+    setIsRequestModalOpen(true);
+  };
+
+  const handleSubmitStaffRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (requestSubmitting) return;
+
+    const sId = profile.employeeId || dbTeacher?.empId || dbTeacher?.id || (user as any)?.empId || user?.id;
+    const empId = profile.employeeId || dbTeacher?.empId || (user as any)?.empId || '';
+    const staffName = profile.fullName || user?.name || 'Staff Member';
+
+    if (!requestReason.trim()) {
+      addToast('warning', 'Reason Required', 'Please provide a reason/purpose for your request.');
+      return;
+    }
+
+    try {
+      setRequestSubmitting(true);
+      const res = await createStaffLetterRequestApi({
+        requestType: requestModalType,
+        staffId: String(sId || ''),
+        staffEmpId: String(empId || ''),
+        staffName: staffName,
+        designation: profile.designation || 'Staff Member',
+        department: profile.department || 'Academics',
+        branch: profile.branch || user?.branch || '',
+        reason: requestReason.trim(),
+        relievingDate: requestModalType === 'relieving' ? requestRelievingDate : undefined,
+        comments: requestComments.trim()
+      });
+
+      if (res?.success) {
+        addToast('success', 'Request Submitted', `${requestModalType === 'relieving' ? 'Relieving letter' : 'Experience certificate'} request submitted to HR/Administration.`);
+        setIsRequestModalOpen(false);
+        refreshStaffLettersAndRequests();
+        window.dispatchEvent(new Event('staff_requests_updated'));
+      }
+    } catch (err: any) {
+      console.error(err);
+      addToast('error', 'Request Failed', err?.message || 'Failed to submit request. Please try again.');
+    } finally {
+      setRequestSubmitting(false);
+    }
+  };
 
   const staffForLetter = useMemo(() => {
     const fullNameStr = profile.fullName || 'Staff Member';
@@ -1213,27 +1290,40 @@ export const TeacherProfileView: React.FC = () => {
                 <div className="w-9 h-9 rounded-xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
                   <FileText className="w-4 h-4" />
                 </div>
-                <span className="h-6 px-3 rounded-full text-[11px] font-bold border border-emerald-300 text-emerald-700 bg-emerald-50/50 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300 inline-flex items-center justify-center shrink-0 leading-none">
-                  {staffLetters.some(l => l.letterType === 'offer') ? 'Active Contract on File' : 'Official Template'}
-                </span>
+                {staffLetters.some(l => l.letterType === 'offer' && l.status === 'Issued') ? (
+                  <span className="h-6 px-3 rounded-full text-[11px] font-bold border border-emerald-300 text-emerald-700 bg-emerald-50/50 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300 inline-flex items-center justify-center shrink-0 leading-none">
+                    Active Contract on File
+                  </span>
+                ) : (
+                  <span className="h-6 px-3 rounded-full text-[11px] font-bold border border-slate-200 text-slate-500 bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400 inline-flex items-center justify-center shrink-0 leading-none">
+                    Pending Issuance
+                  </span>
+                )}
               </div>
               <h3 className="font-black text-slate-900 dark:text-white text-sm mt-2.5">Appointment / Offer Letter</h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
                 Institutional appointment contract with terms of service, compensation structure, and probation details.
               </p>
             </div>
-            <button
-              onClick={() => {
-                const existingOffer = staffLetters.find(l => l.letterType === 'offer');
-                setSelectedLetterType('offer');
-                setSelectedLetterRecord(existingOffer);
-                setLetterModalOpen(true);
-              }}
-              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold transition shadow-xs cursor-pointer"
-            >
-              <Eye className="w-4 h-4" />
-              View Issued Appointment Letter
-            </button>
+            {staffLetters.some(l => l.letterType === 'offer' && l.status === 'Issued') ? (
+              <button
+                type="button"
+                onClick={() => {
+                  const existingOffer = staffLetters.find(l => l.letterType === 'offer' && l.status === 'Issued');
+                  setSelectedLetterType('offer');
+                  setSelectedLetterRecord(existingOffer);
+                  setLetterModalOpen(true);
+                }}
+                className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold transition shadow-xs cursor-pointer"
+              >
+                <Eye className="w-4 h-4" />
+                View Issued Appointment Letter
+              </button>
+            ) : (
+              <div className="w-full py-2.5 px-4 rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-500 text-center text-xs font-medium">
+                Issued Upon Admin Generation
+              </div>
+            )}
           </div>
 
           {/* Card 2: Relieving Letter */}
@@ -1243,13 +1333,17 @@ export const TeacherProfileView: React.FC = () => {
                 <div className="w-9 h-9 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
                   <CheckCircle2 className="w-4 h-4" />
                 </div>
-                {staffLetters.some(l => l.letterType === 'relieving') ? (
+                {staffLetters.some(l => l.letterType === 'relieving' && l.status === 'Issued') ? (
                   <span className="h-6 px-3 rounded-full text-[11px] font-bold border border-emerald-300 text-emerald-700 bg-emerald-50/50 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300 inline-flex items-center justify-center shrink-0 leading-none">
                     Issued
                   </span>
+                ) : staffRequests.some(r => r.requestType === 'relieving' && r.status === 'Pending') ? (
+                  <span className="h-6 px-3 rounded-full text-[11px] font-bold border border-amber-300 text-amber-700 bg-amber-50/50 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-300 inline-flex items-center justify-center shrink-0 leading-none">
+                    Request Under Review
+                  </span>
                 ) : (
                   <span className="h-6 px-3 rounded-full text-[11px] font-bold border border-slate-200 text-slate-600 bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400 inline-flex items-center justify-center shrink-0 leading-none">
-                    On Separation
+                    On Separation / Request
                   </span>
                 )}
               </div>
@@ -1258,10 +1352,11 @@ export const TeacherProfileView: React.FC = () => {
                 Official relieving letter confirming formal clearance of institutional dues, assets, and service tenure.
               </p>
             </div>
-            {staffLetters.some(l => l.letterType === 'relieving') ? (
+            {staffLetters.some(l => l.letterType === 'relieving' && l.status === 'Issued') ? (
               <button
+                type="button"
                 onClick={() => {
-                  const relRecord = staffLetters.find(l => l.letterType === 'relieving');
+                  const relRecord = staffLetters.find(l => l.letterType === 'relieving' && l.status === 'Issued');
                   setSelectedLetterType('relieving');
                   setSelectedLetterRecord(relRecord);
                   setLetterModalOpen(true);
@@ -1271,10 +1366,21 @@ export const TeacherProfileView: React.FC = () => {
                 <Eye className="w-4 h-4" />
                 View Relieving Letter
               </button>
-            ) : (
-              <div className="w-full py-2.5 px-4 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-800 text-slate-400 dark:text-slate-500 text-center text-xs font-medium">
-                Issued Upon Formal Relieving
+            ) : staffRequests.some(r => r.requestType === 'relieving' && r.status === 'Pending') ? (
+              <div className="space-y-1.5">
+                <div className="w-full py-2.5 px-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 text-center text-xs font-bold flex items-center justify-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5" /> Request Pending Approval
+                </div>
               </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => handleOpenRequestModal('relieving')}
+                className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold transition shadow-xs cursor-pointer"
+              >
+                <Send className="w-3.5 h-3.5" />
+                Request Relieving Letter
+              </button>
             )}
           </div>
 
@@ -1285,13 +1391,17 @@ export const TeacherProfileView: React.FC = () => {
                 <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
                   <Award className="w-4 h-4" />
                 </div>
-                {staffLetters.some(l => l.letterType === 'experience') ? (
+                {staffLetters.some(l => l.letterType === 'experience' && l.status === 'Issued') ? (
                   <span className="h-6 px-3 rounded-full text-[11px] font-bold border border-emerald-300 text-emerald-700 bg-emerald-50/50 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300 inline-flex items-center justify-center shrink-0 leading-none">
                     Formally Issued
                   </span>
-                ) : (
+                ) : staffRequests.some(r => r.requestType === 'experience' && r.status === 'Pending') ? (
                   <span className="h-6 px-3 rounded-full text-[11px] font-bold border border-amber-300 text-amber-700 bg-amber-50/50 dark:bg-amber-950/40 dark:border-amber-800 dark:text-amber-300 inline-flex items-center justify-center shrink-0 leading-none">
-                    Available on Request / Separation
+                    Request Under Review
+                  </span>
+                ) : (
+                  <span className="h-6 px-3 rounded-full text-[11px] font-bold border border-emerald-300 text-emerald-700 bg-emerald-50/50 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-300 inline-flex items-center justify-center shrink-0 leading-none">
+                    Available on Request
                   </span>
                 )}
               </div>
@@ -1300,10 +1410,11 @@ export const TeacherProfileView: React.FC = () => {
                 Institutional service testimonial verifying your designation, responsibilities, and tenure performance.
               </p>
             </div>
-            {staffLetters.some(l => l.letterType === 'experience') ? (
+            {staffLetters.some(l => l.letterType === 'experience' && l.status === 'Issued') ? (
               <button
+                type="button"
                 onClick={() => {
-                  const expRecord = staffLetters.find(l => l.letterType === 'experience');
+                  const expRecord = staffLetters.find(l => l.letterType === 'experience' && l.status === 'Issued');
                   setSelectedLetterType('experience');
                   setSelectedLetterRecord(expRecord);
                   setLetterModalOpen(true);
@@ -1313,23 +1424,21 @@ export const TeacherProfileView: React.FC = () => {
                 <Eye className="w-4 h-4" />
                 View Issued Experience Certificate
               </button>
-            ) : (
+            ) : staffRequests.some(r => r.requestType === 'experience' && r.status === 'Pending') ? (
               <div className="space-y-1.5">
-                <div className="w-full py-2 px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 text-center text-xs font-medium">
-                  Available upon formal separation or HR service request
+                <div className="w-full py-2.5 px-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 text-center text-xs font-bold flex items-center justify-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5" /> Request Pending Approval
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedLetterType('experience');
-                    setSelectedLetterRecord(undefined);
-                    setLetterModalOpen(true);
-                  }}
-                  className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg border border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-[11px] font-bold transition cursor-pointer"
-                >
-                  <Eye className="w-3.5 h-3.5" /> Request / Preview Draft Certificate
-                </button>
               </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => handleOpenRequestModal('experience')}
+                className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-xs cursor-pointer"
+              >
+                <Send className="w-3.5 h-3.5" />
+                Request Experience Certificate
+              </button>
             )}
           </div>
         </div>
@@ -1725,6 +1834,110 @@ export const TeacherProfileView: React.FC = () => {
                   className="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold flex items-center gap-1.5 shadow-md cursor-pointer disabled:opacity-50"
                 >
                   <Save className="w-4 h-4" /> Save Profile
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Submit Official Letter Request Modal */}
+      {isRequestModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-in fade-in">
+          <div className="glass-card max-w-lg w-full p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className={`p-2 rounded-xl text-white ${requestModalType === 'relieving' ? 'bg-amber-600' : 'bg-emerald-600'}`}>
+                  {requestModalType === 'relieving' ? <Send className="w-4 h-4" /> : <Award className="w-4 h-4" />}
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
+                    {requestModalType === 'relieving' ? 'Request Relieving Letter' : 'Request Experience Certificate'}
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    Official request will be submitted to Institutional HR & Administration
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsRequestModalOpen(false)}
+                className="p-1 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmitStaffRequest} className="space-y-3.5 text-xs">
+              <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-850/60 border border-slate-200 dark:border-slate-800 space-y-1">
+                <span className="text-[10px] uppercase font-bold text-slate-400">Applicant Details</span>
+                <p className="font-bold text-slate-900 dark:text-white">
+                  {profile.fullName || user?.name} ({profile.employeeId || 'Staff'})
+                </p>
+                <p className="text-[11px] text-slate-500">
+                  {profile.designation} &bull; {profile.department} &bull; {profile.branch}
+                </p>
+              </div>
+
+              {requestModalType === 'relieving' && (
+                <div>
+                  <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">
+                    Proposed Relieving Date <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={requestRelievingDate}
+                    onChange={(e) => setRequestRelievingDate(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-medium outline-none focus:border-amber-500"
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">
+                  {requestModalType === 'relieving' ? 'Reason for Relieving' : 'Purpose of Experience Certificate'} <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder={requestModalType === 'relieving' ? 'e.g. Relocation, Personal Reasons, Career Advancement' : 'e.g. Higher Education, Visa Application, New Job Verification'}
+                  value={requestReason}
+                  onChange={(e) => setRequestReason(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-medium outline-none focus:border-sky-500"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold mb-1 text-slate-700 dark:text-slate-300">
+                  Additional Notes / Comments
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder="Any additional remarks, handover status, or urgent clearance notes..."
+                  value={requestComments}
+                  onChange={(e) => setRequestComments(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white font-medium outline-none focus:border-sky-500"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setIsRequestModalOpen(false)}
+                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-bold hover:bg-slate-50 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={requestSubmitting}
+                  className={`px-5 py-2 rounded-xl text-white font-extrabold flex items-center gap-1.5 shadow-md cursor-pointer disabled:opacity-50 ${
+                    requestModalType === 'relieving' ? 'bg-amber-600 hover:bg-amber-500' : 'bg-emerald-600 hover:bg-emerald-500'
+                  }`}
+                >
+                  {requestSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                  Submit Request
                 </button>
               </div>
             </form>

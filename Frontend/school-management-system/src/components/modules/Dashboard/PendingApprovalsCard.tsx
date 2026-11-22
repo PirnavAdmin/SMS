@@ -51,13 +51,13 @@ export const PendingApprovalsCard: React.FC<PendingApprovalsCardProps> = ({
     {
       key: 'staff',
       label: 'Staff Requests',
-      fullLabel: 'Staff Profile Requests',
+      fullLabel: 'Staff Document & Profile Requests',
       count: staffCount,
       pct: staffPct,
       color: '#083344', // Dark Teal / Navy
       bgClass: 'bg-[#083344] dark:bg-cyan-600',
       hoverBg: 'hover:bg-cyan-500/5',
-      route: 'staff'
+      route: 'staff-requests'
     },
     {
       key: 'leaves',

@@ -52,3 +52,22 @@ export interface GeneratedStaffLetterRecord {
   status: 'Issued' | 'Draft';
   payload: StaffLetterPayload;
 }
+
+export interface StaffLetterRequest {
+  id: string;
+  requestType: 'relieving' | 'experience';
+  staffId: string;
+  staffEmpId: string;
+  staffName: string;
+  designation: string;
+  department: string;
+  branch: string;
+  reason: string;
+  relievingDate?: string;
+  comments?: string;
+  status: 'Pending' | 'Approved' | 'Rejected';
+  rejectionReason?: string;
+  generatedLetterId?: string;
+  createdAt: string;
+  updatedAt: string;
+}

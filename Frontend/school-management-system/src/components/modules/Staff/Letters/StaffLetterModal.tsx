@@ -761,10 +761,15 @@ export const StaffLetterModal: React.FC<StaffLetterModalProps> = ({
     };
 
     saveStaffLetterRecord(newRecord);
-    createOrSaveStaffLetterApi(newRecord).catch((err) => {
-      console.warn('Backend staff letter sync error:', err);
-    });
+    createOrSaveStaffLetterApi(newRecord)
+      .then(() => {
+        window.dispatchEvent(new Event('staff_requests_updated'));
+      })
+      .catch((err) => {
+        console.warn('Backend staff letter sync error:', err);
+      });
     window.dispatchEvent(new Event('staff_letters_updated'));
+    window.dispatchEvent(new Event('staff_requests_updated'));
 
     // Also link into staff documents array if updateStaff is available
     if (updateStaff && targetStaff.id) {

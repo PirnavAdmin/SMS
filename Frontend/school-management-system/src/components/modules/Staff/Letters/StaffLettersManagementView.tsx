@@ -33,7 +33,7 @@ import {
 import { useData } from '../../../../context/DataContext';
 import { useToast } from '../../../../context/ToastContext';
 import { Staff } from '../../../../types';
-import { GeneratedStaffLetterRecord, StaffLetterType, StaffLetterPayload } from '../../../../types/staffLetter';
+import { GeneratedStaffLetterRecord, StaffLetterType, StaffLetterPayload, StaffLetterRequest } from '../../../../types/staffLetter';
 import {
   getDefaultLetterPayload,
   saveStaffLetterRecord
@@ -43,12 +43,15 @@ import {
   fetchStaffLettersApi,
   deleteStaffLetterApi,
   fetchGlobalLetterSettingsApi,
-  saveGlobalLetterSettingsApi
+  saveGlobalLetterSettingsApi,
+  fetchStaffLetterRequestsApi,
+  updateStaffLetterRequestStatusApi
 } from '../../../../api/staffLetters';
 import { StaffLetterModal } from './StaffLetterModal';
 import { Badge } from '../../../common/Badge';
 import { ConfirmModal } from '../../../common/ConfirmModal';
 import { Pagination } from '../../../common/Pagination';
+import { LoadingSpinner } from '../../../common/LoadingSpinner';
 
 const getSafeStaffFallback = (schoolProfile?: any): Staff => ({
   id: '',
@@ -76,7 +79,7 @@ export const StaffLettersManagementView: React.FC<StaffLettersManagementViewProp
   const { staff = [], schoolProfile, branches = [] } = useData();
   const { addToast } = useToast();
 
-  const [activeTab, setActiveTab] = useState<'registry' | 'templates' | 'quick-generate'>('registry');
+  const [activeTab, setActiveTab] = useState<'registry' | 'templates'>('registry');
   const [letters, setLetters] = useState<GeneratedStaffLetterRecord[]>([]);
   const [isLoadingLetters, setIsLoadingLetters] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
