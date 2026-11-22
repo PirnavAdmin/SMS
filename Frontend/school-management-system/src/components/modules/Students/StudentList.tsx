@@ -25,7 +25,7 @@ import { PromoteStudentModal } from './PromoteStudentModal';
 import { TransferStudentModal } from './TransferStudentModal';
 import { AcademicHistoryImportModal } from './AcademicHistoryImportModal';
 import { fetchAdmissionsApi } from '../../../api/admission';
-import { getAllocations, getHostelBlocks, formatRoomNumber, BedAllocation } from '../../../api/hostel';
+import { getAllocations, getHostelBlocks, getWardens, formatRoomNumber, BedAllocation } from '../../../api/hostel';
 import { Pagination } from '../../common/Pagination';
 import { hasModuleAccess } from '../../../utils/rbac';
 import { formatConfiguredStudentAdmissionNo } from '../../../utils/idGenerator';
@@ -35,6 +35,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
   const [apiStudents, setApiStudents] = useState<Student[]>([]);
   const [allocations, setAllocations] = useState<BedAllocation[]>([]);
   const [hostelBlocks, setHostelBlocks] = useState<any[]>([]);
+  const [wardens, setWardens] = useState<any[]>([]);
   const [wardenSelectedBlockId, setWardenSelectedBlockId] = useState<string>('All');
   const [loading, setLoading] = useState<boolean>(true);
 
@@ -123,13 +124,15 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
 
     const loadAllocationsData = async () => {
       try {
-        const [data, blocksData] = await Promise.all([
+        const [data, blocksData, wardensData] = await Promise.all([
           getAllocations().catch(() => []),
-          getHostelBlocks().catch(() => [])
+          getHostelBlocks().catch(() => []),
+          getWardens().catch(() => [])
         ]);
         if (isMounted) {
           if (Array.isArray(data)) setAllocations(data);
           if (Array.isArray(blocksData)) setHostelBlocks(blocksData);
+          if (Array.isArray(wardensData)) setWardens(wardensData);
         }
       } catch (e) {
         console.warn('Failed to load hostel allocations:', e);
@@ -144,6 +147,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
     window.addEventListener('hostel_outpasses_updated', handleSync);
     window.addEventListener('hostel_allocations_updated', handleSync);
     window.addEventListener('hostel_students_updated', handleSync);
+    window.addEventListener('hostel_wardens_updated', handleSync);
     window.addEventListener('residential_students_updated', handleSync);
     window.addEventListener('students_updated', handleSync);
     return () => {
@@ -151,6 +155,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
       window.removeEventListener('hostel_outpasses_updated', handleSync);
       window.removeEventListener('hostel_allocations_updated', handleSync);
       window.removeEventListener('hostel_students_updated', handleSync);
+      window.removeEventListener('hostel_wardens_updated', handleSync);
       window.removeEventListener('residential_students_updated', handleSync);
       window.removeEventListener('students_updated', handleSync);
     };
@@ -175,6 +180,46 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
       return 10 + parseInt(match[0], 10);
     }
     return 999;
+  };
+
+  // Helper to resolve institutional Student ID (e.g. STU-2026-0943) over numeric database/roll call ID
+  const getDisplayStudentId = (student: any): string => {
+    if (!student) return '';
+    const candidates = [
+      student.studentId,
+      student.rollNo,
+      student.rollNumber,
+      student.admissionNo,
+      student.admissionNumber,
+      student.registrationNo,
+      student.registrationNumber,
+      student.id,
+    ];
+    // 1. Prioritize official formatted Student ID starting with STU-
+    for (const c of candidates) {
+      if (typeof c === 'string' && c.toUpperCase().startsWith('STU-')) {
+        return c;
+      }
+    }
+    // 2. Formatted ID with ADM-, REG-, APP-
+    for (const c of candidates) {
+      if (typeof c === 'string' && /^(ADM|REG|APP)-/i.test(c)) {
+        return c;
+      }
+    }
+    // 3. Any non-numeric string (e.g. alphanumeric code)
+    for (const c of candidates) {
+      if (typeof c === 'string' && c.trim() && isNaN(Number(c.trim()))) {
+        return c.trim();
+      }
+    }
+    // 4. Fallback to rollNo or studentId or admissionNo if non-empty
+    const fallback = student.rollNo || student.studentId || student.admissionNo || student.registrationNo;
+    if (fallback && String(fallback).trim()) {
+      return String(fallback).trim();
+    }
+    // 5. Final fallback to numeric id
+    return String(student.id || '');
   };
 
   // Dynamically map student record overlay for selected Academic Year without mutating master profile
@@ -914,71 +959,101 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
   const [wardenCurrentPage, setWardenCurrentPage] = useState<number>(1);
   const [wardenPageSize, setWardenPageSize] = useState<number>(10);
 
-  const wardenAssignedBlock = useMemo(() => {
-    if (!hostelBlocks || hostelBlocks.length === 0) return null;
-    const uName = (user?.name || '').toLowerCase().trim();
-    const uFirst = uName ? uName.split(' ')[0] : '';
-    const uEmail = (user?.email || '').toLowerCase().trim();
-
-    const matched = hostelBlocks.find(b => {
-      const wName = (b.wardenName || (b as any).warden || '').toLowerCase().trim();
-      const wEmail = (b.email || (b as any).wardenEmail || '').toLowerCase().trim();
-      if (uEmail && wEmail && wEmail === uEmail) return true;
-      if (uFirst && wName && (wName.includes(uFirst) || uFirst.includes(wName.split(' ')[0]))) return true;
-      return false;
-    });
-
-    if (matched) return matched;
-
-    const defaultBlock = hostelBlocks.find(b =>
-      (b.hostelName || b.name || '').toLowerCase().includes('ramachandra') ||
-      (b.hostelName || b.name || '').toLowerCase().includes('bhanu') ||
-      (b.hostelName || b.name || '').toLowerCase().includes('boys')
-    );
-
-    return defaultBlock || hostelBlocks?.[0];
-  }, [hostelBlocks, user]);
-
   const wardenTargetBlocks = useMemo(() => {
     if (!isWardenRole) return hostelBlocks;
+    if (!hostelBlocks || hostelBlocks.length === 0) return [];
+
     const uName = (user?.name || '').toLowerCase().trim();
     const uFirst = uName ? uName.split(' ')[0] : '';
     const uEmail = (user?.email || '').toLowerCase().trim();
+    const uEmpId = ((user as any)?.empId || (user as any)?.employeeId || '').toLowerCase().trim();
 
-    const matched = hostelBlocks.filter(b => {
-      const wName = (b.wardenName || (b as any).warden || '').toLowerCase().trim();
-      const wEmail = (b.email || (b as any).wardenEmail || '').toLowerCase().trim();
-      if (uEmail && wEmail && wEmail === uEmail) return true;
-      if (uFirst && wName && (wName.includes(uFirst) || uFirst.includes(wName.split(' ')[0]))) return true;
+    // 1. Check wardens allocation records first
+    const myWardenAllocations = (wardens || []).filter(w => {
+      const wEmail = (w.emailAddress || w.email || '').toLowerCase().trim();
+      const wEmpId = (w.employeeId || w.empId || '').toLowerCase().trim();
+      const wName = (w.wardenName || w.name || '').toLowerCase().trim();
+      if (uEmpId && wEmpId && uEmpId === wEmpId) return true;
+      if (uEmail && wEmail && uEmail === wEmail) return true;
+      if (uName && wName && (uName === wName || wName.includes(uName) || uName.includes(wName))) return true;
       return false;
     });
 
-    if (matched.length > 0) return matched;
-    return wardenAssignedBlock ? [wardenAssignedBlock] : hostelBlocks;
-  }, [hostelBlocks, isWardenRole, user, wardenAssignedBlock]);
+    if (myWardenAllocations.length > 0) {
+      const assignedHostelIds = new Set(myWardenAllocations.map(w => String(w.hostelId)));
+      const assignedHostelNames = new Set(myWardenAllocations.map(w => (w.hostelName || '').toLowerCase().trim()));
+      const matched = hostelBlocks.filter(b =>
+        assignedHostelIds.has(String(b.hostelId || b.id)) ||
+        assignedHostelNames.has((b.hostelName || b.name || '').toLowerCase().trim())
+      );
+      if (matched.length > 0) return matched;
+      return myWardenAllocations.map(w => ({
+        id: w.hostelId,
+        hostelId: w.hostelId,
+        name: w.hostelName,
+        hostelName: w.hostelName
+      }));
+    }
+
+    // 2. Direct match on block's warden field
+    const directlyAssigned = hostelBlocks.filter(b => {
+      const wName = (b.wardenName || (b as any).warden || '').toLowerCase().trim();
+      const wEmail = (b.email || (b as any).wardenEmail || '').toLowerCase().trim();
+      if (!wName || wName.includes('unassigned')) return false;
+      if (uEmail && wEmail && uEmail === wEmail) return true;
+      if (uName && wName && (wName === uName || (uFirst && wName.includes(uFirst)))) return true;
+      return false;
+    });
+
+    if (directlyAssigned.length > 0) return directlyAssigned;
+
+    // Strict: If not assigned, return empty array. DO NOT default to any block!
+    return [];
+  }, [hostelBlocks, wardens, isWardenRole, user]);
+
+  const wardenAssignedBlock = useMemo(() => {
+    return wardenTargetBlocks.length > 0 ? wardenTargetBlocks[0] : null;
+  }, [wardenTargetBlocks]);
 
   useEffect(() => {
-    if (isWardenRole && wardenTargetBlocks.length > 0) {
-      const firstId = String(wardenTargetBlocks[0]?.hostelId || wardenTargetBlocks[0]?.id || '');
-      if (firstId && (wardenSelectedBlockId === 'All' || !wardenSelectedBlockId || !wardenTargetBlocks.some(b => String(b.hostelId || b.id) === wardenSelectedBlockId))) {
-        setWardenSelectedBlockId(firstId);
+    if (isWardenRole) {
+      if (wardenTargetBlocks.length > 0) {
+        const firstId = String(wardenTargetBlocks[0]?.hostelId || wardenTargetBlocks[0]?.id || '');
+        if (firstId && (wardenSelectedBlockId === 'All' || !wardenSelectedBlockId || !wardenTargetBlocks.some(b => String(b.hostelId || b.id) === wardenSelectedBlockId))) {
+          setWardenSelectedBlockId(firstId);
+        }
+      } else {
+        setWardenSelectedBlockId('');
       }
     }
   }, [isWardenRole, wardenTargetBlocks, wardenSelectedBlockId]);
 
   const wardenAssignedBlockName = useMemo(() => {
     if (wardenAssignedBlock) {
-      return wardenAssignedBlock.hostelName || wardenAssignedBlock.name || 'Ramachandra Bhavan (Block A)';
+      return wardenAssignedBlock.hostelName || wardenAssignedBlock.name || 'Assigned Block';
     }
-    return 'Ramachandra Bhavan (Block A)';
+    return 'No Block Assigned';
   }, [wardenAssignedBlock]);
 
   const wardenHostelStudents = useMemo(() => {
+    // If user is a warden with no assigned blocks, they have 0 resident students
+    if (isWardenRole && wardenTargetBlocks.length === 0) {
+      return [];
+    }
+
     const activeBlockId = (wardenSelectedBlockId && wardenSelectedBlockId !== 'All')
       ? wardenSelectedBlockId
       : (wardenTargetBlocks?.[0] ? String(wardenTargetBlocks[0]?.hostelId || wardenTargetBlocks[0]?.id || '') : '');
 
+    if (!activeBlockId && isWardenRole) {
+      return [];
+    }
+
     const selectedBlockObj = hostelBlocks.find(b => String(b.hostelId || b.id) === activeBlockId) || wardenAssignedBlock;
+    if (!selectedBlockObj && isWardenRole) {
+      return [];
+    }
+
     const targetBlockName = (selectedBlockObj?.hostelName || selectedBlockObj?.name || '').toLowerCase().trim();
 
     const matchesBlockName = (nameA?: string, nameB?: string) => {
@@ -995,7 +1070,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
     // Get active allocations for target block
     const targetAllocations = allocations.filter(a => {
       if (!a || a.status === 'Vacated' || a.status === 'Inactive') return false;
-      if (!activeBlockId || activeBlockId === 'All') return true;
+      if (!activeBlockId || activeBlockId === 'All') return !isWardenRole;
       if (a.hostelId && String(a.hostelId) === String(activeBlockId)) return true;
       if (targetBlockName && matchesBlockName(a.hostelName, targetBlockName)) return true;
       return false;
@@ -1017,19 +1092,28 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
 
       const sId = String(s.id || '').toLowerCase().trim();
       const sAdm = String(s.admissionNo || '').toLowerCase().trim();
+      const sRoll = String(s.rollNo || '').toLowerCase().trim();
+      const sStuId = String((s as any).studentId || '').toLowerCase().trim();
       const sName = `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase().trim();
       const hBlock = String((s as any).hostelBlock || (s as any).blockName || (s as any).hostelName || '').toLowerCase().trim();
 
-      const hasDirectAllocation = allocatedStudentKeys.has(sId) || allocatedStudentKeys.has(sAdm) || allocatedStudentKeys.has(sName);
+      const hasDirectAllocation = allocatedStudentKeys.has(sId) || allocatedStudentKeys.has(sAdm) || allocatedStudentKeys.has(sName) || allocatedStudentKeys.has(sRoll) || allocatedStudentKeys.has(sStuId);
       const isTargetBlockExplicit = targetBlockName && matchesBlockName(hBlock, targetBlockName);
-      const isHostellerType = (s as any).studentType === 'Hosteller' || (s as any).studentType === 'Residential' || (s as any).isHosteller || Boolean(hBlock);
 
-      const isMatch = hasDirectAllocation || isTargetBlockExplicit || (!targetBlockName && isHostellerType) || (targetAllocations.length === 0 && isHostellerType && (!hBlock || matchesBlockName(hBlock, targetBlockName)));
+      const isMatch = hasDirectAllocation || isTargetBlockExplicit;
 
       if (isMatch) {
-        const key = sAdm || sId || sName;
-        if (key && !seenStudentKeys.has(key)) {
-          seenStudentKeys.add(key);
+        const isAlreadyAdded = (sAdm && seenStudentKeys.has(sAdm)) ||
+                               (sId && seenStudentKeys.has(sId)) ||
+                               (sRoll && seenStudentKeys.has(sRoll)) ||
+                               (sStuId && seenStudentKeys.has(sStuId)) ||
+                               (sName && seenStudentKeys.has(sName));
+        if (!isAlreadyAdded) {
+          if (sAdm) seenStudentKeys.add(sAdm);
+          if (sId) seenStudentKeys.add(sId);
+          if (sRoll) seenStudentKeys.add(sRoll);
+          if (sStuId) seenStudentKeys.add(sStuId);
+          if (sName) seenStudentKeys.add(sName);
           rosterStudents.push(s);
         }
       }
@@ -1044,21 +1128,55 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
       if ((sAdm && seenStudentKeys.has(sAdm)) || (sId && seenStudentKeys.has(sId)) || (sName && seenStudentKeys.has(sName))) {
         return;
       }
-      const key = sAdm || sId || sName || `alloc_${idx}`;
-      seenStudentKeys.add(key);
+
+      // Check if matches any existing student in apiStudents
+      const matchedApiStudent = apiStudents.find(st => {
+        const stId = String(st.id || '').toLowerCase().trim();
+        const stAdm = String(st.admissionNo || '').toLowerCase().trim();
+        const stRoll = String(st.rollNo || '').toLowerCase().trim();
+        const stStuId = String((st as any).studentId || '').toLowerCase().trim();
+        const stName = `${st.firstName || ''} ${st.lastName || ''}`.toLowerCase().trim();
+        return (sId && (stId === sId || stAdm === sId || stRoll === sId || stStuId === sId)) ||
+               (sAdm && (stId === sAdm || stAdm === sAdm || stRoll === sAdm || stStuId === sAdm)) ||
+               (sName && stName === sName);
+      });
+
+      if (matchedApiStudent) {
+        const mId = String(matchedApiStudent.id || '').toLowerCase().trim();
+        const mAdm = String(matchedApiStudent.admissionNo || '').toLowerCase().trim();
+        const mRoll = String(matchedApiStudent.rollNo || '').toLowerCase().trim();
+        const mStuId = String((matchedApiStudent as any).studentId || '').toLowerCase().trim();
+        const mName = `${matchedApiStudent.firstName || ''} ${matchedApiStudent.lastName || ''}`.toLowerCase().trim();
+        if ((mId && seenStudentKeys.has(mId)) || (mAdm && seenStudentKeys.has(mAdm)) || (mRoll && seenStudentKeys.has(mRoll)) || (mStuId && seenStudentKeys.has(mStuId)) || (mName && seenStudentKeys.has(mName))) {
+          return;
+        }
+        if (mId) seenStudentKeys.add(mId);
+        if (mAdm) seenStudentKeys.add(mAdm);
+        if (mRoll) seenStudentKeys.add(mRoll);
+        if (mStuId) seenStudentKeys.add(mStuId);
+        if (mName) seenStudentKeys.add(mName);
+        rosterStudents.push(matchedApiStudent);
+        return;
+      }
+
+      if (sAdm) seenStudentKeys.add(sAdm);
+      if (sId) seenStudentKeys.add(sId);
+      if (sName) seenStudentKeys.add(sName);
 
       const nameParts = (alloc.studentName || 'Hostel Student').split(' ');
+      const fallbackStuId = alloc.admissionNo || (alloc as any).studentCode || (alloc as any).rollNo || (alloc.studentId && !String(alloc.studentId).startsWith('hst_') ? `STU-2026-${String(alloc.studentId).padStart(4, '0')}` : `STU-HST-${String(idx + 1).padStart(4, '0')}`);
       rosterStudents.push({
-        id: alloc.studentId || `hst_${idx + 1}`,
-        admissionNo: alloc.admissionNo || `ADM-HST-${idx + 1}`,
-        rollNo: (alloc as any).rollNo || `R-${100 + idx + 1}`,
+        id: String(alloc.studentId || `hst_${idx + 1}`),
+        studentId: fallbackStuId,
+        admissionNo: fallbackStuId,
+        rollNo: fallbackStuId,
         firstName: nameParts[0] || 'Hostel',
         lastName: nameParts.slice(1).join(' ') || 'Student',
         className: (alloc as any).className || 'Class 1',
         section: (alloc as any).section || 'A',
         studentType: 'Hosteller',
         status: 'Active',
-        hostelBlock: alloc.hostelName || selectedBlockObj?.hostelName || 'Bhanu Block',
+        hostelBlock: alloc.hostelName || selectedBlockObj?.hostelName || '',
         roomNumber: alloc.roomNumber || '101',
         bedNumber: alloc.bedNumber || 'BED-1',
         joiningDate: alloc.joiningDate,
@@ -1072,10 +1190,17 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
 
       const sId = String(s.id || '').toLowerCase().trim();
       const sAdm = String(s.admissionNo || '').toLowerCase().trim();
-      const alloc = targetAllocations.find(a =>
-        (a.studentId && String(a.studentId).toLowerCase().trim() === sId) ||
-        (a.admissionNo && String(a.admissionNo).toLowerCase().trim() === sAdm)
-      );
+      const sRoll = String(s.rollNo || '').toLowerCase().trim();
+      const sStuId = String((s as any).studentId || '').toLowerCase().trim();
+      const sFullName = `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase().trim();
+      const alloc = targetAllocations.find(a => {
+        const aId = String(a.studentId || '').toLowerCase().trim();
+        const aAdm = String(a.admissionNo || '').toLowerCase().trim();
+        const aName = String(a.studentName || '').toLowerCase().trim();
+        return (aId && (aId === sId || aId === sAdm || aId === sRoll || aId === sStuId)) ||
+               (aAdm && (aAdm === sAdm || aAdm === sId || aAdm === sRoll || aAdm === sStuId)) ||
+               (aName && aName === sFullName);
+      });
 
       const rawRoom = String((alloc?.roomNumber || (s as any).roomNumber || (s as any).roomNo || (s as any).room || '')).trim().replace(/^Room\s*#/i, '');
       const rawFloor = String(alloc?.floorLevel || (s as any).floorLevel || (s as any).floor || '').trim();
@@ -1115,7 +1240,8 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
 
       const fullName = `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase();
       const q = wardenSearchQuery.trim().toLowerCase();
-      const matchesSearch = !q || fullName.includes(q) || (s.admissionNo || '').toLowerCase().includes(q) || (s.rollNo || '').toLowerCase().includes(q);
+      const dispId = getDisplayStudentId(s).toLowerCase();
+      const matchesSearch = !q || fullName.includes(q) || dispId.includes(q) || (s.admissionNo || '').toLowerCase().includes(q) || (s.rollNo || '').toLowerCase().includes(q) || String(s.id || '').toLowerCase().includes(q);
 
       return matchesClass && matchesFloor && matchesRoom && matchesSearch;
     });
@@ -1126,8 +1252,9 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
 
   // Available Floor Options
   const wardenFloorOptions = useMemo(() => {
+    if (isWardenRole && wardenTargetBlocks.length === 0) return ['All Floors'];
     const floorsSet = new Set<string>();
-    apiStudents.forEach(s => {
+    wardenHostelStudents.forEach(s => {
       const sId = String(s.id || '').toLowerCase().trim();
       const sAdm = String(s.admissionNo || '').toLowerCase().trim();
       const alloc = allocations.find(a =>
@@ -1149,12 +1276,13 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
     });
     const list = Array.from(floorsSet).filter(f => f && f.toUpperCase() !== 'N/A').sort();
     return ['All Floors', ...list];
-  }, [apiStudents, allocations]);
+  }, [isWardenRole, wardenTargetBlocks, wardenHostelStudents, allocations]);
 
   // Available Room Options
   const wardenRoomOptions = useMemo(() => {
+    if (isWardenRole && wardenTargetBlocks.length === 0) return ['All Rooms'];
     const roomsSet = new Set<string>();
-    apiStudents.forEach(s => {
+    wardenHostelStudents.forEach(s => {
       const sId = String(s.id || '').toLowerCase().trim();
       const sAdm = String(s.admissionNo || '').toLowerCase().trim();
       const alloc = allocations.find(a =>
@@ -1168,7 +1296,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
     });
     const list = Array.from(roomsSet).filter(r => r && !r.toUpperCase().includes('N/A')).sort();
     return ['All Rooms', ...list];
-  }, [apiStudents, allocations]);
+  }, [isWardenRole, wardenTargetBlocks, wardenHostelStudents, allocations]);
 
   // Available Classes
   const wardenClassOptions = useMemo(() => {
@@ -1193,7 +1321,19 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
               Hostel Students
             </h1>
           </div>
-          <ExportButton data={wardenHostelStudents} filename="hostel_students" />
+          <ExportButton
+            disabled={isWardenRole && (wardenTargetBlocks.length === 0 || wardenHostelStudents.length === 0)}
+            data={wardenHostelStudents.map(s => ({
+              'Student ID': getDisplayStudentId(s),
+              'Student Name': `${s.firstName || ''} ${s.lastName || ''}`.trim(),
+              'Class & Section': `${s.className || ''} - ${s.section || ''}`,
+              'Hostel Block': (s as any).hostelBlock || (s as any).hostelName || wardenAssignedBlockName || '-',
+              'Room & Bed': `Room: ${(s as any).roomNumber || (s as any).roomNo || '101'} • Bed: ${(s as any).bedNumber || (s as any).bedNo || 'BED-1'}`,
+              'Guardian Contact': s.fatherPhone || s.guardianPhone || s.contactPhone || '9876543210',
+              'Status': s.status || 'Active'
+            }))}
+            filename="hostel_students"
+          />
         </div>
 
         {/* Warden Filters Bar */}
@@ -1205,9 +1345,10 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
               <input
                 type="text"
                 placeholder="Search..."
+                disabled={isWardenRole && wardenTargetBlocks.length === 0}
                 value={wardenSearchQuery}
                 onChange={e => { setWardenSearchQuery(e.target.value); setWardenCurrentPage(1); }}
-                className="w-full pl-9 pr-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition-all h-[34px]"
+                className="w-full pl-9 pr-3.5 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-900 dark:text-white outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition-all h-[34px] disabled:opacity-50 disabled:cursor-not-allowed"
               />
             </div>
 
@@ -1227,16 +1368,18 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
                   ))}
                 </select>
               ) : (
-                <div className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center h-[34px] truncate">
-                  {wardenAssignedBlockName}
+                <div className="px-3 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-900/40 text-xs font-bold text-amber-700 dark:text-amber-400 flex items-center gap-1.5 h-[34px] truncate">
+                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                  No Block Assigned
                 </div>
               )}
 
               {/* Floor Filter */}
               <select
+                disabled={isWardenRole && wardenTargetBlocks.length === 0}
                 value={wardenSelectedFloor}
                 onChange={e => { setWardenSelectedFloor(e.target.value); setWardenCurrentPage(1); }}
-                className="px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer h-[34px] hover:border-sky-400 focus:border-sky-500 transition-colors"
+                className="px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer h-[34px] hover:border-sky-400 focus:border-sky-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {wardenFloorOptions.map(f => (
                   <option key={f} value={f}>{f}</option>
@@ -1245,9 +1388,10 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
 
               {/* Room Filter */}
               <select
+                disabled={isWardenRole && wardenTargetBlocks.length === 0}
                 value={wardenSelectedRoom}
                 onChange={e => { setWardenSelectedRoom(e.target.value); setWardenCurrentPage(1); }}
-                className="px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer h-[34px] hover:border-sky-400 focus:border-sky-500 transition-colors"
+                className="px-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-200 outline-none cursor-pointer h-[34px] hover:border-sky-400 focus:border-sky-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {wardenRoomOptions.map(r => (
                   <option key={r} value={r}>{r}</option>
@@ -1272,7 +1416,12 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
 
           {/* Active Filter Status */}
           <div className="flex items-center justify-between text-xs font-extrabold text-slate-500 border-t border-slate-100 dark:border-slate-800 pt-2.5">
-            <span>Showing <strong className="text-slate-900 dark:text-white">{wardenHostelStudents.length}</strong> Resident Hostel Students</span>
+            <span>
+              Showing <strong className="text-slate-900 dark:text-white">{wardenHostelStudents.length}</strong> Resident Hostel Students
+              {isWardenRole && wardenTargetBlocks.length === 0 && (
+                <span className="ml-2 text-amber-600 dark:text-amber-400 font-bold">(No Block Assigned)</span>
+              )}
+            </span>
           </div>
         </div>
 
@@ -1295,7 +1444,15 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
                 {wardenPaginatedStudents.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="text-center py-12 text-slate-400 font-bold">
-                      No hostel resident students match the selected block and class filters.
+                      {isWardenRole && wardenTargetBlocks.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center gap-2 py-6 text-slate-400">
+                          <AlertCircle className="w-8 h-8 text-amber-500" />
+                          <p className="text-sm font-black text-slate-700 dark:text-slate-200">No Hostel Block Assigned</p>
+                          <p className="text-xs text-slate-500 font-normal max-w-md">No hostel block is currently assigned to your account. Please contact an administrator to assign a hostel block to view resident students.</p>
+                        </div>
+                      ) : (
+                        "No hostel resident students match the selected block and class filters."
+                      )}
                     </td>
                   </tr>
                 ) : (
@@ -1307,14 +1464,14 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
                         String(a.studentName).toLowerCase().trim() === `${s.firstName} ${s.lastName}`.toLowerCase().trim()
                       )
                     );
-                    const displayBlock = matchingAlloc?.hostelName || (s as any).hostelBlock || (s as any).blockName || 'Bhanu Block';
+                    const displayBlock = matchingAlloc?.hostelName || (s as any).hostelBlock || (s as any).blockName || wardenAssignedBlockName || 'Hostel Block';
                     const displayRoom = matchingAlloc?.roomNumber || (s as any).roomNo || (s as any).roomNumber || '101';
                     const displayBed = matchingAlloc?.bedNumber || (s as any).bedNo || (s as any).bedNumber || 'BED-1';
 
                     return (
                       <tr key={s.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
-                        <td className="py-2.5 px-3 font-mono font-bold text-brand-600 dark:text-brand-400 text-center">
-                          {s.id}
+                        <td className="py-2.5 px-3 font-mono font-bold text-brand-600 dark:text-brand-400 text-center whitespace-nowrap">
+                          {getDisplayStudentId(s)}
                         </td>
                         <td className="py-2.5 px-3 text-center">
                           <span className="font-bold text-slate-900 dark:text-white block">{s.firstName} {s.lastName}</span>

@@ -119,6 +119,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const selectedAcademicYear = authCtx.selectedAcademicYear;
   const safeRole = (role || user?.role || '').toLowerCase();
   const isSuperAdmin = safeRole.includes("super admin") || safeRole.includes("superadmin");
+  const isAdmin = safeRole.includes("admin") || safeRole.includes("principal");
   const dataCtx = useData() || {};
   const schoolProfile = dataCtx.schoolProfile;
   const admissions = Array.isArray(dataCtx.admissions) ? dataCtx.admissions : [];
@@ -660,6 +661,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [pendingStaffRequestsCount, setPendingStaffRequestsCount] = useState<number>(0);
 
   React.useEffect(() => {
+    if (!isAdmin) {
+      setPendingStaffRequestsCount(0);
+      return;
+    }
     let active = true;
     const fetchPendingCount = async () => {
       try {
@@ -677,7 +682,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       active = false;
       window.removeEventListener("staff_requests_updated", fetchPendingCount);
     };
-  }, []);
+  }, [isAdmin]);
 
   const financeSubItems =
     safeRole === "parent" || safeRole === "student"
@@ -841,7 +846,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             id: "staff-requests",
             label: "Staff Requests",
             icon: FileCheck,
-            badge: pendingStaffRequestsCount > 0 ? `${pendingStaffRequestsCount}` : undefined,
+            badge: isAdmin && pendingStaffRequestsCount > 0 ? `${pendingStaffRequestsCount}` : undefined,
           },
           { id: "staff-letters", label: "Offer & Relieving", icon: FileText },
           {
@@ -2129,7 +2134,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         </div>
                         {!effectiveCollapsed && (
                           <div className="flex items-center gap-1.5 shrink-0">
-                            {pendingStaffRequestsCount > 0 && !staffExpanded && (
+                            {isAdmin && pendingStaffRequestsCount > 0 && !staffExpanded && (
                               <span className="px-1.5 py-0.5 rounded-full text-[10px] font-black bg-rose-500 text-white shadow-xs animate-pulse">
                                 {pendingStaffRequestsCount}
                               </span>
@@ -2141,7 +2146,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             )}
                           </div>
                         )}
-                        {effectiveCollapsed && pendingStaffRequestsCount > 0 && (
+                        {effectiveCollapsed && isAdmin && pendingStaffRequestsCount > 0 && (
                           <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white dark:ring-slate-900 animate-pulse" />
                         )}
                       </button>

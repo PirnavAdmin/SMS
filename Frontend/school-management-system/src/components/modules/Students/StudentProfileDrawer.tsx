@@ -495,7 +495,7 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
                 </Badge>
               </div>
               <p className="text-xs sm:text-sm text-brand-100">
-                ID: <strong className="text-white font-mono">{liveStudent.id}</strong> • {liveStudent.className}-{liveStudent.section} • Roll: <strong className="text-white">{liveStudent.rollNo}</strong> • Adm: <strong className="text-white">{liveStudent.admissionNo}</strong> • <span className="font-bold text-amber-300">{liveStudent.branch || matchingAdmission?.branch || '-'}</span>
+                Student ID: <strong className="text-white font-mono">{(liveStudent.rollNo?.toUpperCase().startsWith('STU-') ? liveStudent.rollNo : (liveStudent.admissionNo?.toUpperCase().startsWith('STU-') ? liveStudent.admissionNo : ((liveStudent as any).studentId || liveStudent.admissionNo || liveStudent.rollNo || liveStudent.id)))}</strong> • {liveStudent.className}-{liveStudent.section} • <span className="font-bold text-amber-300">{liveStudent.branch || matchingAdmission?.branch || '-'}</span>
               </p>
               <div className="flex items-center gap-4 pt-1 text-xs text-white/90 flex-wrap">
                 <span className="flex items-center gap-1.5"><Mail className="w-3.5 h-3.5 opacity-80" /> {studentEmail}</span>
@@ -1362,10 +1362,9 @@ export const StudentProfileDrawer: React.FC<StudentProfileDrawerProps> = ({
                       <div className="w-full grid grid-cols-2 gap-2 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 text-[10px]">
                         <div>
                           <span className="text-slate-400 font-medium block">Student ID:</span>
-                          <span className="font-mono font-black text-brand-700 dark:text-brand-300">{liveStudent.id}</span>
-                          {liveStudent.admissionNo && (
-                            <span className="text-[8px] text-slate-400 block font-mono">Adm: {liveStudent.admissionNo}</span>
-                          )}
+                          <span className="font-mono font-black text-brand-700 dark:text-brand-300">
+                            {(liveStudent.rollNo?.toUpperCase().startsWith('STU-') ? liveStudent.rollNo : (liveStudent.admissionNo?.toUpperCase().startsWith('STU-') ? liveStudent.admissionNo : ((liveStudent as any).studentId || liveStudent.admissionNo || liveStudent.rollNo || liveStudent.id)))}
+                          </span>
                         </div>
                         <div>
                           <span className="text-slate-400 font-medium block">Date of Birth:</span>
