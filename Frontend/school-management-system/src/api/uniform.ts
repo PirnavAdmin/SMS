@@ -6,7 +6,10 @@ const safeUniformApiCall = async <T>(endpoint: string, options?: RequestInit, fa
     if (res !== undefined && res !== null && !(res as any)?.error) {
       return (res as any)?.data !== undefined ? (res as any).data : res;
     }
-  } catch (err) {
+  } catch (err: any) {
+    if (err?.name === 'AbortError') {
+      return fallbackData as T;
+    }
     const method = options?.method?.toUpperCase() || 'GET';
     if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
       throw err;
