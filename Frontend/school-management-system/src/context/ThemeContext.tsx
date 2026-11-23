@@ -60,12 +60,14 @@ export const getActiveUserKey = (emailOrId?: string): string => {
     return emailOrId.trim().toLowerCase();
   }
   try {
-    const saved = localStorage.getItem('auth_user');
+    const saved = localStorage.getItem('auth_user') || localStorage.getItem('user');
     if (saved) {
       const parsed = JSON.parse(saved);
-      if (parsed?.email) return String(parsed.email).trim().toLowerCase();
-      if (parsed?.id) return String(parsed.id).trim().toLowerCase();
-      if (parsed?.username) return String(parsed.username).trim().toLowerCase();
+      if (parsed?.email && String(parsed.email).trim()) return String(parsed.email).trim().toLowerCase();
+      if (parsed?.id && String(parsed.id).trim()) return String(parsed.id).trim().toLowerCase();
+      if (parsed?.username && String(parsed.username).trim()) return String(parsed.username).trim().toLowerCase();
+      if (parsed?.empId && String(parsed.empId).trim()) return String(parsed.empId).trim().toLowerCase();
+      if (parsed?.name && String(parsed.name).trim()) return String(parsed.name).trim().toLowerCase();
     }
   } catch {}
   return 'default';
@@ -112,11 +114,37 @@ export const getSchoolDefaultTheme = (): ThemeColors => {
  */
 export const getUserPersonalTheme = (userKey?: string): ThemeColors | null => {
   const key = getActiveUserKey(userKey);
-  if (!key || key === 'default') return null;
   try {
-    const saved = localStorage.getItem(USER_THEME_KEY_PREFIX + key);
-    if (saved) {
-      const parsed = JSON.parse(saved);
+    // 1. Check user-specific key
+    if (key && key !== 'default') {
+      const saved = localStorage.getItem(USER_THEME_KEY_PREFIX + key);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed?.primary && parsed?.secondary) {
+          return {
+            primary: parsed.primary,
+            secondary: parsed.secondary,
+            updatedAt: parsed.updatedAt,
+          };
+        }
+      }
+    }
+    // 2. Check universal active session override key (always keeps the user's active personal screen theme)
+    const currentPersonal = localStorage.getItem(USER_THEME_KEY_PREFIX + 'current');
+    if (currentPersonal) {
+      const parsed = JSON.parse(currentPersonal);
+      if (parsed?.primary && parsed?.secondary) {
+        return {
+          primary: parsed.primary,
+          secondary: parsed.secondary,
+          updatedAt: parsed.updatedAt,
+        };
+      }
+    }
+    // 3. Check default user key
+    const defaultSaved = localStorage.getItem(USER_THEME_KEY_PREFIX + 'default');
+    if (defaultSaved) {
+      const parsed = JSON.parse(defaultSaved);
       if (parsed?.primary && parsed?.secondary) {
         return {
           primary: parsed.primary,
@@ -325,10 +353,16 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setSecondary(superAdminTheme.secondary);
       applyThemeToDocument(superAdminTheme.primary, superAdminTheme.secondary);
     } else {
-      const activeSchool = isUserOverride ? getUserPersonalTheme(activeUserKey) || schoolDefaultTheme : schoolDefaultTheme;
-      setPrimary(activeSchool.primary);
-      setSecondary(activeSchool.secondary);
-      applyThemeToDocument(activeSchool.primary, activeSchool.secondary);
+      const personalTheme = isUserOverride ? getUserPersonalTheme(activeUserKey) : null;
+      if (isUserOverride && personalTheme) {
+        setPrimary(personalTheme.primary);
+        setSecondary(personalTheme.secondary);
+        applyThemeToDocument(personalTheme.primary, personalTheme.secondary);
+      } else if (!isUserOverride) {
+        setPrimary(schoolDefaultTheme.primary);
+        setSecondary(schoolDefaultTheme.secondary);
+        applyThemeToDocument(schoolDefaultTheme.primary, schoolDefaultTheme.secondary);
+      }
     }
   }, [isLandingPage, isSuperAdminScreen, superAdminTheme, schoolDefaultTheme, isUserOverride, activeUserKey]);
 
@@ -379,7 +413,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           } catch {}
         }
 
-        // 2. Resolve User Override or enforce School Default (prevent stale local colors from sticking)
+        // 3. Resolve User Override or enforce School Default
         if (data.isUserOverride && data.userTheme?.primary && data.userTheme?.secondary) {
           const uTheme: ThemeColors = {
             primary: data.userTheme.primary,
@@ -390,22 +424,31 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           setSecondary(uTheme.secondary);
           setIsUserOverride(true);
           applyThemeToDocument(uTheme.primary, uTheme.secondary);
-          if (key && key !== 'default') {
-            try {
+          try {
+            if (key && key !== 'default') {
               localStorage.setItem(USER_THEME_KEY_PREFIX + key, JSON.stringify(uTheme));
-            } catch {}
-          }
+            }
+            localStorage.setItem(USER_THEME_KEY_PREFIX + 'current', JSON.stringify(uTheme));
+          } catch {}
         } else {
-          // User has NO backend override -> discard stale local personal colors and adopt school default
-          if (key && key !== 'default') {
+          // If backend has no override, check if user has a valid local personal theme first
+          const localPersonal = getUserPersonalTheme(key);
+          if (localPersonal) {
+            // Respect locally saved user personal theme and sync to backend
+            setPrimary(localPersonal.primary);
+            setSecondary(localPersonal.secondary);
+            setIsUserOverride(true);
+            applyThemeToDocument(localPersonal.primary, localPersonal.secondary);
             try {
-              localStorage.removeItem(USER_THEME_KEY_PREFIX + key);
+              updateUserThemeApi({ primary: localPersonal.primary, secondary: localPersonal.secondary, userKey: key });
             } catch {}
+          } else {
+            // Truly no personal override -> adopt school default
+            setPrimary(effectiveSchoolDefault.primary);
+            setSecondary(effectiveSchoolDefault.secondary);
+            setIsUserOverride(false);
+            applyThemeToDocument(effectiveSchoolDefault.primary, effectiveSchoolDefault.secondary);
           }
-          setPrimary(effectiveSchoolDefault.primary);
-          setSecondary(effectiveSchoolDefault.secondary);
-          setIsUserOverride(false);
-          applyThemeToDocument(effectiveSchoolDefault.primary, effectiveSchoolDefault.secondary);
         }
       } catch (err) {
         console.warn('Backend theme sync notice:', err);
@@ -442,6 +485,8 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (currentKey && currentKey !== 'default') {
         localStorage.removeItem(USER_THEME_KEY_PREFIX + currentKey);
       }
+      localStorage.removeItem(USER_THEME_KEY_PREFIX + 'current');
+      localStorage.removeItem(USER_THEME_KEY_PREFIX + 'default');
     } catch (e) {
       console.error('Failed to save school default theme to localStorage:', e);
     }
@@ -549,14 +594,19 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       updatedAt: new Date().toISOString(),
     };
 
-    if (key && key !== 'default') {
-      try {
+    try {
+      if (key && key !== 'default') {
         localStorage.setItem(USER_THEME_KEY_PREFIX + key, JSON.stringify(updatedTheme));
-      } catch (e) {
-        console.error('Failed to save user personal theme to localStorage:', e);
       }
+      localStorage.setItem(USER_THEME_KEY_PREFIX + 'current', JSON.stringify(updatedTheme));
+      if (key === 'default') {
+        localStorage.setItem(USER_THEME_KEY_PREFIX + 'default', JSON.stringify(updatedTheme));
+      }
+    } catch (e) {
+      console.error('Failed to save user personal theme to localStorage:', e);
     }
 
+    setActiveUserKey(key);
     setPrimary(p);
     setSecondary(s);
     setIsUserOverride(true);
@@ -567,7 +617,6 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       await updateUserThemeApi({ primary: p, secondary: s, userKey: key });
     } catch (err) {
       console.warn('Failed to persist user theme to backend API:', err);
-      throw err;
     }
 
     try {
@@ -593,11 +642,13 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
    */
   const resetUserTheme = useCallback(async (targetKey?: string): Promise<void> => {
     const key = targetKey || getActiveUserKey();
-    if (key && key !== 'default') {
-      try {
+    try {
+      if (key && key !== 'default') {
         localStorage.removeItem(USER_THEME_KEY_PREFIX + key);
-      } catch (e) {}
-    }
+      }
+      localStorage.removeItem(USER_THEME_KEY_PREFIX + 'current');
+      localStorage.removeItem(USER_THEME_KEY_PREFIX + 'default');
+    } catch (e) {}
 
     const defaultTheme = schoolDefaultTheme || getSchoolDefaultTheme();
     setPrimary(defaultTheme.primary);
@@ -610,7 +661,6 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       await resetUserThemeApi(key);
     } catch (err) {
       console.warn('Failed to reset user theme on backend API:', err);
-      throw err;
     }
 
     try {
@@ -641,6 +691,8 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       if (currentKey && currentKey !== 'default') {
         localStorage.removeItem(USER_THEME_KEY_PREFIX + currentKey);
       }
+      localStorage.removeItem(USER_THEME_KEY_PREFIX + 'current');
+      localStorage.removeItem(USER_THEME_KEY_PREFIX + 'default');
     } catch (e) {
       console.error('Failed to reset school default theme:', e);
     }

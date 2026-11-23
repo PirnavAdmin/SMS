@@ -76,7 +76,9 @@ namespace SMS.Api.Controllers
         {
             if (!string.IsNullOrWhiteSpace(userKeyParam))
             {
-                return userKeyParam.Trim().ToLowerInvariant();
+                var clean = userKeyParam.Trim().ToLowerInvariant();
+                if (clean == "default" || clean == "default_user") return "default_user";
+                return clean;
             }
 
             var email = User?.FindFirst(ClaimTypes.Email)?.Value;
@@ -88,7 +90,7 @@ namespace SMS.Api.Controllers
             var name = User?.FindFirst(ClaimTypes.Name)?.Value;
             if (!string.IsNullOrWhiteSpace(name)) return name.Trim().ToLowerInvariant();
 
-            return null;
+            return "default_user";
         }
 
         // GET: api/Theme
@@ -104,10 +106,18 @@ namespace SMS.Api.Controllers
                 ThemeItemDto? userTheme = null;
                 var isUserOverride = false;
 
-                if (!string.IsNullOrWhiteSpace(key) && container.UserThemes.TryGetValue(key, out var overrideTheme))
+                if (!string.IsNullOrWhiteSpace(key))
                 {
-                    userTheme = overrideTheme;
-                    isUserOverride = true;
+                    if (container.UserThemes.TryGetValue(key, out var overrideTheme))
+                    {
+                        userTheme = overrideTheme;
+                        isUserOverride = true;
+                    }
+                    else if (key == "default_user" && container.UserThemes.TryGetValue("default", out var legacyTheme))
+                    {
+                        userTheme = legacyTheme;
+                        isUserOverride = true;
+                    }
                 }
 
                 var effectiveTheme = userTheme ?? container.SchoolDefault;
@@ -369,9 +379,20 @@ namespace SMS.Api.Controllers
                 var (settings, container) = await GetThemeContainerAsync();
                 var key = ResolveUserKey(userKey);
 
+                var changed = false;
                 if (!string.IsNullOrWhiteSpace(key) && container.UserThemes.ContainsKey(key))
                 {
                     container.UserThemes.Remove(key);
+                    changed = true;
+                }
+                if (key == "default_user" && container.UserThemes.ContainsKey("default"))
+                {
+                    container.UserThemes.Remove("default");
+                    changed = true;
+                }
+
+                if (changed)
+                {
                     settings.ThemeSettingsJson = JsonSerializer.Serialize(container);
                     settings.UpdatedAt = DateTime.UtcNow;
                     await _context.SaveChangesAsync();

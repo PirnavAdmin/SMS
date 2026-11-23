@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { HexColorPicker, HexColorInput } from 'react-colorful';
-import { useTheme, DEFAULT_THEME, applyThemeToDocument } from '../context/ThemeContext';
+import { useTheme, DEFAULT_THEME, applyThemeToDocument, getUserPersonalTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import {
@@ -184,20 +184,54 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ className = ''
   }, [isSuperAdminMode, authRole, authUser]);
 
   // Target Scope: 'school' (all users default) or 'personal' (current user screen only)
-  const [applyScope, setApplyScope] = useState<'school' | 'personal'>(isAdmin ? 'school' : 'personal');
+  // If user already has a personal theme applied, default to 'personal' so they see and manage their screen theme!
+  const [applyScope, setApplyScope] = useState<'school' | 'personal'>(() => {
+    if (!isAdmin) return 'personal';
+    return isUserOverride ? 'personal' : 'school';
+  });
 
-  useEffect(() => {
-    setApplyScope(isAdmin ? 'school' : 'personal');
-  }, [isAdmin]);
+  // Helper to determine the baseline colors for each scope
+  const getScopeColors = useCallback((scope: 'school' | 'personal') => {
+    if (isSuperAdminMode) {
+      return {
+        primary: normalizeHex(superAdminTheme?.primary || primary || DEFAULT_THEME.primary),
+        secondary: normalizeHex(superAdminTheme?.secondary || secondary || DEFAULT_THEME.secondary),
+      };
+    }
+    if (scope === 'school') {
+      return {
+        primary: normalizeHex(schoolDefaultTheme?.primary || DEFAULT_THEME.primary),
+        secondary: normalizeHex(schoolDefaultTheme?.secondary || DEFAULT_THEME.secondary),
+      };
+    }
+    // 'personal' scope
+    const personal = getUserPersonalTheme();
+    if (personal?.primary && personal?.secondary) {
+      return {
+        primary: normalizeHex(personal.primary),
+        secondary: normalizeHex(personal.secondary),
+      };
+    }
+    if (isUserOverride && primary && secondary) {
+      return {
+        primary: normalizeHex(primary),
+        secondary: normalizeHex(secondary),
+      };
+    }
+    return {
+      primary: normalizeHex(schoolDefaultTheme?.primary || DEFAULT_THEME.primary),
+      secondary: normalizeHex(schoolDefaultTheme?.secondary || DEFAULT_THEME.secondary),
+    };
+  }, [isSuperAdminMode, superAdminTheme, primary, secondary, schoolDefaultTheme, isUserOverride]);
 
   const [activeTab, setActiveTab] = useState<'presets' | 'custom'>('presets');
   const [selectedPrimary, setSelectedPrimary] = useState<string>(() => {
-    if (isSuperAdminMode) return normalizeHex(superAdminTheme?.primary || primary || DEFAULT_THEME.primary);
-    return normalizeHex(primary || DEFAULT_THEME.primary);
+    const initScope = (!isAdmin || isUserOverride) ? 'personal' : 'school';
+    return getScopeColors(initScope).primary;
   });
   const [selectedSecondary, setSelectedSecondary] = useState<string>(() => {
-    if (isSuperAdminMode) return normalizeHex(superAdminTheme?.secondary || secondary || DEFAULT_THEME.secondary);
-    return normalizeHex(secondary || DEFAULT_THEME.secondary);
+    const initScope = (!isAdmin || isUserOverride) ? 'personal' : 'school';
+    return getScopeColors(initScope).secondary;
   });
 
   const selectedPrimaryRef = useRef(selectedPrimary);
@@ -210,6 +244,18 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ className = ''
   useEffect(() => {
     selectedSecondaryRef.current = selectedSecondary;
   }, [selectedSecondary]);
+
+  // Scope switcher: updates scope AND instantly loads that scope's active colors
+  const handleScopeChange = useCallback((newScope: 'school' | 'personal') => {
+    setApplyScope(newScope);
+    const colors = getScopeColors(newScope);
+    isSelfUpdatingRef.current = true;
+    setSelectedPrimary(colors.primary);
+    setSelectedSecondary(colors.secondary);
+    applyThemeToDocument(colors.primary, colors.secondary);
+    updateColor?.('primary', colors.primary);
+    updateColor?.('secondary', colors.secondary);
+  }, [getScopeColors, updateColor]);
 
   // Sync state if context primary/secondary changes externally
   useEffect(() => {
@@ -228,16 +274,11 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ className = ''
         setSelectedSecondary((prev) => (prev.toLowerCase() === norm ? prev : norm));
       }
     } else {
-      if (primary) {
-        const norm = normalizeHex(primary);
-        setSelectedPrimary((prev) => (prev.toLowerCase() === norm ? prev : norm));
-      }
-      if (secondary) {
-        const norm = normalizeHex(secondary);
-        setSelectedSecondary((prev) => (prev.toLowerCase() === norm ? prev : norm));
-      }
+      const colors = getScopeColors(applyScope);
+      setSelectedPrimary((prev) => (prev.toLowerCase() === colors.primary.toLowerCase() ? prev : colors.primary));
+      setSelectedSecondary((prev) => (prev.toLowerCase() === colors.secondary.toLowerCase() ? prev : colors.secondary));
     }
-  }, [isSuperAdminMode, superAdminTheme, primary, secondary]);
+  }, [isSuperAdminMode, superAdminTheme, primary, secondary, applyScope, getScopeColors]);
 
   const handlePrimaryChange = useCallback((hex: string) => {
     if (!hex) return;
@@ -278,6 +319,17 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ className = ''
     }
     onClose?.();
   }, [onClose, updateColor]);
+
+  // Restore baseline colors if modal unmounts (e.g. backdrop click or outside close) without applying
+  useEffect(() => {
+    return () => {
+      if (!isAppliedRef.current) {
+        applyThemeToDocument(initialPrimaryRef.current, initialSecondaryRef.current);
+        updateColor?.('primary', initialPrimaryRef.current);
+        updateColor?.('secondary', initialSecondaryRef.current);
+      }
+    };
+  }, [updateColor]);
 
   // Determine if Reset button should be disabled
   const isResetDisabled = useMemo<boolean>(() => {
@@ -552,7 +604,7 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ className = ''
           <div className="flex items-center gap-1 p-0.5 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 shrink-0">
             <button
               type="button"
-              onClick={() => setApplyScope('school')}
+              onClick={() => handleScopeChange('school')}
               className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
                 applyScope === 'school'
                   ? 'bg-sky-500 text-white shadow-xs'
@@ -563,7 +615,7 @@ export const ThemeCustomizer: React.FC<ThemeCustomizerProps> = ({ className = ''
             </button>
             <button
               type="button"
-              onClick={() => setApplyScope('personal')}
+              onClick={() => handleScopeChange('personal')}
               className={`px-2.5 py-1 rounded-md text-[11px] font-bold transition-all cursor-pointer ${
                 applyScope === 'personal'
                   ? 'bg-sky-500 text-white shadow-xs'
