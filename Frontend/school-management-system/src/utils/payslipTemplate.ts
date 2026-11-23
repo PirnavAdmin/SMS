@@ -70,27 +70,27 @@ export function resolvePayslipData(p: any, staffMember?: any, schoolProfile?: an
   // Company Name & Address
   const companyName = schoolProfile?.companyName ||
     schoolProfile?.name ||
-    'PIRNAV SOFTWARE SOLUTIONS PRIVATE LIMITED';
+    '';
   
   const companyAddress = schoolProfile?.address ||
-    '4th Floor, Jain Sadguru Images Capital Park, Madhapur, Hyderabad – 500081';
+    '';
 
   // Month & Year
-  let rawMonth = String(p?.month || 'OCTOBER 2026').trim();
+  let rawMonth = String(p?.month || '').trim();
   if (p?.year && !rawMonth.includes(String(p.year))) {
     rawMonth = `${rawMonth} ${p.year}`;
   }
-  const monthYearTitle = `PAY SLIP FOR THE MONTH OF ${rawMonth.toUpperCase()}`;
+  const monthYearTitle = rawMonth ? `PAY SLIP FOR THE MONTH OF ${rawMonth.toUpperCase()}` : 'PAY SLIP';
 
   // Employee Name
   const employeeName = (
     p?.employeeName ||
     (staff?.firstName ? `${staff.firstName} ${staff.lastName || ''}`.trim() : '') ||
-    'PENETI VENKATA SAI RAJESH'
+    ''
   ).toUpperCase();
 
   // Employee Code
-  const employeeCode = p?.empId || staff?.empId || staff?.employeeId || staff?.id || 'P320';
+  const employeeCode = p?.empId || staff?.empId || staff?.employeeId || staff?.id || '';
 
   // Designation
   const designation = p?.designation || staff?.designation || 'Associate Software Developer';

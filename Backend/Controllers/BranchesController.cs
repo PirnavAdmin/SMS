@@ -78,30 +78,62 @@ namespace SMS.Api.Controllers
                             PropertyNameCaseInsensitive = true
                         });
 
-                        if (jsonCampuses != null && jsonCampuses.Count > 0)
+                        if (jsonCampuses != null)
                         {
                             var existingBranches = await _context.Branches.ToListAsync();
                             bool changed = false;
 
-                            foreach (var jc in jsonCampuses)
+                            if (jsonCampuses.Count == 0)
                             {
-                                if (string.IsNullOrWhiteSpace(jc.Name)) continue;
-                                var match = existingBranches.FirstOrDefault(eb =>
-                                    string.Equals(eb.BranchName.Trim(), jc.Name.Trim(), StringComparison.OrdinalIgnoreCase) ||
-                                    (!string.IsNullOrWhiteSpace(jc.Code) && string.Equals(eb.BranchCode.Trim(), jc.Code.Trim(), StringComparison.OrdinalIgnoreCase)));
-
-                                if (match == null)
+                                foreach (var eb in existingBranches)
                                 {
-                                    _context.Branches.Add(new Branch
+                                    if (eb.Status != "Inactive")
                                     {
-                                        BranchName = jc.Name.Trim(),
-                                        BranchCode = !string.IsNullOrWhiteSpace(jc.Code) ? jc.Code.Trim().ToUpper() : jc.Name.Trim().Substring(0, Math.Min(5, jc.Name.Trim().Length)).ToUpper(),
-                                        Address = jc.Address?.Trim() ?? "",
-                                        Phone = jc.Phone?.Trim() ?? "",
-                                        Email = jc.Email?.Trim() ?? "",
-                                        Status = string.IsNullOrWhiteSpace(jc.Status) ? "Active" : jc.Status
-                                    });
-                                    changed = true;
+                                        eb.Status = "Inactive";
+                                        changed = true;
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                foreach (var eb in existingBranches)
+                                {
+                                    bool stillExists = jsonCampuses.Any(jc =>
+                                        (jc.BranchId > 0 && jc.BranchId == eb.BranchId) ||
+                                        string.Equals(eb.BranchName.Trim(), jc.Name?.Trim(), StringComparison.OrdinalIgnoreCase) ||
+                                        (!string.IsNullOrWhiteSpace(jc.Code) && string.Equals(eb.BranchCode.Trim(), jc.Code.Trim(), StringComparison.OrdinalIgnoreCase)));
+                                    if (!stillExists && eb.Status != "Inactive")
+                                    {
+                                        eb.Status = "Inactive";
+                                        changed = true;
+                                    }
+                                }
+
+                                foreach (var jc in jsonCampuses)
+                                {
+                                    if (string.IsNullOrWhiteSpace(jc.Name)) continue;
+                                    var match = existingBranches.FirstOrDefault(eb =>
+                                        string.Equals(eb.BranchName.Trim(), jc.Name.Trim(), StringComparison.OrdinalIgnoreCase) ||
+                                        (!string.IsNullOrWhiteSpace(jc.Code) && string.Equals(eb.BranchCode.Trim(), jc.Code.Trim(), StringComparison.OrdinalIgnoreCase)));
+
+                                    if (match == null)
+                                    {
+                                        _context.Branches.Add(new Branch
+                                        {
+                                            BranchName = jc.Name.Trim(),
+                                            BranchCode = !string.IsNullOrWhiteSpace(jc.Code) ? jc.Code.Trim().ToUpper() : jc.Name.Trim().Substring(0, Math.Min(5, jc.Name.Trim().Length)).ToUpper(),
+                                            Address = jc.Address?.Trim() ?? "",
+                                            Phone = jc.Phone?.Trim() ?? "",
+                                            Email = jc.Email?.Trim() ?? "",
+                                            Status = string.IsNullOrWhiteSpace(jc.Status) ? "Active" : jc.Status
+                                        });
+                                        changed = true;
+                                    }
+                                    else if (!string.IsNullOrWhiteSpace(jc.Status) && match.Status != jc.Status)
+                                    {
+                                        match.Status = jc.Status;
+                                        changed = true;
+                                    }
                                 }
                             }
 
@@ -242,8 +274,17 @@ namespace SMS.Api.Controllers
             var b = await _context.Branches.FirstOrDefaultAsync(x => x.BranchId == numId || x.BranchName.ToLower() == id.ToLower());
             if (b == null) return NotFound("Campus branch not found.");
 
-            _context.Branches.Remove(b);
-            await _context.SaveChangesAsync();
+            try
+            {
+                _context.Branches.Remove(b);
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateException)
+            {
+                _context.Entry(b).State = EntityState.Unchanged;
+                b.Status = "Inactive";
+                await _context.SaveChangesAsync();
+            }
 
             await SyncBranchesToSchoolSettingsAsync();
 
@@ -255,6 +296,7 @@ namespace SMS.Api.Controllers
             try
             {
                 var allBranches = await _context.Branches
+                    .Where(b => b.Status != "Inactive")
                     .OrderBy(b => b.BranchId)
                     .Select(b => new BranchDto
                     {

@@ -180,48 +180,75 @@ namespace SMS.Api.Repositories.Implementations.Settings
                     PropertyNameCaseInsensitive = true
                 });
 
-                if (campuses != null && campuses.Count > 0)
+                if (campuses != null)
                 {
                     var existingBranches = await _context.Branches.ToListAsync();
                     bool changed = false;
 
-                    foreach (var c in campuses)
+                    if (campuses.Count == 0)
                     {
-                        if (string.IsNullOrWhiteSpace(c.Name)) continue;
-
-                        int parsedBranchId = 0;
-                        if (c.BranchId > 0) parsedBranchId = c.BranchId;
-                        else if (!string.IsNullOrWhiteSpace(c.Id) && c.Id.StartsWith("CMP-") && int.TryParse(c.Id.Replace("CMP-", ""), out var pid)) parsedBranchId = pid;
-                        else if (!string.IsNullOrWhiteSpace(c.Id) && int.TryParse(c.Id, out var pid2)) parsedBranchId = pid2;
-
-                        var branch = existingBranches.FirstOrDefault(b => 
-                            (parsedBranchId > 0 && b.BranchId == parsedBranchId) ||
-                            string.Equals(b.BranchName.Trim(), c.Name.Trim(), StringComparison.OrdinalIgnoreCase) ||
-                            (!string.IsNullOrWhiteSpace(c.Code) && string.Equals(b.BranchCode.Trim(), c.Code.Trim(), StringComparison.OrdinalIgnoreCase))
-                        );
-
-                        if (branch != null)
+                        foreach (var eb in existingBranches)
                         {
-                            branch.BranchName = c.Name.Trim();
-                            if (!string.IsNullOrWhiteSpace(c.Code)) branch.BranchCode = c.Code.Trim().ToUpper();
-                            branch.Address = c.Address?.Trim() ?? "";
-                            branch.Phone = c.Phone?.Trim() ?? "";
-                            branch.Email = c.Email?.Trim() ?? "";
-                            branch.Status = string.IsNullOrWhiteSpace(c.Status) ? "Active" : c.Status;
-                            changed = true;
-                        }
-                        else
-                        {
-                            _context.Branches.Add(new Branch
+                            if (eb.Status != "Inactive")
                             {
-                                BranchName = c.Name.Trim(),
-                                BranchCode = !string.IsNullOrWhiteSpace(c.Code) ? c.Code.Trim().ToUpper() : c.Name.Trim().Substring(0, Math.Min(5, c.Name.Trim().Length)).ToUpper(),
-                                Address = c.Address?.Trim() ?? "",
-                                Phone = c.Phone?.Trim() ?? "",
-                                Email = c.Email?.Trim() ?? "",
-                                Status = string.IsNullOrWhiteSpace(c.Status) ? "Active" : c.Status
-                            });
-                            changed = true;
+                                eb.Status = "Inactive";
+                                changed = true;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        foreach (var eb in existingBranches)
+                        {
+                            bool stillExists = campuses.Any(c =>
+                                (c.BranchId > 0 && c.BranchId == eb.BranchId) ||
+                                string.Equals(eb.BranchName.Trim(), c.Name?.Trim(), StringComparison.OrdinalIgnoreCase) ||
+                                (!string.IsNullOrWhiteSpace(c.Code) && string.Equals(eb.BranchCode.Trim(), c.Code.Trim(), StringComparison.OrdinalIgnoreCase)));
+                            if (!stillExists && eb.Status != "Inactive")
+                            {
+                                eb.Status = "Inactive";
+                                changed = true;
+                            }
+                        }
+
+                        foreach (var c in campuses)
+                        {
+                            if (string.IsNullOrWhiteSpace(c.Name)) continue;
+
+                            int parsedBranchId = 0;
+                            if (c.BranchId > 0) parsedBranchId = c.BranchId;
+                            else if (!string.IsNullOrWhiteSpace(c.Id) && c.Id.StartsWith("CMP-") && int.TryParse(c.Id.Replace("CMP-", ""), out var pid)) parsedBranchId = pid;
+                            else if (!string.IsNullOrWhiteSpace(c.Id) && int.TryParse(c.Id, out var pid2)) parsedBranchId = pid2;
+
+                            var branch = existingBranches.FirstOrDefault(b => 
+                                (parsedBranchId > 0 && b.BranchId == parsedBranchId) ||
+                                string.Equals(b.BranchName.Trim(), c.Name.Trim(), StringComparison.OrdinalIgnoreCase) ||
+                                (!string.IsNullOrWhiteSpace(c.Code) && string.Equals(b.BranchCode.Trim(), c.Code.Trim(), StringComparison.OrdinalIgnoreCase))
+                            );
+
+                            if (branch != null)
+                            {
+                                branch.BranchName = c.Name.Trim();
+                                if (!string.IsNullOrWhiteSpace(c.Code)) branch.BranchCode = c.Code.Trim().ToUpper();
+                                branch.Address = c.Address?.Trim() ?? "";
+                                branch.Phone = c.Phone?.Trim() ?? "";
+                                branch.Email = c.Email?.Trim() ?? "";
+                                branch.Status = string.IsNullOrWhiteSpace(c.Status) ? "Active" : c.Status;
+                                changed = true;
+                            }
+                            else
+                            {
+                                _context.Branches.Add(new Branch
+                                {
+                                    BranchName = c.Name.Trim(),
+                                    BranchCode = !string.IsNullOrWhiteSpace(c.Code) ? c.Code.Trim().ToUpper() : c.Name.Trim().Substring(0, Math.Min(5, c.Name.Trim().Length)).ToUpper(),
+                                    Address = c.Address?.Trim() ?? "",
+                                    Phone = c.Phone?.Trim() ?? "",
+                                    Email = c.Email?.Trim() ?? "",
+                                    Status = string.IsNullOrWhiteSpace(c.Status) ? "Active" : c.Status
+                                });
+                                changed = true;
+                            }
                         }
                     }
 

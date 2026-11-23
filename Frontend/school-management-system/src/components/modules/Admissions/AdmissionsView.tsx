@@ -378,13 +378,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       .filter((b: any) => b && (typeof b === "string" || b.status !== "Inactive"))
       .map((b: any) => typeof b === "string" ? b : (b.name || b.branchName || b.campusName || ""))
       .filter(Boolean);
-    const combined = [
-      ...(selectedBranch && selectedBranch !== "All" && selectedBranch !== "All Branches" ? [selectedBranch] : []),
-      ...fromApi,
-    ];
-    const unique = Array.from(new Set(combined)).filter(Boolean);
-    return unique;
-  }, [branches, selectedBranch]);
+    return Array.from(new Set(fromApi)).filter(Boolean);
+  }, [branches]);
 
   const [query, setQuery] = useState("");
   const [searchError, setSearchError] = useState<string | undefined>(undefined);

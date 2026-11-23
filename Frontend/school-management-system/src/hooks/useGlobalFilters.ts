@@ -167,21 +167,34 @@ export function useGlobalFilters() {
           // Fallback to direct APIs below
         }
 
-        // Secondary fallback: GET /api/branches
-        if (!resolvedBranchId && !resolvedBranchName) {
-          try {
-            const bRes = await fetch('/api/branches', { signal: controller.signal });
-            if (bRes.ok) {
-              const bJson = await bRes.json();
-              const bList = Array.isArray(bJson) ? bJson : bJson?.data || [];
-              const active = bList.find((b: any) => b && b.status !== 'Inactive') || bList[0];
-              if (active) {
-                resolvedBranchId = String(active.branchId || active.id || '');
-                resolvedBranchName = active.branchName || active.name || '';
+        // Validate / resolve branch from GET /api/branches
+        try {
+          const bRes = await fetch('/api/branches', { signal: controller.signal });
+          if (bRes.ok) {
+            const bJson = await bRes.json();
+            const bList: any[] = Array.isArray(bJson) ? bJson : bJson?.data || [];
+            const activeBranches = bList.filter((b: any) => b && b.status !== 'Inactive');
+            if (activeBranches.length === 0) {
+              resolvedBranchId = '';
+              resolvedBranchName = '';
+            } else if (resolvedBranchName || resolvedBranchId) {
+              const matched = activeBranches.find((b: any) =>
+                (resolvedBranchName && (b.branchName === resolvedBranchName || b.name === resolvedBranchName)) ||
+                (resolvedBranchId && (String(b.branchId) === String(resolvedBranchId) || String(b.id) === String(resolvedBranchId)))
+              );
+              if (matched) {
+                resolvedBranchId = String(matched.branchId || matched.id || '');
+                resolvedBranchName = matched.branchName || matched.name || '';
+              } else {
+                resolvedBranchId = String(activeBranches[0].branchId || activeBranches[0].id || '');
+                resolvedBranchName = activeBranches[0].branchName || activeBranches[0].name || '';
               }
+            } else {
+              resolvedBranchId = String(activeBranches[0].branchId || activeBranches[0].id || '');
+              resolvedBranchName = activeBranches[0].branchName || activeBranches[0].name || '';
             }
-          } catch {}
-        }
+          }
+        } catch {}
 
         // Secondary fallback: GET /api/academic-years
         if (!resolvedYearId && !resolvedYearName) {
