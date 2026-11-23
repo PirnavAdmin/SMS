@@ -45,6 +45,7 @@ public class ExamGradingScaleController : ControllerBase
     /// Save or Modify Grading Scale Rules (Clicking "Modify Scale Rules" -> "Save Changes" - Screenshot 3)
     /// </summary>
     [HttpPost("save-rules")]
+    [HttpPost("rules")]
     [Authorize]
     public async Task<IActionResult> SaveGradingScaleRules([FromBody] SaveGradingScaleRequestDto request)
     {

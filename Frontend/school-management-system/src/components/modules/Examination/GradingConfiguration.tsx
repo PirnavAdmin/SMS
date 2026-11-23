@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { Award, Plus, Trash2, Save, CheckCircle2, Sliders, Layers, RefreshCw } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
@@ -58,46 +58,53 @@ export const GradingConfiguration: React.FC<GradingConfigurationProps> = ({
       .catch(() => {});
   }, []);
 
+  const saveGradeConfigRef = useRef(saveGradeConfiguration);
+  useEffect(() => {
+    saveGradeConfigRef.current = saveGradeConfiguration;
+  }, [saveGradeConfiguration]);
+
   const fetchRules = useCallback(async (examType: string) => {
     try {
       setLoading(true);
       const res: any = await fetchGradingScaleRulesApi(examType);
       if (res && res.success) {
         const apiRules = res.data?.scaleRules || [];
-        const mapped: GradeConfig[] = apiRules.map((r: any, idx: number) => ({
-          id: r.ruleId ? `GRD-${r.ruleId}` : `GRD-${idx + 1}`,
-          academicYear: selectedAcademicYear || '',
-          branch: selectedBranch || '',
-          examType: examType,
-          schemeName: examType !== 'All' ? examType : 'Default Scholastic',
-          gradingType: 'Percentage',
-          grade: r.grade || '',
-          gradeName: r.grade || '',
-          minPercent: r.minMarks ?? 0,
-          maxPercent: r.maxMarks ?? 100,
-          minMark: r.minMarks ?? 0,
-          maxMark: r.maxMarks ?? 100,
-          gradePoint: r.gpa ?? 0,
-          gradePoints: r.gpa ?? 0,
-          passCriteria: r.passFail || 'Pass',
-          remarks: r.remarks || ''
-        }));
+        const mapped: GradeConfig[] = apiRules.map((r: any, idx: number) => {
+          const rawPassFail = String(r.passFail || 'Pass').trim();
+          const passCriteria = rawPassFail.toLowerCase().includes('fail') ? 'Fail' : 'Pass';
+          return {
+            id: r.ruleId ? `GRD-${r.ruleId}` : `GRD-${idx + 1}-${Date.now()}`,
+            academicYear: selectedAcademicYear || '',
+            branch: selectedBranch || '',
+            examType: examType,
+            schemeName: examType !== 'All' ? examType : 'Default Scholastic',
+            gradingType: 'Percentage',
+            grade: r.grade || '',
+            gradeName: r.grade || '',
+            minPercent: r.minMarks ?? 0,
+            maxPercent: r.maxMarks ?? 100,
+            minMark: r.minMarks ?? 0,
+            maxMark: r.maxMarks ?? 100,
+            gradePoint: r.gpa ?? 0,
+            gradePoints: r.gpa ?? 0,
+            passCriteria: passCriteria,
+            remarks: r.remarks || ''
+          };
+        });
 
         setLocalGrades(mapped);
-
-        if (saveGradeConfiguration) {
-          saveGradeConfiguration(mapped);
-        }
+        saveGradeConfigRef.current?.(mapped);
       }
     } catch (err) {
       console.warn('Failed to fetch grading scale rules for', examType, err);
     } finally {
       setLoading(false);
     }
-  }, [selectedAcademicYear, selectedBranch, saveGradeConfiguration]);
+  }, [selectedAcademicYear, selectedBranch]);
 
   // Dynamically fetch grading scale rules from backend API whenever selectedExamType changes
   useEffect(() => {
+    setIsEditing(false);
     fetchRules(selectedExamType);
   }, [selectedExamType, fetchRules]);
 
@@ -168,28 +175,8 @@ export const GradingConfiguration: React.FC<GradingConfigurationProps> = ({
     setLocalGrades(prev => [...prev, newRow]);
   };
 
-  const handleDeleteRow = async (id: string) => {
-    const isTemp = String(id).includes('TEMP');
-    const numericId = parseInt(String(id).replace(/\D/g, ''));
-
-    // Optimistically update local state immediately
-    const updated = localGrades.filter(g => g.id !== id);
-    setLocalGrades(updated);
-
-    // Sync immediately to DataContext so tab switches retain the deletion
-    if (saveGradeConfiguration) {
-      saveGradeConfiguration(updated);
-    }
-
-    // If it's a persisted rule in the database, delete via API
-    if (!isTemp && numericId > 0) {
-      try {
-        await deleteGradingScaleRuleApi(numericId);
-        addToast('error', 'Row Removed', 'Scale rule deleted.');
-      } catch (err: any) {
-        console.warn('API direct delete note:', err);
-      }
-    }
+  const handleDeleteRow = (id: string) => {
+    setLocalGrades(prev => prev.filter(g => g.id !== id));
   };
 
   const handleUpdateField = (id: string, field: keyof GradeConfig, val: any) => {
@@ -219,14 +206,17 @@ export const GradingConfiguration: React.FC<GradingConfigurationProps> = ({
       return;
     }
 
+    const parseNum = (val: any, fallback: number): number => {
+      if (val === '' || val === null || val === undefined) return fallback;
+      const n = Number(val);
+      return isNaN(n) ? fallback : n;
+    };
+
     // Range Validation
     const invalid = currentRules.some(g => {
-      const minVal = g.minPercent !== undefined ? g.minPercent : g.minMark;
-      const maxVal = g.maxPercent !== undefined ? g.maxPercent : g.maxMark;
-      
-      const min = (minVal as any) === '' || minVal === undefined || minVal === null ? 0 : Number(minVal);
-      const max = (maxVal as any) === '' || maxVal === undefined || maxVal === null ? 100 : Number(maxVal);
-      return min > max;
+      const minVal = parseNum((g as any).minPercent ?? (g as any).minMark, 0);
+      const maxVal = parseNum((g as any).maxPercent ?? (g as any).maxMark, 100);
+      return minVal > maxVal;
     });
 
     if (invalid) {
@@ -237,13 +227,17 @@ export const GradingConfiguration: React.FC<GradingConfigurationProps> = ({
     const rulesForApi = currentRules.map((g) => {
       const isTemp = String(g.id).includes('TEMP');
       const numId = parseInt(String(g.id).replace(/\D/g, ''));
+      const minVal = parseNum((g as any).minPercent ?? (g as any).minMark, 0);
+      const maxVal = parseNum((g as any).maxPercent ?? (g as any).maxMark, 100);
+      const gpaVal = parseNum((g as any).gradePoints ?? (g as any).gradePoint, 0);
+
       return {
         ruleId: (!isTemp && numId > 0) ? numId : 0,
         grade: (g.gradeName || g.grade || '').trim(),
-        minMarks: Number(g.minPercent ?? g.minMark ?? 0),
-        maxMarks: Number(g.maxPercent ?? g.maxMark ?? 100),
-        gpa: Number(g.gradePoints ?? g.gradePoint ?? 0),
-        passFail: g.passCriteria || 'Pass',
+        minMarks: minVal,
+        maxMarks: maxVal,
+        gpa: gpaVal,
+        passFail: (g.passCriteria || 'Pass').trim(),
         remarks: g.remarks || ''
       };
     });
@@ -255,7 +249,7 @@ export const GradingConfiguration: React.FC<GradingConfigurationProps> = ({
         scaleRules: rulesForApi
       });
 
-      if (res && res.success) {
+      if (res && (res.success || res.status === 200 || res.data)) {
         addToast('success', 'Grading Saved', `Successfully updated grading scale rules for ${selectedExamType} examination type.`);
         setIsEditing(false);
         // Refresh directly from API to ensure fresh IDs and exact server state
@@ -281,20 +275,33 @@ export const GradingConfiguration: React.FC<GradingConfigurationProps> = ({
         action={
           <div className="flex flex-wrap items-center gap-2.5">
             {isEditing ? (
-              <button
-                type="button"
-                onClick={handleSave}
-                className="px-3.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-black text-xs shadow-sm shadow-sky-600/20 flex items-center gap-1.5 transition-all cursor-pointer h-[34px]"
-              >
-                <Save className="w-3.5 h-3.5" /> Save Changes
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEditing(false);
+                    fetchRules(selectedExamType);
+                  }}
+                  className="px-3.5 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs transition cursor-pointer h-[34px]"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={loading}
+                  className="px-3.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 disabled:opacity-50 text-white font-black text-xs shadow-sm shadow-sky-600/20 flex items-center gap-1.5 transition-all cursor-pointer h-[34px]"
+                >
+                  <Save className="w-3.5 h-3.5" /> Save Changes
+                </button>
+              </div>
             ) : (
               <button
                 type="button"
                 onClick={() => setIsEditing(true)}
-                className="px-3.5 py-1.5 rounded-xl bg-slate-900 dark:bg-slate-800 hover:bg-slate-850 text-white text-xs font-bold transition shadow-xs cursor-pointer h-[34px]"
+                className="px-3.5 py-1.5 rounded-xl bg-slate-900 dark:bg-slate-800 hover:bg-slate-850 text-white text-xs font-bold transition shadow-xs cursor-pointer h-[34px] flex items-center gap-1.5"
               >
-                Modify Scale Rules
+                <Sliders className="w-3.5 h-3.5" /> Modify Scale Rules
               </button>
             )}
           </div>
@@ -354,16 +361,14 @@ export const GradingConfiguration: React.FC<GradingConfigurationProps> = ({
               )}
             </div>
 
-            {/* Add Scale Row button when editing */}
-            {isEditing && (
-              <button
-                type="button"
-                onClick={handleAddRow}
-                className="px-3.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs shadow-sm shadow-sky-600/20 flex items-center gap-1.5 transition-all cursor-pointer h-[34px]"
-              >
-                <Plus className="w-3.5 h-3.5" /> Add Scale Row
-              </button>
-            )}
+            {/* Add Scale Row button */}
+            <button
+              type="button"
+              onClick={handleAddRow}
+              className="px-3.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs shadow-sm shadow-sky-600/20 flex items-center gap-1.5 transition-all cursor-pointer h-[34px]"
+            >
+              <Plus className="w-3.5 h-3.5" /> Add Scale Row
+            </button>
           </div>
 
           {/* Table of Grade Rules */}
@@ -491,7 +496,7 @@ export const GradingConfiguration: React.FC<GradingConfigurationProps> = ({
                             type="number"
                             min="0"
                             max="10"
-                            step="0.5"
+                            step="any"
                             value={(g.gradePoint as any) === '' || g.gradePoint === undefined || g.gradePoint === null ? '' : g.gradePoint}
                             onChange={e => {
                               const raw = e.target.value;
@@ -509,7 +514,7 @@ export const GradingConfiguration: React.FC<GradingConfigurationProps> = ({
                       <td className={`${tdClass} text-center`}>
                         {isEditing ? (
                           <select
-                            value={g.passCriteria || ''}
+                            value={g.passCriteria ? (String(g.passCriteria).toLowerCase().includes('fail') ? 'Fail' : 'Pass') : ''}
                             onChange={e => handleUpdateField(g.id, 'passCriteria', e.target.value)}
                             className={`${inputClass} w-24 text-center mx-auto font-bold cursor-pointer`}
                           >

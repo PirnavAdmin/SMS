@@ -23289,10 +23289,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     logActivity("Deleted Designation", `Removed designation ID ${id}`);
   };
 
-  const saveGradeConfiguration = (grades: GradeConfig[]) => {
+  const saveGradeConfiguration = useCallback((grades: GradeConfig[]) => {
     setGradeConfigurations(grades);
+    try {
+      localStorage.setItem("edu_db_grade_configurations", JSON.stringify(grades));
+    } catch {}
     logActivity("Saved Grade Configurations", `Updated grade range settings`);
-  };
+  }, [logActivity]);
 
   const saveStudentAttendance = (record: any) => {
     const recordDate = String(record.date || "").split("T")[0];
