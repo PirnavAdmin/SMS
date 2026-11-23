@@ -333,4 +333,190 @@ public class FeeCollectionRepositoryTests
         Assert.Contains("Accountant", feeDetailsAuth!.Roles ?? string.Empty);
         Assert.Contains("Parent", feeDetailsAuth.Roles ?? string.Empty);
     }
+
+    [Fact]
+    public async Task CollectPaymentAsync_PersistsPaymentAllocationsAndFeeCharges()
+    {
+        using var db = GetInMemoryDbContext();
+        await SeedStudentWithTuitionAsync(db, 20000m);
+
+        var repo = new FeeCollectionRepository(db);
+
+        var request = new CollectFeePaymentRequestDto
+        {
+            StudentId = 201,
+            AcademicYear = "2026-2027",
+            TotalAmountPaid = 5000m,
+            PaymentMethod = "Cash",
+            SelectedItems = new List<SelectedFeeItemPaymentDto>
+            {
+                new SelectedFeeItemPaymentDto
+                {
+                    FeeHeadId = "1",
+                    FeeHeadName = "Tuition Fee",
+                    TermName = "Term 1",
+                    Amount = 3000m
+                },
+                new SelectedFeeItemPaymentDto
+                {
+                    FeeHeadId = "1",
+                    FeeHeadName = "Tuition Fee",
+                    TermName = "Term 2",
+                    Amount = 2000m
+                }
+            }
+        };
+
+        var response = await repo.CollectPaymentAsync(request);
+
+        Assert.True(response.Success);
+        Assert.Equal(5000m, response.AmountPaid);
+
+        // Verify PaymentAllocations persisted
+        var allocations = await db.PaymentAllocations.Where(a => a.PaymentId == response.PaymentId).ToListAsync();
+        Assert.Equal(2, allocations.Count);
+        Assert.Equal(5000m, allocations.Sum(a => a.AllocatedAmount));
+
+        // Verify FeeCharges persisted
+        var feeCharges = await db.FeeCharges.Where(c => c.StudentId == 201).ToListAsync();
+        Assert.Equal(2, feeCharges.Count);
+        Assert.Equal(5000m, feeCharges.Sum(c => c.PaidAmount));
+
+        // Verify payment status is Partial because 5000 < 20000
+        var payment = await db.FeePayments.FindAsync(response.PaymentId);
+        Assert.NotNull(payment);
+        Assert.Equal("Partial", payment!.Status);
+    }
+
+    [Fact]
+    public async Task CollectPaymentAsync_ValidatesComponentAmountsAndRejectsMismatches()
+    {
+        using var db = GetInMemoryDbContext();
+        await SeedStudentWithTuitionAsync(db, 20000m);
+
+        var repo = new FeeCollectionRepository(db);
+
+        // Test 1: Sum of selected items (4000) does not match TotalAmountPaid (5000)
+        var mismatchRequest = new CollectFeePaymentRequestDto
+        {
+            StudentId = 201,
+            AcademicYear = "2026-2027",
+            TotalAmountPaid = 5000m,
+            PaymentMethod = "Cash",
+            SelectedItems = new List<SelectedFeeItemPaymentDto>
+            {
+                new SelectedFeeItemPaymentDto
+                {
+                    FeeHeadId = "1",
+                    FeeHeadName = "Tuition Fee",
+                    TermName = "Term 1",
+                    Amount = 4000m
+                }
+            }
+        };
+        await Assert.ThrowsAsync<InvalidOperationException>(() => repo.CollectPaymentAsync(mismatchRequest));
+
+        // Test 2: Item amount <= 0
+        var zeroAmountRequest = new CollectFeePaymentRequestDto
+        {
+            StudentId = 201,
+            AcademicYear = "2026-2027",
+            TotalAmountPaid = 2000m,
+            PaymentMethod = "Cash",
+            SelectedItems = new List<SelectedFeeItemPaymentDto>
+            {
+                new SelectedFeeItemPaymentDto
+                {
+                    FeeHeadId = "1",
+                    FeeHeadName = "Tuition Fee",
+                    TermName = "Term 1",
+                    Amount = 0m
+                }
+            }
+        };
+        await Assert.ThrowsAsync<InvalidOperationException>(() => repo.CollectPaymentAsync(zeroAmountRequest));
+
+        // Test 3: Duplicate component
+        var duplicateRequest = new CollectFeePaymentRequestDto
+        {
+            StudentId = 201,
+            AcademicYear = "2026-2027",
+            TotalAmountPaid = 4000m,
+            PaymentMethod = "Cash",
+            SelectedItems = new List<SelectedFeeItemPaymentDto>
+            {
+                new SelectedFeeItemPaymentDto
+                {
+                    FeeHeadId = "1",
+                    FeeHeadName = "Tuition Fee",
+                    TermName = "Term 1",
+                    Amount = 2000m
+                },
+                new SelectedFeeItemPaymentDto
+                {
+                    FeeHeadId = "1",
+                    FeeHeadName = "Tuition Fee",
+                    TermName = "Term 1",
+                    Amount = 2000m
+                }
+            }
+        };
+        await Assert.ThrowsAsync<InvalidOperationException>(() => repo.CollectPaymentAsync(duplicateRequest));
+    }
+
+    [Fact]
+    public async Task CollectPaymentAsync_AttributesOnlyAllocatedDepositAndAdmissionAmounts()
+    {
+        using var db = GetInMemoryDbContext();
+        await SeedStudentWithTuitionAsync(db, 20000m);
+
+        var app = new AdmissionApplication
+        {
+            Id = 501,
+            FirstName = "Test",
+            LastName = "Applicant",
+            AdmissionNo = "ADM-201",
+            SecurityDepositAmount = 0m,
+            AdmissionFeeAmount = 0m
+        };
+        db.AdmissionApplications.Add(app);
+        await db.SaveChangesAsync();
+
+        var repo = new FeeCollectionRepository(db);
+
+        var request = new CollectFeePaymentRequestDto
+        {
+            StudentId = 201,
+            AcademicYear = "2026-2027",
+            TotalAmountPaid = 5000m, // Combined total
+            PaymentMethod = "Cash",
+            SelectedItems = new List<SelectedFeeItemPaymentDto>
+            {
+                new SelectedFeeItemPaymentDto
+                {
+                    FeeHeadId = "2",
+                    FeeHeadName = "Hostel Security Deposit",
+                    TermName = "One Time",
+                    Amount = 3000m // Exactly 3000 deposit
+                },
+                new SelectedFeeItemPaymentDto
+                {
+                    FeeHeadId = "3",
+                    FeeHeadName = "Admission Fee",
+                    TermName = "One Time",
+                    Amount = 2000m // Exactly 2000 admission
+                }
+            }
+        };
+
+        var response = await repo.CollectPaymentAsync(request);
+        Assert.True(response.Success);
+
+        var updatedApp = await db.AdmissionApplications.FindAsync(501);
+        Assert.NotNull(updatedApp);
+        Assert.True(updatedApp!.HostelSecurityDepositPaid);
+        Assert.Equal(3000m, updatedApp.SecurityDepositAmount); // Must NOT be 5000m!
+        Assert.True(updatedApp.AdmissionFeePaid);
+        Assert.Equal(2000m, updatedApp.AdmissionFeeAmount); // Must NOT be 5000m!
+    }
 }

@@ -31,6 +31,35 @@ namespace SMS.Api.Data
             TenantMismatchMode = TenantMismatchMode.Ignore;
         }
 
+        public override int SaveChanges(bool acceptAllChangesOnSuccess)
+        {
+            ApplyTenantId();
+            return base.SaveChanges(acceptAllChangesOnSuccess);
+        }
+
+        public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+        {
+            ApplyTenantId();
+            return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+        }
+
+        private void ApplyTenantId()
+        {
+            var tenantId = TenantInfo?.Id ?? FallbackTenant.Id;
+            foreach (var entry in ChangeTracker.Entries().Where(e => e.State == EntityState.Added))
+            {
+                var tenantProp = entry.Metadata.FindProperty("TenantId");
+                if (tenantProp != null)
+                {
+                    var currentVal = entry.Property("TenantId").CurrentValue;
+                    if (currentVal == null || string.IsNullOrWhiteSpace(currentVal.ToString()))
+                    {
+                        entry.Property("TenantId").CurrentValue = tenantId;
+                    }
+                }
+            }
+        }
+
         // =====================================================
         // Authentication and User Module
         // =====================================================
@@ -873,7 +902,7 @@ namespace SMS.Api.Data
             modelBuilder.Entity<AdmissionApplication>(entity =>
             {
                 entity.ToTable("admission_applications");
-                entity.HasQueryFilter(x => !x.IsDeleted && (TenantInfo == null || EF.Property<string>(x, "TenantId") == TenantInfo.Id || EF.Property<string>(x, "TenantId") == null || EF.Property<string>(x, "TenantId") == ""));
+                entity.HasQueryFilter(x => !x.IsDeleted && (TenantInfo == null || EF.Property<string>(x, "TenantId") == TenantInfo.Id));
                 entity.HasOne(x => x.AppliedClass)
                     .WithMany(classGrade =>
                         classGrade.AdmissionApplications)
@@ -887,7 +916,7 @@ namespace SMS.Api.Data
             modelBuilder.Entity<ApplicationDraft>(entity =>
             {
                 entity.ToTable("application_drafts");
-                entity.HasQueryFilter(x => (TenantInfo == null || EF.Property<string>(x, "TenantId") == TenantInfo.Id || EF.Property<string>(x, "TenantId") == null || EF.Property<string>(x, "TenantId") == ""));
+                entity.HasQueryFilter(x => (TenantInfo == null || EF.Property<string>(x, "TenantId") == TenantInfo.Id));
                 entity.HasIndex(x => new { x.FormType, x.DraftKey, x.UserId });
             });
         }
@@ -1333,7 +1362,7 @@ namespace SMS.Api.Data
             });
         }
 
-        private static void ConfigureStandardTableNames(ModelBuilder modelBuilder)
+        private void ConfigureStandardTableNames(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<Branch>().ToTable("branches");
             modelBuilder.Entity<Staff>().ToTable("staff");
@@ -1375,14 +1404,42 @@ namespace SMS.Api.Data
             {
                 entity.ToTable("feeheads");
                 entity.Property(x => x.HostelConfigJson).HasColumnName("hostel_config_json");
+                entity.Property<string>("TenantId").HasDefaultValue("tenant-default");
+                entity.HasQueryFilter(x => (TenantInfo == null || EF.Property<string>(x, "TenantId") == TenantInfo.Id));
             });
             modelBuilder.Entity<SMS.Api.Models.FinanceManagement.DynamicFeeStructure>(entity =>
             {
                 entity.ToTable("dynamicfeestructures");
                 entity.Property(x => x.ItemsJson).HasColumnName("items_json");
+                entity.Property(x => x.PaymentRequirement).HasColumnName("PaymentRequirement").HasDefaultValue("Pay After Enrollment");
+                entity.Property(x => x.PreEnrollmentAmount).HasColumnName("PreEnrollmentAmount").HasPrecision(18, 2).HasDefaultValue(0.00m);
+                entity.Property<string>("TenantId").HasDefaultValue("tenant-default");
+                entity.HasQueryFilter(x => (TenantInfo == null || EF.Property<string>(x, "TenantId") == TenantInfo.Id));
             });
-            modelBuilder.Entity<SMS.Api.Models.FinanceManagement.StudentFeeAssignment>().ToTable("studentfeeassignments");
-            modelBuilder.Entity<SMS.Api.Models.FinanceManagement.FeePayment>().ToTable("feepayments");
+            modelBuilder.Entity<SMS.Api.Models.FinanceManagement.StudentFeeAssignment>(entity =>
+            {
+                entity.ToTable("studentfeeassignments");
+                entity.Property<string>("TenantId").HasDefaultValue("tenant-default");
+                entity.HasQueryFilter(x => (TenantInfo == null || EF.Property<string>(x, "TenantId") == TenantInfo.Id));
+            });
+            modelBuilder.Entity<SMS.Api.Models.FinanceManagement.FeePayment>(entity =>
+            {
+                entity.ToTable("feepayments");
+                entity.Property<string>("TenantId").HasDefaultValue("tenant-default");
+                entity.HasQueryFilter(x => (TenantInfo == null || EF.Property<string>(x, "TenantId") == TenantInfo.Id));
+            });
+            modelBuilder.Entity<SMS.Api.Models.FinanceManagement.FeeCharge>(entity =>
+            {
+                entity.ToTable("feecharges");
+                entity.Property<string>("TenantId").HasDefaultValue("tenant-default");
+                entity.HasQueryFilter(x => (TenantInfo == null || EF.Property<string>(x, "TenantId") == TenantInfo.Id));
+            });
+            modelBuilder.Entity<SMS.Api.Models.FinanceManagement.PaymentAllocation>(entity =>
+            {
+                entity.ToTable("paymentallocations");
+                entity.Property<string>("TenantId").HasDefaultValue("tenant-default");
+                entity.HasQueryFilter(x => (TenantInfo == null || EF.Property<string>(x, "TenantId") == TenantInfo.Id));
+            });
             modelBuilder.Entity<SMS.Api.Models.FinanceManagement.FeeSchedule>(entity =>
             {
                 entity.ToTable("fee_schedules");
@@ -1390,6 +1447,8 @@ namespace SMS.Api.Data
                 entity.HasIndex(x => x.AcademicYear).IsUnique();
                 entity.Property(x => x.TermsJson).HasColumnName("terms_json");
                 entity.Property(x => x.MonthlyConfigJson).HasColumnName("monthly_config_json");
+                entity.Property<string>("TenantId").HasDefaultValue("tenant-default");
+                entity.HasQueryFilter(x => (TenantInfo == null || EF.Property<string>(x, "TenantId") == TenantInfo.Id));
                 entity.HasMany(x => x.Terms)
                     .WithOne(t => t.FeeSchedule)
                     .HasForeignKey(t => t.FeeScheduleId)
@@ -1416,57 +1475,93 @@ namespace SMS.Api.Data
                 entity.ToTable("scholarships");
                 entity.HasKey(x => x.Id);
                 entity.HasIndex(x => x.Code).IsUnique();
+                entity.Property<string>("TenantId").HasDefaultValue("tenant-default");
+                entity.HasQueryFilter(x => (TenantInfo == null || EF.Property<string>(x, "TenantId") == TenantInfo.Id));
             });
             modelBuilder.Entity<SMS.Api.Models.FinanceManagement.StudentScholarship>(entity =>
             {
                 entity.ToTable("student_scholarships");
                 entity.HasKey(x => x.Id);
+                entity.Property<string>("TenantId").HasDefaultValue("tenant-default");
+                entity.HasQueryFilter(x => (TenantInfo == null || EF.Property<string>(x, "TenantId") == TenantInfo.Id));
             });
             modelBuilder.Entity<SMS.Api.Models.FinanceManagement.DiscountRule>(entity =>
             {
                 entity.ToTable("discounts");
                 entity.HasKey(x => x.Id);
                 entity.HasIndex(x => x.Code).IsUnique();
+                entity.Property<string>("TenantId").HasDefaultValue("tenant-default");
+                entity.HasQueryFilter(x => (TenantInfo == null || EF.Property<string>(x, "TenantId") == TenantInfo.Id));
             });
             modelBuilder.Entity<SMS.Api.Models.FinanceManagement.StudentDiscount>(entity =>
             {
                 entity.ToTable("student_discounts");
                 entity.HasKey(x => x.Id);
+                entity.Property<string>("TenantId").HasDefaultValue("tenant-default");
+                entity.HasQueryFilter(x => (TenantInfo == null || EF.Property<string>(x, "TenantId") == TenantInfo.Id));
             });
             modelBuilder.Entity<SMS.Api.Models.FinanceManagement.FinancialAccount>(entity =>
             {
                 entity.ToTable("financialaccounts");
                 entity.HasKey(x => x.Id);
+                entity.Property<string>("TenantId").HasDefaultValue("tenant-default");
+                entity.HasQueryFilter(x => (TenantInfo == null || EF.Property<string>(x, "TenantId") == TenantInfo.Id));
             });
             modelBuilder.Entity<SMS.Api.Models.FinanceManagement.Expense>(entity =>
             {
                 entity.ToTable("expenses");
                 entity.HasKey(x => x.Id);
+                entity.Property<string>("TenantId").HasDefaultValue("tenant-default");
+                entity.HasQueryFilter(x => (TenantInfo == null || EF.Property<string>(x, "TenantId") == TenantInfo.Id));
             });
             modelBuilder.Entity<SMS.Api.Models.FinanceManagement.LedgerEntry>(entity =>
             {
                 entity.ToTable("ledgerentries");
                 entity.HasKey(x => x.Id);
+                entity.Property<string>("TenantId").HasDefaultValue("tenant-default");
+                entity.HasQueryFilter(x => (TenantInfo == null || EF.Property<string>(x, "TenantId") == TenantInfo.Id));
             });
             modelBuilder.Entity<SMS.Api.Models.FinanceManagement.FinancialBudget>(entity =>
             {
                 entity.ToTable("financial_budgets");
                 entity.HasKey(x => x.Id);
+                entity.Property<string>("TenantId").HasDefaultValue("tenant-default");
+                entity.HasQueryFilter(x => (TenantInfo == null || EF.Property<string>(x, "TenantId") == TenantInfo.Id));
             });
             modelBuilder.Entity<SMS.Api.Models.FinanceManagement.FinancialCategory>(entity =>
             {
                 entity.ToTable("financial_categories");
                 entity.HasKey(x => x.Id);
+                entity.Property<string>("TenantId").HasDefaultValue("tenant-default");
+                entity.HasQueryFilter(x => (TenantInfo == null || EF.Property<string>(x, "TenantId") == TenantInfo.Id));
             });
             modelBuilder.Entity<SMS.Api.Models.FinanceManagement.FineRule>(entity =>
             {
                 entity.ToTable("fine_rules");
                 entity.HasKey(x => x.Id);
+                entity.Property<string>("TenantId").HasDefaultValue("tenant-default");
+                entity.HasQueryFilter(x => (TenantInfo == null || EF.Property<string>(x, "TenantId") == TenantInfo.Id));
             });
             modelBuilder.Entity<SMS.Api.Models.FinanceManagement.FeeRefundRequest>(entity =>
             {
                 entity.ToTable("fee_refund_requests");
                 entity.HasKey(x => x.Id);
+                entity.Property<string>("TenantId").HasDefaultValue("tenant-default");
+                entity.HasQueryFilter(x => (TenantInfo == null || EF.Property<string>(x, "TenantId") == TenantInfo.Id));
+            });
+            modelBuilder.Entity<SMS.Api.Models.FinanceManagement.HostelFeeConfig>(entity =>
+            {
+                entity.ToTable("hostel_fee_configs");
+                entity.HasKey(x => x.Id);
+                entity.Property<string>("TenantId").HasDefaultValue("tenant-default");
+                entity.HasQueryFilter(x => (TenantInfo == null || EF.Property<string>(x, "TenantId") == TenantInfo.Id));
+            });
+            modelBuilder.Entity<SMS.Api.Models.FinanceManagement.ConcessionRule>(entity =>
+            {
+                entity.ToTable("concessionrules");
+                entity.HasKey(x => x.Id);
+                entity.Property<string>("TenantId").HasDefaultValue("tenant-default");
+                entity.HasQueryFilter(x => (TenantInfo == null || EF.Property<string>(x, "TenantId") == TenantInfo.Id));
             });
         }
         private void ConfigureAcademicYear(ModelBuilder modelBuilder)
@@ -1513,7 +1608,7 @@ namespace SMS.Api.Data
                 entity.HasIndex(x => x.AcademicYearName)
                     .IsUnique();
 
-                entity.HasQueryFilter(x => !x.IsDeleted && (TenantInfo == null || EF.Property<string>(x, "TenantId") == TenantInfo.Id || EF.Property<string>(x, "TenantId") == null || EF.Property<string>(x, "TenantId") == ""));
+                entity.HasQueryFilter(x => !x.IsDeleted && (TenantInfo == null || EF.Property<string>(x, "TenantId") == TenantInfo.Id));
             });
         }
 
@@ -1668,7 +1763,7 @@ namespace SMS.Api.Data
                     .HasForeignKey(x => x.SectionId)
                     .OnDelete(DeleteBehavior.Restrict);
 
-                entity.HasQueryFilter(x => !x.IsDeleted && (TenantInfo == null || EF.Property<string>(x, "TenantId") == TenantInfo.Id || EF.Property<string>(x, "TenantId") == null || EF.Property<string>(x, "TenantId") == ""));
+                entity.HasQueryFilter(x => !x.IsDeleted && (TenantInfo == null || EF.Property<string>(x, "TenantId") == TenantInfo.Id));
             });
         }
         private static void ConfigureStudentAttendanceSession(ModelBuilder modelBuilder)

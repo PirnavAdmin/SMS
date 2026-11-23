@@ -142,6 +142,8 @@ public class FinanceRepository : IFinanceRepository
             existing.StudentCategory = structure.StudentCategory;
             existing.TotalAmount = structure.TotalAmount;
             existing.Status = structure.Status;
+            existing.PaymentRequirement = structure.PaymentRequirement;
+            existing.PreEnrollmentAmount = structure.PreEnrollmentAmount;
             existing.ItemsJson = structure.ItemsJson;
             await _context.SaveChangesAsync();
             return existing;

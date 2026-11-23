@@ -105,6 +105,10 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
   const [structCategory, setStructCategory] = useState<string>("Tuition Fee");
   const [structAcademicYear, setStructAcademicYear] = useState("");
   const [structStatus, setStructStatus] = useState<"Active" | "Inactive" | "">("");
+  const [paymentRequirement, setPaymentRequirement] = useState<
+    "Pay Before Enrollment" | "Pay After Enrollment" | "Pay Before & After Enrollment"
+  >("Pay After Enrollment");
+  const [preEnrollmentAmount, setPreEnrollmentAmount] = useState<string>("0");
   const [structItems, setStructItems] = useState<FeeStructureItem[]>([]);
 
   // Fee Head Selector State inside Modal
@@ -184,6 +188,8 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
     setStructCategory("Tuition Fee");
     setStructAcademicYear("");
     setStructStatus("");
+    setPaymentRequirement("Pay After Enrollment");
+    setPreEnrollmentAmount("0");
     setStructItems([]);
     setSelectedFeeHeadId("");
     setFeeHeadInputAmount("");
@@ -199,6 +205,12 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
     setStructCategory(s.category || s.feeCategory || "Tuition Fee");
     setStructAcademicYear(s.academicYear || selectedAcademicYear || (academicYears && academicYears[0]?.academicYear) || "");
     setStructStatus(s.status || "Active");
+    setPaymentRequirement(
+      (s.paymentRequirement as any) || "Pay After Enrollment"
+    );
+    setPreEnrollmentAmount(
+      s.preEnrollmentAmount !== undefined ? String(s.preEnrollmentAmount) : "0"
+    );
     const activeHeadIds = new Set(activeFeeHeads.map((h) => String(h.id).trim().toLowerCase()));
     const activeHeadNames = new Set(activeFeeHeads.map((h) => (h.name || "").trim().toLowerCase()));
     const validItems = (s.items ? [...s.items] : []).filter((item) => {
@@ -390,6 +402,18 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
 
     const finalTotal = finalItems.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
 
+    const parsedPreAmt = parseFloat(preEnrollmentAmount) || 0;
+    if (paymentRequirement === "Pay Before & After Enrollment") {
+      if (parsedPreAmt < 0) {
+        addToast("warning", "Invalid Pre-Enrollment Amount", "Pre-enrollment requirement cannot be negative.");
+        return;
+      }
+      if (parsedPreAmt > finalTotal) {
+        addToast("warning", "Invalid Pre-Enrollment Amount", `Pre-enrollment requirement (${formatCurrency(parsedPreAmt)}) cannot exceed total fee (${formatCurrency(finalTotal)}).`);
+        return;
+      }
+    }
+
     let resolvedCategory = structCategory || "Tuition Fee";
     const hasOnlyAdm = finalItems.length > 0 && finalItems.every(i => (i.feeHeadName || "").toLowerCase().includes("admission") || (i.category || "").toLowerCase().includes("admission"));
     const hasAdm = finalItems.some(i => (i.feeHeadName || "").toLowerCase().includes("admission") || (i.category || "").toLowerCase().includes("admission"));
@@ -412,6 +436,13 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
       items: finalItems,
       totalAmount: finalTotal,
       status: structStatus,
+      paymentRequirement,
+      preEnrollmentAmount:
+        paymentRequirement === "Pay Before Enrollment"
+          ? finalTotal
+          : paymentRequirement === "Pay Before & After Enrollment"
+            ? parsedPreAmt
+            : 0,
     };
 
     if (editingStruct) {
@@ -547,6 +578,18 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
                               {s.category}
                             </span>
                           )}
+                          <span className={`px-2 py-0.5 rounded-lg font-bold text-[10px] border ${
+                            s.paymentRequirement === "Pay Before Enrollment"
+                              ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border-amber-200 dark:border-amber-800"
+                              : s.paymentRequirement === "Pay Before & After Enrollment"
+                                ? "bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300 border-purple-200 dark:border-purple-800"
+                                : "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800"
+                          }`}>
+                            {s.paymentRequirement || "Pay After Enrollment"}
+                            {s.paymentRequirement === "Pay Before & After Enrollment" && (s.preEnrollmentAmount || 0) > 0
+                              ? ` (Pre: ${formatCurrency(s.preEnrollmentAmount || 0)})`
+                              : ""}
+                          </span>
                           {s.status === "Inactive" && (
                             <span className="px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400">
                               Inactive
@@ -751,6 +794,49 @@ export const FeeStructuresView: React.FC<FeeStructuresViewProps> = () => {
                     <option value="Inactive">Inactive</option>
                   </select>
                 </div>
+
+                <div>
+                  <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                    Payment Requirement <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    value={paymentRequirement}
+                    onChange={(e) => {
+                      const val = e.target.value as any;
+                      setPaymentRequirement(val);
+                      if (val === "Pay Before Enrollment") {
+                        setPreEnrollmentAmount(String(calculatedTotalAmount));
+                      } else if (val === "Pay After Enrollment") {
+                        setPreEnrollmentAmount("0");
+                      }
+                    }}
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-semibold outline-none text-xs cursor-pointer"
+                  >
+                    <option value="Pay Before Enrollment">Pay Before Enrollment</option>
+                    <option value="Pay After Enrollment">Pay After Enrollment</option>
+                    <option value="Pay Before & After Enrollment">Pay Before & After Enrollment</option>
+                  </select>
+                </div>
+
+                {paymentRequirement === "Pay Before & After Enrollment" && (
+                  <div>
+                    <label className="block font-semibold mb-1 text-slate-700 dark:text-slate-300">
+                      Pre-Enrollment Required Amount (₹) <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      max={calculatedTotalAmount}
+                      value={preEnrollmentAmount}
+                      onChange={(e) => setPreEnrollmentAmount(e.target.value)}
+                      placeholder="Amount required before enrollment"
+                      className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-800 border font-semibold outline-none text-xs"
+                    />
+                    <p className="text-[10px] text-slate-400 mt-0.5">
+                      Portion required before student enrollment. Remaining balance: {formatCurrency(Math.max(0, calculatedTotalAmount - (parseFloat(preEnrollmentAmount) || 0)))}
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Dynamic Fee Heads Selection Section */}

@@ -2040,6 +2040,8 @@ using (var scope = app.Services.CreateScope())
         EnsureColumnExists("admission_applications", "AdmissionFeePaid", "tinyint(1) NOT NULL DEFAULT 0");
         EnsureColumnExists("admission_applications", "AdmissionFeeAmount", "decimal(18,2) NULL");
         EnsureColumnExists("admission_applications", "AdmissionFeeReceiptNo", "varchar(100) NULL");
+        EnsureColumnExists("dynamicfeestructures", "PaymentRequirement", "varchar(100) NOT NULL DEFAULT 'Pay After Enrollment'");
+        EnsureColumnExists("dynamicfeestructures", "PreEnrollmentAmount", "decimal(18,2) NOT NULL DEFAULT 0.00");
         EnsureColumnExists("admissions", "academic_year", "varchar(100) NULL");
         EnsureColumnExists("admission_applications", "BranchName", "varchar(100) NULL");
         EnsureColumnExists("admissions", "academic_year", "varchar(100) NULL");
@@ -3178,6 +3180,8 @@ using (var scope = app.Services.CreateScope())
                     `ClassName` VARCHAR(100) NOT NULL,
                     `FeePolicy` VARCHAR(50) NOT NULL DEFAULT 'Full Annual Fee',
                     `TotalAmount` DECIMAL(18,2) NOT NULL DEFAULT 0,
+                    `PaymentRequirement` VARCHAR(100) NOT NULL DEFAULT 'Pay After Enrollment',
+                    `PreEnrollmentAmount` DECIMAL(18,2) NOT NULL DEFAULT 0.00,
                     `items_json` LONGTEXT NULL
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 

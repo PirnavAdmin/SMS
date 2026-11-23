@@ -15,5 +15,7 @@ public class DynamicFeeStructure
     public string StudentCategory { get; set; } = string.Empty;
     public decimal TotalAmount { get; set; }
     public string Status { get; set; } = "Active";
+    public string PaymentRequirement { get; set; } = "Pay After Enrollment";
+    public decimal PreEnrollmentAmount { get; set; } = 0.00m;
     public string? ItemsJson { get; set; }
 }

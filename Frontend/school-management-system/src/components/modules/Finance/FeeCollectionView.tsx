@@ -1336,28 +1336,9 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
       };
     });
 
-    if (remainingPaid > 0) {
-      const unselectedUnpaid = allInstallments.filter(
-        (i: any) => !selectedInstallments.includes(i.id) && Number(i.dueAmount || 0) > 0,
-      );
-      for (const inst of unselectedUnpaid) {
-        if (remainingPaid <= 0) break;
-        const due = Number(inst.dueAmount || 0);
-        const allocAmt = Math.min(due, remainingPaid);
-        remainingPaid = Math.max(0, remainingPaid - allocAmt);
-        paymentAllocations.push({
-          academicYear: inst?.academicYear || currentYear,
-          ledgerId: undefined,
-          amount: allocAmt,
-          installmentId: inst.id,
-          feeHeadName: inst?.feeHeadName || inst?.headName || inst?.title || inst?.category || "Tuition Fee",
-          termName: inst?.termName || inst?.termId || "Installment",
-        });
-      }
-      if (remainingPaid > 0 && paymentAllocations.length > 0) {
-        paymentAllocations[paymentAllocations.length - 1].amount += remainingPaid;
-        remainingPaid = 0;
-      }
+    if (remainingPaid > 0 && paymentAllocations.length > 0) {
+      paymentAllocations[paymentAllocations.length - 1].amount += remainingPaid;
+      remainingPaid = 0;
     }
 
     const activeMode = paymentMode ? paymentMode.trim() : "";
@@ -1471,14 +1452,18 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     }
 
     // Check if Hostel Security Deposit was paid in this transaction
+    const allocatedDepositAmt = paymentAllocations
+      .filter((a) => (a.feeHeadName || "").toLowerCase().includes("security deposit") || (a.termName || "").toLowerCase().includes("security deposit"))
+      .reduce((sum, a) => sum + (Number(a.amount) || 0), 0);
+
     const isSecurityDepositCollected =
+      allocatedDepositAmt > 0 ||
       selectedInstallments.some((id) => id === "FH-HST-DEP" || id.includes("FH-HST-DEP")) ||
       paymentAllocations.some((a) => (a.feeHeadName || "").toLowerCase().includes("security deposit")) ||
       (remarks && remarks.toLowerCase().includes("security deposit"));
 
     if (isSecurityDepositCollected) {
       try {
-        const sFullName = `${selectedStudent.firstName || ""} ${selectedStudent.lastName || ""}`.trim().toLowerCase();
         const targetAdm = (admissions || []).find((a) =>
           (selectedStudent.admissionNo && (
             String(a.admissionNo).toLowerCase() === String(selectedStudent.admissionNo).toLowerCase() ||
@@ -1490,18 +1475,15 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
           ((selectedStudent as any).studentId && (
             String(a.studentId).toLowerCase() === String((selectedStudent as any).studentId).toLowerCase() ||
             String(a.registrationNo).toLowerCase() === String((selectedStudent as any).studentId).toLowerCase()
-          )) ||
-          (sFullName && (
-            `${a.applicantName || ""}`.trim().toLowerCase() === sFullName ||
-            `${(a as any).firstName || ""} ${(a as any).lastName || ""}`.trim().toLowerCase() === sFullName
           ))
         );
+        const depAmt = allocatedDepositAmt > 0 ? allocatedDepositAmt : numericAmount;
         if (targetAdm && updateAdmission) {
           await updateAdmission(targetAdm.id, {
             hostelSecurityDepositPaid: true,
-            securityDepositAmount: numericAmount,
+            securityDepositAmount: (Number(targetAdm.securityDepositAmount) || 0) + depAmt,
             securityDepositReceiptNo: receiptNumber,
-            paidFee: (targetAdm.paidFee || 0) + numericAmount,
+            paidFee: (targetAdm.paidFee || 0) + depAmt,
           } as any);
         }
 
@@ -1510,7 +1492,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
             hostelSecurityDepositPaid: true,
             studentType: "Hosteller",
             residentialStatus: "Residential",
-            paidFee: (selectedStudent.paidFee || 0) + numericAmount,
+            paidFee: (selectedStudent.paidFee || 0) + depAmt,
           } as any);
         }
 
@@ -1519,7 +1501,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
             studentId: selectedStudent.id,
             admissionNo: selectedStudent.admissionNo || selectedStudent.id,
             studentName: `${selectedStudent.firstName} ${selectedStudent.lastName}`.trim(),
-            amountPaid: numericAmount,
+            amountPaid: depAmt,
             receiptNo: receiptNumber,
             date: new Date().toISOString(),
           }));
@@ -1547,14 +1529,18 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     }
 
     // Check if Admission Fee was paid in this transaction
+    const allocatedAdmissionAmt = paymentAllocations
+      .filter((a) => ((a.feeHeadName || "").toLowerCase().includes("admission") || (a.termName || "").toLowerCase().includes("admission")) && !(a.feeHeadName || "").toLowerCase().includes("security deposit"))
+      .reduce((sum, a) => sum + (Number(a.amount) || 0), 0);
+
     const isAdmissionFeeCollected =
+      allocatedAdmissionAmt > 0 ||
       selectedInstallments.some((id) => id.toLowerCase().includes("adm") || id.toLowerCase().includes("admission")) ||
       paymentAllocations.some((a) => (a.feeHeadName || "").toLowerCase().includes("admission")) ||
       (remarks && remarks.toLowerCase().includes("admission"));
 
     if (isAdmissionFeeCollected) {
       try {
-        const sFullName = `${selectedStudent.firstName || ""} ${selectedStudent.lastName || ""}`.trim().toLowerCase();
         const targetAdm = (admissions || []).find((a) =>
           (selectedStudent.admissionNo && (
             String(a.admissionNo).toLowerCase() === String(selectedStudent.admissionNo).toLowerCase() ||
@@ -1566,25 +1552,22 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
           ((selectedStudent as any).studentId && (
             String(a.studentId).toLowerCase() === String((selectedStudent as any).studentId).toLowerCase() ||
             String(a.registrationNo).toLowerCase() === String((selectedStudent as any).studentId).toLowerCase()
-          )) ||
-          (sFullName && (
-            `${a.applicantName || ""}`.trim().toLowerCase() === sFullName ||
-            `${(a as any).firstName || ""} ${(a as any).lastName || ""}`.trim().toLowerCase() === sFullName
           ))
         );
+        const admAmt = allocatedAdmissionAmt > 0 ? allocatedAdmissionAmt : numericAmount;
         if (targetAdm && updateAdmission) {
           await updateAdmission(targetAdm.id, {
             admissionFeePaid: true,
-            admissionFeeAmount: numericAmount,
+            admissionFeeAmount: (Number(targetAdm.admissionFeeAmount) || 0) + admAmt,
             admissionFeeReceiptNo: receiptNumber,
-            paidFee: (targetAdm.paidFee || 0) + numericAmount,
+            paidFee: (targetAdm.paidFee || 0) + admAmt,
           } as any);
         }
 
         if (selectedStudent.id && updateStudent) {
           updateStudent(selectedStudent.id, {
             admissionFeePaid: true,
-            paidFee: (selectedStudent.paidFee || 0) + numericAmount,
+            paidFee: (selectedStudent.paidFee || 0) + admAmt,
           } as any);
         }
 
@@ -1681,28 +1664,6 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
       Boolean(targetAdmissionRecord?.admissionFeePaid) ||
       Boolean(selectedStudent.admissionFeePaid);
 
-    if (targetAdmissionRecord && updateAdmissionStatus && targetAdmissionRecord.status !== "Enrolled") {
-      if (!isDepositSatisfied || !isAdmissionFeeSatisfied) {
-        const pendingReasons: string[] = [];
-        if (!isDepositSatisfied) pendingReasons.push("unpaid hostel security deposit");
-        if (!isAdmissionFeeSatisfied) pendingReasons.push("unpaid admission fee");
-        console.info(`Auto-enrollment deferred: Student has mandatory ${pendingReasons.join(" and ")}.`);
-      } else {
-        try {
-          const assignedStudentId = await updateAdmissionStatus(targetAdmissionRecord.id, "Enrolled");
-          if (assignedStudentId) {
-            addToast(
-              "success",
-              "Student Enrolled Automatically",
-              `${selectedStudent.firstName} ${selectedStudent.lastName} has been automatically enrolled (Student ID: ${assignedStudentId}) upon fee payment.`
-            );
-          }
-        } catch (err) {
-          console.warn("Failed to auto-enroll student on fee payment:", err);
-        }
-      }
-    }
-
     addToast(
       "success",
       "Payment Processed",
@@ -1711,10 +1672,14 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
     onPrintReceipt(payment);
 
     fetchFinanceData().catch(() => {});
+    if (fetchAdmissions) {
+      fetchAdmissions().catch(() => {});
+    }
     if (typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("finance_updated"));
       window.dispatchEvent(new CustomEvent("finance_data_updated"));
       window.dispatchEvent(new CustomEvent("fee_payment_collected"));
+      window.dispatchEvent(new CustomEvent("admissions_updated"));
     }
 
     setSelectedInstallments([]);

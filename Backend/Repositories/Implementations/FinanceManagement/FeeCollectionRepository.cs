@@ -510,7 +510,8 @@ public class FeeCollectionRepository : IFeeCollectionRepository
         foreach (var id in matchedAdmissions) allStudentKeys.Add(id);
 
         var rawPayments = await _context.FeePayments.AsNoTracking()
-            .Where(p => allStudentKeys.Contains(p.StudentId))
+            .Where(p => allStudentKeys.Contains(p.StudentId) &&
+                        p.Status != "Cancelled" && p.Status != "Reversed" && p.Status != "Failed")
             .OrderByDescending(p => p.PaymentDate)
             .ToListAsync();
 
@@ -535,7 +536,17 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             isHosteller = appRecord.StudentType == "Residential";
         }
 
-        var feeStructures = await _context.DynamicFeeStructures.AsNoTracking().ToListAsync();
+        string branchName = student.Branch?.BranchName ?? string.Empty;
+        string activeAYName = student.AcademicYear?.AcademicYearName ?? academicYear ?? $"{DateTime.UtcNow.Year}-{(DateTime.UtcNow.Year + 1)}";
+        var matchYear = System.Text.RegularExpressions.Regex.Match(activeAYName, @"\d{4}");
+        string yearPrefix = matchYear.Success ? matchYear.Value : activeAYName;
+
+        var feeStructures = await _context.DynamicFeeStructures.AsNoTracking()
+            .Where(f => (f.Status == "Active" || string.IsNullOrEmpty(f.Status)) &&
+                        (string.IsNullOrEmpty(f.AcademicYear) || f.AcademicYear.Contains(yearPrefix) || f.AcademicYear.Equals(activeAYName, StringComparison.OrdinalIgnoreCase)) &&
+                        (string.IsNullOrEmpty(branchName) || string.IsNullOrEmpty(f.Branch) || f.Branch.Equals("All", StringComparison.OrdinalIgnoreCase) || f.Branch.Equals(branchName, StringComparison.OrdinalIgnoreCase)))
+            .ToListAsync();
+
         var matchedStructure = feeStructures.FirstOrDefault(f => 
             !string.IsNullOrEmpty(f.ClassName) && 
             MatchesClassName(f.ClassName, cName) &&
@@ -545,12 +556,81 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             ? matchedStructure.TotalAmount 
             : 0m;
 
-        var lineItems = new List<FeeLineItemDto>();
-        decimal runningPaid = totalPaid;
+        // Categorize payments to ensure strict component separation and prevent double-counting
+        decimal depositPaymentsTotal = 0m;
+        decimal hostelPaymentsTotal = 0m;
+        decimal transportPaymentsTotal = 0m;
+        decimal tuitionPaymentsTotal = 0m;
 
-        string activeAYName = student.AcademicYear?.AcademicYearName ?? academicYear ?? $"{DateTime.UtcNow.Year}-{(DateTime.UtcNow.Year + 1)}";
-        var matchYear = System.Text.RegularExpressions.Regex.Match(activeAYName, @"\d{4}");
-        string yearPrefix = matchYear.Success ? matchYear.Value : activeAYName;
+        foreach (var p in payments)
+        {
+            bool classified = false;
+            if (!string.IsNullOrEmpty(p.PaidItemsJson))
+            {
+                try
+                {
+                    using var doc = JsonDocument.Parse(p.PaidItemsJson);
+                    if (doc.RootElement.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var elem in doc.RootElement.EnumerateArray())
+                        {
+                            string hn = "";
+                            if (elem.TryGetProperty("headName", out var hnProp)) hn = hnProp.GetString() ?? "";
+                            else if (elem.TryGetProperty("feeHeadName", out var hnProp2)) hn = hnProp2.GetString() ?? "";
+
+                            decimal itmAmt = 0m;
+                            if (elem.TryGetProperty("amount", out var aProp) && aProp.TryGetDecimal(out decimal av)) itmAmt = av;
+
+                            if (hn.Contains("Security Deposit", StringComparison.OrdinalIgnoreCase))
+                            {
+                                depositPaymentsTotal += itmAmt;
+                                classified = true;
+                            }
+                            else if (hn.Contains("Hostel", StringComparison.OrdinalIgnoreCase))
+                            {
+                                hostelPaymentsTotal += itmAmt;
+                                classified = true;
+                            }
+                            else if (hn.Contains("Transport", StringComparison.OrdinalIgnoreCase))
+                            {
+                                transportPaymentsTotal += itmAmt;
+                                classified = true;
+                            }
+                            else
+                            {
+                                tuitionPaymentsTotal += itmAmt;
+                                classified = true;
+                            }
+                        }
+                    }
+                }
+                catch { }
+            }
+
+            if (!classified)
+            {
+                string combinedRef = $"{p.FeeHeadName} {p.TermName} {p.Remarks}".ToLowerInvariant();
+                if (combinedRef.Contains("security deposit"))
+                {
+                    depositPaymentsTotal += p.Amount;
+                }
+                else if (combinedRef.Contains("hostel"))
+                {
+                    hostelPaymentsTotal += p.Amount;
+                }
+                else if (combinedRef.Contains("transport"))
+                {
+                    transportPaymentsTotal += p.Amount;
+                }
+                else
+                {
+                    tuitionPaymentsTotal += p.Amount;
+                }
+            }
+        }
+
+        var lineItems = new List<FeeLineItemDto>();
+        decimal runningPaid = tuitionPaymentsTotal;
 
         // Dynamic Student Fee Policy resolution
         string sIdStr = student.StudentId.ToString();
@@ -574,7 +654,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
 
         var schedule = await _context.FeeSchedules.AsNoTracking()
             .Include(s => s.Terms)
-            .FirstOrDefaultAsync(s => s.AcademicYear.Contains(yearPrefix) || s.Status == "Active" || s.Status == "Published");
+            .FirstOrDefaultAsync(s => s.AcademicYear.Contains(yearPrefix) && (s.Status == "Active" || s.Status == "Published" || string.IsNullOrEmpty(s.Status)));
 
         var scheduleTerms = schedule?.Terms?.OrderBy(t => t.Sequence).ToList() ?? new List<FeeScheduleTerm>();
         if (scheduleTerms.Count == 0)
@@ -748,67 +828,9 @@ public class FeeCollectionRepository : IFeeCollectionRepository
         // ==========================================
         // 2. PAYMENT BREAKDOWN BY CATEGORY
         // ==========================================
-        decimal rawTransportPaid = 0m;
-        decimal rawDepositPaid = 0m;
-        decimal rawHostelPaid = 0m;
-
-        foreach (var p in payments)
-        {
-            bool handledInJson = false;
-            if (!string.IsNullOrEmpty(p.PaidItemsJson))
-            {
-                try
-                {
-                    using var doc = JsonDocument.Parse(p.PaidItemsJson);
-                    if (doc.RootElement.ValueKind == JsonValueKind.Array)
-                    {
-                        foreach (var elem in doc.RootElement.EnumerateArray())
-                        {
-                            string hn = "";
-                            if (elem.TryGetProperty("headName", out var hnProp)) hn = hnProp.GetString() ?? "";
-                            else if (elem.TryGetProperty("feeHeadName", out var hnProp2)) hn = hnProp2.GetString() ?? "";
-
-                            decimal itmAmt = 0m;
-                            if (elem.TryGetProperty("amount", out var aProp) && aProp.TryGetDecimal(out decimal av)) itmAmt = av;
-
-                            if (hn.Contains("Security Deposit", StringComparison.OrdinalIgnoreCase))
-                            {
-                                rawDepositPaid += itmAmt;
-                                handledInJson = true;
-                            }
-                            else if (hn.Contains("Hostel", StringComparison.OrdinalIgnoreCase))
-                            {
-                                rawHostelPaid += itmAmt;
-                                handledInJson = true;
-                            }
-                            else if (hn.Contains("Transport", StringComparison.OrdinalIgnoreCase))
-                            {
-                                rawTransportPaid += itmAmt;
-                                handledInJson = true;
-                            }
-                        }
-                    }
-                }
-                catch { }
-            }
-
-            if (!handledInJson)
-            {
-                string combinedRef = $"{p.FeeHeadName} {p.TermName} {p.Remarks}".ToLowerInvariant();
-                if (combinedRef.Contains("security deposit"))
-                {
-                    rawDepositPaid += p.Amount;
-                }
-                else if (combinedRef.Contains("hostel"))
-                {
-                    rawHostelPaid += p.Amount;
-                }
-                else if (combinedRef.Contains("transport"))
-                {
-                    rawTransportPaid += p.Amount;
-                }
-            }
-        }
+        decimal rawTransportPaid = transportPaymentsTotal;
+        decimal rawDepositPaid = depositPaymentsTotal;
+        decimal rawHostelPaid = hostelPaymentsTotal;
 
         // ==========================================
         // 3. TRANSPORT SERVICE (ACTIVE OR PRORATED USAGE)
@@ -1025,8 +1047,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             .ToList();
 
             var matchedCfg = candidateConfigs.FirstOrDefault() ??
-                             allHostelConfigs.FirstOrDefault(c => MatchesClassRange(cName, c, classOrderMap)) ??
-                             allHostelConfigs.FirstOrDefault();
+                             allHostelConfigs.FirstOrDefault(c => MatchesClassRange(cName, c, classOrderMap));
 
             if (matchedCfg != null)
             {
@@ -1155,6 +1176,14 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             ApplicableHead = "Tuition Fee"
         }).ToList();
 
+        decimal previousYearsArrears = 0m;
+        if (student != null && student.AcademicYearId > 0)
+        {
+            previousYearsArrears = await _context.FeeCharges.AsNoTracking()
+                .Where(c => c.StudentId == student.StudentId && c.AcademicYearId < student.AcademicYearId && c.OutstandingAmount > 0 && c.Status != "Cancelled")
+                .SumAsync(c => c.OutstandingAmount);
+        }
+
         return new StudentFeeProfileResponseDto
         {
             StudentId = student.StudentId,
@@ -1169,9 +1198,9 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             FatherMobile = student.FatherMobile ?? "",
             FeePolicy = studentPolicy,
             CurrentYearDues = totalOutstanding,
-            PreviousYearsArrears = 0m,
+            PreviousYearsArrears = previousYearsArrears,
             TotalConcessions = totalDiscounts,
-            TotalOutstandingBalance = totalOutstanding,
+            TotalOutstandingBalance = totalOutstanding + previousYearsArrears,
 
             // Granular breakdown fields
             TuitionAssessedFee = tuitionAssessed,
@@ -1356,11 +1385,35 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             throw new ArgumentException("Please select at least one pending fee component to collect.");
         }
 
+        foreach (var item in request.SelectedItems)
+        {
+            if (item.Amount <= 0)
+            {
+                throw new InvalidOperationException($"Invalid payment amount ₹{item.Amount:N2} for component '{item.GetEffectiveHeadName()}'. Each selected component amount must be greater than zero.");
+            }
+        }
+
+        var duplicateComponent = request.SelectedItems
+            .GroupBy(i => new { Head = i.GetEffectiveHeadName().Trim().ToLowerInvariant(), Term = (i.TermName ?? "").Trim().ToLowerInvariant() })
+            .FirstOrDefault(g => g.Count() > 1);
+        if (duplicateComponent != null)
+        {
+            throw new InvalidOperationException($"Duplicate fee component '{duplicateComponent.Key.Head}' ({duplicateComponent.Key.Term}) detected in selected items.");
+        }
+
+        decimal selectedSum = request.SelectedItems.Sum(i => i.Amount);
+        if (Math.Abs(selectedSum - request.TotalAmountPaid) > 0.01m)
+        {
+            throw new InvalidOperationException($"The sum of selected item amounts (₹{selectedSum:N2}) does not match TotalAmountPaid (₹{request.TotalAmountPaid:N2}).");
+        }
+
         decimal maxAllowed = existingProfile.TotalOutstandingBalance + (request.IsFineWaived ? 0m : request.FineAmount) - request.ConcessionDiscountAmount;
-        if (maxAllowed <= 0 || request.TotalAmountPaid > maxAllowed)
+        if (maxAllowed <= 0 || request.TotalAmountPaid > (maxAllowed + 0.01m))
         {
             throw new InvalidOperationException($"Paying amount (₹{request.TotalAmountPaid:N2}) cannot exceed the remaining due balance of ₹{Math.Max(0m, maxAllowed):N2}.");
         }
+
+        string paymentStatus = (request.TotalAmountPaid < (maxAllowed - 0.01m)) ? "Partial" : "Completed";
 
         string termName = request.SelectedItems != null && request.SelectedItems.Any()
             ? string.Join(", ", request.SelectedItems.Select(i => i.TermName).Where(t => !string.IsNullOrEmpty(t)).Distinct())
@@ -1400,7 +1453,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             PaymentDate = DateTime.UtcNow,
             PaymentMethod = request.PaymentMethod ?? "Cash",
             TransactionId = !string.IsNullOrEmpty(request.TransactionId) ? request.TransactionId : request.ChequeNo ?? "",
-            Status = "Completed",
+            Status = paymentStatus,
             TermName = !string.IsNullOrEmpty(termName) ? termName : "Term Fee",
             FeeHeadName = !string.IsNullOrEmpty(feeHeadName) ? feeHeadName : "Tuition Fee",
             Remarks = !string.IsNullOrEmpty(request.Remarks) ? request.Remarks : "Fee Collection Receipt",
@@ -1415,6 +1468,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                 : null;
 
             _context.FeePayments.Add(payment);
+            await _context.SaveChangesAsync();
 
             string canonicalStr = canonicalStudentId.ToString();
             var targetApp = await _context.AdmissionApplications.FirstOrDefaultAsync(a =>
@@ -1422,6 +1476,94 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                 a.Id == canonicalStudentId ||
                 (!string.IsNullOrEmpty(a.AdmissionNo) && (a.AdmissionNo == canonicalStr || (student != null && a.AdmissionNo == student.AdmissionNumber))) ||
                 (!string.IsNullOrEmpty(a.RegistrationNo) && a.RegistrationNo == canonicalStr));
+
+            int resolvedBranchId = student?.BranchId ?? 1;
+            int resolvedAcademicYearId = student?.AcademicYearId ?? 1;
+            if (student == null && targetApp != null)
+            {
+                if (!string.IsNullOrWhiteSpace(targetApp.BranchName))
+                {
+                    var b = await _context.Branches.AsNoTracking().FirstOrDefaultAsync(br => br.BranchName == targetApp.BranchName);
+                    if (b != null) resolvedBranchId = b.BranchId;
+                }
+                if (!string.IsNullOrWhiteSpace(targetApp.AcademicYear))
+                {
+                    var ay = await _context.AcademicYears.AsNoTracking().FirstOrDefaultAsync(y => y.AcademicYearName == targetApp.AcademicYear);
+                    if (ay != null) resolvedAcademicYearId = ay.AcademicYearId;
+                }
+            }
+
+            foreach (var item in request.SelectedItems)
+            {
+                string headName = item.GetEffectiveHeadName();
+                int resolvedHeadId = 0;
+                if (int.TryParse(item.FeeHeadId, out int pHeadId) && pHeadId > 0)
+                {
+                    resolvedHeadId = pHeadId;
+                }
+                else if (!string.IsNullOrWhiteSpace(headName))
+                {
+                    var dbHead = await _context.FeeHeads.AsNoTracking().FirstOrDefaultAsync(h => h.Name == headName || h.Name.Contains(headName));
+                    if (dbHead != null) resolvedHeadId = dbHead.Id;
+                }
+
+                string itemTerm = !string.IsNullOrWhiteSpace(item.TermName) ? item.TermName : "One Time";
+
+                var feeCharge = await _context.FeeCharges.FirstOrDefaultAsync(c =>
+                    c.StudentId == canonicalStudentId &&
+                    c.AcademicYearId == resolvedAcademicYearId &&
+                    c.TermName == itemTerm &&
+                    (resolvedHeadId > 0 ? c.FeeHeadId == resolvedHeadId : true));
+
+                if (feeCharge != null)
+                {
+                    feeCharge.PaidAmount += item.Amount;
+                    feeCharge.OutstandingAmount = Math.Max(0m, feeCharge.NetAmount - feeCharge.PaidAmount);
+                    feeCharge.Status = feeCharge.OutstandingAmount <= 0 ? "Paid" : "PartiallyPaid";
+                }
+                else
+                {
+                    var matchingLine = existingProfile.CurrentAcademicYearFees.FirstOrDefault(l =>
+                        l.GetEffectiveHeadName().Equals(headName, StringComparison.OrdinalIgnoreCase) ||
+                        (!string.IsNullOrEmpty(l.FeeHeadId) && l.FeeHeadId == item.FeeHeadId));
+
+                    decimal origAmt = matchingLine?.TotalAmount ?? item.Amount;
+                    decimal netAmt = matchingLine?.RemainingAmount ?? item.Amount;
+                    if (netAmt < item.Amount) netAmt = item.Amount;
+                    if (origAmt < netAmt) origAmt = netAmt;
+
+                    feeCharge = new FeeCharge
+                    {
+                        StudentId = canonicalStudentId,
+                        AdmissionNo = student?.AdmissionNumber ?? targetApp?.AdmissionNo ?? canonicalStr,
+                        AcademicYearId = resolvedAcademicYearId,
+                        BranchId = resolvedBranchId,
+                        FeeHeadId = resolvedHeadId,
+                        TermName = itemTerm,
+                        DueDate = DateTime.UtcNow,
+                        OriginalAmount = origAmt,
+                        DiscountAmount = 0m,
+                        ScholarshipAmount = 0m,
+                        FineAmount = 0m,
+                        NetAmount = netAmt,
+                        PaidAmount = item.Amount,
+                        OutstandingAmount = Math.Max(0m, netAmt - item.Amount),
+                        Status = (netAmt - item.Amount <= 0) ? "Paid" : "PartiallyPaid",
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    _context.FeeCharges.Add(feeCharge);
+                    await _context.SaveChangesAsync();
+                }
+
+                var allocation = new PaymentAllocation
+                {
+                    PaymentId = payment.Id,
+                    FeeChargeId = feeCharge.Id,
+                    AllocatedAmount = item.Amount,
+                    AllocatedAt = DateTime.UtcNow
+                };
+                _context.PaymentAllocations.Add(allocation);
+            }
 
             var matchingAssignment = await _context.StudentFeeAssignments
                 .FirstOrDefaultAsync(a => a.StudentId == canonicalStr && (a.Status == "Active" || string.IsNullOrEmpty(a.Status)));
@@ -1432,28 +1574,29 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             }
 
             // Sync Hostel Security Deposit status on Admission Application if deposit was collected
-            bool isDepositPayment =
-                (!string.IsNullOrEmpty(payment.FeeHeadName) && payment.FeeHeadName.Contains("Security Deposit", StringComparison.OrdinalIgnoreCase)) ||
-                (!string.IsNullOrEmpty(payment.Remarks) && payment.Remarks.Contains("Security Deposit", StringComparison.OrdinalIgnoreCase)) ||
-                (!string.IsNullOrEmpty(payment.PaidItemsJson) && payment.PaidItemsJson.Contains("Security Deposit", StringComparison.OrdinalIgnoreCase));
+            decimal allocatedDeposit = request.SelectedItems
+                .Where(i => i.GetEffectiveHeadName().Contains("Security Deposit", StringComparison.OrdinalIgnoreCase) ||
+                            (!string.IsNullOrEmpty(i.TermName) && i.TermName.Contains("Security Deposit", StringComparison.OrdinalIgnoreCase)))
+                .Sum(i => i.Amount);
 
-            if (isDepositPayment && targetApp != null)
+            if (allocatedDeposit > 0 && targetApp != null)
             {
                 targetApp.HostelSecurityDepositPaid = true;
-                targetApp.SecurityDepositAmount = payment.Amount;
+                targetApp.SecurityDepositAmount = (targetApp.SecurityDepositAmount ?? 0m) + allocatedDeposit;
                 targetApp.SecurityDepositReceiptNo = receiptNo;
             }
 
             // Sync Admission Fee status on Admission Application if admission fee was collected
-            bool isAdmissionFeePayment =
-                (!string.IsNullOrEmpty(payment.FeeHeadName) && (payment.FeeHeadName.Contains("Admission Fee", StringComparison.OrdinalIgnoreCase) || payment.FeeHeadName.Contains("Admission", StringComparison.OrdinalIgnoreCase))) ||
-                (!string.IsNullOrEmpty(payment.Remarks) && payment.Remarks.Contains("Admission", StringComparison.OrdinalIgnoreCase)) ||
-                (!string.IsNullOrEmpty(payment.PaidItemsJson) && payment.PaidItemsJson.Contains("Admission", StringComparison.OrdinalIgnoreCase));
+            decimal allocatedAdmissionFee = request.SelectedItems
+                .Where(i => (i.GetEffectiveHeadName().Contains("Admission Fee", StringComparison.OrdinalIgnoreCase) ||
+                             i.GetEffectiveHeadName().Equals("Admission", StringComparison.OrdinalIgnoreCase)) &&
+                            !i.GetEffectiveHeadName().Contains("Security Deposit", StringComparison.OrdinalIgnoreCase))
+                .Sum(i => i.Amount);
 
-            if (isAdmissionFeePayment && targetApp != null)
+            if (allocatedAdmissionFee > 0 && targetApp != null)
             {
                 targetApp.AdmissionFeePaid = true;
-                targetApp.AdmissionFeeAmount = payment.Amount;
+                targetApp.AdmissionFeeAmount = (targetApp.AdmissionFeeAmount ?? 0m) + allocatedAdmissionFee;
                 targetApp.AdmissionFeeReceiptNo = receiptNo;
             }
 
@@ -1470,6 +1613,9 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                 ? existingProfile.ClassName
                 : string.Empty;
             string classPart = !string.IsNullOrWhiteSpace(resolvedClassName) ? $" ({resolvedClassName})" : "";
+
+            bool isDepositPayment = allocatedDeposit > 0;
+            bool isAdmissionFeePayment = allocatedAdmissionFee > 0;
 
             string ledgerParticulars = $"Fee Collection — {resolvedStudentName}{classPart} - {payment.FeeHeadName} ({receiptNo})";
             string ledgerCategory = isDepositPayment
@@ -1491,8 +1637,8 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                 FinancialAccountId = acct?.Id,
                 StudentId = canonicalStudentId,
                 AdmissionNo = student?.AdmissionNumber ?? targetApp?.AdmissionNo ?? canonicalStr,
-                AcademicYearId = student?.AcademicYearId ?? 1,
-                BranchId = student?.BranchId ?? 1,
+                AcademicYearId = resolvedAcademicYearId,
+                BranchId = resolvedBranchId,
                 Debit = 0m,
                 Credit = payment.Amount,
                 Balance = acct?.CurrentBalance ?? 0m,
@@ -2893,7 +3039,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
 
         var schedule = await _context.FeeSchedules.AsNoTracking()
             .Include(s => s.Terms)
-            .FirstOrDefaultAsync(s => s.AcademicYear.Contains(yearPrefix) || s.Status == "Active" || s.Status == "Published");
+            .FirstOrDefaultAsync(s => s.AcademicYear.Contains(yearPrefix) && (s.Status == "Active" || s.Status == "Published" || string.IsNullOrEmpty(s.Status)));
 
         var scheduleTerms = schedule?.Terms?.OrderBy(t => t.Sequence).ToList() ?? new List<FeeScheduleTerm>();
 

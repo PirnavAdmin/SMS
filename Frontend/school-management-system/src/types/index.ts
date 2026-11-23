@@ -1471,6 +1471,8 @@ export interface DynamicFeeStructure {
   items: FeeStructureItem[];
   totalAmount: number;
   status: 'Active' | 'Inactive';
+  paymentRequirement?: 'Pay Before Enrollment' | 'Pay After Enrollment' | 'Pay Before & After Enrollment';
+  preEnrollmentAmount?: number;
 }
 
 export type FeePolicyType = 'Full Annual Fee' | 'Monthly Pro-rated Fee' | 'Monthly Pro-rated' | 'Pro-rata' | 'Term-wise' | 'Term-wise Fee' | 'Custom' | 'Custom Amount';

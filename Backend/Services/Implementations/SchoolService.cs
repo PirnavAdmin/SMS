@@ -2,6 +2,7 @@ namespace SMS.Api.Services.Implementations;
 
 using SMS.Api.Dtos;
 using SMS.Api.Dtos.AcademicManagement;
+using SMS.Api.Dtos.FinanceManagement;
 using SMS.Api.Exceptions;
 using SMS.Api.Models;
 using SMS.Api.Models.AcademicManagement;
@@ -10,6 +11,7 @@ using SMS.Api.Services.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Backend.Helpers;
@@ -1493,6 +1495,135 @@ public class SchoolService : ISchoolService
 		return (false, 0m);
 	}
 
+	public async Task<(bool IsEligible, decimal RequiredAmount, decimal PaidAmount, decimal OutstandingAmount, string Reason)> VerifyPreEnrollmentEligibilityAsync(int applicationId)
+	{
+		var app = await _schoolRepository.GetApplicationByIdAsync(applicationId);
+		if (app == null)
+		{
+			throw new NotFoundException($"Admission application with ID {applicationId} not found.");
+		}
+		return await VerifyPreEnrollmentEligibilityAsync(app);
+	}
+
+	public async Task<(bool IsEligible, decimal RequiredAmount, decimal PaidAmount, decimal OutstandingAmount, string Reason)> VerifyPreEnrollmentEligibilityAsync(AdmissionApplication app)
+	{
+		string? appClass = app.AppliedClass?.ClassName;
+		if (string.IsNullOrWhiteSpace(appClass) && app.AppliedClassId.HasValue && app.AppliedClassId.Value > 0)
+		{
+			var cGrade = await _context.Classes.FindAsync(app.AppliedClassId.Value);
+			appClass = cGrade?.ClassName;
+		}
+
+		var structures = await _context.DynamicFeeStructures.AsNoTracking().ToListAsync();
+		var matching = structures.Where(s =>
+			(s.Status == "Active" || string.IsNullOrEmpty(s.Status)) &&
+			(string.IsNullOrWhiteSpace(appClass) || string.IsNullOrWhiteSpace(s.ClassName) || s.ClassName.Equals("All", StringComparison.OrdinalIgnoreCase) || s.ClassName.Equals(appClass, StringComparison.OrdinalIgnoreCase) || s.ClassName.Contains(appClass, StringComparison.OrdinalIgnoreCase) || appClass.Contains(s.ClassName, StringComparison.OrdinalIgnoreCase)) &&
+			(string.IsNullOrWhiteSpace(app.AcademicYear) || string.IsNullOrWhiteSpace(s.AcademicYear) || s.AcademicYear.Equals(app.AcademicYear, StringComparison.OrdinalIgnoreCase) || s.AcademicYear.Replace(" ", "").Equals(app.AcademicYear.Replace(" ", ""), StringComparison.OrdinalIgnoreCase)) &&
+			(string.IsNullOrWhiteSpace(app.BranchName) || string.IsNullOrWhiteSpace(s.Branch) || s.Branch.Equals("All", StringComparison.OrdinalIgnoreCase) || s.Branch.Equals("All Branches", StringComparison.OrdinalIgnoreCase) || s.Branch.Equals(app.BranchName, StringComparison.OrdinalIgnoreCase))
+		).ToList();
+
+		decimal requiredPreEnrollment = 0m;
+		foreach (var s in matching)
+		{
+			decimal total = s.TotalAmount;
+			if (total <= 0 && !string.IsNullOrWhiteSpace(s.ItemsJson))
+			{
+				try
+				{
+					var items = JsonSerializer.Deserialize<List<FeeStructureItemDto>>(s.ItemsJson);
+					if (items != null) total = items.Sum(i => i.Amount);
+				}
+				catch { }
+			}
+
+			var req = s.PaymentRequirement ?? "Pay After Enrollment";
+			if (req.Equals("Pay Before Enrollment", StringComparison.OrdinalIgnoreCase))
+			{
+				requiredPreEnrollment += total;
+			}
+			else if (req.Equals("Pay Before & After Enrollment", StringComparison.OrdinalIgnoreCase))
+			{
+				requiredPreEnrollment += Math.Min(total, s.PreEnrollmentAmount);
+			}
+		}
+
+		if (requiredPreEnrollment <= 0m)
+		{
+			return (true, 0m, 0m, 0m, string.Empty);
+		}
+
+		string canonicalId = app.Id.ToString();
+		var allPayments = await _context.FeePayments.AsNoTracking()
+			.Where(p => p.Status != "Cancelled" && p.Status != "Reversed" &&
+			            (p.StudentId == canonicalId ||
+			             (!string.IsNullOrEmpty(app.AdmissionNo) && p.StudentId == app.AdmissionNo) ||
+			             (!string.IsNullOrEmpty(app.RegistrationNo) && p.StudentId == app.RegistrationNo)))
+			.ToListAsync();
+
+		var qualifyingHeads = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+		foreach (var s in matching)
+		{
+			var req = s.PaymentRequirement ?? "Pay After Enrollment";
+			if (req.Equals("Pay After Enrollment", StringComparison.OrdinalIgnoreCase)) continue;
+
+			if (!string.IsNullOrWhiteSpace(s.Name))
+				qualifyingHeads.Add(s.Name);
+			if (!string.IsNullOrWhiteSpace(s.ItemsJson))
+			{
+				try
+				{
+					var items = JsonSerializer.Deserialize<List<FeeStructureItemDto>>(s.ItemsJson);
+					if (items != null)
+					{
+						foreach (var it in items)
+						{
+							if (!string.IsNullOrWhiteSpace(it.FeeHeadName))
+								qualifyingHeads.Add(it.FeeHeadName);
+						}
+					}
+				}
+				catch { }
+			}
+		}
+
+		var qualifyingPayments = allPayments.Where(p =>
+		{
+			if (string.IsNullOrWhiteSpace(p.FeeHeadName) && string.IsNullOrWhiteSpace(p.PaidItemsJson))
+				return true;
+			if (qualifyingHeads.Count == 0) return true;
+			if (!string.IsNullOrWhiteSpace(p.FeeHeadName) && qualifyingHeads.Any(h => p.FeeHeadName.Contains(h, StringComparison.OrdinalIgnoreCase)))
+				return true;
+			if (!string.IsNullOrWhiteSpace(p.PaidItemsJson) && qualifyingHeads.Any(h => p.PaidItemsJson.Contains(h, StringComparison.OrdinalIgnoreCase)))
+				return true;
+			if (!string.IsNullOrWhiteSpace(p.Remarks) && qualifyingHeads.Any(h => p.Remarks.Contains(h, StringComparison.OrdinalIgnoreCase)))
+				return true;
+			return false;
+		}).ToList();
+
+		decimal paidAmount = qualifyingPayments.Sum(p => p.Amount);
+
+		if (app.HostelSecurityDepositPaid && app.SecurityDepositAmount.HasValue && app.SecurityDepositAmount.Value > 0 &&
+		    !string.IsNullOrWhiteSpace(app.SecurityDepositReceiptNo) &&
+		    !allPayments.Any(p => p.ReceiptNo == app.SecurityDepositReceiptNo))
+		{
+			paidAmount += app.SecurityDepositAmount.Value;
+		}
+		if (app.AdmissionFeePaid && app.AdmissionFeeAmount.HasValue && app.AdmissionFeeAmount.Value > 0 &&
+		    !string.IsNullOrWhiteSpace(app.AdmissionFeeReceiptNo) &&
+		    !allPayments.Any(p => p.ReceiptNo == app.AdmissionFeeReceiptNo))
+		{
+			paidAmount += app.AdmissionFeeAmount.Value;
+		}
+
+		decimal outstanding = Math.Max(0m, requiredPreEnrollment - paidAmount);
+		bool isEligible = outstanding <= 0m;
+		string reason = isEligible
+			? string.Empty
+			: $"Cannot enroll applicant '{app.FirstName} {app.LastName}'. Outstanding pre-enrollment fee balance of ₹{outstanding:N0} must be paid prior to enrollment.";
+
+		return (isEligible, requiredPreEnrollment, paidAmount, outstanding, reason);
+	}
+
 	public async Task<string?> EnrollStudentAsync(int id)
 	{
 		var app = await _schoolRepository.GetApplicationByIdAsync(id);
@@ -1518,48 +1649,10 @@ public class SchoolService : ISchoolService
 			throw new BadRequestException($"Application with ID {id} is already enrolled.");
 		}
 
-		bool isResidential = string.Equals(app.StudentType, "Residential", StringComparison.OrdinalIgnoreCase) ||
-		                     string.Equals(app.StudentType, "Hosteller", StringComparison.OrdinalIgnoreCase) ||
-		                     !string.IsNullOrWhiteSpace(app.HostelBlock);
-		if (isResidential)
+		var (isEligible, reqAmt, paidAmt, outstandingAmt, reason) = await VerifyPreEnrollmentEligibilityAsync(app);
+		if (!isEligible)
 		{
-			bool hasVerifiedDeposit = app.HostelSecurityDepositPaid && !string.IsNullOrWhiteSpace(app.SecurityDepositReceiptNo);
-			if (!hasVerifiedDeposit)
-			{
-				string canonicalStr = app.Id.ToString();
-				hasVerifiedDeposit = await _context.FeePayments.AsNoTracking().AnyAsync(p =>
-					p.Status != "Cancelled" && p.Status != "Reversed" &&
-					(p.StudentId == canonicalStr || p.StudentId == app.AdmissionNo || p.StudentId == app.RegistrationNo) &&
-					((p.FeeHeadName != null && p.FeeHeadName.Contains("Security Deposit")) ||
-					 (p.Remarks != null && p.Remarks.Contains("Security Deposit"))));
-			}
-
-			if (!hasVerifiedDeposit)
-			{
-				var depAmt = app.SecurityDepositAmount > 0 ? app.SecurityDepositAmount : 0m;
-				throw new BadRequestException($"Cannot enroll applicant '{app.FirstName} {app.LastName}'. Mandatory Hostel Security Deposit {(depAmt > 0 ? $"of ₹{depAmt:N0} " : "")}must be paid prior to enrollment.");
-			}
-		}
-
-		var (hasMandatoryAdmFee, admFeeAmount) = await GetAdmissionFeeRequirementAsync(app);
-		if (hasMandatoryAdmFee && admFeeAmount > 0)
-		{
-			bool hasVerifiedAdmFee = app.AdmissionFeePaid && !string.IsNullOrWhiteSpace(app.AdmissionFeeReceiptNo);
-			if (!hasVerifiedAdmFee)
-			{
-				string canonicalStr = app.Id.ToString();
-				hasVerifiedAdmFee = await _context.FeePayments.AsNoTracking().AnyAsync(p =>
-					p.Status != "Cancelled" && p.Status != "Reversed" &&
-					(p.StudentId == canonicalStr || p.StudentId == app.AdmissionNo || p.StudentId == app.RegistrationNo) &&
-					((p.FeeHeadName != null && (p.FeeHeadName.Contains("Admission Fee") || p.FeeHeadName.Contains("Admission"))) ||
-					 (p.Remarks != null && p.Remarks.Contains("Admission")) ||
-					 (p.PaidItemsJson != null && p.PaidItemsJson.Contains("Admission"))));
-			}
-
-			if (!hasVerifiedAdmFee)
-			{
-				throw new BadRequestException($"Cannot enroll applicant '{app.FirstName} {app.LastName}'. Mandatory Admission Fee {(admFeeAmount > 0 ? $"of ₹{admFeeAmount:N0} " : "")}must be paid prior to enrollment.");
-			}
+			throw new BadRequestException(reason);
 		}
 
 		if (string.IsNullOrWhiteSpace(app.AdmissionNo) || app.AdmissionNo.StartsWith("REG-", StringComparison.OrdinalIgnoreCase))
@@ -1770,48 +1863,10 @@ public class SchoolService : ISchoolService
 		{
 			if (string.Equals(status, "Enrolled", StringComparison.OrdinalIgnoreCase))
 			{
-				bool isResidential = string.Equals(app.StudentType, "Residential", StringComparison.OrdinalIgnoreCase) ||
-				                     string.Equals(app.StudentType, "Hosteller", StringComparison.OrdinalIgnoreCase) ||
-				                     !string.IsNullOrWhiteSpace(app.HostelBlock);
-				if (isResidential)
+				var (isEligible, reqAmt, paidAmt, outstandingAmt, reason) = await VerifyPreEnrollmentEligibilityAsync(app);
+				if (!isEligible)
 				{
-					bool hasVerifiedDeposit = app.HostelSecurityDepositPaid && !string.IsNullOrWhiteSpace(app.SecurityDepositReceiptNo);
-					if (!hasVerifiedDeposit)
-					{
-						string canonicalStr = app.Id.ToString();
-						hasVerifiedDeposit = await _context.FeePayments.AsNoTracking().AnyAsync(p =>
-							p.Status != "Cancelled" && p.Status != "Reversed" &&
-							(p.StudentId == canonicalStr || p.StudentId == app.AdmissionNo || p.StudentId == app.RegistrationNo) &&
-							((p.FeeHeadName != null && p.FeeHeadName.Contains("Security Deposit")) ||
-							 (p.Remarks != null && p.Remarks.Contains("Security Deposit"))));
-					}
-
-					if (!hasVerifiedDeposit)
-					{
-						var depAmt = app.SecurityDepositAmount > 0 ? app.SecurityDepositAmount : 0m;
-						throw new BadRequestException($"Cannot enroll applicant '{app.FirstName} {app.LastName}'. Mandatory Hostel Security Deposit {(depAmt > 0 ? $"of ₹{depAmt:N0} " : "")}must be paid prior to enrollment.");
-					}
-				}
-
-				var (hasMandatoryAdmFee, admFeeAmount) = await GetAdmissionFeeRequirementAsync(app);
-				if (hasMandatoryAdmFee && admFeeAmount > 0)
-				{
-					bool hasVerifiedAdmFee = app.AdmissionFeePaid && !string.IsNullOrWhiteSpace(app.AdmissionFeeReceiptNo);
-					if (!hasVerifiedAdmFee)
-					{
-						string canonicalStr = app.Id.ToString();
-						hasVerifiedAdmFee = await _context.FeePayments.AsNoTracking().AnyAsync(p =>
-							p.Status != "Cancelled" && p.Status != "Reversed" &&
-							(p.StudentId == canonicalStr || p.StudentId == app.AdmissionNo || p.StudentId == app.RegistrationNo) &&
-							((p.FeeHeadName != null && (p.FeeHeadName.Contains("Admission Fee") || p.FeeHeadName.Contains("Admission"))) ||
-							 (p.Remarks != null && p.Remarks.Contains("Admission")) ||
-							 (p.PaidItemsJson != null && p.PaidItemsJson.Contains("Admission"))));
-					}
-
-					if (!hasVerifiedAdmFee)
-					{
-						throw new BadRequestException($"Cannot enroll applicant '{app.FirstName} {app.LastName}'. Mandatory Admission Fee {(admFeeAmount > 0 ? $"of ₹{admFeeAmount:N0} " : "")}must be paid prior to enrollment.");
-					}
+					throw new BadRequestException(reason);
 				}
 			}
 

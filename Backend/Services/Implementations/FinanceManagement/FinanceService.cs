@@ -1,6 +1,7 @@
 namespace SMS.Api.Services.Implementations.FinanceManagement;
 
 using SMS.Api.Dtos.FinanceManagement;
+using SMS.Api.Exceptions;
 using SMS.Api.Models.FinanceManagement;
 using SMS.Api.Repositories.Interfaces.FinanceManagement;
 using SMS.Api.Services.Interfaces.FinanceManagement;
@@ -370,6 +371,8 @@ public class FinanceService : IFinanceService
                 StudentCategory = x.StudentCategory,
                 TotalAmount = totalAmount,
                 Status = x.Status,
+                PaymentRequirement = !string.IsNullOrWhiteSpace(x.PaymentRequirement) ? x.PaymentRequirement : "Pay After Enrollment",
+                PreEnrollmentAmount = x.PreEnrollmentAmount,
                 Items = items
             });
         }
@@ -430,6 +433,8 @@ public class FinanceService : IFinanceService
             StudentCategory = x.StudentCategory,
             TotalAmount = totalAmount,
             Status = x.Status,
+            PaymentRequirement = !string.IsNullOrWhiteSpace(x.PaymentRequirement) ? x.PaymentRequirement : "Pay After Enrollment",
+            PreEnrollmentAmount = x.PreEnrollmentAmount,
             Items = items
         };
     }
@@ -582,6 +587,29 @@ public class FinanceService : IFinanceService
             return (await UpdateDynamicFeeStructureAsync(existing.Id, dto))!;
         }
 
+        var paymentReq = string.IsNullOrWhiteSpace(dto.PaymentRequirement) ? "Pay After Enrollment" : dto.PaymentRequirement.Trim();
+        if (!paymentReq.Equals("Pay Before Enrollment", StringComparison.OrdinalIgnoreCase) &&
+            !paymentReq.Equals("Pay After Enrollment", StringComparison.OrdinalIgnoreCase) &&
+            !paymentReq.Equals("Pay Before & After Enrollment", StringComparison.OrdinalIgnoreCase))
+        {
+            paymentReq = "Pay After Enrollment";
+        }
+
+        decimal computedTotal = (dto.Items != null && dto.Items.Count > 0) ? dto.Items.Sum(i => i.Amount) : dto.TotalAmount;
+        decimal preEnrollmentAmt = 0m;
+        if (paymentReq.Equals("Pay Before Enrollment", StringComparison.OrdinalIgnoreCase))
+        {
+            preEnrollmentAmt = computedTotal;
+        }
+        else if (paymentReq.Equals("Pay Before & After Enrollment", StringComparison.OrdinalIgnoreCase))
+        {
+            if (dto.PreEnrollmentAmount < 0 || dto.PreEnrollmentAmount > computedTotal)
+            {
+                throw new BadRequestException($"Pre-enrollment requirement ({dto.PreEnrollmentAmount:N2}) cannot be negative or exceed the total fee amount ({computedTotal:N2}).");
+            }
+            preEnrollmentAmt = dto.PreEnrollmentAmount;
+        }
+
         var model = new DynamicFeeStructure
         {
             Name = string.IsNullOrEmpty(dto.Name) ? $"{className} Structure" : dto.Name,
@@ -592,8 +620,10 @@ public class FinanceService : IFinanceService
             ClassName = className,
             Section = string.IsNullOrEmpty(dto.Section) ? "All Sections" : dto.Section,
             StudentCategory = string.IsNullOrEmpty(dto.StudentCategory) ? "General" : dto.StudentCategory,
-            TotalAmount = (dto.Items != null && dto.Items.Count > 0) ? dto.Items.Sum(i => i.Amount) : dto.TotalAmount,
+            TotalAmount = computedTotal,
             Status = dto.Status ?? "Active",
+            PaymentRequirement = paymentReq,
+            PreEnrollmentAmount = preEnrollmentAmt,
             ItemsJson = JsonSerializer.Serialize(dto.Items ?? new List<FeeStructureItemDto>())
         };
         var res = await _repo.CreateDynamicFeeStructureAsync(model);
@@ -602,6 +632,8 @@ public class FinanceService : IFinanceService
         dto.Name = model.Name;
         dto.Category = category;
         dto.FeeCategory = category;
+        dto.PaymentRequirement = paymentReq;
+        dto.PreEnrollmentAmount = preEnrollmentAmt;
         return dto;
     }
 
@@ -612,6 +644,29 @@ public class FinanceService : IFinanceService
             : (!string.IsNullOrWhiteSpace(dto.FeeCategory) ? dto.FeeCategory.Trim() : (!string.IsNullOrWhiteSpace(dto.TargetAudience) ? dto.TargetAudience.Trim() : "Tuition"));
 
         await ValidateActiveFeeHeadsAsync(dto, category);
+
+        var paymentReq = string.IsNullOrWhiteSpace(dto.PaymentRequirement) ? "Pay After Enrollment" : dto.PaymentRequirement.Trim();
+        if (!paymentReq.Equals("Pay Before Enrollment", StringComparison.OrdinalIgnoreCase) &&
+            !paymentReq.Equals("Pay After Enrollment", StringComparison.OrdinalIgnoreCase) &&
+            !paymentReq.Equals("Pay Before & After Enrollment", StringComparison.OrdinalIgnoreCase))
+        {
+            paymentReq = "Pay After Enrollment";
+        }
+
+        decimal computedTotal = (dto.Items != null && dto.Items.Count > 0) ? dto.Items.Sum(i => i.Amount) : dto.TotalAmount;
+        decimal preEnrollmentAmt = 0m;
+        if (paymentReq.Equals("Pay Before Enrollment", StringComparison.OrdinalIgnoreCase))
+        {
+            preEnrollmentAmt = computedTotal;
+        }
+        else if (paymentReq.Equals("Pay Before & After Enrollment", StringComparison.OrdinalIgnoreCase))
+        {
+            if (dto.PreEnrollmentAmount < 0 || dto.PreEnrollmentAmount > computedTotal)
+            {
+                throw new BadRequestException($"Pre-enrollment requirement ({dto.PreEnrollmentAmount:N2}) cannot be negative or exceed the total fee amount ({computedTotal:N2}).");
+            }
+            preEnrollmentAmt = dto.PreEnrollmentAmount;
+        }
 
         var model = new DynamicFeeStructure
         {
@@ -624,8 +679,10 @@ public class FinanceService : IFinanceService
             ClassName = dto.ClassName,
             Section = string.IsNullOrEmpty(dto.Section) ? "All Sections" : dto.Section,
             StudentCategory = string.IsNullOrEmpty(dto.StudentCategory) ? "General" : dto.StudentCategory,
-            TotalAmount = (dto.Items != null && dto.Items.Count > 0) ? dto.Items.Sum(i => i.Amount) : dto.TotalAmount,
+            TotalAmount = computedTotal,
             Status = dto.Status ?? "Active",
+            PaymentRequirement = paymentReq,
+            PreEnrollmentAmount = preEnrollmentAmt,
             ItemsJson = JsonSerializer.Serialize(dto.Items ?? new List<FeeStructureItemDto>())
         };
         var res = await _repo.UpdateDynamicFeeStructureAsync(model);
@@ -634,6 +691,8 @@ public class FinanceService : IFinanceService
         dto.Name = model.Name;
         dto.Category = category;
         dto.FeeCategory = category;
+        dto.PaymentRequirement = paymentReq;
+        dto.PreEnrollmentAmount = preEnrollmentAmt;
         return dto;
     }
 

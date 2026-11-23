@@ -52,6 +52,8 @@ public interface ISchoolService
     Task<bool> DeleteApplicationAsync(int id);
     Task<bool> RejectApplicationAsync(int id);
     Task<string?> EnrollStudentAsync(int id);
+    Task<(bool IsEligible, decimal RequiredAmount, decimal PaidAmount, decimal OutstandingAmount, string Reason)> VerifyPreEnrollmentEligibilityAsync(int applicationId);
+    Task<(bool IsEligible, decimal RequiredAmount, decimal PaidAmount, decimal OutstandingAmount, string Reason)> VerifyPreEnrollmentEligibilityAsync(SMS.Api.Models.AdmissionApplication app);
     Task<EmailDeliveryResultDto> ResendParentWelcomeEmailAsync(string identifier);
     Task<bool> UpdateApplicationStatusAsync(int id, string status);
 

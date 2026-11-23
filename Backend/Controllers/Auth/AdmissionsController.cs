@@ -162,6 +162,27 @@ public class AdmissionsController : ControllerBase
         return Ok(new { success = true, message = "Application rejected successfully." });
     }
 
+    [HttpGet("{id}/enrollment-eligibility")]
+    public async Task<IActionResult> GetEnrollmentEligibility(string id)
+    {
+        var app = await _schoolService.GetApplicationByIdentifierAsync(id);
+        if (app == null)
+        {
+            return NotFound(new { success = false, message = $"Application '{id}' not found." });
+        }
+
+        var (isEligible, reqAmt, paidAmt, outstandingAmt, reason) = await _schoolService.VerifyPreEnrollmentEligibilityAsync(app.Id);
+        return Ok(new
+        {
+            success = true,
+            isEligible,
+            requiredPreEnrollmentAmount = reqAmt,
+            paidPreEnrollmentAmount = paidAmt,
+            outstandingPreEnrollmentAmount = outstandingAmt,
+            reason
+        });
+    }
+
     [HttpPost("{id}/enroll")]
     public async Task<IActionResult> EnrollStudent(string id)
     {

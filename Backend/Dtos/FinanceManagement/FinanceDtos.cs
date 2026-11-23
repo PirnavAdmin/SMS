@@ -24,6 +24,8 @@ public class DynamicFeeStructureDto
     public string StudentCategory { get; set; } = string.Empty;
     public decimal TotalAmount { get; set; }
     public string Status { get; set; } = "Active";
+    public string PaymentRequirement { get; set; } = "Pay After Enrollment";
+    public decimal PreEnrollmentAmount { get; set; } = 0.00m;
     public System.Collections.Generic.List<FeeStructureItemDto> Items { get; set; } = new();
 }
 
