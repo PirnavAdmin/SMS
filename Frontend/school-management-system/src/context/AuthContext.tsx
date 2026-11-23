@@ -704,6 +704,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       confirmPassword: confirmPass || newPass,
       emailOrPhone: candidateIdentifier,
     });
+
+    try {
+      if (localStorage.getItem('remember_me') === 'true') {
+        const savedId = (localStorage.getItem('remember_me_identifier') || '').trim().toLowerCase();
+        const currentEmail = (user?.email || '').trim().toLowerCase();
+        const currentPhone = (user?.phone || '').trim().toLowerCase();
+        const currentUsername = ((user as any)?.username || '').trim().toLowerCase();
+        const currentName = (user?.name || '').trim().toLowerCase();
+
+        // If remember_me is active and matches current user (or no identifier stored yet), sync new password
+        if (!savedId || savedId === currentEmail || savedId === currentPhone || savedId === currentUsername || savedId === currentName) {
+          localStorage.setItem('remember_me_password', newPass);
+          if (user?.email) {
+            localStorage.setItem('remember_me_identifier', user.email);
+          }
+        }
+      } else {
+        localStorage.removeItem('remember_me_password');
+      }
+    } catch {}
+
     return true;
   };
 
@@ -723,6 +744,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const resetPasswordWithOtp = async (emailOrPhone: string, otpCode: string, newPassword: string): Promise<boolean> => {
     await resetPasswordWithOtpApi(emailOrPhone, otpCode, newPassword);
+
+    try {
+      if (localStorage.getItem('remember_me') === 'true') {
+        const savedId = (localStorage.getItem('remember_me_identifier') || '').trim().toLowerCase();
+        const targetId = (emailOrPhone || '').trim().toLowerCase();
+        if (!savedId || savedId === targetId) {
+          localStorage.setItem('remember_me_identifier', emailOrPhone.trim());
+          localStorage.setItem('remember_me_password', newPassword);
+        }
+      } else {
+        localStorage.removeItem('remember_me_password');
+      }
+    } catch {}
+
     return true;
   };
 

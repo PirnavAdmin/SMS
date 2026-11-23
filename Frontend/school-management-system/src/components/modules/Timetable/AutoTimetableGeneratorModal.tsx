@@ -113,7 +113,9 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
     teacherAssignments,
     staff,
     fetchStaff,
+    fetchAcademicClasses,
     subjects,
+    fetchSubjects,
     periodSettings,
     bulkAddPeriodSettings,
     bulkAddTimetableSlots,
@@ -127,12 +129,18 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
   const { addToast } = useToast();
 
   useEffect(() => {
-    if (!staff || staff.length === 0) {
+    if (isOpen) {
+      if (typeof fetchAcademicClasses === 'function') {
+        fetchAcademicClasses(true);
+      }
+      if (typeof fetchSubjects === 'function') {
+        fetchSubjects(true);
+      }
       if (typeof fetchStaff === 'function') {
         fetchStaff();
       }
     }
-  }, [staff, fetchStaff]);
+  }, [isOpen, fetchAcademicClasses, fetchSubjects, fetchStaff]);
 
   // Wizard active tab
   const [activeStep, setActiveStep] = useState<'timings' | 'classes' | 'generate'>('timings');
@@ -232,50 +240,123 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
 
   // Target Class-Section combinations (e.g., ["Class 1-A", "Class 1-B"])
   const [selectedClassSections, setSelectedClassSections] = useState<string[]>([]);
-  const [classGroupFilter, setClassGroupFilter] = useState<string>('primary');
+  const [classGroupFilter, setClassGroupFilter] = useState<string>('all');
+
+  // Helper to extract numeric grade from class name: "Class - 13" -> 13, "class 9" -> 9, "Grade 10" -> 10, "class-14" -> 14
+  const extractClassNumber = (name: string): number | null => {
+    if (!name) return null;
+    const clean = name.trim();
+    const digitMatch = clean.match(/(?:class|grade|std|standard)?\s*[-–—]?\s*(\d+)/i);
+    if (digitMatch && digitMatch[1]) {
+      return parseInt(digitMatch[1], 10);
+    }
+    const romanMatch = clean.match(/\b(XI|XII|XIII|XIV|IX|X|VIII|VII|VI|IV|V|III|II|I)\b/i);
+    if (romanMatch && romanMatch[1]) {
+      const rom = romanMatch[1].toUpperCase();
+      const romanMap: Record<string, number> = {
+        I: 1, II: 2, III: 3, IV: 4, V: 5, VI: 6, VII: 7, VIII: 8, IX: 9, X: 10,
+        XI: 11, XII: 12, XIII: 13, XIV: 14
+      };
+      if (romanMap[rom]) return romanMap[rom];
+    }
+    return null;
+  };
+
+  const isNurseryType = (name: string): boolean => {
+    return /nursery|lkg|ukg|kg|pre-kg|kindergarten|playgroup|montessori|creche|eyfs|pp[12]|pre-primary/i.test(name);
+  };
 
   const classGroups = useMemo(() => {
     const groups: { key: string; label: string; match: (name: string) => boolean }[] = [];
+    const classes = academicClasses || [];
     
-    const hasNursery = (academicClasses || []).some(c => /nursery|lkg|ukg|kg|pre-kg|kindergarten|playgroup/i.test(c.name));
-    const hasPrimary = (academicClasses || []).some(c => /class\s*[1-5]\b/i.test(c.name) || /grade\s*[1-5]\b/i.test(c.name) || ['Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5'].includes(c.name));
-    const hasMiddle = (academicClasses || []).some(c => /class\s*[6-8]\b/i.test(c.name) || /grade\s*[6-8]\b/i.test(c.name) || ['Class 6', 'Class 7', 'Class 8'].includes(c.name));
-    const hasHigh = (academicClasses || []).some(c => /class\s*(9|10)\b/i.test(c.name) || ['Class 9', 'Class 10'].includes(c.name));
-    const hasSenior = (academicClasses || []).some(c => /class\s*(11|12)\b/i.test(c.name) || ['Class 11', 'Class 12'].includes(c.name));
+    const hasNursery = classes.some(c => isNurseryType(c.name));
+    const hasPrimary = classes.some(c => {
+      const n = extractClassNumber(c.name);
+      return n !== null && n >= 1 && n <= 5;
+    });
+    const hasMiddle = classes.some(c => {
+      const n = extractClassNumber(c.name);
+      return n !== null && n >= 6 && n <= 8;
+    });
+    const hasHigh = classes.some(c => {
+      const n = extractClassNumber(c.name);
+      return n !== null && n >= 9 && n <= 10;
+    });
+    const hasSenior = classes.some(c => {
+      const n = extractClassNumber(c.name);
+      return n !== null && n >= 11;
+    });
 
     if (hasNursery) {
       groups.push({
         key: 'nursery',
         label: 'Nursery & KG',
-        match: (name: string) => /nursery|lkg|ukg|kg|pre-kg|kindergarten|playgroup/i.test(name)
+        match: (name: string) => isNurseryType(name)
       });
     }
     if (hasPrimary) {
       groups.push({
         key: 'primary',
         label: 'Class 1-5',
-        match: (name: string) => /class\s*[1-5]\b/i.test(name) || /grade\s*[1-5]\b/i.test(name) || ['Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5'].includes(name)
+        match: (name: string) => {
+          const n = extractClassNumber(name);
+          return n !== null && n >= 1 && n <= 5;
+        }
       });
     }
     if (hasMiddle) {
       groups.push({
         key: 'middle',
         label: 'Class 6-8',
-        match: (name: string) => /class\s*[6-8]\b/i.test(name) || /grade\s*[6-8]\b/i.test(name) || ['Class 6', 'Class 7', 'Class 8'].includes(name)
+        match: (name: string) => {
+          const n = extractClassNumber(name);
+          return n !== null && n >= 6 && n <= 8;
+        }
       });
     }
     if (hasHigh) {
       groups.push({
         key: 'high',
         label: 'Class 9-10',
-        match: (name: string) => /class\s*(9|10)\b/i.test(name) || ['Class 9', 'Class 10'].includes(name)
+        match: (name: string) => {
+          const n = extractClassNumber(name);
+          return n !== null && n >= 9 && n <= 10;
+        }
       });
     }
     if (hasSenior) {
+      const seniorNums = classes
+        .map(c => extractClassNumber(c.name))
+        .filter((n): n is number => n !== null && n >= 11);
+      const maxSenior = seniorNums.length > 0 ? Math.max(...seniorNums) : 12;
+      const label = maxSenior > 12 ? `Class 11-${maxSenior}` : 'Class 11-12';
+
       groups.push({
         key: 'senior',
-        label: 'Class 11-12',
-        match: (name: string) => /class\s*(11|12)\b/i.test(name) || ['Class 11', 'Class 12'].includes(name)
+        label,
+        match: (name: string) => {
+          const n = extractClassNumber(name);
+          return n !== null && n >= 11;
+        }
+      });
+    }
+
+    const hasOther = classes.some(c => {
+      if (isNurseryType(c.name)) return false;
+      const n = extractClassNumber(c.name);
+      return n === null || n < 1;
+    });
+
+    if (hasOther) {
+      groups.push({
+        key: 'other',
+        label: 'Other Classes',
+        match: (name: string) => {
+          if (isNurseryType(name)) return false;
+          const n = extractClassNumber(name);
+          return n === null || n < 1;
+        }
       });
     }
 
@@ -292,7 +373,7 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
 
   useEffect(() => {
     if (classGroups.length > 0 && !classGroups.some(g => g.key === classGroupFilter) && classGroupFilter !== 'all') {
-      setClassGroupFilter(classGroups[0].key);
+      setClassGroupFilter('all');
     }
   }, [classGroups, classGroupFilter]);
 
@@ -581,6 +662,15 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
     }
     if (group === 'all') {
       setClassGroupFilter('all');
+      return;
+    }
+    if (group === 'all-visible') {
+      const keysToSelect: string[] = [];
+      displayedClasses.forEach(c => {
+        const sections = c.sections && c.sections.length > 0 ? c.sections : ['A'];
+        sections.forEach(sec => keysToSelect.push(`${c.name}-${sec}`));
+      });
+      setSelectedClassSections(prev => [...new Set([...prev, ...keysToSelect])]);
       return;
     }
     if (group === 'sec-A' || group === 'sec-B') {
@@ -1504,78 +1594,95 @@ export const AutoTimetableGeneratorModal: React.FC<AutoTimetableGeneratorModalPr
                     </h4>
                   </div>
 
-                  {/* Quick Select Buttons */}
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {classGroups.map(g => {
-                      const selCount = (academicClasses || [])
-                        .filter(c => g.match(c.name))
-                        .reduce((count, c) => {
-                          const sections = c.sections && c.sections.length > 0 ? c.sections : ['A'];
-                          return count + sections.filter(sec => selectedClassSections.includes(`${c.name}-${sec}`)).length;
-                        }, 0);
+                  {/* Quick Select & Filter Buttons */}
+                  <div className="flex flex-wrap items-center justify-between gap-2.5 w-full">
+                    {/* Category Filter Pills */}
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setClassGroupFilter('all')}
+                        className={`px-2.5 py-1.5 rounded-xl text-[10px] font-black transition-all cursor-pointer inline-flex items-center gap-1.5 ${
+                          classGroupFilter === 'all'
+                            ? 'bg-brand-600 text-white shadow-xs border border-brand-600'
+                            : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700'
+                        }`}
+                      >
+                        <span>All Classes</span>
+                        <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-bold ${
+                          classGroupFilter === 'all'
+                            ? 'bg-white/20 text-white'
+                            : 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300'
+                        }`}>
+                          {(academicClasses || []).length}
+                        </span>
+                      </button>
 
-                      return (
-                        <button
-                          key={g.key}
-                          type="button"
-                          onClick={() => handleSelectClassGroup(g.key)}
-                          className={`px-2.5 py-1.5 rounded-xl text-[10px] font-black transition-all cursor-pointer inline-flex items-center gap-1.5 ${
-                            classGroupFilter === g.key
-                              ? 'bg-brand-600 text-white shadow-xs border border-brand-600'
-                              : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700'
-                          }`}
-                        >
-                          <span>{g.label}</span>
-                          {selCount > 0 && (
-                            <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-bold ${
+                      {classGroups.map(g => {
+                        const selCount = (academicClasses || [])
+                          .filter(c => g.match(c.name))
+                          .reduce((count, c) => {
+                            const sections = c.sections && c.sections.length > 0 ? c.sections : ['A'];
+                            return count + sections.filter(sec => selectedClassSections.includes(`${c.name}-${sec}`)).length;
+                          }, 0);
+
+                        return (
+                          <button
+                            key={g.key}
+                            type="button"
+                            onClick={() => setClassGroupFilter(g.key)}
+                            className={`px-2.5 py-1.5 rounded-xl text-[10px] font-black transition-all cursor-pointer inline-flex items-center gap-1.5 ${
                               classGroupFilter === g.key
-                                ? 'bg-white/20 text-white'
-                                : 'bg-brand-100 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300'
-                            }`}>
-                              {selCount}
-                            </span>
-                          )}
-                        </button>
-                      );
-                    })}
+                                ? 'bg-brand-600 text-white shadow-xs border border-brand-600'
+                                : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700'
+                            }`}
+                          >
+                            <span>{g.label}</span>
+                            {selCount > 0 && (
+                              <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-bold ${
+                                classGroupFilter === g.key
+                                  ? 'bg-white/20 text-white'
+                                  : 'bg-brand-100 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300'
+                              }`}>
+                                {selCount}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
 
-                    <span className="text-[10px] text-slate-300 dark:text-slate-700">|</span>
-
-                    <button
-                      type="button"
-                      onClick={() => handleSelectClassGroup('sec-A')}
-                      className="px-2.5 py-1.5 rounded-xl text-[10px] font-black bg-slate-100 hover:bg-slate-200 dark:bg-slate-805 text-slate-750 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700 hover:border-slate-300 transition-all cursor-pointer"
-                    >
-                      All Sec A
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleSelectClassGroup('sec-B')}
-                      className="px-2.5 py-1.5 rounded-xl text-[10px] font-black bg-slate-100 hover:bg-slate-200 dark:bg-slate-805 text-slate-750 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700 hover:border-slate-300 transition-all cursor-pointer"
-                    >
-                      All Sec B
-                    </button>
-
-                    <span className="text-[10px] text-slate-300 dark:text-slate-700">|</span>
-
-                    <button
-                      type="button"
-                      onClick={() => handleSelectClassGroup('all')}
-                      className={`px-2.5 py-1.5 rounded-xl text-[10px] font-black transition-all cursor-pointer ${
-                        classGroupFilter === 'all'
-                          ? 'bg-brand-600 text-white shadow-xs border border-brand-600'
-                          : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700'
-                      }`}
-                    >
-                      All
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleSelectClassGroup('none')}
-                      className="px-2 py-0.5 text-[10px] font-bold text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
-                    >
-                      Clear
-                    </button>
+                    {/* Quick Selection Actions */}
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => handleSelectClassGroup('all-visible')}
+                        className="px-2.5 py-1.5 rounded-xl text-[10px] font-black bg-brand-50 hover:bg-brand-100 dark:bg-brand-950/40 text-brand-700 dark:text-brand-300 border border-brand-200/60 dark:border-brand-800 hover:border-brand-300 transition-all cursor-pointer"
+                        title="Select all sections in the currently viewed category"
+                      >
+                        Select All
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSelectClassGroup('sec-A')}
+                        className="px-2.5 py-1.5 rounded-xl text-[10px] font-black bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700 hover:border-slate-300 transition-all cursor-pointer"
+                      >
+                        All Sec A
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSelectClassGroup('sec-B')}
+                        className="px-2.5 py-1.5 rounded-xl text-[10px] font-black bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700 hover:border-slate-300 transition-all cursor-pointer"
+                      >
+                        All Sec B
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleSelectClassGroup('none')}
+                        className="px-2.5 py-1.5 rounded-xl text-[10px] font-black bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200/60 dark:border-rose-900/60 transition-all cursor-pointer"
+                      >
+                        Clear
+                      </button>
+                    </div>
                   </div>
                 </div>
 

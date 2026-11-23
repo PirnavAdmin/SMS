@@ -228,22 +228,30 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
     } catch {}
     return '';
   });
-  const [password, setPassword] = useState<string>('');
+  const [password, setPassword] = useState<string>(() => {
+    try {
+      if (localStorage.getItem('remember_me') === 'true') {
+        return localStorage.getItem('remember_me_password') || '';
+      }
+    } catch {}
+    return '';
+  });
   const [showPassword, setShowPassword] = useState(false);
 
   const [identifierTouched, setIdentifierTouched] = useState(false);
   const [passwordTouched, setPasswordTouched] = useState(false);
   const [loginSubmitted, setLoginSubmitted] = useState(false);
 
-  // Re-hydrate remembered identifier on mount (never store or hydrate passwords)
+  // Re-hydrate remembered credentials on mount
   useEffect(() => {
     try {
-      localStorage.removeItem('remember_me_password');
       const isRemembered = localStorage.getItem('remember_me') === 'true';
       if (isRemembered) {
         setRememberMe(true);
         const savedId = localStorage.getItem('remember_me_identifier') || '';
+        const savedPw = localStorage.getItem('remember_me_password') || '';
         if (savedId) setIdentifier(savedId);
+        if (savedPw) setPassword(savedPw);
       }
     } catch {}
   }, []);
@@ -340,15 +348,18 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
     const isChecked = e.target.checked;
     setRememberMe(isChecked);
     try {
-      localStorage.removeItem('remember_me_password');
       if (isChecked) {
         localStorage.setItem('remember_me', 'true');
         if (identifier.trim()) {
           localStorage.setItem('remember_me_identifier', identifier.trim());
         }
+        if (password) {
+          localStorage.setItem('remember_me_password', password);
+        }
       } else {
         localStorage.removeItem('remember_me');
         localStorage.removeItem('remember_me_identifier');
+        localStorage.removeItem('remember_me_password');
       }
     } catch {}
   };
@@ -366,6 +377,11 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
   const handlePasswordChange = (value: string) => {
     setPassword(value);
     if (error) setError('');
+    if (rememberMe) {
+      try {
+        localStorage.setItem('remember_me_password', value);
+      } catch {}
+    }
   };
 
   // Validation helpers
@@ -488,13 +504,18 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
       return;
     }
 
-    try { localStorage.removeItem('remember_me_password'); } catch {}
-    if (rememberMe && initialRole !== 'Super Admin') {
-      localStorage.setItem('remember_me', 'true');
-      localStorage.setItem('remember_me_identifier', identifier.trim());
+    if (rememberMe) {
+      try {
+        localStorage.setItem('remember_me', 'true');
+        localStorage.setItem('remember_me_identifier', identifier.trim());
+        localStorage.setItem('remember_me_password', password);
+      } catch {}
     } else {
-      localStorage.removeItem('remember_me');
-      localStorage.removeItem('remember_me_identifier');
+      try {
+        localStorage.removeItem('remember_me');
+        localStorage.removeItem('remember_me_identifier');
+        localStorage.removeItem('remember_me_password');
+      } catch {}
     }
 
     setError('');
@@ -604,7 +625,13 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
       await resetPasswordWithOtp(forgotIdentifier.trim(), otp.trim(), newPassword);
       addToast('success', 'Password Reset Successful', 'You can now sign in with your new password.');
       try {
-        localStorage.removeItem('remember_me_password');
+        if (localStorage.getItem('remember_me') === 'true') {
+          localStorage.setItem('remember_me_identifier', forgotIdentifier.trim());
+          localStorage.setItem('remember_me_password', newPassword);
+          setPassword(newPassword);
+        } else {
+          localStorage.removeItem('remember_me_password');
+        }
       } catch {}
       setMode('login');
       setOtp('');
@@ -973,6 +1000,8 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
                       </div>
                       <input
                         type="text"
+                        name="username"
+                        autoComplete="username"
                         value={identifier}
                         onChange={e => handleIdentifierChange(e.target.value)}
                         onBlur={() => setIdentifierTouched(true)}
@@ -1003,6 +1032,8 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
                       </div>
                       <input
                         type={showPassword ? 'text' : 'password'}
+                        name="password"
+                        autoComplete="current-password"
                         value={password}
                         onChange={e => handlePasswordChange(e.target.value)}
                         onBlur={() => setPasswordTouched(true)}
@@ -1184,6 +1215,8 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
                       </div>
                       <input
                         type={showSaPassword ? 'text' : 'password'}
+                        name="new-password"
+                        autoComplete="new-password"
                         required
                         minLength={6}
                         value={saSetupForm.password}
@@ -1216,6 +1249,8 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
                       </div>
                       <input
                         type={showSaConfirmPassword ? 'text' : 'password'}
+                        name="confirm-password"
+                        autoComplete="new-password"
                         required
                         value={saSetupForm.confirmPassword}
                         onChange={e => {
@@ -1406,6 +1441,8 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
                       </label>
                       <input
                         type="password"
+                        name="new-password"
+                        autoComplete="new-password"
                         value={newPassword}
                         onChange={e => {
                           setNewPassword(e.target.value);
@@ -1439,6 +1476,8 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
                       </label>
                       <input
                         type="password"
+                        name="confirm-new-password"
+                        autoComplete="new-password"
                         value={confirmNewPassword}
                         onChange={e => {
                           setConfirmNewPassword(e.target.value);

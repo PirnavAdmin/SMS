@@ -1001,6 +1001,13 @@ export const SettingsView: React.FC = () => {
       try {
         const isSuccess = await changePassword(passForm.currentPassword, passForm.newPassword, passForm.confirmPassword);
         if (isSuccess) {
+          try {
+            if (localStorage.getItem('remember_me') === 'true') {
+              localStorage.setItem('remember_me_password', passForm.newPassword);
+            } else {
+              localStorage.removeItem('remember_me_password');
+            }
+          } catch {}
           addToast("success", "Password Changed", "Your password has been updated successfully.");
           setPassForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
         } else {
@@ -2210,6 +2217,8 @@ export const SettingsView: React.FC = () => {
                     </div>
                     <input
                       type={showCurrentPassword ? "text" : "password"}
+                      name="current-password"
+                      autoComplete="current-password"
                       required
                       placeholder="••••••••"
                       value={passForm.currentPassword}
@@ -2242,6 +2251,8 @@ export const SettingsView: React.FC = () => {
                     </div>
                     <input
                       type={showNewPassword ? "text" : "password"}
+                      name="new-password"
+                      autoComplete="new-password"
                       required
                       placeholder="At least 6 characters"
                       value={passForm.newPassword}
@@ -2271,6 +2282,8 @@ export const SettingsView: React.FC = () => {
                     </div>
                     <input
                       type={showConfirmPassword ? "text" : "password"}
+                      name="confirm-password"
+                      autoComplete="new-password"
                       required
                       placeholder="Re-enter new password"
                       value={passForm.confirmPassword}

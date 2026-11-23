@@ -1510,10 +1510,10 @@ public class TimetableGenerationService : ITimetableGenerationService
 
         foreach (var classSecStr in dto.SelectedClassSections ?? new List<string>())
         {
-            var parts = classSecStr.Split('-');
-            if (parts.Length < 2) continue;
-            var className = parts[0].Trim();
-            var sectionName = parts[1].Trim();
+            int lastDash = classSecStr.LastIndexOf('-');
+            if (lastDash <= 0) continue;
+            var className = classSecStr.Substring(0, lastDash).Trim();
+            var sectionName = classSecStr.Substring(lastDash + 1).Trim();
 
             var classGrade = await _timetableRepository.GetClassByNameAsync(className);
             if (classGrade == null)
