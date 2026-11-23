@@ -151,10 +151,10 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
               <div className={`p-1.5 rounded-xl shrink-0 ${cfg.iconBg}`}>
                 <IconComponent className={`w-4 h-4 stroke-[2.5] ${cfg.iconColor}`} />
               </div>
-              <div className="flex-1 min-w-0 text-xs">
-                <p className={`font-bold leading-snug break-words ${cfg.titleColor}`}>{toast.title}</p>
+              <div className="flex-1 min-w-0 text-xs overflow-hidden">
+                <p className={`font-bold leading-snug break-words line-clamp-1 ${cfg.titleColor}`}>{toast.title}</p>
                 {toast.message && (
-                  <p className={`text-[11px] mt-0.5 leading-snug break-words ${cfg.messageColor}`}>{toast.message}</p>
+                  <p className={`text-[11px] mt-0.5 leading-snug break-words line-clamp-3 ${cfg.messageColor}`}>{toast.message}</p>
                 )}
               </div>
               <button

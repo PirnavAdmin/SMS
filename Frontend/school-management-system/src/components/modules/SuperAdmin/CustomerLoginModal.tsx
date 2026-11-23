@@ -49,6 +49,8 @@ export const CustomerLoginModal: React.FC<CustomerLoginModalProps> = ({
   const [resetPassword, setResetPassword] = useState('');
   const [confirmResetPassword, setConfirmResetPassword] = useState('');
   const [showResetPassword, setShowResetPassword] = useState(false);
+  const [showConfirmResetPassword, setShowConfirmResetPassword] = useState(false);
+  const [showSlipDetails, setShowSlipDetails] = useState(false);
   const [resetError, setResetError] = useState('');
 
   // Latest generated/updated password to show in copy slip
@@ -85,6 +87,12 @@ export const CustomerLoginModal: React.FC<CustomerLoginModalProps> = ({
       setCreateErrors({});
       setResetError('');
       setActivePassword(null);
+      setShowCreatePassword(false);
+      setShowResetPassword(false);
+      setShowConfirmResetPassword(false);
+      setResetPassword('');
+      setConfirmResetPassword('');
+      setShowSlipDetails(false);
       loadAdminForSchool();
     }
   }, [isOpen, school]);
@@ -92,7 +100,7 @@ export const CustomerLoginModal: React.FC<CustomerLoginModalProps> = ({
   if (!isOpen || !school) return null;
 
   const loginPortalUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}/?tenant=${encodeURIComponent(school.schoolCode.toLowerCase())}`
+    ? `${window.location.origin}/?tenant=${encodeURIComponent(school.schoolCode.toLowerCase())}&portal=customer#login`
     : `https://${school.schoolCode.toLowerCase()}.sms.portal`;
 
   const handleGeneratePassword = (target: 'create' | 'reset') => {
@@ -341,21 +349,9 @@ LOGIN INSTRUCTIONS FOR THE CUSTOMER:
                         Password Saved Securely
                       </span>
                       <span className="text-[11px] text-amber-900 dark:text-amber-200">
-                        Password was encrypted upon creation. Click <strong>Reset Password</strong> to set a temporary password for handover.
+                        Password was encrypted upon creation. Use the <strong>Reset Password</strong> action below to set a temporary password for handover.
                       </span>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const quickPass = 'Admin@12345';
-                        setResetPassword(quickPass);
-                        setConfirmResetPassword(quickPass);
-                        setMode('reset');
-                      }}
-                      className="px-2.5 py-1 text-[11px] font-bold text-amber-900 dark:text-amber-100 bg-amber-200 dark:bg-amber-800 rounded-lg hover:bg-amber-300 transition-colors shrink-0 ml-2"
-                    >
-                      Reset Password
-                    </button>
                   </div>
                 )}
               </div>
@@ -389,14 +385,23 @@ LOGIN INSTRUCTIONS FOR THE CUSTOMER:
                 </button>
               </div>
 
-              {/* Shareable Preview */}
-              <div className="space-y-1">
-                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                  Customer Handover Slip Preview
-                </span>
-                <pre className="p-3 rounded-2xl bg-slate-900 text-slate-200 text-[11px] font-mono whitespace-pre-wrap overflow-x-auto max-h-48 border border-slate-800 select-all leading-relaxed">
-                  {customerAccessSlipText}
-                </pre>
+              {/* Shareable Preview - Distinct & Collapsible to prevent repetition */}
+              <div className="rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setShowSlipDetails(!showSlipDetails)}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-800/60 flex items-center justify-between text-[11px] font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 transition-colors"
+                >
+                  <span>Customer Handover Slip Preview</span>
+                  <span className="text-xs text-sky-600 dark:text-sky-400 font-semibold">
+                    {showSlipDetails ? 'Collapse ▲' : 'View Text Slip ▼'}
+                  </span>
+                </button>
+                {showSlipDetails && (
+                  <pre className="p-3 bg-slate-900 text-slate-200 text-[11px] font-mono whitespace-pre-wrap overflow-x-auto max-h-48 border-t border-slate-800 select-all leading-relaxed">
+                    {customerAccessSlipText}
+                  </pre>
+                )}
               </div>
             </div>
           )}
@@ -589,7 +594,9 @@ LOGIN INSTRUCTIONS FOR THE CUSTOMER:
                     <button
                       type="button"
                       onClick={() => setShowResetPassword(!showResetPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      title={showResetPassword ? "Hide password" : "Show password"}
+                      aria-label={showResetPassword ? "Hide password" : "Show password"}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
                     >
                       {showResetPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
@@ -598,13 +605,24 @@ LOGIN INSTRUCTIONS FOR THE CUSTOMER:
 
                 <div>
                   <label className="block font-semibold text-slate-700 dark:text-slate-300 mb-1">Confirm New Password</label>
-                  <input
-                    type="password"
-                    value={confirmResetPassword}
-                    onChange={e => setConfirmResetPassword(e.target.value)}
-                    placeholder="Repeat new password"
-                    className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 dark:text-white font-mono"
-                  />
+                  <div className="relative">
+                    <input
+                      type={showConfirmResetPassword ? 'text' : 'password'}
+                      value={confirmResetPassword}
+                      onChange={e => setConfirmResetPassword(e.target.value)}
+                      placeholder="Repeat new password"
+                      className="w-full px-3 py-2 pr-10 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 dark:text-white font-mono"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmResetPassword(!showConfirmResetPassword)}
+                      title={showConfirmResetPassword ? "Hide password" : "Show password"}
+                      aria-label={showConfirmResetPassword ? "Hide password" : "Show password"}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    >
+                      {showConfirmResetPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -612,14 +630,14 @@ LOGIN INSTRUCTIONS FOR THE CUSTOMER:
                 <button
                   type="button"
                   onClick={() => setMode('view')}
-                  className="px-4 py-2 text-xs font-semibold btn-glass-secondary rounded-xl"
+                  className="px-4 py-2 text-xs font-semibold btn-glass-secondary rounded-xl cursor-pointer"
                 >
                   Back
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl btn-glass-primary font-bold text-xs shadow-md shadow-sky-500/20 active:scale-95 transition-all"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl btn-glass-primary font-bold text-xs shadow-md shadow-sky-500/20 active:scale-95 transition-all cursor-pointer"
                 >
                   <Check className="w-4 h-4" />
                   <span>{loading ? 'Updating...' : 'Save New Password'}</span>
@@ -630,16 +648,18 @@ LOGIN INSTRUCTIONS FOR THE CUSTOMER:
 
         </div>
 
-        {/* Modal Footer */}
-        <div className="px-6 py-3.5 bg-slate-50/60 dark:bg-slate-800/60 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500">
-          <span>School Tenant ID: #{school.schoolId}</span>
-          <button
-            onClick={onClose}
-            className="px-4 py-1.5 rounded-xl btn-glass-secondary font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-200 transition-colors"
-          >
-            Close
-          </button>
-        </div>
+        {/* Modal Footer - Only displayed in 'view' mode to avoid duplicate Close actions on form screens */}
+        {mode === 'view' && (
+          <div className="px-6 py-3.5 bg-slate-50/60 dark:bg-slate-800/60 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500">
+            <span>School Tenant ID: #{school.schoolId}</span>
+            <button
+              onClick={onClose}
+              className="px-4 py-1.5 rounded-xl btn-glass-secondary font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-200 transition-colors cursor-pointer"
+            >
+              Close
+            </button>
+          </div>
+        )}
 
       </div>
     </div>

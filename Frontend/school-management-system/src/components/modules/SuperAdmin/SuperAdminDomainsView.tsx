@@ -57,6 +57,13 @@ export const SuperAdminDomainsView: React.FC = () => {
     setCurrentPage(1);
   };
 
+  const handleRefresh = () => {
+    setSearchTerm('');
+    setSearchError(undefined);
+    setCurrentPage(1);
+    loadData();
+  };
+
   const filteredSchools = useMemo(() => {
     if (searchError) return [];
     const term = searchTerm.toLowerCase().trim();
@@ -75,7 +82,7 @@ export const SuperAdminDomainsView: React.FC = () => {
   }, [filteredSchools, currentPage, rowsPerPage]);
 
   return (
-    <div className="space-y-4 animate-in fade-in duration-300 pb-6">
+    <div className="space-y-4 animate-in fade-in duration-300 pb-24">
       
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -91,9 +98,9 @@ export const SuperAdminDomainsView: React.FC = () => {
         </div>
 
         <button
-          onClick={loadData}
+          onClick={handleRefresh}
           className="w-9 h-9 rounded-2xl btn-glass-secondary flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-sky-600 transition-all cursor-pointer active:scale-95"
-          title="Refresh Domains"
+          title="Reset and Refresh Domains"
         >
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
         </button>
@@ -104,20 +111,11 @@ export const SuperAdminDomainsView: React.FC = () => {
         
         {/* Search Bar & Header Toolbar */}
         <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Row Per Page</span>
-            <select
-              value={rowsPerPage}
-              onChange={e => {
-                setRowsPerPage(Number(e.target.value));
-                setCurrentPage(1);
-              }}
-              className="px-2.5 py-1.5 text-xs font-medium bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none dark:text-white"
-            >
-              <option value={10}>10</option>
-              <option value={25}>25</option>
-              <option value={50}>50</option>
-            </select>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Managed School Domains</span>
+            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-sky-50 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300 border border-sky-500/20">
+              {filteredSchools.length} {filteredSchools.length === 1 ? 'Portal' : 'Portals'}
+            </span>
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
@@ -126,11 +124,11 @@ export const SuperAdminDomainsView: React.FC = () => {
                 <Search className={`w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none transition-colors z-10 ${searchError ? 'text-rose-500' : 'text-slate-400'}`} />
                 <input
                   type="text"
-                  placeholder="Search domain or school..."
+                  placeholder="Search domain or school name..."
                   value={searchTerm}
                   maxLength={30}
                   onChange={e => handleSearchChange(e.target.value)}
-                  className={`w-64 pl-8 ${searchTerm ? 'pr-8' : 'pr-3'} py-1.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border transition-all ${
+                  className={`w-72 pl-8 ${searchTerm ? 'pr-8' : 'pr-3'} py-1.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border transition-all ${
                     searchError
                       ? 'border-rose-500 ring-1 ring-rose-500/20 text-rose-900 dark:text-rose-100 bg-rose-50/20 dark:bg-rose-950/20'
                       : 'border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:border-sky-500'
@@ -139,7 +137,7 @@ export const SuperAdminDomainsView: React.FC = () => {
                 {searchTerm && (
                   <button
                     onClick={handleClearSearch}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
                     title="Clear search"
                   >
                     <X className="w-3.5 h-3.5" />
@@ -153,8 +151,6 @@ export const SuperAdminDomainsView: React.FC = () => {
                 </p>
               )}
             </div>
-
-            <span className="text-xs text-slate-500 font-semibold">{filteredSchools.length} Portals</span>
           </div>
         </div>
 
@@ -180,10 +176,10 @@ export const SuperAdminDomainsView: React.FC = () => {
               ) : searchError ? (
                 <tr>
                   <td colSpan={6} className="text-center py-10">
-                    <div className="flex flex-col items-center justify-center gap-1.5 text-rose-500 dark:text-rose-400">
-                      <AlertCircle className="w-6 h-6 text-rose-500" />
-                      <p className="font-bold text-xs">{searchError}</p>
-                      <p className="text-[11px] text-slate-400 font-normal">Please enter a valid search criteria.</p>
+                    <div className="flex flex-col items-center justify-center gap-1.5 text-slate-400">
+                      <SearchX className="w-8 h-8 text-slate-300 dark:text-slate-600 mb-1" />
+                      <p className="font-semibold text-xs text-slate-600 dark:text-slate-300">Invalid Search Keyword</p>
+                      <p className="text-[11px] text-slate-400 font-normal">Enter valid letters or numbers in the search field above to view matching domains.</p>
                     </div>
                   </td>
                 </tr>
@@ -229,11 +225,11 @@ export const SuperAdminDomainsView: React.FC = () => {
                       </td>
                       <td className="p-3 text-center font-mono text-slate-600 dark:text-slate-400">
                         <a
-                          href={`/?tenant=${encodeURIComponent(school.schoolCode.toLowerCase())}`}
+                          href={`/?tenant=${encodeURIComponent(school.schoolCode.toLowerCase())}&portal=customer#login`}
                           target="_blank"
                           rel="noreferrer"
                           className="hover:text-sky-600 dark:hover:text-sky-400 hover:underline inline-flex items-center gap-1.5"
-                          title="Open Company Portal"
+                          title={`Open ${school.schoolName} Customer Portal`}
                         >
                           <Globe className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                           <span>https://{school.schoolCode.toLowerCase()}.sms.portal</span>
@@ -279,30 +275,53 @@ export const SuperAdminDomainsView: React.FC = () => {
           </table>
         </div>
 
-        {/* Pagination Footer */}
-        <div className="p-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500">
+        {/* Unified Pagination & Rows Per Page Footer */}
+        <div className="p-4 border-t border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
           <span>
             Showing {filteredSchools.length === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1} to{' '}
             {Math.min(currentPage * rowsPerPage, filteredSchools.length)} of {filteredSchools.length} entries
           </span>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-              className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 transition-colors cursor-pointer"
-            >
-              Previous
-            </button>
-            <span className="px-3 py-1.5 font-bold text-slate-900 dark:text-white">
-              {currentPage} / {totalPages}
-            </span>
-            <button
-              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
-              className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 transition-colors cursor-pointer"
-            >
-              Next
-            </button>
+
+          <div className="flex items-center gap-4">
+            {/* Rows Per Page grouped in Footer */}
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-slate-500 dark:text-slate-400">Rows per page:</span>
+              <select
+                value={rowsPerPage}
+                onChange={e => {
+                  setRowsPerPage(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="px-2 py-1 text-xs font-medium bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none dark:text-white"
+              >
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+              </select>
+            </div>
+
+            {/* Pagination Controls - Hidden or disabled when 0 records */}
+            {filteredSchools.length > 0 ? (
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 transition-colors cursor-pointer"
+                >
+                  Previous
+                </button>
+                <span className="px-3 py-1.5 font-bold text-slate-900 dark:text-white">
+                  {currentPage} / {totalPages}
+                </span>
+                <button
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 transition-colors cursor-pointer"
+                >
+                  Next
+                </button>
+              </div>
+            ) : null}
           </div>
         </div>
       </div>

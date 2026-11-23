@@ -38,7 +38,7 @@ export const SuperAdminMetricsView: React.FC = () => {
   }, [schools, currentPage, rowsPerPage]);
 
   return (
-    <div className="space-y-4 animate-in fade-in duration-300 pb-6">
+    <div className="space-y-4 animate-in fade-in duration-300 pb-24">
       
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -130,21 +130,9 @@ export const SuperAdminMetricsView: React.FC = () => {
           <h3 className="font-bold text-sm text-slate-900 dark:text-white">
             Tenant Usage Breakdown by Educational Institution
           </h3>
-          <div className="flex items-center gap-3">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Row Per Page</span>
-            <select
-              value={rowsPerPage}
-              onChange={e => {
-                setRowsPerPage(Number(e.target.value));
-                setCurrentPage(1);
-              }}
-              className="px-2.5 py-1.5 text-xs font-medium bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none dark:text-white"
-            >
-              <option value={10}>10</option>
-              <option value={25}>25</option>
-              <option value={50}>50</option>
-            </select>
-          </div>
+          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-sky-50 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300 border border-sky-500/20">
+            {schools.length} {schools.length === 1 ? 'School' : 'Schools'}
+          </span>
         </div>
 
         <div className="overflow-x-auto">
@@ -207,30 +195,53 @@ export const SuperAdminMetricsView: React.FC = () => {
           </table>
         </div>
 
-        {/* Pagination Footer */}
-        <div className="p-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500">
+        {/* Unified Pagination & Rows Per Page Footer */}
+        <div className="p-4 border-t border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
           <span>
             Showing {schools.length === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1} to{' '}
             {Math.min(currentPage * rowsPerPage, schools.length)} of {schools.length} entries
           </span>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-              className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 transition-colors cursor-pointer"
-            >
-              Previous
-            </button>
-            <span className="px-3 py-1.5 font-bold text-slate-900 dark:text-white">
-              {currentPage} / {totalPages}
-            </span>
-            <button
-              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
-              className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 transition-colors cursor-pointer"
-            >
-              Next
-            </button>
+
+          <div className="flex items-center gap-4">
+            {/* Rows Per Page Grouped in Footer */}
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-slate-500 dark:text-slate-400">Rows per page:</span>
+              <select
+                value={rowsPerPage}
+                onChange={e => {
+                  setRowsPerPage(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="px-2 py-1 text-xs font-medium bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none dark:text-white"
+              >
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+              </select>
+            </div>
+
+            {/* Pagination Controls - Hidden or disabled when 0 records */}
+            {schools.length > 0 ? (
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 transition-colors cursor-pointer"
+                >
+                  Previous
+                </button>
+                <span className="px-3 py-1.5 font-bold text-slate-900 dark:text-white">
+                  {currentPage} / {totalPages}
+                </span>
+                <button
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 transition-colors cursor-pointer"
+                >
+                  Next
+                </button>
+              </div>
+            ) : null}
           </div>
         </div>
       </div>

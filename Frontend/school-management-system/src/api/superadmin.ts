@@ -343,9 +343,18 @@ export interface PackagePlan {
 }
 
 export const fetchPackagesApi = async (): Promise<PackagePlan[]> => {
+  let cachedList: PackagePlan[] = [];
+  try {
+    const cached = localStorage.getItem('cached_subscription_packages');
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (Array.isArray(parsed) && parsed.length > 0) cachedList = parsed;
+    }
+  } catch {}
+
   try {
     const fromApi = await apiClient<PackagePlan[]>('/api/superadmin/packages', { method: 'GET' });
-    if (Array.isArray(fromApi)) {
+    if (Array.isArray(fromApi) && fromApi.length > 0) {
       try {
         localStorage.setItem('cached_subscription_packages', JSON.stringify(fromApi));
       } catch {}
@@ -355,15 +364,7 @@ export const fetchPackagesApi = async (): Promise<PackagePlan[]> => {
     console.warn('Direct packages fetch failed, attempting cached fallback plans:', err);
   }
 
-  try {
-    const cached = localStorage.getItem('cached_subscription_packages');
-    if (cached) {
-      const parsed = JSON.parse(cached);
-      if (Array.isArray(parsed)) return parsed;
-    }
-  } catch {}
-
-  return [];
+  return cachedList;
 };
 
 export const savePackagesApi = async (packages: PackagePlan[]): Promise<PackagePlan[]> => {

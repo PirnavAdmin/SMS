@@ -53,13 +53,19 @@ export const SuperAdminTransactionsView: React.FC = () => {
   }, []);
 
   const handleSearchChange = (value: string) => {
-    setSearchTerm(value);
+    // Only allow alphanumeric, spaces, and safe invoice punctuation (- _ # .)
+    if (value && !/^[A-Za-z0-9\s.\-_#]*$/.test(value)) {
+      setSearchError('Search supports Invoice # or School Name (letters and digits only).');
+      setSearchTerm(value.slice(0, 30));
+      return;
+    }
+    setSearchTerm(value.slice(0, 30));
     setCurrentPage(1);
     if (!value.trim()) {
       setSearchError(undefined);
     } else {
       const res = validateSearchQuery(value.trim(), 30);
-      setSearchError(res.isValid ? undefined : (res.error || 'Enter a valid search term.'));
+      setSearchError(res.isValid ? undefined : 'Search by Invoice # or School Name (letters & numbers only).');
     }
   };
 
@@ -67,6 +73,14 @@ export const SuperAdminTransactionsView: React.FC = () => {
     setSearchTerm('');
     setSearchError(undefined);
     setCurrentPage(1);
+  };
+
+  const handleRefresh = () => {
+    setSearchTerm('');
+    setSearchError(undefined);
+    setStatusFilter('All');
+    setCurrentPage(1);
+    loadData();
   };
 
   // Map package rates dynamically
@@ -152,7 +166,7 @@ export const SuperAdminTransactionsView: React.FC = () => {
   };
 
   return (
-    <div className="space-y-4 animate-in fade-in duration-300 pb-6">
+    <div className="space-y-4 animate-in fade-in duration-300 pb-24">
       
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -169,15 +183,16 @@ export const SuperAdminTransactionsView: React.FC = () => {
 
         <div className="flex items-center gap-3">
           <button
-            onClick={loadData}
+            onClick={handleRefresh}
             className="w-9 h-9 rounded-2xl btn-glass-secondary flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-sky-600 transition-all cursor-pointer active:scale-95"
-            title="Refresh Invoices"
+            title="Reset and Refresh Invoices"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
           <button
             onClick={handleExport}
-            className="px-4 py-2.5 rounded-2xl btn-glass-secondary text-slate-700 dark:text-slate-300 text-xs font-bold shadow-xs flex items-center gap-2 transition-all cursor-pointer active:scale-95"
+            disabled={filtered.length === 0 || !!searchError}
+            className="px-4 py-2.5 rounded-2xl btn-glass-secondary text-slate-700 dark:text-slate-300 text-xs font-bold shadow-xs flex items-center gap-2 transition-all cursor-pointer active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Download className="w-4 h-4 text-slate-500" />
             <span>Export Excel</span>
@@ -190,29 +205,20 @@ export const SuperAdminTransactionsView: React.FC = () => {
         
         {/* Filter & Search Toolbar */}
         <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Row Per Page</span>
-            <select
-              value={rowsPerPage}
-              onChange={e => {
-                setRowsPerPage(Number(e.target.value));
-                setCurrentPage(1);
-              }}
-              className="px-2.5 py-1.5 text-xs font-medium bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none dark:text-white"
-            >
-              <option value={10}>10</option>
-              <option value={25}>25</option>
-              <option value={50}>50</option>
-            </select>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Transaction History</span>
+            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-sky-50 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300 border border-sky-500/20">
+              {filtered.length} {filtered.length === 1 ? 'Record' : 'Records'}
+            </span>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex flex-wrap items-start gap-3">
             <div className="relative">
               <div className="relative flex items-center">
                 <Search className={`w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none transition-colors z-10 ${searchError ? 'text-rose-500' : 'text-slate-400'}`} />
                 <input
                   type="text"
-                  placeholder="Search invoice or school..."
+                  placeholder="Search invoice # or school..."
                   value={searchTerm}
                   maxLength={30}
                   onChange={e => handleSearchChange(e.target.value)}
@@ -225,7 +231,7 @@ export const SuperAdminTransactionsView: React.FC = () => {
                 {searchTerm && (
                   <button
                     onClick={handleClearSearch}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
                     title="Clear search"
                   >
                     <X className="w-3.5 h-3.5" />
@@ -246,9 +252,9 @@ export const SuperAdminTransactionsView: React.FC = () => {
                 setStatusFilter(e.target.value);
                 setCurrentPage(1);
               }}
-              className="px-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none dark:text-white font-medium"
+              className="px-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl outline-none dark:text-white font-medium cursor-pointer"
             >
-              <option value="All">Select Status (All)</option>
+              <option value="All">Status (All)</option>
               <option value="Paid">Paid</option>
               <option value="Pending">Pending</option>
               <option value="Failed">Failed</option>
@@ -279,10 +285,10 @@ export const SuperAdminTransactionsView: React.FC = () => {
               ) : searchError ? (
                 <tr>
                   <td colSpan={7} className="text-center py-10">
-                    <div className="flex flex-col items-center justify-center gap-1.5 text-rose-500 dark:text-rose-400">
-                      <AlertCircle className="w-6 h-6 text-rose-500" />
-                      <p className="font-bold text-xs">{searchError}</p>
-                      <p className="text-[11px] text-slate-400 font-normal">Please enter a valid search query.</p>
+                    <div className="flex flex-col items-center justify-center gap-1.5 text-slate-400">
+                      <SearchX className="w-8 h-8 text-slate-300 dark:text-slate-600 mb-1" />
+                      <p className="font-semibold text-xs text-slate-600 dark:text-slate-300">Invalid Search Keyword</p>
+                      <p className="text-[11px] text-slate-400 font-normal">Please enter a valid invoice number or school name above to filter billing transactions.</p>
                     </div>
                   </td>
                 </tr>
@@ -344,30 +350,53 @@ export const SuperAdminTransactionsView: React.FC = () => {
           </table>
         </div>
 
-        {/* Pagination Footer */}
-        <div className="p-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500">
+        {/* Unified Pagination & Rows Per Page Footer */}
+        <div className="p-4 border-t border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
           <span>
             Showing {filtered.length === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1} to{' '}
             {Math.min(currentPage * rowsPerPage, filtered.length)} of {filtered.length} entries
           </span>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-              className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 transition-colors cursor-pointer"
-            >
-              Previous
-            </button>
-            <span className="px-3 py-1.5 font-bold text-slate-900 dark:text-white">
-              {currentPage} / {totalPages}
-            </span>
-            <button
-              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
-              className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 transition-colors cursor-pointer"
-            >
-              Next
-            </button>
+
+          <div className="flex items-center gap-4">
+            {/* Rows Per Page Grouped in Footer */}
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-slate-500 dark:text-slate-400">Rows per page:</span>
+              <select
+                value={rowsPerPage}
+                onChange={e => {
+                  setRowsPerPage(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="px-2 py-1 text-xs font-medium bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none dark:text-white"
+              >
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+              </select>
+            </div>
+
+            {/* Pagination Controls - Hidden or disabled when 0 records */}
+            {filtered.length > 0 ? (
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 transition-colors cursor-pointer"
+                >
+                  Previous
+                </button>
+                <span className="px-3 py-1.5 font-bold text-slate-900 dark:text-white">
+                  {currentPage} / {totalPages}
+                </span>
+                <button
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 transition-colors cursor-pointer"
+                >
+                  Next
+                </button>
+              </div>
+            ) : null}
           </div>
         </div>
       </div>

@@ -43,7 +43,7 @@ export const SuperAdminPackagesView: React.FC = () => {
   const [editingPlan, setEditingPlan] = useState<PackagePlan | null>(null);
   const [deletingPlan, setDeletingPlan] = useState<PackagePlan | null>(null);
 
-  // Form State
+  // Form State & Validation
   const [formData, setFormData] = useState<PackagePlan>({
     id: '',
     name: '',
@@ -61,6 +61,9 @@ export const SuperAdminPackagesView: React.FC = () => {
   });
 
   const [customFeatureInput, setCustomFeatureInput] = useState('');
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [featureError, setFeatureError] = useState<string | null>(null);
+  const [newlyAddedFeature, setNewlyAddedFeature] = useState<string | null>(null);
 
   const loadAll = async () => {
     setLoading(true);
@@ -101,6 +104,9 @@ export const SuperAdminPackagesView: React.FC = () => {
 
   const handleOpenAdd = () => {
     setEditingPlan(null);
+    setFormErrors({});
+    setFeatureError(null);
+    setNewlyAddedFeature(null);
     setFormData({
       id: `plan-${Date.now()}`,
       name: '',
@@ -114,12 +120,7 @@ export const SuperAdminPackagesView: React.FC = () => {
       storageGb: 0,
       isPopular: false,
       status: '' as any,
-      features: [
-        'Student Admissions & Directory',
-        'Daily Attendance & Leave Tracking',
-        'Timetable & Automated Substitution',
-        'Fee Management & Online Payments'
-      ]
+      features: [] // Start empty for clean new package creation
     });
     setCustomFeatureInput('');
     setIsModalOpen(true);
@@ -127,6 +128,9 @@ export const SuperAdminPackagesView: React.FC = () => {
 
   const handleOpenEdit = (plan: PackagePlan) => {
     setEditingPlan(plan);
+    setFormErrors({});
+    setFeatureError(null);
+    setNewlyAddedFeature(null);
     setFormData({ ...plan });
     setCustomFeatureInput('');
     setIsModalOpen(true);
@@ -144,13 +148,30 @@ export const SuperAdminPackagesView: React.FC = () => {
 
   const handleAddCustomFeature = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!customFeatureInput.trim()) return;
-    if (formData.features.includes(customFeatureInput.trim())) return;
+    const trimmed = customFeatureInput.trim();
+    if (!trimmed) return;
+    
+    // Check for duplicate feature
+    const isDuplicate = formData.features.some(
+      f => f.toLowerCase() === trimmed.toLowerCase()
+    );
+    if (isDuplicate) {
+      setFeatureError('Feature already exists in package.');
+      return;
+    }
+
+    setFeatureError(null);
     setFormData(prev => ({
       ...prev,
-      features: [...prev.features, customFeatureInput.trim()]
+      features: [...prev.features, trimmed]
     }));
+    setNewlyAddedFeature(trimmed);
     setCustomFeatureInput('');
+    addToast('success', 'Feature Added', `Added "${trimmed.slice(0, 30)}" to package modules.`);
+
+    setTimeout(() => {
+      setNewlyAddedFeature(prev => prev === trimmed ? null : prev);
+    }, 2500);
   };
 
   const handleRemoveFeature = (feat: string) => {
@@ -168,22 +189,88 @@ export const SuperAdminPackagesView: React.FC = () => {
 
   const handleSavePlan = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name.trim()) {
-      addToast('error', 'Validation Error', 'Package name is required.');
-      return;
+    const errors: Record<string, string> = {};
+
+    const cleanName = formData.name.trim();
+    if (!cleanName) {
+      errors.name = 'Package name is required.';
+    } else if (cleanName.length < 2) {
+      errors.name = 'Package name must be at least 2 characters.';
+    } else if (cleanName.length > 40) {
+      errors.name = 'Package name cannot exceed 40 characters.';
+    } else if (!/^[A-Za-z0-9\s\-_().&]+$/.test(cleanName)) {
+      errors.name = 'Package name contains invalid characters.';
+    } else if (!/[A-Za-z]/.test(cleanName)) {
+      errors.name = 'Package name must contain at least one letter.';
     }
+
     if (!formData.status) {
-      addToast('error', 'Validation Error', 'Please select a package status.');
+      errors.status = 'Please choose a package status.';
+    }
+
+    if (formData.monthlyPrice < 0) {
+      errors.monthlyPrice = 'Monthly price cannot be negative.';
+    } else if (formData.monthlyPrice > 1000000) {
+      errors.monthlyPrice = 'Monthly price cannot exceed ₹10,00,000.';
+    }
+
+    if (formData.yearlyPrice < 0) {
+      errors.yearlyPrice = 'Yearly price cannot be negative.';
+    } else if (formData.yearlyPrice > 10000000) {
+      errors.yearlyPrice = 'Yearly price cannot exceed ₹1,00,00,000.';
+    }
+
+    if (formData.maxStudents < 0) {
+      errors.maxStudents = 'Student limit cannot be negative.';
+    } else if (formData.maxStudents > 100000) {
+      errors.maxStudents = 'Max students limit cannot exceed 1,00,000.';
+    }
+
+    if (formData.maxStaff < 0) {
+      errors.maxStaff = 'Staff limit cannot be negative.';
+    } else if (formData.maxStaff > 10000) {
+      errors.maxStaff = 'Max staff limit cannot exceed 10,000.';
+    }
+
+    if (formData.maxBranches < 0) {
+      errors.maxBranches = 'Branches limit cannot be negative.';
+    } else if (formData.maxBranches > 1000) {
+      errors.maxBranches = 'Max branches cannot exceed 1,000.';
+    }
+
+    if ((formData.storageGb || 0) < 0) {
+      errors.storageGb = 'Storage cannot be negative.';
+    } else if ((formData.storageGb || 0) > 10000) {
+      errors.storageGb = 'Storage cannot exceed 10,000 GB.';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      addToast('error', 'Validation Error', 'Please correct the highlighted fields before saving.');
       return;
     }
 
+    setFormErrors({});
+    const safeData: PackagePlan = {
+      ...formData,
+      name: cleanName,
+      tagline: (formData.tagline || '').trim().slice(0, 80),
+      monthlyPrice: Number(formData.monthlyPrice) || 0,
+      yearlyPrice: Number(formData.yearlyPrice) || 0,
+      maxStudents: Number(formData.maxStudents) || 0,
+      maxStaff: Number(formData.maxStaff) || 0,
+      maxBranches: Number(formData.maxBranches) || 0,
+      storageGb: Number(formData.storageGb) || 0,
+    };
+
     let updatedList: PackagePlan[];
+    const displayName = safeData.name.length > 28 ? `${safeData.name.slice(0, 28)}...` : safeData.name;
     if (editingPlan) {
-      updatedList = plans.map(p => (p.id === editingPlan.id ? formData : p));
-      addToast('success', 'Package Updated', `${formData.name} configuration saved.`);
+      updatedList = plans.map(p => (p.id === editingPlan.id ? safeData : p));
+      addToast('success', 'Package Updated', `${displayName} configuration saved.`);
     } else {
-      updatedList = [...plans, formData];
-      addToast('success', 'Package Created', `${formData.name} is now available.`);
+      updatedList = [...plans, safeData];
+      addToast('success', 'Package Created', `${displayName} is now available.`);
     }
 
     setPlans(updatedList);
@@ -219,7 +306,7 @@ export const SuperAdminPackagesView: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-300 pb-12">
+    <div className="space-y-6 animate-in fade-in duration-300 pb-32">
       
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -294,7 +381,7 @@ export const SuperAdminPackagesView: React.FC = () => {
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-stretch">
           {plans.map(plan => {
             const price = billingCycle === 'Monthly' ? plan.monthlyPrice : plan.yearlyPrice;
             const liveSchoolCount = getSchoolCountForPlan(plan.name);
@@ -308,49 +395,66 @@ export const SuperAdminPackagesView: React.FC = () => {
                     : 'border-slate-200 dark:border-slate-800 hover:border-slate-300'
                 }`}
               >
-                {plan.isPopular && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-sky-600 text-white text-[10px] font-black uppercase tracking-wider rounded-full shadow-md">
-                    Most Popular
-                  </div>
-                )}
-
                 <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-lg font-extrabold text-slate-900 dark:text-white">{plan.name}</h3>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                  {/* Reserved Top Slot - Consistent alignment across all cards without border overlap */}
+                  <div className="h-6 mb-2 flex items-center">
+                    {plan.isPopular ? (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-sky-50 text-sky-600 dark:bg-sky-950/80 dark:text-sky-300 border border-sky-500/20 text-[10px] font-black uppercase tracking-wider rounded-full shadow-xs">
+                        <Sparkles className="w-3 h-3 text-sky-500" />
+                        Most Popular
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 text-slate-400 dark:text-slate-500 text-[10px] font-bold uppercase tracking-wider">
+                        Standard Tier
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Header Title & Fixed School Count Badge */}
+                  <div className="flex items-center justify-between gap-2 h-7 mb-1.5">
+                    <h3 className="text-lg font-extrabold text-slate-900 dark:text-white truncate" title={plan.name}>
+                      {plan.name}
+                    </h3>
+                    <span className="shrink-0 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 whitespace-nowrap">
                       {liveSchoolCount} {liveSchoolCount === 1 ? 'School' : 'Schools'}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 min-h-[32px]">{plan.tagline || 'Configured institutional SaaS tier'}</p>
 
-                  {/* Price Display */}
-                  <div className="my-5 pb-5 border-b border-slate-100 dark:border-slate-800">
+                  {/* Subtitle / Tagline with uniform 2-line height */}
+                  <p className="text-xs text-slate-500 dark:text-slate-400 h-9 line-clamp-2 leading-relaxed" title={plan.tagline || 'Configured institutional SaaS tier'}>
+                    {plan.tagline || 'Configured institutional SaaS tier'}
+                  </p>
+
+                  {/* Standardized Price Display Block */}
+                  <div className="my-4 py-3.5 border-y border-slate-100 dark:border-slate-800 h-24 flex flex-col justify-center">
                     <div className="flex items-baseline gap-1">
                       <span className="text-3xl font-black text-slate-900 dark:text-white">
-                        ₹{price}
+                        ₹{Number(price).toLocaleString('en-IN')}
                       </span>
                       <span className="text-xs font-semibold text-slate-400">/{billingCycle.toLowerCase()}</span>
                     </div>
-                    <div className="flex items-center gap-3 mt-2 text-[11px] text-slate-500">
-                      <span>{plan.maxStudents === 0 ? 'Unlimited' : `Up to ${plan.maxStudents}`} Students</span>
-                      &bull;
+                    <div className="flex items-center gap-2 mt-2 text-[11px] text-slate-500">
+                      <span>{plan.maxStudents === 0 ? 'Unlimited' : `Up to ${plan.maxStudents.toLocaleString('en-IN')}`} Students</span>
+                      <span>&bull;</span>
                       <span>{plan.maxBranches === 0 ? 'Unlimited' : `${plan.maxBranches}`} Campuses</span>
                     </div>
                   </div>
 
-                  {/* Features List */}
-                  <ul className="space-y-2.5 mb-6">
-                    {plan.features.map((feat, idx) => (
-                      <li key={idx} className="flex items-start gap-2.5 text-xs text-slate-600 dark:text-slate-300">
-                        <Check className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                        <span>{feat}</span>
-                      </li>
-                    ))}
-                  </ul>
+                  {/* Features List with Fixed Starting Y Position & Balanced Overflow */}
+                  <div className="flex-1 min-h-[160px] max-h-[200px] overflow-y-auto pr-1 mb-4 space-y-2">
+                    <ul className="space-y-2">
+                      {plan.features.map((feat, idx) => (
+                        <li key={idx} className="flex items-start gap-2.5 text-xs text-slate-600 dark:text-slate-300">
+                          <Check className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+                          <span className="break-words">{feat}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 </div>
 
-                {/* Card Footer Actions */}
-                <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2">
+                {/* Card Footer Actions - Uniform Bottom Baseline */}
+                <div className="mt-auto pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2">
                   <button
                     onClick={() => handleOpenEdit(plan)}
                     className={`flex-1 py-2.5 rounded-2xl text-xs font-bold transition-all text-center cursor-pointer active:scale-95 ${
@@ -413,11 +517,23 @@ export const SuperAdminPackagesView: React.FC = () => {
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Starter Plan"
+                    maxLength={40}
+                    placeholder="e.g. Starter Plan (max 40 chars)"
                     value={formData.name}
-                    onChange={e => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 dark:text-white"
+                    onChange={e => {
+                      setFormData({ ...formData, name: e.target.value.slice(0, 40) });
+                      if (formErrors.name) setFormErrors(prev => ({ ...prev, name: '' }));
+                    }}
+                    className={`w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border ${
+                      formErrors.name ? 'border-rose-500 ring-1 ring-rose-500/20' : 'border-slate-300 dark:border-slate-700'
+                    } rounded-xl outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 dark:text-white`}
                   />
+                  {formErrors.name && (
+                    <p className="text-[11px] font-bold text-rose-500 mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3 shrink-0" />
+                      <span>{formErrors.name}</span>
+                    </p>
+                  )}
                 </div>
 
                 {/* Tagline */}
@@ -427,9 +543,10 @@ export const SuperAdminPackagesView: React.FC = () => {
                   </label>
                   <input
                     type="text"
+                    maxLength={80}
                     placeholder="e.g. Best for pre-primary institutes"
                     value={formData.tagline}
-                    onChange={e => setFormData({ ...formData, tagline: e.target.value })}
+                    onChange={e => setFormData({ ...formData, tagline: e.target.value.slice(0, 80) })}
                     className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 dark:text-white"
                   />
                 </div>
@@ -442,12 +559,25 @@ export const SuperAdminPackagesView: React.FC = () => {
                   <input
                     type="number"
                     min="0"
+                    max="1000000"
                     required
                     placeholder="0"
                     value={formData.monthlyPrice === 0 ? '' : formData.monthlyPrice}
-                    onChange={e => setFormData({ ...formData, monthlyPrice: e.target.value === '' ? 0 : Math.max(0, Number(e.target.value)) })}
-                    className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 dark:text-white"
+                    onChange={e => {
+                      const val = e.target.value === '' ? 0 : Math.min(1000000, Math.max(0, Number(e.target.value)));
+                      setFormData({ ...formData, monthlyPrice: val });
+                      if (formErrors.monthlyPrice) setFormErrors(prev => ({ ...prev, monthlyPrice: '' }));
+                    }}
+                    className={`w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border ${
+                      formErrors.monthlyPrice ? 'border-rose-500 ring-1 ring-rose-500/20' : 'border-slate-300 dark:border-slate-700'
+                    } rounded-xl outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 dark:text-white`}
                   />
+                  {formErrors.monthlyPrice && (
+                    <p className="text-[11px] font-bold text-rose-500 mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3 shrink-0" />
+                      <span>{formErrors.monthlyPrice}</span>
+                    </p>
+                  )}
                 </div>
 
                 {/* Yearly Price */}
@@ -467,77 +597,142 @@ export const SuperAdminPackagesView: React.FC = () => {
                   <input
                     type="number"
                     min="0"
+                    max="10000000"
                     required
                     placeholder="0"
                     value={formData.yearlyPrice === 0 ? '' : formData.yearlyPrice}
-                    onChange={e => setFormData({ ...formData, yearlyPrice: e.target.value === '' ? 0 : Math.max(0, Number(e.target.value)) })}
-                    className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 dark:text-white"
+                    onChange={e => {
+                      const val = e.target.value === '' ? 0 : Math.min(10000000, Math.max(0, Number(e.target.value)));
+                      setFormData({ ...formData, yearlyPrice: val });
+                      if (formErrors.yearlyPrice) setFormErrors(prev => ({ ...prev, yearlyPrice: '' }));
+                    }}
+                    className={`w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border ${
+                      formErrors.yearlyPrice ? 'border-rose-500 ring-1 ring-rose-500/20' : 'border-slate-300 dark:border-slate-700'
+                    } rounded-xl outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 dark:text-white`}
                   />
+                  {formErrors.yearlyPrice && (
+                    <p className="text-[11px] font-bold text-rose-500 mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3 shrink-0" />
+                      <span>{formErrors.yearlyPrice}</span>
+                    </p>
+                  )}
                 </div>
 
                 {/* Max Students */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Max Students Limit <span className="text-slate-400 font-normal">(0 = Unlimited)</span>
+                    Max Students Limit <span className="text-slate-400 font-normal">(0 = Unlimited, max 1,00,000)</span>
                   </label>
                   <input
                     type="number"
                     min="0"
+                    max="100000"
                     placeholder="0"
                     value={formData.maxStudents === 0 ? '' : formData.maxStudents}
-                    onChange={e => setFormData({ ...formData, maxStudents: e.target.value === '' ? 0 : Math.max(0, Number(e.target.value)) })}
-                    className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 dark:text-white"
+                    onChange={e => {
+                      const val = e.target.value === '' ? 0 : Math.min(100000, Math.max(0, Number(e.target.value)));
+                      setFormData({ ...formData, maxStudents: val });
+                      if (formErrors.maxStudents) setFormErrors(prev => ({ ...prev, maxStudents: '' }));
+                    }}
+                    className={`w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border ${
+                      formErrors.maxStudents ? 'border-rose-500 ring-1 ring-rose-500/20' : 'border-slate-300 dark:border-slate-700'
+                    } rounded-xl outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 dark:text-white`}
                   />
+                  {formErrors.maxStudents && (
+                    <p className="text-[11px] font-bold text-rose-500 mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3 shrink-0" />
+                      <span>{formErrors.maxStudents}</span>
+                    </p>
+                  )}
                 </div>
 
                 {/* Max Staff */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Max Staff / Faculty <span className="text-slate-400 font-normal">(0 = Unlimited)</span>
+                    Max Staff / Faculty <span className="text-slate-400 font-normal">(0 = Unlimited, max 10,000)</span>
                   </label>
                   <input
                     type="number"
                     min="0"
+                    max="10000"
                     placeholder="0"
                     value={formData.maxStaff === 0 ? '' : formData.maxStaff}
-                    onChange={e => setFormData({ ...formData, maxStaff: e.target.value === '' ? 0 : Math.max(0, Number(e.target.value)) })}
-                    className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 dark:text-white"
+                    onChange={e => {
+                      const val = e.target.value === '' ? 0 : Math.min(10000, Math.max(0, Number(e.target.value)));
+                      setFormData({ ...formData, maxStaff: val });
+                      if (formErrors.maxStaff) setFormErrors(prev => ({ ...prev, maxStaff: '' }));
+                    }}
+                    className={`w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border ${
+                      formErrors.maxStaff ? 'border-rose-500 ring-1 ring-rose-500/20' : 'border-slate-300 dark:border-slate-700'
+                    } rounded-xl outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 dark:text-white`}
                   />
+                  {formErrors.maxStaff && (
+                    <p className="text-[11px] font-bold text-rose-500 mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3 shrink-0" />
+                      <span>{formErrors.maxStaff}</span>
+                    </p>
+                  )}
                 </div>
 
                 {/* Max Campuses */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Max Branches / Campuses <span className="text-slate-400 font-normal">(0 = Unlimited)</span>
+                    Max Branches / Campuses <span className="text-slate-400 font-normal">(0 = Unlimited, max 1,000)</span>
                   </label>
                   <input
                     type="number"
                     min="0"
+                    max="1000"
                     placeholder="0"
                     value={formData.maxBranches === 0 ? '' : formData.maxBranches}
-                    onChange={e => setFormData({ ...formData, maxBranches: e.target.value === '' ? 0 : Math.max(0, Number(e.target.value)) })}
-                    className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 dark:text-white"
+                    onChange={e => {
+                      const val = e.target.value === '' ? 0 : Math.min(1000, Math.max(0, Number(e.target.value)));
+                      setFormData({ ...formData, maxBranches: val });
+                      if (formErrors.maxBranches) setFormErrors(prev => ({ ...prev, maxBranches: '' }));
+                    }}
+                    className={`w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border ${
+                      formErrors.maxBranches ? 'border-rose-500 ring-1 ring-rose-500/20' : 'border-slate-300 dark:border-slate-700'
+                    } rounded-xl outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 dark:text-white`}
                   />
+                  {formErrors.maxBranches && (
+                    <p className="text-[11px] font-bold text-rose-500 mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3 shrink-0" />
+                      <span>{formErrors.maxBranches}</span>
+                    </p>
+                  )}
                 </div>
 
                 {/* Storage Quota */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Storage Quota (GB)
+                    Storage Quota (GB) <span className="text-slate-400 font-normal">(max 10,000 GB)</span>
                   </label>
                   <input
                     type="number"
                     min="0"
+                    max="10000"
                     placeholder="0"
                     value={formData.storageGb === 0 ? '' : formData.storageGb}
-                    onChange={e => setFormData({ ...formData, storageGb: e.target.value === '' ? 0 : Math.max(0, Number(e.target.value)) })}
-                    className="w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 dark:text-white"
+                    onChange={e => {
+                      const val = e.target.value === '' ? 0 : Math.min(10000, Math.max(0, Number(e.target.value)));
+                      setFormData({ ...formData, storageGb: val });
+                      if (formErrors.storageGb) setFormErrors(prev => ({ ...prev, storageGb: '' }));
+                    }}
+                    className={`w-full px-3 py-2 text-sm bg-white dark:bg-slate-800 border ${
+                      formErrors.storageGb ? 'border-rose-500 ring-1 ring-rose-500/20' : 'border-slate-300 dark:border-slate-700'
+                    } rounded-xl outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 dark:text-white`}
                   />
+                  {formErrors.storageGb && (
+                    <p className="text-[11px] font-bold text-rose-500 mt-1 flex items-center gap-1">
+                      <AlertCircle className="w-3 h-3 shrink-0" />
+                      <span>{formErrors.storageGb}</span>
+                    </p>
+                  )}
                 </div>
               </div>
 
               {/* Toggles: Most Popular & Status */}
-              <div className="flex flex-wrap items-center gap-6 p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 text-xs">
+              <div className="flex flex-wrap items-center justify-between gap-4 p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 text-xs">
                 <label className="flex items-center gap-2 cursor-pointer font-semibold text-slate-800 dark:text-slate-200">
                   <input
                     type="checkbox"
@@ -552,21 +747,37 @@ export const SuperAdminPackagesView: React.FC = () => {
                   <span className="font-semibold text-slate-700 dark:text-slate-300">Status: <span className="text-rose-500">*</span></span>
                   <select
                     value={formData.status}
-                    onChange={e => setFormData({ ...formData, status: e.target.value as any })}
-                    className="px-2.5 py-1 text-xs bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500"
+                    onChange={e => {
+                      setFormData({ ...formData, status: e.target.value as any });
+                      if (formErrors.status) setFormErrors(prev => ({ ...prev, status: '' }));
+                    }}
+                    className={`px-3 py-1.5 text-xs bg-white dark:bg-slate-800 border ${
+                      formErrors.status ? 'border-rose-500 ring-1 ring-rose-500/20' : 'border-slate-300 dark:border-slate-700'
+                    } rounded-lg outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 dark:text-white`}
                   >
-                    <option value="">Select Status</option>
+                    <option value="">Choose Status</option>
                     <option value="Active">Active</option>
                     <option value="Inactive">Inactive / Suspended</option>
                   </select>
                 </div>
               </div>
+              {formErrors.status && (
+                <p className="text-[11px] font-bold text-rose-500 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3 shrink-0" />
+                  <span>{formErrors.status}</span>
+                </p>
+              )}
 
               {/* Features Selection */}
               <div className="space-y-2">
-                <label className="block text-xs font-bold text-slate-800 dark:text-slate-200">
-                  Included Features & Modules
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-slate-800 dark:text-slate-200">
+                    Included Features & Modules
+                  </label>
+                  <span className="text-[11px] text-slate-400">
+                    {formData.features.length} selected
+                  </span>
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto p-2 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700">
                   {PREDEFINED_MODULE_FEATURES.map((feat, idx) => {
                     const checked = formData.features.includes(feat);
@@ -585,41 +796,70 @@ export const SuperAdminPackagesView: React.FC = () => {
                 </div>
 
                 {/* Add Custom Feature */}
-                <div className="flex items-center gap-2 pt-2">
-                  <input
-                    type="text"
-                    placeholder="Add custom feature (e.g. 24/7 Dedicated Account Manager)"
-                    value={customFeatureInput}
-                    onChange={e => setCustomFeatureInput(e.target.value)}
-                    className="flex-1 px-3 py-1.5 text-xs bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleAddCustomFeature}
-                    className="px-3 py-1.5 text-xs font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-white rounded-lg transition-colors cursor-pointer"
-                  >
-                    Add
-                  </button>
+                <div className="space-y-1 pt-1">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      placeholder="Add custom feature (e.g. 24/7 Dedicated Account Manager)"
+                      value={customFeatureInput}
+                      onChange={e => {
+                        setCustomFeatureInput(e.target.value);
+                        if (featureError) setFeatureError(null);
+                      }}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddCustomFeature(e);
+                        }
+                      }}
+                      className="flex-1 px-3 py-1.5 text-xs bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 dark:text-white"
+                    />
+                    <button
+                      type="button"
+                      disabled={!customFeatureInput.trim()}
+                      onClick={handleAddCustomFeature}
+                      className="px-3.5 py-1.5 text-xs font-bold bg-sky-600 hover:bg-sky-700 text-white disabled:bg-slate-200 disabled:text-slate-400 dark:disabled:bg-slate-800 dark:disabled:text-slate-600 rounded-lg transition-colors cursor-pointer disabled:cursor-not-allowed"
+                    >
+                      Add
+                    </button>
+                  </div>
+                  {featureError && (
+                    <p className="text-[11px] font-bold text-rose-500 flex items-center gap-1 pl-1">
+                      <AlertCircle className="w-3 h-3 shrink-0" />
+                      <span>{featureError}</span>
+                    </p>
+                  )}
                 </div>
 
                 {/* Current Active Features List Badges */}
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  {formData.features.map((f, i) => (
-                    <span
-                      key={i}
-                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-sky-50 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300 border border-sky-500/20"
-                    >
-                      <span>{f}</span>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveFeature(f)}
-                        className="hover:text-rose-600 cursor-pointer"
-                      >
-                        ✕
-                      </button>
-                    </span>
-                  ))}
-                </div>
+                {formData.features.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 pt-1 max-h-24 overflow-y-auto">
+                    {formData.features.map((f, i) => {
+                      const isNew = f === newlyAddedFeature;
+                      return (
+                        <span
+                          key={i}
+                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold transition-all ${
+                            isNew
+                              ? 'bg-emerald-100 text-emerald-800 border border-emerald-400 ring-2 ring-emerald-500/20 scale-105'
+                              : 'bg-sky-50 text-sky-700 dark:bg-sky-950/60 dark:text-sky-300 border border-sky-500/20'
+                          }`}
+                        >
+                          <span>{f}</span>
+                          {isNew && <span className="text-[9px] font-black uppercase text-emerald-600">New</span>}
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveFeature(f)}
+                            className="hover:text-rose-600 cursor-pointer ml-0.5"
+                            title="Remove feature"
+                          >
+                            ✕
+                          </button>
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               {/* Modal Actions */}

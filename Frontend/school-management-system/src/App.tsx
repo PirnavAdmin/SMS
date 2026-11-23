@@ -350,8 +350,13 @@ const MainLayout: React.FC = () => {
     document.body.scrollTop = 0;
   }, [selectedClassId]);
 
-  if (!isAuthenticated) {
-    if (showLogin) {
+  const isCustomerPortalRequested = typeof window !== 'undefined' && Boolean(
+    new URLSearchParams(window.location.search).get('portal') === 'customer' ||
+    (new URLSearchParams(window.location.search).get('tenant') && window.location.hash === '#login')
+  );
+
+  if (!isAuthenticated || isCustomerPortalRequested) {
+    if (showLogin || isCustomerPortalRequested) {
       return (
         <LoginView
           onBack={() => {
@@ -359,9 +364,11 @@ const MainLayout: React.FC = () => {
               sessionStorage.removeItem("show_login_view");
               localStorage.removeItem("session_timeout_occurred");
               localStorage.removeItem("show_login_view");
-              if (window.location.hash === "#login") {
-                window.history.replaceState(null, "", window.location.pathname + window.location.search);
-              }
+              const currentUrl = new URL(window.location.href);
+              currentUrl.searchParams.delete('portal');
+              currentUrl.searchParams.delete('tenant');
+              currentUrl.hash = '';
+              window.history.replaceState(null, '', currentUrl.pathname + currentUrl.search);
             } catch {}
             setShowLogin(false);
           }}
