@@ -22,15 +22,11 @@ export const PromoteStudentModal: React.FC<PromoteStudentModalProps> = ({
 
   const dynamicCampuses = useMemo(() => {
     const fromApi = (branches || [])
+      .filter((b: any) => b && (typeof b === 'string' || b.status !== 'Inactive'))
       .map((b: any) => typeof b === 'string' ? b : (b.name || b.branchName || b.campusName || ''))
       .filter(Boolean);
-    const combined = [
-      ...(selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches' ? [selectedBranch] : []),
-      ...fromApi,
-    ];
-    const unique = Array.from(new Set(combined)).filter(Boolean);
-    return unique;
-  }, [branches, selectedBranch]);
+    return Array.from(new Set(fromApi)).filter(Boolean);
+  }, [branches]);
 
   const [targetYear, setTargetYear] = useState(selectedAcademicYear || ((academicYears?.[0] as any)?.academicYear || (academicYears?.[0] as any)?.year || ''));
   const [targetClass, setTargetClass] = useState(academicClasses?.[0]?.name || '');

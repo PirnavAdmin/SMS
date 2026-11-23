@@ -215,7 +215,11 @@ export const Header: React.FC<HeaderProps> = ({
   );
 
   useEffect(() => {
-    if (authorizedBranches.length > 0 && (!selectedBranch || (selectedBranch !== 'All' && selectedBranch !== 'All Branches' && !authorizedBranches.includes(selectedBranch)))) {
+    if (authorizedBranches.length === 0) {
+      if (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches') {
+        setSelectedBranch('');
+      }
+    } else if (authorizedBranches.length > 0 && (!selectedBranch || (selectedBranch !== 'All' && selectedBranch !== 'All Branches' && !authorizedBranches.includes(selectedBranch)))) {
       if (canViewBranch) {
         setSelectedBranch(authorizedBranches[0]);
       } else if (!selectedBranch) {
@@ -701,7 +705,9 @@ export const Header: React.FC<HeaderProps> = ({
                     <Building2 className="w-3.5 h-3.5 stroke-[2.2]" />
                   </div>
                   <span className="max-w-28 md:max-w-36 truncate font-bold text-slate-900 dark:text-white">
-                    {selectedBranch || (authorizedBranches.length > 0 ? authorizedBranches[0] : "Select Campus")}
+                    {authorizedBranches.length > 0
+                      ? (authorizedBranches.includes(selectedBranch) ? selectedBranch : authorizedBranches[0])
+                      : (canCreateBranch ? "Add Campus" : "Select Campus")}
                   </span>
                   <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0 stroke-[2.2]" />
                 </button>
@@ -989,7 +995,9 @@ export const Header: React.FC<HeaderProps> = ({
                     <Building2 className="w-3.5 h-3.5 stroke-[2.2]" />
                   </div>
                   <span className="truncate font-bold text-slate-900 dark:text-white text-[11px]">
-                    {selectedBranch || (authorizedBranches.length > 0 ? authorizedBranches[0] : "Campus")}
+                    {authorizedBranches.length > 0
+                      ? (authorizedBranches.includes(selectedBranch) ? selectedBranch : authorizedBranches[0])
+                      : (canCreateBranch ? "Add Campus" : "Campus")}
                   </span>
                 </div>
                 <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0 stroke-[2.2]" />

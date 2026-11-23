@@ -1162,7 +1162,7 @@ export const LeaveManagementView: React.FC = () => {
       const logoUrl = resolveMediaUrl(schoolProfile?.logoUrl);
       const schoolName = schoolProfile?.name || (typeof localStorage !== 'undefined' ? localStorage.getItem('school_name') : '') || 'School Management System';
       const tagline = schoolProfile?.tagline || 'Empowering Minds, Shaping Tomorrow';
-      const address = schoolProfile?.address || 'Jain Sadguru Images Capital Park502B, Capital Pk Rd, VIP Hills, Madhapur, HITEC City, Hyderabad, Telangana 500081';
+      const address = schoolProfile?.address || '';
       const phone = schoolProfile?.phone || '+91 9123456789';
       const email = schoolProfile?.email || 'contact@pirnavschools.edu';
       const academicYearStr = schoolProfile?.academicYear || '';

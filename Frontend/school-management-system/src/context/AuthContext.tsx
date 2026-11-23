@@ -274,7 +274,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const urlFilters = readFiltersFromUrl();
       const b = urlFilters.branchName || urlFilters.branchId;
       const ay = urlFilters.academicYearName || urlFilters.academicYearId;
-      if (b) setSelectedBranchState(b);
+      setSelectedBranchState(b || '');
       if (ay) setSelectedAcademicYearState(ay);
     };
 

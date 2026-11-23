@@ -119,7 +119,7 @@ export const PrintableFeeReceipt: React.FC<PrintableFeeReceiptProps> = ({ paymen
   }
 
   const schoolName = schoolProfile?.name || (typeof localStorage !== 'undefined' ? localStorage.getItem('school_name') : '') || "School Management System";
-  const schoolAddress = schoolProfile?.address || "Sri Sadguru Nilayam, Capital ParkRd28, Capital Pk Rd, VVIP Hills, Madhapur, HITEC City, Hyderabad, Telangana 500081";
+  const schoolAddress = schoolProfile?.address || "";
   const schoolPhone = schoolProfile?.phone ? ` • Ph: ${schoolProfile.phone}` : "";
 
   const receiptNo = payment.receiptNo || payment.id || "";
