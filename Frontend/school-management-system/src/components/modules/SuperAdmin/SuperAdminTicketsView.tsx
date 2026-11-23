@@ -78,7 +78,7 @@ export const SuperAdminTicketsView: React.FC = () => {
   }, [filteredTickets, currentPage, rowsPerPage]);
 
   return (
-    <div className="space-y-4 animate-in fade-in duration-300 pb-6">
+    <div className="space-y-4 animate-in fade-in duration-300 pb-24">
       
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -100,24 +100,14 @@ export const SuperAdminTicketsView: React.FC = () => {
         
         {/* Search & Filters */}
         <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Row Per Page</span>
-            <select
-              value={rowsPerPage}
-              onChange={e => {
-                setRowsPerPage(Number(e.target.value));
-                setCurrentPage(1);
-              }}
-              className="px-2.5 py-1.5 text-xs font-medium bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none dark:text-white"
-            >
-              <option value={10}>10</option>
-              <option value={25}>25</option>
-              <option value={50}>50</option>
-            </select>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+              {filteredTickets.length} Support Ticket{filteredTickets.length === 1 ? '' : 's'}
+            </span>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5">
-            <div className="relative">
+          <div className="flex flex-wrap items-start gap-2.5">
+            <div className="flex flex-col">
               <div className="relative flex items-center">
                 <Search className={`w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none transition-colors z-10 ${searchError ? 'text-rose-500' : 'text-slate-400'}`} />
                 <input
@@ -143,7 +133,7 @@ export const SuperAdminTicketsView: React.FC = () => {
                 )}
               </div>
               {searchError && (
-                <p className="text-[11px] font-bold text-rose-500 flex items-center gap-1 mt-1 pl-1 animate-in fade-in duration-150 absolute -bottom-5 left-0 whitespace-nowrap z-20">
+                <p className="text-[11px] font-medium text-rose-500 flex items-center gap-1 mt-1.5 pl-1 animate-in fade-in duration-150">
                   <AlertCircle className="w-3 h-3 shrink-0" />
                   <span>{searchError}</span>
                 </p>
@@ -167,30 +157,20 @@ export const SuperAdminTicketsView: React.FC = () => {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-center border-collapse text-xs">
+          <table className="w-full min-w-[750px] text-center border-collapse text-xs table-fixed">
             <thead>
               <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                <th className="p-3 text-center">Ticket #</th>
-                <th className="p-3 text-center">School</th>
-                <th className="p-3 text-center">Subject</th>
-                <th className="p-3 text-center">Priority</th>
-                <th className="p-3 text-center">Created Date</th>
-                <th className="p-3 text-center">Status</th>
-                <th className="p-3 text-center">Action</th>
+                <th className="p-3 text-center w-[12%]">Ticket #</th>
+                <th className="p-3 text-center w-[20%]">School</th>
+                <th className="p-3 text-center w-[24%]">Subject</th>
+                <th className="p-3 text-center w-[11%]">Priority</th>
+                <th className="p-3 text-center w-[13%]">Created Date</th>
+                <th className="p-3 text-center w-[10%]">Status</th>
+                <th className="p-3 text-center w-[10%]">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
-              {searchError ? (
-                <tr>
-                  <td colSpan={7} className="text-center py-10">
-                    <div className="flex flex-col items-center justify-center gap-1.5 text-rose-500 dark:text-rose-400">
-                      <AlertCircle className="w-6 h-6 text-rose-500" />
-                      <p className="font-bold text-xs">{searchError}</p>
-                      <p className="text-[11px] text-slate-400 font-normal">Please enter a valid search query.</p>
-                    </div>
-                  </td>
-                </tr>
-              ) : paginatedTickets.length === 0 ? (
+              {searchError || paginatedTickets.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="p-12 text-center text-slate-400">
                     <div className="flex flex-col items-center justify-center gap-2 max-w-sm mx-auto">
@@ -221,9 +201,9 @@ export const SuperAdminTicketsView: React.FC = () => {
               ) : (
                 paginatedTickets.map(t => (
                   <tr key={t.id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
-                    <td className="p-3 text-center font-mono font-bold text-sky-600">{t.ticketNo}</td>
-                    <td className="p-3 text-center font-bold text-slate-900 dark:text-white">{t.schoolName}</td>
-                    <td className="p-3 text-center max-w-xs truncate font-medium text-slate-800 dark:text-slate-200">
+                    <td className="p-3 text-center font-mono font-bold text-sky-600 truncate" title={t.ticketNo}>{t.ticketNo}</td>
+                    <td className="p-3 text-center font-bold text-slate-900 dark:text-white truncate" title={t.schoolName}>{t.schoolName}</td>
+                    <td className="p-3 text-center truncate font-medium text-slate-800 dark:text-slate-200" title={t.subject}>
                       {t.subject}
                     </td>
                     <td className="p-3 text-center">
@@ -235,7 +215,7 @@ export const SuperAdminTicketsView: React.FC = () => {
                         {t.priority}
                       </span>
                     </td>
-                    <td className="p-3 text-center text-slate-400">{t.createdAt}</td>
+                    <td className="p-3 text-center text-slate-400 truncate" title={t.createdAt}>{t.createdAt}</td>
                     <td className="p-3 text-center">
                       <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
                         t.status === 'Resolved' ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60' :
@@ -263,31 +243,51 @@ export const SuperAdminTicketsView: React.FC = () => {
         </div>
 
         {/* Pagination Footer */}
-        <div className="p-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500">
-          <span>
-            Showing {filteredTickets.length === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1} to{' '}
-            {Math.min(currentPage * rowsPerPage, filteredTickets.length)} of {filteredTickets.length} entries
-          </span>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-              className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 transition-colors cursor-pointer"
-            >
-              Previous
-            </button>
-            <span className="px-3 py-1.5 font-bold text-slate-900 dark:text-white">
-              {currentPage} / {totalPages}
+        {filteredTickets.length > 0 && (
+          <div className="p-4 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
+            <span>
+              Showing {(currentPage - 1) * rowsPerPage + 1} to{' '}
+              {Math.min(currentPage * rowsPerPage, filteredTickets.length)} of {filteredTickets.length} entries
             </span>
-            <button
-              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
-              className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 transition-colors cursor-pointer"
-            >
-              Next
-            </button>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-slate-400">Rows per page:</span>
+                <select
+                  value={rowsPerPage}
+                  onChange={e => {
+                    setRowsPerPage(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="px-2 py-1 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg outline-none dark:text-white font-medium cursor-pointer"
+                >
+                  <option value={10}>10</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 transition-colors cursor-pointer"
+                >
+                  Previous
+                </button>
+                <span className="px-3 py-1.5 font-bold text-slate-900 dark:text-white">
+                  {currentPage} / {totalPages}
+                </span>
+                <button
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-40 transition-colors cursor-pointer"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Ticket Details Modal */}

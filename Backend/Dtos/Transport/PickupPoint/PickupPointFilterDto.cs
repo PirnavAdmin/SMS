@@ -1,3 +1,6 @@
+using Microsoft.AspNetCore.Mvc;
+using SMS.Api.Common;
+
 namespace SMS.Api.Dtos.Transport.PickupPoint
 {
     public class PickupPointFilterDto
@@ -6,6 +9,7 @@ namespace SMS.Api.Dtos.Transport.PickupPoint
 
         public long? RouteId { get; set; }
 
+        [ModelBinder(BinderType = typeof(FlexibleBoolModelBinder))]
         public bool? Status { get; set; }
 
         public string SortBy { get; set; } = "pickupPointName";

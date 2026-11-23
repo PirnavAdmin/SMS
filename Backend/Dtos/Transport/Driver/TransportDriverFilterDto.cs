@@ -1,9 +1,13 @@
+using Microsoft.AspNetCore.Mvc;
+using SMS.Api.Common;
+
 namespace SMS.Api.Dtos.Transport.Driver
 {
     public class TransportDriverFilterDto
     {
         public string? Search { get; set; }
 
+        [ModelBinder(BinderType = typeof(FlexibleBoolModelBinder))]
         public bool? Status { get; set; }
 
         public bool? LicenceExpired { get; set; }

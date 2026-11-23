@@ -1,9 +1,13 @@
+using Microsoft.AspNetCore.Mvc;
+using SMS.Api.Common;
+
 namespace SMS.Api.Dtos.Transport.Attendant
 {
     public class TransportAttendantFilterDto
     {
         public string? Search { get; set; }
 
+        [ModelBinder(BinderType = typeof(FlexibleBoolModelBinder))]
         public bool? Status { get; set; }
 
         public string? SortBy { get; set; } = "attendantName";
