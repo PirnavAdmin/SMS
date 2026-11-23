@@ -181,123 +181,118 @@ export const AcademicDashboardView: React.FC<AcademicDashboardViewProps> = ({
         </div>
       </div>
 
-      {/* Quick Actions & Summary Layout */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start font-bold">
+      {/* Quick Actions */}
+      <div className="p-4 bg-white dark:bg-slate-900 border border-brand-400 dark:border-slate-800 rounded-xl space-y-3 shadow-xs">
+        <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-1.5">
+          <Zap className="w-4 h-4 text-amber-500 fill-amber-500" />
+          Quick Actions
+        </h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+          <button 
+            onClick={() => handleQuickAction('create-class')}
+            className="px-3.5 py-2.5 bg-slate-50 hover:bg-sky-50/80 dark:bg-slate-800/80 dark:hover:bg-sky-950/40 text-slate-900 dark:text-white border border-slate-200/70 hover:border-sky-300 dark:border-slate-700/80 dark:hover:border-sky-800 rounded-lg text-left flex items-center justify-between transition-all font-bold group cursor-pointer shadow-2xs hover:shadow-xs"
+          >
+            <div className="flex items-center gap-2.5">
+              <div className="p-1 rounded-md bg-sky-100 dark:bg-sky-900/50 text-sky-600 dark:text-sky-400 group-hover:scale-105 transition-transform">
+                <Plus className="w-3.5 h-3.5" />
+              </div>
+              <span>Create Class</span>
+            </div>
+            <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-sky-600 group-hover:translate-x-0.5 transition-all" />
+          </button>
+
+          <button 
+            onClick={() => handleQuickAction('class-management')}
+            className="px-3.5 py-2.5 bg-slate-50 hover:bg-sky-50/80 dark:bg-slate-800/80 dark:hover:bg-sky-950/40 text-slate-900 dark:text-white border border-slate-200/70 hover:border-sky-300 dark:border-slate-700/80 dark:hover:border-sky-800 rounded-lg text-left flex items-center justify-between transition-all font-bold group cursor-pointer shadow-2xs hover:shadow-xs"
+          >
+            <div className="flex items-center gap-2.5">
+              <div className="p-1 rounded-md bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 group-hover:scale-105 transition-transform">
+                <Layers className="w-3.5 h-3.5" />
+              </div>
+              <span>Class Management</span>
+            </div>
+            <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-600 group-hover:translate-x-0.5 transition-all" />
+          </button>
+
+          <button 
+            onClick={() => handleQuickAction('subject-management')}
+            className="px-3.5 py-2.5 bg-slate-50 hover:bg-sky-50/80 dark:bg-slate-800/80 dark:hover:bg-sky-950/40 text-slate-900 dark:text-white border border-slate-200/70 hover:border-sky-300 dark:border-slate-700/80 dark:hover:border-sky-800 rounded-lg text-left flex items-center justify-between transition-all font-bold group cursor-pointer shadow-2xs hover:shadow-xs"
+          >
+            <div className="flex items-center gap-2.5">
+              <div className="p-1 rounded-md bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400 group-hover:scale-105 transition-transform">
+                <BookOpen className="w-3.5 h-3.5" />
+              </div>
+              <span>Subject Management</span>
+            </div>
+            <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-600 group-hover:translate-x-0.5 transition-all" />
+          </button>
+
+          <button 
+            onClick={() => handleQuickAction('timetable')}
+            className="px-3.5 py-2.5 bg-slate-50 hover:bg-sky-50/80 dark:bg-slate-800/80 dark:hover:bg-sky-950/40 text-slate-900 dark:text-white border border-slate-200/70 hover:border-sky-300 dark:border-slate-700/80 dark:hover:border-sky-800 rounded-lg text-left flex items-center justify-between transition-all font-bold group cursor-pointer shadow-2xs hover:shadow-xs"
+          >
+            <div className="flex items-center gap-2.5">
+              <div className="p-1 rounded-md bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-400 group-hover:scale-105 transition-transform">
+                <Calendar className="w-3.5 h-3.5" />
+              </div>
+              <span>Timetable</span>
+            </div>
+            <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-amber-600 group-hover:translate-x-0.5 transition-all" />
+          </button>
+        </div>
+      </div>
+
+      {/* Class Summary Table */}
+      <div className="p-5 bg-white dark:bg-slate-900 border border-brand-400 dark:border-slate-800 rounded-xl space-y-4">
+        <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+          <ClipboardList className="w-5 h-5 text-sky-600" />
+          Class Summary
+        </h3>
         
-        {/* Class Summary Table */}
-        <div className="md:col-span-2 p-5 bg-white dark:bg-slate-900 border border-brand-400 dark:border-slate-800 rounded-xl space-y-4">
-          <h3 className="text-base font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-            <ClipboardList className="w-5 h-5 text-sky-600" />
-            Class Summary
-          </h3>
-          
-          <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
-            <table className="w-full text-xs text-left">
-              <thead className="bg-slate-50 dark:bg-slate-800/40 uppercase text-[10px] text-slate-500 dark:text-slate-400 font-extrabold tracking-wider border-b border-slate-200 dark:border-slate-800">
-                <tr>
-                  <th className="py-3 px-4">Class</th>
-                  <th className="py-3 px-3 text-center">Sections</th>
-                  <th className="py-3 px-3 text-center">Students</th>
-                  <th className="py-3 px-3 text-center">Status</th>
-                  <th className="py-3 px-4 text-center">Action</th>
+        <div className="overflow-x-auto rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+          <table className="w-full text-xs text-left">
+            <thead className="bg-slate-50 dark:bg-slate-800/40 uppercase text-[10px] text-slate-500 dark:text-slate-400 font-extrabold tracking-wider border-b border-slate-200 dark:border-slate-800">
+              <tr>
+                <th className="py-3 px-4">Class</th>
+                <th className="py-3 px-3 text-center">Sections</th>
+                <th className="py-3 px-3 text-center">Students</th>
+                <th className="py-3 px-3 text-center">Status</th>
+                <th className="py-3 px-4 text-center">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-semibold text-slate-700 dark:text-slate-300">
+              {classSummaryList.map(item => (
+                <tr key={item.class.id} className="hover:bg-slate-50/40 dark:hover:bg-slate-800/20 transition-colors">
+                  <td className="py-3 px-4 font-extrabold text-slate-900 dark:text-white">{item.class.name}</td>
+                  <td className="py-3 px-3 text-center font-mono font-bold text-slate-800 dark:text-slate-200">{item.sectionsCount}</td>
+                  <td className="py-3 px-3 text-center font-mono font-bold text-slate-800 dark:text-slate-200">{item.studentsCount}</td>
+                  <td className="py-3 px-3 text-center">
+                    <Badge variant={item.status === 'Configured' ? 'success' : 'warning'}>
+                      {item.status}
+                    </Badge>
+                  </td>
+                  <td className="py-3 px-4 text-center">
+                    <div className="flex items-center justify-center">
+                      <button 
+                        onClick={() => handleOpenClass(item.class.id, 'overview')}
+                        className="px-3 py-1.5 bg-slate-100 hover:bg-brand-600 text-slate-800 hover:text-white dark:bg-slate-800 dark:hover:bg-brand-600 dark:text-white dark:hover:text-white font-extrabold text-xs rounded-lg transition-all inline-flex items-center justify-center gap-1.5 shadow-2xs border border-slate-300 dark:border-slate-700 cursor-pointer"
+                      >
+                        {item.status === 'Draft' ? 'Continue' : 'Open'} <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
+                      </button>
+                    </div>
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-semibold text-slate-700 dark:text-slate-300">
-                {classSummaryList.map(item => (
-                  <tr key={item.class.id} className="hover:bg-slate-50/40 dark:hover:bg-slate-800/20 transition-colors">
-                    <td className="py-3 px-4 font-extrabold text-slate-900 dark:text-white">{item.class.name}</td>
-                    <td className="py-3 px-3 text-center font-mono font-bold text-slate-800 dark:text-slate-200">{item.sectionsCount}</td>
-                    <td className="py-3 px-3 text-center font-mono font-bold text-slate-800 dark:text-slate-200">{item.studentsCount}</td>
-                    <td className="py-3 px-3 text-center">
-                      <Badge variant={item.status === 'Configured' ? 'success' : 'warning'}>
-                        {item.status}
-                      </Badge>
-                    </td>
-                    <td className="py-3 px-4 text-center">
-                      <div className="flex items-center justify-center">
-                        <button 
-                          onClick={() => handleOpenClass(item.class.id, 'overview')}
-                          className="px-3 py-1.5 bg-slate-100 hover:bg-brand-600 text-slate-800 hover:text-white dark:bg-slate-800 dark:hover:bg-brand-600 dark:text-white dark:hover:text-white font-extrabold text-xs rounded-lg transition-all inline-flex items-center justify-center gap-1.5 shadow-2xs border border-slate-300 dark:border-slate-700 cursor-pointer"
-                        >
-                          {item.status === 'Draft' ? 'Continue' : 'Open'} <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {classSummaryList.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="p-8 text-center text-slate-400 font-bold">
-                      No classes configured yet. Click "+ Create Class" to get started.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+              ))}
+              {classSummaryList.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="p-8 text-center text-slate-400 font-bold">
+                    No classes configured yet. Click "+ Create Class" to get started.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
-
-        {/* Quick Actions Grid */}
-        <div className="p-3.5 bg-white dark:bg-slate-900 border border-brand-400 dark:border-slate-800 rounded-xl space-y-2.5 shadow-xs">
-          <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-1.5">
-            <Zap className="w-4 h-4 text-amber-500 fill-amber-500" />
-            Quick Actions
-          </h3>
-          <div className="grid grid-cols-1 gap-1.5 text-xs">
-            <button 
-              onClick={() => handleQuickAction('create-class')}
-              className="px-3 py-2 bg-slate-50 hover:bg-sky-50/80 dark:bg-slate-800/80 dark:hover:bg-sky-950/40 text-slate-900 dark:text-white border border-slate-200/70 hover:border-sky-300 dark:border-slate-700/80 dark:hover:border-sky-800 rounded-lg text-left flex items-center justify-between transition-all font-bold group cursor-pointer shadow-2xs hover:shadow-xs"
-            >
-              <div className="flex items-center gap-2">
-                <div className="p-1 rounded-md bg-sky-100 dark:bg-sky-900/50 text-sky-600 dark:text-sky-400 group-hover:scale-105 transition-transform">
-                  <Plus className="w-3.5 h-3.5" />
-                </div>
-                <span>Create Class</span>
-              </div>
-              <ArrowRight className="w-3 h-3 text-slate-400 group-hover:text-sky-600 group-hover:translate-x-0.5 transition-all" />
-            </button>
-
-            <button 
-              onClick={() => handleQuickAction('class-management')}
-              className="px-3 py-2 bg-slate-50 hover:bg-sky-50/80 dark:bg-slate-800/80 dark:hover:bg-sky-950/40 text-slate-900 dark:text-white border border-slate-200/70 hover:border-sky-300 dark:border-slate-700/80 dark:hover:border-sky-800 rounded-lg text-left flex items-center justify-between transition-all font-bold group cursor-pointer shadow-2xs hover:shadow-xs"
-            >
-              <div className="flex items-center gap-2">
-                <div className="p-1 rounded-md bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 group-hover:scale-105 transition-transform">
-                  <Layers className="w-3.5 h-3.5" />
-                </div>
-                <span>Class Management</span>
-              </div>
-              <ArrowRight className="w-3 h-3 text-slate-400 group-hover:text-indigo-600 group-hover:translate-x-0.5 transition-all" />
-            </button>
-
-            <button 
-              onClick={() => handleQuickAction('subject-management')}
-              className="px-3 py-2 bg-slate-50 hover:bg-sky-50/80 dark:bg-slate-800/80 dark:hover:bg-sky-950/40 text-slate-900 dark:text-white border border-slate-200/70 hover:border-sky-300 dark:border-slate-700/80 dark:hover:border-sky-800 rounded-lg text-left flex items-center justify-between transition-all font-bold group cursor-pointer shadow-2xs hover:shadow-xs"
-            >
-              <div className="flex items-center gap-2">
-                <div className="p-1 rounded-md bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400 group-hover:scale-105 transition-transform">
-                  <BookOpen className="w-3.5 h-3.5" />
-                </div>
-                <span>Subject Management</span>
-              </div>
-              <ArrowRight className="w-3 h-3 text-slate-400 group-hover:text-emerald-600 group-hover:translate-x-0.5 transition-all" />
-            </button>
-
-            <button 
-              onClick={() => handleQuickAction('timetable')}
-              className="px-3 py-2 bg-slate-50 hover:bg-sky-50/80 dark:bg-slate-800/80 dark:hover:bg-sky-950/40 text-slate-900 dark:text-white border border-slate-200/70 hover:border-sky-300 dark:border-slate-700/80 dark:hover:border-sky-800 rounded-lg text-left flex items-center justify-between transition-all font-bold group cursor-pointer shadow-2xs hover:shadow-xs"
-            >
-              <div className="flex items-center gap-2">
-                <div className="p-1 rounded-md bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-400 group-hover:scale-105 transition-transform">
-                  <Calendar className="w-3.5 h-3.5" />
-                </div>
-                <span>Timetable</span>
-              </div>
-              <ArrowRight className="w-3 h-3 text-slate-400 group-hover:text-amber-600 group-hover:translate-x-0.5 transition-all" />
-            </button>
-          </div>
-        </div>
-
       </div>
 
     </div>
