@@ -68,6 +68,19 @@ namespace SMS.Api.Services.Implementations
                 await _adminRepository.AddAsync(admin);
                 await _adminRepository.SaveChangesAsync();
 
+                // Keep corresponding User record synchronized for unified authentication
+                var user = new User
+                {
+                    FullName = dto.FullName,
+                    Email = dto.Email,
+                    MobileNumber = dto.MobileNumber,
+                    PasswordHash = admin.PasswordHash,
+                    Role = "Admin"
+                };
+                user.Roles.Add(role);
+                await _userRepository.AddAsync(user);
+                await _userRepository.SaveChangesAsync();
+
                 var rolesList = new List<string> { "Admin" };
                 var token = GenerateJwtTokenForAdmin(admin, rolesList);
 
@@ -115,20 +128,16 @@ namespace SMS.Api.Services.Implementations
 
             bool VerifyPassword(string? hash, string plainPassword)
             {
-                if (string.IsNullOrEmpty(hash)) return false;
+                if (string.IsNullOrEmpty(hash) || string.IsNullOrEmpty(plainPassword)) return false;
                 try
                 {
                     if (hash.StartsWith("$2"))
                     {
-                        if (BCrypt.Net.BCrypt.Verify(plainPassword, hash))
-                            return true;
-                        if (plainPassword.Contains("@") && BCrypt.Net.BCrypt.Verify(plainPassword.ToLowerInvariant(), hash))
-                            return true;
+                        return BCrypt.Net.BCrypt.Verify(plainPassword, hash);
                     }
                 }
                 catch { }
 
-                if (hash == plainPassword) return true;
                 return false;
             }
 
@@ -232,15 +241,18 @@ namespace SMS.Api.Services.Implementations
                     {
                         passValid = VerifyPassword(linkedUser.PasswordHash, dto.Password);
                     }
-
-                    if (!passValid && (!string.IsNullOrEmpty(student.RollNumber) && string.Equals(dto.Password.Trim(), student.RollNumber.Trim(), StringComparison.OrdinalIgnoreCase) ||
-                                       !string.IsNullOrEmpty(student.AdmissionNumber) && string.Equals(dto.Password.Trim(), student.AdmissionNumber.Trim(), StringComparison.OrdinalIgnoreCase)))
+                    else if (linkedUser == null || string.IsNullOrEmpty(linkedUser.PasswordHash))
                     {
-                        passValid = true;
-                        if (linkedUser != null)
+                        // Initial first-time student onboarding if no password hash has been established yet
+                        if ((!string.IsNullOrEmpty(student.RollNumber) && string.Equals(dto.Password.Trim(), student.RollNumber.Trim(), StringComparison.OrdinalIgnoreCase)) ||
+                            (!string.IsNullOrEmpty(student.AdmissionNumber) && string.Equals(dto.Password.Trim(), student.AdmissionNumber.Trim(), StringComparison.OrdinalIgnoreCase)))
                         {
-                            linkedUser.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password.Trim());
-                            try { await _dbContext.SaveChangesAsync(); } catch { }
+                            passValid = true;
+                            if (linkedUser != null)
+                            {
+                                linkedUser.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password.Trim());
+                                try { await _dbContext.SaveChangesAsync(); } catch { }
+                            }
                         }
                     }
 
@@ -389,15 +401,17 @@ namespace SMS.Api.Services.Implementations
                     {
                         passValid = VerifyPassword(linkedUser.PasswordHash, dto.Password);
                     }
-
-                    // Direct match for default staff password (id = id and password = id)
-                    if (!passValid && !string.IsNullOrEmpty(staffMember.EmployeeId) && string.Equals(dto.Password.Trim(), staffMember.EmployeeId.Trim(), StringComparison.OrdinalIgnoreCase))
+                    else if (linkedUser == null || string.IsNullOrEmpty(linkedUser.PasswordHash))
                     {
-                        passValid = true;
-                        if (linkedUser != null)
+                        // Initial first-time staff onboarding if no password hash has been established yet
+                        if (!string.IsNullOrEmpty(staffMember.EmployeeId) && string.Equals(dto.Password.Trim(), staffMember.EmployeeId.Trim(), StringComparison.OrdinalIgnoreCase))
                         {
-                            linkedUser.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password.Trim());
-                            try { await _dbContext.SaveChangesAsync(); } catch { }
+                            passValid = true;
+                            if (linkedUser != null)
+                            {
+                                linkedUser.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password.Trim());
+                                try { await _dbContext.SaveChangesAsync(); } catch { }
+                            }
                         }
                     }
 
@@ -1176,32 +1190,23 @@ namespace SMS.Api.Services.Implementations
 
             bool VerifyPass(string? hash, string plainPassword)
             {
-                if (string.IsNullOrEmpty(hash)) return false;
+                if (string.IsNullOrEmpty(hash) || string.IsNullOrEmpty(plainPassword)) return false;
                 try
                 {
                     if (hash.StartsWith("$2"))
                     {
-                        if (BCrypt.Net.BCrypt.Verify(plainPassword, hash))
-                            return true;
-                        if (plainPassword.Contains("@") && BCrypt.Net.BCrypt.Verify(plainPassword.ToLowerInvariant(), hash))
-                            return true;
+                        return BCrypt.Net.BCrypt.Verify(plainPassword, hash);
                     }
                 }
                 catch { }
 
-                return hash == plainPassword;
+                return false;
             }
-
-            // Gather candidate identifiers from token claims and request payload
-            var candidates = new List<string>();
-            if (!string.IsNullOrWhiteSpace(userEmailFromToken)) candidates.Add(userEmailFromToken.Trim());
-            if (!string.IsNullOrWhiteSpace(userNameFromToken)) candidates.Add(userNameFromToken.Trim());
-            if (!string.IsNullOrWhiteSpace(dto.EmailOrPhone)) candidates.Add(dto.EmailOrPhone.Trim());
 
             Admin? admin = null;
             User? user = null;
 
-            // 1. If we have a user/admin ID claim from the JWT token, check it first based on role
+            // 1. Authoritative lookup by validated JWT ID claim
             if (int.TryParse(userIdFromToken, out int parsedId) && parsedId > 0)
             {
                 bool isAdminRole = !string.IsNullOrEmpty(userRoleFromToken) &&
@@ -1212,12 +1217,26 @@ namespace SMS.Api.Services.Implementations
                 if (isAdminRole)
                 {
                     admin = await _dbContext.Admins.IgnoreQueryFilters().FirstOrDefaultAsync(a => a.AdminId == parsedId);
-                    if (admin == null)
+                    if (admin != null)
+                    {
+                        var lowerEmail = admin.Email?.ToLowerInvariant();
+                        user = await _dbContext.Users.IgnoreQueryFilters().FirstOrDefaultAsync(u =>
+                            (!string.IsNullOrEmpty(lowerEmail) && u.Email != null && u.Email.ToLower() == lowerEmail) ||
+                            (!string.IsNullOrEmpty(admin.MobileNumber) && u.MobileNumber == admin.MobileNumber && (u.Role == "Admin" || u.Role == "SuperAdmin")));
+                    }
+                    else
                     {
                         user = await _dbContext.Users.IgnoreQueryFilters().FirstOrDefaultAsync(u => u.UserId == parsedId);
+                        if (user != null)
+                        {
+                            var lowerEmail = user.Email?.ToLowerInvariant();
+                            admin = await _dbContext.Admins.IgnoreQueryFilters().FirstOrDefaultAsync(a =>
+                                (!string.IsNullOrEmpty(lowerEmail) && a.Email != null && a.Email.ToLower() == lowerEmail) ||
+                                (!string.IsNullOrEmpty(user.MobileNumber) && a.MobileNumber == user.MobileNumber));
+                        }
                     }
                 }
-                else if (!string.IsNullOrEmpty(userRoleFromToken))
+                else
                 {
                     user = await _dbContext.Users.IgnoreQueryFilters().FirstOrDefaultAsync(u => u.UserId == parsedId);
                     if (user == null)
@@ -1225,83 +1244,14 @@ namespace SMS.Api.Services.Implementations
                         admin = await _dbContext.Admins.IgnoreQueryFilters().FirstOrDefaultAsync(a => a.AdminId == parsedId);
                     }
                 }
-                else
-                {
-                    admin = await _dbContext.Admins.IgnoreQueryFilters().FirstOrDefaultAsync(a => a.AdminId == parsedId);
-                    if (admin == null)
-                    {
-                        user = await _dbContext.Users.IgnoreQueryFilters().FirstOrDefaultAsync(u => u.UserId == parsedId);
-                    }
-                }
             }
 
-            // 2. If not found by ID, look up by candidate identifiers (email, mobile, fullname)
-            if (admin == null && user == null)
+            // 2. Fallback to validated token claims (email or mobile) if ID was not present or not found
+            if (admin == null && user == null && !string.IsNullOrWhiteSpace(userEmailFromToken))
             {
-                foreach (var candidate in candidates.Distinct(StringComparer.OrdinalIgnoreCase))
-                {
-                    var lower = candidate.ToLowerInvariant();
-
-                    admin = await _dbContext.Admins.IgnoreQueryFilters().FirstOrDefaultAsync(a =>
-                        (a.Email != null && a.Email.ToLower() == lower) ||
-                        a.MobileNumber == candidate ||
-                        (a.FullName != null && a.FullName.ToLower() == lower));
-
-                    if (admin != null) break;
-
-                    user = await _dbContext.Users.IgnoreQueryFilters().FirstOrDefaultAsync(u =>
-                        (u.Email != null && u.Email.ToLower() == lower) ||
-                        u.MobileNumber == candidate ||
-                        (u.FullName != null && u.FullName.ToLower() == lower));
-
-                    if (user != null) break;
-
-                    // Also check Staff
-                    var staff = await _dbContext.Staff.IgnoreQueryFilters().AsNoTracking().FirstOrDefaultAsync(s =>
-                        (s.Email != null && s.Email.ToLower() == lower) ||
-                        s.Phone == candidate ||
-                        (s.EmployeeId != null && s.EmployeeId.ToLower() == lower));
-
-                    if (staff != null)
-                    {
-                        user = await _dbContext.Users.IgnoreQueryFilters().FirstOrDefaultAsync(u =>
-                            (u.Email != null && staff.Email != null && u.Email.ToLower() == staff.Email.ToLower()) ||
-                            (u.MobileNumber != null && staff.Phone != null && u.MobileNumber == staff.Phone) ||
-                            (u.FullName != null && u.FullName.ToLower() == $"{staff.FirstName} {staff.LastName}".Trim().ToLower()));
-                        if (user != null) break;
-                    }
-
-                    // Also check Student
-                    var student = await _dbContext.Students.IgnoreQueryFilters().AsNoTracking().FirstOrDefaultAsync(s =>
-                        (s.Email != null && s.Email.ToLower() == lower) ||
-                        s.MobileNumber == candidate ||
-                        (s.AdmissionNumber != null && s.AdmissionNumber.ToLower() == lower) ||
-                        (s.RollNumber != null && s.RollNumber.ToLower() == lower));
-
-                    if (student != null)
-                    {
-                        user = await _dbContext.Users.IgnoreQueryFilters().FirstOrDefaultAsync(u =>
-                            (u.Email != null && student.Email != null && u.Email.ToLower() == student.Email.ToLower()) ||
-                            (u.MobileNumber != null && student.MobileNumber != null && u.MobileNumber == student.MobileNumber));
-                        if (user != null) break;
-                    }
-                }
-            }
-
-            // Cross-link: if admin found but user is null, find user by email/phone to update both
-            if (admin != null && user == null)
-            {
-                var lowerAdminEmail = admin.Email?.ToLowerInvariant();
-                user = await _dbContext.Users.IgnoreQueryFilters().FirstOrDefaultAsync(u =>
-                    (!string.IsNullOrEmpty(lowerAdminEmail) && u.Email != null && u.Email.ToLower() == lowerAdminEmail) ||
-                    (!string.IsNullOrEmpty(admin.MobileNumber) && u.MobileNumber == admin.MobileNumber));
-            }
-            else if (user != null && admin == null)
-            {
-                var lowerUserEmail = user.Email?.ToLowerInvariant();
-                admin = await _dbContext.Admins.IgnoreQueryFilters().FirstOrDefaultAsync(a =>
-                    (!string.IsNullOrEmpty(lowerUserEmail) && a.Email != null && a.Email.ToLower() == lowerUserEmail) ||
-                    (!string.IsNullOrEmpty(user.MobileNumber) && a.MobileNumber == user.MobileNumber));
+                var lowerEmail = userEmailFromToken.Trim().ToLowerInvariant();
+                user = await _dbContext.Users.IgnoreQueryFilters().FirstOrDefaultAsync(u => u.Email != null && u.Email.ToLower() == lowerEmail);
+                admin = await _dbContext.Admins.IgnoreQueryFilters().FirstOrDefaultAsync(a => a.Email != null && a.Email.ToLower() == lowerEmail);
             }
 
             if (admin == null && user == null)
@@ -1311,11 +1261,11 @@ namespace SMS.Api.Services.Implementations
 
             // Verify current password against matched account (either admin or user)
             bool oldPasswordValid = false;
-            if (admin != null && VerifyPass(admin.PasswordHash, dto.OldPassword))
+            if (user != null && !string.IsNullOrEmpty(user.PasswordHash) && VerifyPass(user.PasswordHash, dto.OldPassword))
             {
                 oldPasswordValid = true;
             }
-            if (!oldPasswordValid && user != null && VerifyPass(user.PasswordHash, dto.OldPassword))
+            if (!oldPasswordValid && admin != null && !string.IsNullOrEmpty(admin.PasswordHash) && VerifyPass(admin.PasswordHash, dto.OldPassword))
             {
                 oldPasswordValid = true;
             }
@@ -1325,48 +1275,43 @@ namespace SMS.Api.Services.Implementations
                 throw new AppException("Incorrect current password. Please try again.", HttpStatusCode.BadRequest);
             }
 
-            // Hash new password and update all matching accounts across both admins and users tables
+            // Hash new password exactly once
             var newPasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
 
-            var emailsToSync = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            var phonesToSync = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-            if (!string.IsNullOrWhiteSpace(admin?.Email)) emailsToSync.Add(admin.Email.Trim());
-            if (!string.IsNullOrWhiteSpace(user?.Email)) emailsToSync.Add(user.Email.Trim());
-            if (!string.IsNullOrWhiteSpace(userEmailFromToken)) emailsToSync.Add(userEmailFromToken.Trim());
-
-            if (!string.IsNullOrWhiteSpace(admin?.MobileNumber)) phonesToSync.Add(admin.MobileNumber.Trim());
-            if (!string.IsNullOrWhiteSpace(user?.MobileNumber)) phonesToSync.Add(user.MobileNumber.Trim());
-
-            if (!string.IsNullOrWhiteSpace(dto.EmailOrPhone))
+            // Update user record if found
+            if (user != null)
             {
-                var trimmed = dto.EmailOrPhone.Trim();
-                if (trimmed.Contains("@"))
-                    emailsToSync.Add(trimmed);
-                else
-                    phonesToSync.Add(trimmed);
+                user.PasswordHash = newPasswordHash;
+                _dbContext.Entry(user).Property(u => u.PasswordHash).IsModified = true;
             }
 
-            var matchedAdmins = await _dbContext.Admins.IgnoreQueryFilters().Where(a =>
-                (admin != null && a.AdminId == admin.AdminId) ||
-                (emailsToSync.Count > 0 && a.Email != null && emailsToSync.Contains(a.Email)) ||
-                (phonesToSync.Count > 0 && a.MobileNumber != null && phonesToSync.Contains(a.MobileNumber))
-            ).ToListAsync();
-
-            foreach (var a in matchedAdmins)
+            // Update admin record if found
+            if (admin != null)
             {
-                a.PasswordHash = newPasswordHash;
+                admin.PasswordHash = newPasswordHash;
+                _dbContext.Entry(admin).Property(a => a.PasswordHash).IsModified = true;
             }
 
-            var matchedUsers = await _dbContext.Users.IgnoreQueryFilters().Where(u =>
-                (user != null && u.UserId == user.UserId) ||
-                (emailsToSync.Count > 0 && u.Email != null && emailsToSync.Contains(u.Email)) ||
-                (phonesToSync.Count > 0 && u.MobileNumber != null && phonesToSync.Contains(u.MobileNumber))
-            ).ToListAsync();
-
-            foreach (var u in matchedUsers)
+            // If user is Admin and admin was not already resolved, find linked Admin record by verified exact email
+            if (user != null && admin == null && !string.IsNullOrWhiteSpace(user.Email) && (user.Role == "Admin" || user.Role == "SuperAdmin"))
             {
-                u.PasswordHash = newPasswordHash;
+                var lowerEmail = user.Email.Trim().ToLowerInvariant();
+                var linkedAdmin = await _dbContext.Admins.IgnoreQueryFilters().FirstOrDefaultAsync(a => a.Email != null && a.Email.ToLower() == lowerEmail);
+                if (linkedAdmin != null)
+                {
+                    linkedAdmin.PasswordHash = newPasswordHash;
+                    _dbContext.Entry(linkedAdmin).Property(a => a.PasswordHash).IsModified = true;
+                }
+            }
+            else if (admin != null && user == null && !string.IsNullOrWhiteSpace(admin.Email))
+            {
+                var lowerEmail = admin.Email.Trim().ToLowerInvariant();
+                var linkedUser = await _dbContext.Users.IgnoreQueryFilters().FirstOrDefaultAsync(u => u.Email != null && u.Email.ToLower() == lowerEmail);
+                if (linkedUser != null)
+                {
+                    linkedUser.PasswordHash = newPasswordHash;
+                    _dbContext.Entry(linkedUser).Property(u => u.PasswordHash).IsModified = true;
+                }
             }
 
             await _dbContext.SaveChangesAsync();

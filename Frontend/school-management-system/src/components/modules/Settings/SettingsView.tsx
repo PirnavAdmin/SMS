@@ -989,8 +989,8 @@ export const SettingsView: React.FC = () => {
 
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!passForm.newPassword || passForm.newPassword.length < 4) {
-      addToast("warning", "Password Weak", "Password must be at least 4 characters.");
+    if (!passForm.newPassword || passForm.newPassword.length < 6) {
+      addToast("warning", "Password Weak", "Password must be at least 6 characters.");
       return;
     }
     if (passForm.newPassword !== passForm.confirmPassword) {
@@ -998,12 +998,16 @@ export const SettingsView: React.FC = () => {
       return;
     }
     if (changePassword) {
-      const isSuccess = await changePassword(passForm.currentPassword, passForm.newPassword);
-      if (isSuccess) {
-        addToast("success", "Password Changed", "Your password has been updated successfully.");
-        setPassForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
-      } else {
-        addToast("error", "Error", "Failed to update password. Check current password.");
+      try {
+        const isSuccess = await changePassword(passForm.currentPassword, passForm.newPassword, passForm.confirmPassword);
+        if (isSuccess) {
+          addToast("success", "Password Changed", "Your password has been updated successfully.");
+          setPassForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+        } else {
+          addToast("error", "Error", "Failed to update password. Check current password.");
+        }
+      } catch (err: any) {
+        addToast("error", "Update Failed", err?.message || "Failed to update password. Please check your current password.");
       }
     } else {
       addToast("success", "Password Updated", "Password updated successfully.");

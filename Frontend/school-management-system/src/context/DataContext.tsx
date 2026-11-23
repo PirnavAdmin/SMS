@@ -16676,14 +16676,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       });
 
       if (dynamicFare <= 0 && (routeName || pickupName)) {
-        const isAC =
-          String(transportType || "AC")
-            .toUpperCase()
-            .includes("AC") &&
-          !String(transportType || "AC")
-            .toUpperCase()
-            .includes("NON");
-        dynamicFare = (isAC ? 1500 : 1200) * 12;
+        const ftc = (financeTransportConfigs || []).find((c) => c.status === "Active" && (c.routeId === routeId || c.pickupPointId === pickupPointId));
+        if (ftc && Number(ftc.feeAmount) > 0) {
+          dynamicFare = Number(ftc.feeAmount) * 12;
+        }
       }
 
       // If resident and transport ended, prorate transport fee based on months used
@@ -18183,14 +18179,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         });
 
         if (dynamicFare <= 0 && (routeName || pickupName)) {
-          const isAC =
-            String(transportType || "AC")
-              .toUpperCase()
-              .includes("AC") &&
-            !String(transportType || "AC")
-              .toUpperCase()
-              .includes("NON");
-          dynamicFare = (isAC ? 1500 : 1200) * 12;
+          const ftc = (financeTransportConfigs || []).find((c) => c.status === "Active" && (c.routeId === routeId || c.pickupPointId === pickupPointId));
+          if (ftc && Number(ftc.feeAmount) > 0) {
+            dynamicFare = Number(ftc.feeAmount) * 12;
+          }
         }
 
         const trpAmount =

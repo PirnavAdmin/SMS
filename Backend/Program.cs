@@ -2913,7 +2913,10 @@ using (var scope = app.Services.CreateScope())
                                 existingU.FullName = sName;
                                 existingU.MobileNumber = newStudentId;
                                 existingU.Email = $"{newStudentId.ToLowerInvariant()}@school.internal";
-                                existingU.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newStudentId);
+                                if (string.IsNullOrWhiteSpace(existingU.PasswordHash))
+                                {
+                                    existingU.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newStudentId);
+                                }
                             }
                             else
                             {

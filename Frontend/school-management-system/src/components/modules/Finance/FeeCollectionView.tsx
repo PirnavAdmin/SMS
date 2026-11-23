@@ -1058,16 +1058,16 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                 admissionNo: String((matchedAdm as any).admissionNo || matchedAdm.registrationNo || matchedAdm.applicationNo || parsed.admissionNo || parsed.studentId),
                 firstName: matchedAdm.firstName || nameParts[0] || 'Student',
                 lastName: matchedAdm.lastName || nameParts.slice(1).join(' ') || '',
-                className: matchedAdm.appliedClass || parsed.className || 'Nursery',
+                className: matchedAdm.appliedClass || parsed.className || '',
                 section: matchedAdm.section || 'A',
                 studentType: 'Hosteller',
                 residentialStatus: 'Residential',
-                hostelSharing: parsed.hostelSharing || matchedAdm.hostelSharing || 'Single',
-                hostelAc: parsed.hostelAc || matchedAdm.hostelAc || 'Non-AC',
+                hostelSharing: parsed.hostelSharing || matchedAdm.hostelSharing || '',
+                hostelAc: parsed.hostelAc || matchedAdm.hostelAc || '',
                 status: 'Active',
-                dueFee: Number(parsed.amount) || 5000,
+                dueFee: Number(parsed.amount) || 0,
                 paidFee: 0,
-                totalFee: Number(parsed.amount) || 5000,
+                totalFee: Number(parsed.amount) || 0,
               } as any;
             } else if (parsed.studentName || parsed.studentId) {
               const nameParts = String(parsed.studentName || 'Student').trim().split(' ');
@@ -1077,16 +1077,16 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                 admissionNo: String(parsed.admissionNo || parsed.studentId || `ADM-${Date.now()}`),
                 firstName: nameParts[0] || 'Student',
                 lastName: nameParts.slice(1).join(' ') || '',
-                className: parsed.className || 'Nursery',
+                className: parsed.className || '',
                 section: 'A',
                 studentType: 'Hosteller',
                 residentialStatus: 'Residential',
-                hostelSharing: parsed.hostelSharing || 'Single',
-                hostelAc: parsed.hostelAc || 'Non-AC',
+                hostelSharing: parsed.hostelSharing || '',
+                hostelAc: parsed.hostelAc || '',
                 status: 'Active',
-                dueFee: Number(parsed.amount) || 5000,
+                dueFee: Number(parsed.amount) || 0,
                 paidFee: 0,
-                totalFee: Number(parsed.amount) || 5000,
+                totalFee: Number(parsed.amount) || 0,
                 isApplicant: true,
               } as any;
             }
@@ -2065,18 +2065,15 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
           });
           const isAC = String(transportType || "AC").toUpperCase().includes("AC") && !String(transportType || "AC").toUpperCase().includes("NON");
           if (rObj) {
-            const baseFare = isAC ? Number(rObj.acMinBaseFare ?? (rObj as any).acBaseFare ?? 1500) : Number(rObj.minBaseFare ?? (rObj as any).nonAcBaseFare ?? 1200);
-            const rateKm = isAC ? Number(rObj.acRatePerKm ?? (rObj as any).acRateAddlKm ?? 150) : Number(rObj.ratePerKm ?? (rObj as any).nonAcRatePerKm ?? 100);
-            const dist = pObj ? Number(pObj.distanceFromSchoolKm ?? (pObj as any).distanceFromStart ?? 35) : 35;
-            const minKm = Number(rObj.minDistanceKm ?? (rObj as any).minRangeKm ?? (rObj as any).minRange ?? 35);
+            const baseFare = isAC ? Number(rObj.acMinBaseFare ?? (rObj as any).acBaseFare ?? 0) : Number(rObj.minBaseFare ?? (rObj as any).nonAcBaseFare ?? 0);
+            const rateKm = isAC ? Number(rObj.acRatePerKm ?? (rObj as any).acRateAddlKm ?? 0) : Number(rObj.ratePerKm ?? (rObj as any).nonAcRatePerKm ?? 0);
+            const dist = pObj ? Number(pObj.distanceFromSchoolKm ?? (pObj as any).distanceFromStart ?? 0) : 0;
+            const minKm = Number(rObj.minDistanceKm ?? (rObj as any).minRangeKm ?? (rObj as any).minRange ?? 0);
             const addKm = Math.max(0, dist - minKm);
             const monthly = baseFare + addKm * rateKm;
             trpFare = monthly * 12;
           } else if (pObj && pObj.monthlyFee) {
             trpFare = Number(pObj.monthlyFee) * 12;
-          } else if (routeName || pickupName) {
-            const monthly = isAC ? 1500 : 1200;
-            trpFare = monthly * 12;
           }
         }
 
@@ -2364,7 +2361,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
       const shouldIncludeUniformFee = (isExplicitlyOptedIn || expectedBaseFee > 0) && expectedBaseFee > 0;
 
       if (shouldIncludeUniformFee && !hasPaidBaseInFinance) {
-        const baseUnitFee = (expectedBaseFee && expectedBaseFee > 0) ? expectedBaseFee : 5000;
+        const baseUnitFee = (expectedBaseFee && expectedBaseFee > 0) ? expectedBaseFee : 0;
         const calcQty = (expectedBaseFee > 0 && expectedBaseFee % baseUnitFee === 0 && expectedBaseFee > baseUnitFee)
           ? Math.round(expectedBaseFee / baseUnitFee)
           : 1;
@@ -3178,69 +3175,47 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
   };
 
   const toggleInstallmentSelection = (id: string) => {
-    const targetIdx = allInstallments.findIndex((i: any) => i.id === id);
-    if (targetIdx === -1) return;
+    const inst = allInstallments.find((i: any) => i.id === id);
+    if (!inst) return;
 
     setSelectedInstallments((prev) => {
-      if (prev.includes(id)) {
-        // Unselect target and all subsequent installments
-        const toRemoveIds = new Set<string>();
-        for (let i = targetIdx; i < allInstallments.length; i++) {
-          toRemoveIds.add(allInstallments[i].id);
-        }
+      const isCurrentlySelected = prev.includes(id);
+      let nextIds: string[];
+
+      if (isCurrentlySelected) {
+        // Unselect ONLY this specific installment
+        nextIds = prev.filter((x) => x !== id);
         setCustomCollectionAmounts((amtPrev) => {
           const copy = { ...amtPrev };
-          toRemoveIds.forEach((remId) => delete copy[remId]);
+          delete copy[id];
           return copy;
         });
-        const nextIds = prev.filter((x) => !toRemoveIds.has(x));
-        if (customAmountReceived && Number(customAmountReceived) > 0) {
-          const totalToDist = Number(customAmountReceived);
-          let rem = totalToDist;
-          const newCustoms: Record<string, string> = {};
-          const selectedObjs = allInstallments.filter((i: any) => nextIds.includes(i.id));
-          selectedObjs.forEach((inst: any) => {
-            const alloc = Math.min(inst.dueAmount, rem);
-            newCustoms[inst.id] = String(alloc);
-            rem = Math.max(0, rem - alloc);
-          });
-          setCustomCollectionAmounts(newCustoms);
-        }
-        return nextIds;
       } else {
-        // Select target and all prior pending installments (with dueAmount > 0)
-        const toAddInsts: any[] = [];
-        for (let i = 0; i <= targetIdx; i++) {
-          const inst = allInstallments[i];
-          if (inst && inst.dueAmount > 0) {
-            toAddInsts.push(inst);
-          }
-        }
+        // Select ONLY this specific installment
+        nextIds = [...prev, id];
         setCustomCollectionAmounts((amtPrev) => {
           const copy = { ...amtPrev };
-          toAddInsts.forEach((inst) => {
-            if (!(inst.id in copy)) {
-              copy[inst.id] = String(inst.dueAmount);
-            }
-          });
+          if (!(id in copy)) {
+            copy[id] = String(inst.dueAmount);
+          }
           return copy;
         });
-        const toAddIds = toAddInsts.map((inst) => inst.id);
-        const nextIds = Array.from(new Set([...prev, ...toAddIds]));
-        if (customAmountReceived && Number(customAmountReceived) > 0) {
-          const totalToDist = Number(customAmountReceived);
-          let rem = totalToDist;
-          const newCustoms: Record<string, string> = {};
-          const selectedObjs = allInstallments.filter((i: any) => nextIds.includes(i.id));
-          selectedObjs.forEach((inst: any) => {
-            const alloc = Math.min(inst.dueAmount, rem);
-            newCustoms[inst.id] = String(alloc);
-            rem = Math.max(0, rem - alloc);
-          });
-          setCustomCollectionAmounts(newCustoms);
-        }
-        return nextIds;
       }
+
+      if (customAmountReceived && Number(customAmountReceived) > 0) {
+        const totalToDist = Number(customAmountReceived);
+        let rem = totalToDist;
+        const newCustoms: Record<string, string> = {};
+        const selectedObjs = allInstallments.filter((i: any) => nextIds.includes(i.id));
+        selectedObjs.forEach((item: any) => {
+          const alloc = Math.min(item.dueAmount, rem);
+          newCustoms[item.id] = String(alloc);
+          rem = Math.max(0, rem - alloc);
+        });
+        setCustomCollectionAmounts(newCustoms);
+      }
+
+      return nextIds;
     });
   };
 
@@ -3953,13 +3928,6 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                       const isPaid = !isZeroCharge && (inst.dueAmount <= 0 || inst.status === "Paid");
                       const displayPaidAmt = inst.paidAmount > 0 ? inst.paidAmount : (isPaid ? inst.amount : 0);
 
-                      // Calculate cumulative prior arrears from preceding pending installments
-                      const priorArrears = allInstallments
-                        .slice(0, index)
-                        .filter((prevInst) => prevInst.dueAmount > 0 && prevInst.status !== "Paid" && prevInst.status !== "Cancelled")
-                        .reduce((sum, prevInst) => sum + prevInst.dueAmount, 0);
-
-                      const cumulativeDue = inst.dueAmount + priorArrears;
                       const customAmtVal = customCollectionAmounts[inst.id] !== undefined
                         ? customCollectionAmounts[inst.id]
                         : (isSelected ? String(inst.dueAmount) : "");
@@ -3999,12 +3967,7 @@ export const FeeCollectionView: React.FC<FeeCollectionViewProps> = ({
                               <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">₹ 0</span>
                             ) : (
                               <div>
-                                <span className="text-rose-600 dark:text-rose-400 block">{formatCurrency(cumulativeDue)}</span>
-                                {priorArrears > 0 && (
-                                  <span className="text-[9px] font-sans text-amber-600 dark:text-amber-400 block font-normal">
-                                    (incl. {formatCurrency(priorArrears)} prior arrears)
-                                  </span>
-                                )}
+                                <span className="text-rose-600 dark:text-rose-400 block">{formatCurrency(inst.dueAmount)}</span>
                                 {isSelected && customAmtVal !== "" && Number(customAmtVal) < inst.dueAmount && (
                                   <span className="text-[9px] font-sans text-amber-600 dark:text-amber-400 block font-bold">
                                     Remaining: {formatCurrency(Math.max(0, inst.dueAmount - Number(customAmtVal)))}

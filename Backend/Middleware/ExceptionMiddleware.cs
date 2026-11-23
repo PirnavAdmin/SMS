@@ -98,7 +98,8 @@ public class ExceptionMiddleware
 
         context.Response.StatusCode = (int)statusCode;
 
-        var detailMsg = exception.InnerException?.Message ?? exception.Message;
+        var isInternal = statusCode == HttpStatusCode.InternalServerError;
+        var detailMsg = isInternal ? null : (exception.InnerException?.Message ?? exception.Message);
         var response = new
         {
             success = false,

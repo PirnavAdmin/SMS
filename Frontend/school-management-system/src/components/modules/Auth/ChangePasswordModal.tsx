@@ -61,11 +61,7 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ isOpen
       setLoading(true);
       await changePassword(oldPass, newPass);
       try {
-        if (localStorage.getItem('remember_me') === 'true') {
-          localStorage.setItem('remember_me_password', newPass);
-        } else {
-          localStorage.removeItem('remember_me_password');
-        }
+        localStorage.removeItem('remember_me_password');
       } catch {}
       addToast('success', 'Password Updated', 'Your security password has been changed successfully in the database.');
       handleClose();

@@ -451,7 +451,10 @@ public class StaffService : IStaffService
                 existingUser.FullName = fullName;
                 existingUser.Role = userRole;
                 if (!string.IsNullOrWhiteSpace(staff.Email)) existingUser.Email = staff.Email;
-                existingUser.PasswordHash = BCrypt.Net.BCrypt.HashPassword(staffPassword);
+                if (string.IsNullOrWhiteSpace(existingUser.PasswordHash))
+                {
+                    existingUser.PasswordHash = BCrypt.Net.BCrypt.HashPassword(staffPassword);
+                }
                 await _context.SaveChangesAsync();
             }
 

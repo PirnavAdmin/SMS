@@ -2469,7 +2469,10 @@ public class SchoolService : ISchoolService
 											if (existingStudentUser != null)
 											{
 												existingStudentUser.FullName = targetStudent.StudentName;
-												existingStudentUser.PasswordHash = BCrypt.Net.BCrypt.HashPassword(studentRegNo);
+												if (string.IsNullOrWhiteSpace(existingStudentUser.PasswordHash))
+												{
+													existingStudentUser.PasswordHash = BCrypt.Net.BCrypt.HashPassword(studentRegNo);
+												}
 												existingStudentUser.Role = "Student";
 												if (string.IsNullOrWhiteSpace(existingStudentUser.Email))
 												{

@@ -186,9 +186,6 @@ public class OtpService : IOtpService
                         isOldMatch = true;
                 }
                 catch { }
-
-                if (hash == dto.OldPassword)
-                    isOldMatch = true;
             }
 
             if (!isOldMatch)
@@ -229,9 +226,29 @@ public class OtpService : IOtpService
         // Hash new password & save to DB
         var newPasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
         if (user != null)
+        {
             await _userRepository.UpdatePasswordAsync(user.UserId, newPasswordHash);
+            if (!string.IsNullOrEmpty(user.Email))
+            {
+                var linkedAdmin = await _adminRepository.GetByIdentifierAsync(user.Email);
+                if (linkedAdmin != null)
+                {
+                    await _adminRepository.UpdatePasswordAsync(linkedAdmin.AdminId, newPasswordHash);
+                }
+            }
+        }
         if (admin != null)
+        {
             await _adminRepository.UpdatePasswordAsync(admin.AdminId, newPasswordHash);
+            if (!string.IsNullOrEmpty(admin.Email))
+            {
+                var linkedUser = await _userRepository.GetByIdentifierAsync(admin.Email);
+                if (linkedUser != null)
+                {
+                    await _userRepository.UpdatePasswordAsync(linkedUser.UserId, newPasswordHash);
+                }
+            }
+        }
 
         Console.WriteLine($"[RESET SUCCESS] Password updated in DB for: {dto.EmailOrPhone}");
         return true;
