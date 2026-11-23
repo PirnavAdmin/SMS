@@ -61,7 +61,11 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ isOpen
       setLoading(true);
       await changePassword(oldPass, newPass);
       try {
-        localStorage.removeItem('remember_me_password');
+        if (localStorage.getItem('remember_me') === 'true') {
+          localStorage.setItem('remember_me_password', newPass);
+        } else {
+          localStorage.removeItem('remember_me_password');
+        }
       } catch {}
       addToast('success', 'Password Updated', 'Your security password has been changed successfully in the database.');
       handleClose();
@@ -117,6 +121,8 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ isOpen
               <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
               <input
                 type={showOldPass ? 'text' : 'password'}
+                name="current-password"
+                autoComplete="current-password"
                 value={oldPass}
                 onChange={e => {
                   setOldPass(e.target.value);
@@ -155,6 +161,8 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ isOpen
               <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
               <input
                 type={showNewPass ? 'text' : 'password'}
+                name="new-password"
+                autoComplete="new-password"
                 value={newPass}
                 onChange={e => setNewPass(e.target.value)}
                 onBlur={() => setNewPassTouched(true)}
@@ -193,6 +201,8 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ isOpen
               <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
               <input
                 type={showConfirmPass ? 'text' : 'password'}
+                name="confirm-new-password"
+                autoComplete="new-password"
                 value={confirmPass}
                 onChange={e => setConfirmPass(e.target.value)}
                 onBlur={() => setConfirmPassTouched(true)}

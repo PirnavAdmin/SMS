@@ -556,6 +556,13 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
     try {
       if (changePassword) {
         await changePassword(currentPassword, newPassword);
+        try {
+          if (localStorage.getItem('remember_me') === 'true') {
+            localStorage.setItem('remember_me_password', newPassword);
+          } else {
+            localStorage.removeItem('remember_me_password');
+          }
+        } catch {}
       }
       setCurrentPassword('');
       setNewPassword('');
@@ -1325,6 +1332,8 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
                     <Lock className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
                     <input
                       type={showCurrentPassword ? 'text' : 'password'}
+                      name="current-password"
+                      autoComplete="current-password"
                       placeholder="Current master password"
                       value={currentPassword}
                       onChange={(e) => {
@@ -1371,6 +1380,8 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
                     <Lock className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
                     <input
                       type={showNewPassword ? 'text' : 'password'}
+                      name="new-password"
+                      autoComplete="new-password"
                       placeholder="At least 6 characters"
                       value={newPassword}
                       onChange={(e) => {
@@ -1430,6 +1441,8 @@ export const SuperAdminProfileView: React.FC<SuperAdminProfileViewProps> = ({ on
                     <Lock className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
                     <input
                       type={showConfirmPassword ? 'text' : 'password'}
+                      name="confirm-password"
+                      autoComplete="new-password"
                       placeholder="Confirm password"
                       value={confirmPassword}
                       onChange={(e) => {
