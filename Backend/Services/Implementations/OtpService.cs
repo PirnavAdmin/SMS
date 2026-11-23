@@ -62,7 +62,7 @@ public class OtpService : IOtpService
         }
 
         if (userId == null && adminId == null)
-            throw new Exception("User not found.");
+            throw new Exception("No registered account found with this email or mobile number.");
 
         // 2. Generate 6-digit OTP
         var rawOtpCode = new Random().Next(100000, 999999).ToString();
@@ -90,19 +90,86 @@ public class OtpService : IOtpService
         });
 
         // 4. Send plain code via Email or SMS
+        bool emailSent = false;
+        bool smsSent = false;
+        string? emailError = null;
+
         if (dto.DeliveryMethod.Equals("Email", StringComparison.OrdinalIgnoreCase))
         {
-            await SendEmailAsync(email ?? "", rawOtpCode);
+            try
+            {
+                if (!string.IsNullOrWhiteSpace(email))
+                {
+                    await SendEmailAsync(email, rawOtpCode);
+                    emailSent = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[SMTP FAILURE] Failed to send OTP email to {email}: {ex.Message}");
+                emailError = ex.Message;
+                // If email delivery failed, attempt SMS fallback if user has registered mobile number
+                if (!string.IsNullOrWhiteSpace(mobileNumber))
+                {
+                    try
+                    {
+                        await SendSmsAsync(mobileNumber, rawOtpCode);
+                        smsSent = true;
+                    }
+                    catch (Exception smsEx)
+                    {
+                        Console.WriteLine($"[SMS FALLBACK FAILURE]: {smsEx.Message}");
+                    }
+                }
+            }
+
+            if (!emailSent && !smsSent)
+            {
+                throw new SMS.Api.Exceptions.AppException(
+                    $"Unable to send verification code via email (Mail Server Error: {emailError ?? "Connection closed"}). Please try entering your registered mobile number to receive OTP via SMS.",
+                    System.Net.HttpStatusCode.BadRequest);
+            }
         }
         else if (dto.DeliveryMethod.Equals("SMS", StringComparison.OrdinalIgnoreCase))
         {
-            await SendSmsAsync(mobileNumber, rawOtpCode);
+            try
+            {
+                if (!string.IsNullOrWhiteSpace(mobileNumber))
+                {
+                    await SendSmsAsync(mobileNumber, rawOtpCode);
+                    smsSent = true;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[SMS FAILURE]: {ex.Message}");
+            }
+
+            if (!smsSent && !string.IsNullOrWhiteSpace(email))
+            {
+                try
+                {
+                    await SendEmailAsync(email, rawOtpCode);
+                    emailSent = true;
+                }
+                catch { }
+            }
+
+            if (!smsSent && !emailSent)
+            {
+                throw new SMS.Api.Exceptions.AppException("Unable to send verification code via SMS. Please try again or use your registered email address.", System.Net.HttpStatusCode.BadRequest);
+            }
         }
+
+        string finalDelivery = smsSent && !emailSent ? "SMS" : (emailSent ? "Email" : dto.DeliveryMethod);
+        string successMessage = (smsSent && !emailSent && dto.DeliveryMethod.Equals("Email", StringComparison.OrdinalIgnoreCase))
+            ? "Email delivery was unavailable; OTP was sent to your registered mobile number instead."
+            : $"OTP sent successfully to your {finalDelivery}.";
 
         return new SendOtpResponseDto
         {
-            Message = $"OTP sent successfully to your {dto.DeliveryMethod}.",
-            DeliveryMethod = dto.DeliveryMethod,
+            Message = successMessage,
+            DeliveryMethod = finalDelivery,
             TestOtpCode = isDevTestMode ? rawOtpCode : null
         };
     }
