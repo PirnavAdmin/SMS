@@ -59,22 +59,26 @@ namespace SMS.Api.Controllers.Transport
         [Authorize]
         public async Task<IActionResult> GetVehicleTrips(
             [FromQuery] string? search,
-            [FromQuery] long? routeId,
-            [FromQuery] long? driverId,
-            [FromQuery] long? vehicleId,
+            [FromQuery] string? routeId,
+            [FromQuery] string? driverId,
+            [FromQuery] string? vehicleId,
             [FromQuery] string? status)
         {
             try
             {
+                long? parsedRouteId = long.TryParse(routeId, out var rId) ? rId : null;
+                long? parsedDriverId = long.TryParse(driverId, out var dId) ? dId : null;
+                long? parsedVehicleId = long.TryParse(vehicleId, out var vId) ? vId : null;
+
                 var assignmentsQuery = _context.TransportVehicleAssignments
                     .Include(x => x.Route)
                     .Include(x => x.Vehicle)
                     .Include(x => x.Driver)
                     .Where(x => !x.IsDeleted);
 
-                if (routeId.HasValue) assignmentsQuery = assignmentsQuery.Where(x => x.RouteId == routeId.Value);
-                if (driverId.HasValue) assignmentsQuery = assignmentsQuery.Where(x => x.DriverId == driverId.Value);
-                if (vehicleId.HasValue) assignmentsQuery = assignmentsQuery.Where(x => x.VehicleId == vehicleId.Value);
+                if (parsedRouteId.HasValue) assignmentsQuery = assignmentsQuery.Where(x => x.RouteId == parsedRouteId.Value);
+                if (parsedDriverId.HasValue) assignmentsQuery = assignmentsQuery.Where(x => x.DriverId == parsedDriverId.Value);
+                if (parsedVehicleId.HasValue) assignmentsQuery = assignmentsQuery.Where(x => x.VehicleId == parsedVehicleId.Value);
 
                 var assignments = await assignmentsQuery.ToListAsync();
 

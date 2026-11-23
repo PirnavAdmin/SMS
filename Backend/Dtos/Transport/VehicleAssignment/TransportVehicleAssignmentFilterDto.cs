@@ -1,3 +1,6 @@
+using Microsoft.AspNetCore.Mvc;
+using SMS.Api.Common;
+
 namespace SMS.Api.Dtos.Transport.VehicleAssignment
 {
     public class TransportVehicleAssignmentFilterDto
@@ -10,6 +13,7 @@ namespace SMS.Api.Dtos.Transport.VehicleAssignment
 
         public long? DriverId { get; set; }
 
+        [ModelBinder(BinderType = typeof(FlexibleBoolModelBinder))]
         public bool? Status { get; set; }
 
         public DateTime? FromDate { get; set; }

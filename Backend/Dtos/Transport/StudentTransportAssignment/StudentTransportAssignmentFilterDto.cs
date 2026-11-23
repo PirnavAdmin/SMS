@@ -1,3 +1,6 @@
+using Microsoft.AspNetCore.Mvc;
+using SMS.Api.Common;
+
 namespace SMS.Api.Dtos.Transport.StudentTransportAssignment
 {
 	public class StudentTransportAssignmentFilterDto
@@ -8,6 +11,7 @@ namespace SMS.Api.Dtos.Transport.StudentTransportAssignment
         public long? PickupPointId { get; set; }
         public long? VehicleAssignmentId { get; set; }
         public string? TransportType { get; set; }
+        [ModelBinder(BinderType = typeof(FlexibleBoolModelBinder))]
         public bool? Status { get; set; }
 
         public string? SortBy { get; set; }

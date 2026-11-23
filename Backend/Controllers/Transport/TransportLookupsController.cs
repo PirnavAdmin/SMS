@@ -78,11 +78,12 @@ namespace SMS.Api.Controllers
         }
 
         [HttpGet("pickup-points")]
-        public async Task<IActionResult> GetPickupPoints([FromQuery] long? routeId)
+        public async Task<IActionResult> GetPickupPoints([FromQuery] string? routeId)
         {
             try
             {
-                var result = await _pickupPointService.GetLookupAsync(routeId);
+                long? parsedRouteId = long.TryParse(routeId, out var rId) ? rId : null;
+                var result = await _pickupPointService.GetLookupAsync(parsedRouteId);
                 return Ok(result);
             }
             catch
