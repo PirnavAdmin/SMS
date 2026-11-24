@@ -75,110 +75,155 @@ public class ChatController : ControllerBase
             ?? User.FindFirst("id")?.Value
             ?? User.FindFirst("sub")?.Value
             ?? User.FindFirst("UserId")?.Value
+            ?? Request.Headers["X-User-Id"].FirstOrDefault()
             ?? string.Empty;
 
         var userName = User.FindFirst(ClaimTypes.Name)?.Value
             ?? User.FindFirst("name")?.Value
+            ?? User.FindFirst("unique_name")?.Value
             ?? "User";
 
-        var userRole = User.FindFirst(ClaimTypes.Role)?.Value
+        var userRole = Request.Headers["X-User-Role"].FirstOrDefault()
+            ?? Request.Headers["User-Role"].FirstOrDefault()
+            ?? User.FindFirst(ClaimTypes.Role)?.Value
             ?? User.FindFirst("role")?.Value
-            ?? "Student";
+            ?? string.Empty;
 
         var userEmail = User.FindFirst(ClaimTypes.Email)?.Value
+            ?? User.FindFirst("email")?.Value
             ?? string.Empty;
 
         return (userId, userName, userRole, userEmail);
+    }
+
+    // Helper to deeply resolve caller identity, database records, and all matching IDs
+    private async Task<(string UserId, string UserName, string UserRole, string UserEmail, Staff? StaffUser, Student? StudentUser, HashSet<string> MyIds, string EffectiveId)> ResolveCurrentEntityAsync()
+    {
+        var (userId, userName, userRole, userEmail) = GetCurrentUserInfo();
+        int.TryParse(userId, out int parsedUserId);
+
+        var myIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (!string.IsNullOrEmpty(userId)) myIds.Add(userId);
+        if (!string.IsNullOrEmpty(userEmail)) myIds.Add(userEmail);
+
+        // 1. Look up Staff table (by staffId, employeeId, email, or full name)
+        Staff? staffUser = null;
+        if (parsedUserId > 0 || !string.IsNullOrEmpty(userEmail) || (!string.IsNullOrEmpty(userName) && userName != "User"))
+        {
+            staffUser = await _context.Staff.AsNoTracking().FirstOrDefaultAsync(s => 
+                (parsedUserId > 0 && s.StaffId == parsedUserId) ||
+                (!string.IsNullOrEmpty(userEmail) && s.Email != null && s.Email.ToLower() == userEmail.ToLower()) ||
+                (!string.IsNullOrEmpty(userId) && s.EmployeeId != null && s.EmployeeId.ToLower() == userId.ToLower()) ||
+                (!string.IsNullOrEmpty(userName) && userName != "User" && (s.FirstName + " " + s.LastName).Trim().ToLower() == userName.ToLower()));
+        }
+
+        // 2. Check Admin role
+        bool isAdmin = userRole.Contains("Admin", StringComparison.OrdinalIgnoreCase) || 
+                      User.IsInRole("Admin") || 
+                      User.IsInRole("SuperAdmin");
+
+        // 3. Look up Student if explicitly indicated or not staff/admin
+        bool isExplicitStudent = string.Equals(userRole, "Student", StringComparison.OrdinalIgnoreCase) || User.IsInRole("Student");
+        Student? studentUser = null;
+
+        if ((isExplicitStudent || (staffUser == null && !isAdmin)) && staffUser == null)
+        {
+            studentUser = await _context.Students
+                .Include(s => s.ClassGrade)
+                .Include(s => s.ClassSection)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(s => 
+                    (parsedUserId > 0 && s.StudentId == parsedUserId) ||
+                    (!string.IsNullOrEmpty(userEmail) && s.Email != null && s.Email.ToLower() == userEmail.ToLower()) ||
+                    (!string.IsNullOrEmpty(userId) && s.AdmissionNumber.ToLower() == userId.ToLower()) ||
+                    (!string.IsNullOrEmpty(userName) && userName != "User" && s.StudentName.ToLower() == userName.ToLower()));
+        }
+
+        string effectiveId = userId;
+        string resolvedRole = userRole;
+
+        if (staffUser != null)
+        {
+            effectiveId = $"TEA-{staffUser.StaffId}";
+            myIds.Add(effectiveId);
+            myIds.Add(staffUser.StaffId.ToString());
+            if (!string.IsNullOrEmpty(staffUser.EmployeeId)) myIds.Add(staffUser.EmployeeId);
+            if (!string.IsNullOrEmpty(staffUser.Phone)) myIds.Add(staffUser.Phone);
+            userName = $"{staffUser.FirstName} {staffUser.LastName}".Trim();
+            resolvedRole = "teacher";
+        }
+        else if (studentUser != null)
+        {
+            effectiveId = $"STU-{studentUser.StudentId}";
+            myIds.Add(effectiveId);
+            myIds.Add(studentUser.StudentId.ToString());
+            if (!string.IsNullOrEmpty(studentUser.AdmissionNumber)) myIds.Add(studentUser.AdmissionNumber);
+            if (!string.IsNullOrEmpty(studentUser.RollNumber)) myIds.Add(studentUser.RollNumber);
+            userName = studentUser.StudentName;
+            resolvedRole = "student";
+        }
+        else if (isAdmin)
+        {
+            resolvedRole = "admin";
+        }
+
+        return (userId, userName, resolvedRole, userEmail, staffUser, studentUser, myIds, effectiveId);
     }
 
     // =========================================================
     // 1. GET CONTACTS
     // Business Rule:
     // "students can message or call to that class students only not everyone and can msg to any teacher"
+    // Teachers/Staff/Admins can message all students, parents, and colleagues, and filter by class.
     // =========================================================
     [HttpGet("contacts")]
-    public async Task<IActionResult> GetContacts()
+    public async Task<IActionResult> GetContacts([FromQuery] string? classFilter = null)
     {
-        var (userId, userName, userRole, userEmail) = GetCurrentUserInfo();
-        var isStudent = string.Equals(userRole, "Student", StringComparison.OrdinalIgnoreCase) || User.IsInRole("Student");
-        var isParent = string.Equals(userRole, "Parent", StringComparison.OrdinalIgnoreCase) || User.IsInRole("Parent");
-        var isTeacher = string.Equals(userRole, "Teacher", StringComparison.OrdinalIgnoreCase) || User.IsInRole("Teacher");
+        var (userId, userName, userRole, userEmail, staffUser, studentUser, myIds, effectiveMyId) = await ResolveCurrentEntityAsync();
+        bool isStudent = studentUser != null || (string.Equals(userRole, "student", StringComparison.OrdinalIgnoreCase) && staffUser == null);
 
         var contacts = new List<ChatContactDto>();
 
-        // 1. Identify enrolled class if current user is Student
-        int? studentClassId = null;
-        string? studentClassName = null;
-        string? studentSection = null;
-        int? currentStudentDbId = null;
+        // Load class dictionary for quick lookup of class names by ID
+        var classLookup = await _context.Classes.AsNoTracking()
+            .ToDictionaryAsync(c => c.ClassId, c => c.ClassName);
 
-        if (isStudent)
+        // 1. TEACHERS & STAFF (available to ANY student, parent, or colleague)
+        var staffQuery = _context.Staff.AsNoTracking().Where(s => s.IsActive != false);
+        var staffList = await staffQuery.Take(150).ToListAsync();
+        foreach (var t in staffList)
         {
-            int parsedUserId = 0;
-            bool hasNumericUserId = int.TryParse(userId, out parsedUserId);
+            // Do not show the current user to themselves
+            if (staffUser != null && t.StaffId == staffUser.StaffId) continue;
+            if (myIds.Contains(t.StaffId.ToString()) || (!string.IsNullOrEmpty(t.EmployeeId) && myIds.Contains(t.EmployeeId))) continue;
 
-            // Search in students table
-            var student = await _context.Students
-                .Include(s => s.ClassGrade)
-                .Include(s => s.ClassSection)
-                .AsNoTracking()
-                .FirstOrDefaultAsync(s => 
-                    (hasNumericUserId && s.StudentId == parsedUserId) ||
-                    (!string.IsNullOrEmpty(userEmail) && s.Email != null && s.Email.ToLower() == userEmail.ToLower()) ||
-                    s.AdmissionNumber.ToLower() == userId.ToLower());
-
-            if (student != null)
-            {
-                currentStudentDbId = student.StudentId;
-                studentClassId = student.ClassId;
-                studentClassName = student.ClassGrade?.ClassName ?? $"Class {student.ClassId}";
-                studentSection = student.ClassSection?.SectionName ?? string.Empty;
-            }
-            else
-            {
-                // Fallback search in Admissions table
-                var adm = await _context.Admissions.AsNoTracking()
-                    .FirstOrDefaultAsync(a => 
-                        (hasNumericUserId && a.AdmissionId == (long)parsedUserId) ||
-                        (a.ApplicationNo != null && a.ApplicationNo.ToLower() == userId.ToLower()));
-
-                if (adm != null)
-                {
-                    studentClassId = adm.ClassId;
-                    studentSection = adm.SectionLetter ?? string.Empty;
-                }
-            }
-        }
-
-        // 2. Fetch TEACHERS (available to ANY student, parent, or colleague)
-        var teachersQuery = _context.Staff.AsNoTracking()
-            .Where(s => s.EmployeeCategory == "Teaching Staff" || s.SystemRole == "Teacher" || s.Designation != null && s.Designation.Contains("Teacher"));
-
-        var teachers = await teachersQuery.Take(100).ToListAsync();
-        foreach (var t in teachers)
-        {
-            var tId = $"TEA-{t.StaffId}";
             contacts.Add(new ChatContactDto
             {
-                Id = tId,
+                Id = $"TEA-{t.StaffId}",
                 Name = $"{t.FirstName} {t.LastName}".Trim(),
                 Role = "teacher",
                 Email = t.Email,
                 Phone = t.Phone,
                 Subject = t.PrimarySubject ?? t.Department ?? "Academics",
-                Designation = t.Designation ?? "Subject Teacher",
+                Designation = t.Designation ?? (t.SystemRole ?? "Faculty Teacher"),
                 IsOnline = true
             });
         }
 
-        // 3. Fetch CLASSMATES if user is Student
+        // 2. CLASSMATES FOR STUDENTS
         // STRICT RULE: PARTICULAR CLASS STUDENTS ONLY!
-        if (isStudent)
+        if (isStudent && studentUser != null)
         {
-            IQueryable<Student> peersQuery = _context.Students
+            int? studentClassId = studentUser.ClassId;
+            string? studentClassName = studentUser.ClassGrade?.ClassName ?? 
+                (studentClassId.HasValue && classLookup.TryGetValue(studentClassId.Value, out var cn) ? cn : $"Class {studentClassId}");
+            string? studentSection = studentUser.ClassSection?.SectionName ?? string.Empty;
+
+            var peersQuery = _context.Students
                 .Include(s => s.ClassGrade)
                 .Include(s => s.ClassSection)
-                .AsNoTracking();
+                .AsNoTracking()
+                .Where(s => !s.IsDeleted && s.StudentId != studentUser.StudentId);
 
             if (studentClassId.HasValue && studentClassId.Value > 0)
             {
@@ -187,11 +232,6 @@ public class ChatController : ControllerBase
             else if (!string.IsNullOrEmpty(studentClassName))
             {
                 peersQuery = peersQuery.Where(s => s.ClassGrade != null && s.ClassGrade.ClassName == studentClassName);
-            }
-
-            if (currentStudentDbId.HasValue)
-            {
-                peersQuery = peersQuery.Where(s => s.StudentId != currentStudentDbId.Value);
             }
 
             var classmates = await peersQuery.Take(100).ToListAsync();
@@ -211,61 +251,127 @@ public class ChatController : ControllerBase
                 });
             }
         }
-        else if (isTeacher)
+        else
         {
-            // Teachers can message students across their classes
-            var studentsList = await _context.Students
+            // 3. TEACHER, ADMIN, OR STAFF: FULL ACCESS TO STUDENTS & PARENTS WITH CLASS FILTERING
+            var addedAdmissionNos = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            var studentsQuery = _context.Students
                 .Include(s => s.ClassGrade)
                 .Include(s => s.ClassSection)
                 .AsNoTracking()
-                .Take(100)
-                .ToListAsync();
+                .Where(s => !s.IsDeleted);
 
-            foreach (var s in studentsList)
+            if (!string.IsNullOrWhiteSpace(classFilter) && !classFilter.Equals("all", StringComparison.OrdinalIgnoreCase))
             {
+                var cf = classFilter.Trim().ToLower();
+                studentsQuery = studentsQuery.Where(s => 
+                    (s.ClassGrade != null && s.ClassGrade.ClassName.ToLower().Contains(cf)) ||
+                    (s.ClassId.ToString() == cf));
+            }
+
+            var studentList = await studentsQuery.Take(250).ToListAsync();
+            foreach (var s in studentList)
+            {
+                var cleanClass = s.ClassGrade?.ClassName ?? (s.ClassId > 0 && classLookup.TryGetValue(s.ClassId, out var cn) ? cn : $"Class {s.ClassId}");
+                var cleanSec = s.ClassSection?.SectionName ?? "";
                 contacts.Add(new ChatContactDto
                 {
                     Id = $"STU-{s.StudentId}",
                     Name = s.StudentName,
                     Role = "student",
-                    ClassName = s.ClassGrade?.ClassName ?? "Class",
-                    Section = s.ClassSection?.SectionName ?? "",
+                    ClassName = cleanClass,
+                    Section = cleanSec,
                     AdmissionNo = s.AdmissionNumber,
+                    Phone = s.MobileNumber,
+                    Email = s.Email,
                     IsOnline = true
                 });
 
-                // Also add parent option
-                if (!string.IsNullOrEmpty(s.FatherName) || !string.IsNullOrEmpty(s.MotherName))
+                if (!string.IsNullOrEmpty(s.AdmissionNumber))
                 {
-                    var pName = !string.IsNullOrEmpty(s.FatherName) ? s.FatherName : s.MotherName;
-                    contacts.Add(new ChatContactDto
-                    {
-                        Id = $"PAR-{s.StudentId}",
-                        Name = $"{pName} (Parent of {s.StudentName})",
-                        Role = "parent",
-                        ClassName = s.ClassGrade?.ClassName,
-                        AdmissionNo = s.AdmissionNumber,
-                        Phone = s.FatherMobile ?? s.MotherMobile,
-                        IsOnline = false
-                    });
+                    addedAdmissionNos.Add(s.AdmissionNumber);
                 }
+
+                // Add parent contact option
+                var pName = !string.IsNullOrWhiteSpace(s.FatherName) ? s.FatherName : (!string.IsNullOrWhiteSpace(s.MotherName) ? s.MotherName : $"{s.StudentName}'s Parent");
+                contacts.Add(new ChatContactDto
+                {
+                    Id = $"PAR-{s.StudentId}",
+                    Name = $"{pName} (Parent of {s.StudentName})",
+                    Role = "parent",
+                    ClassName = cleanClass,
+                    Section = cleanSec,
+                    AdmissionNo = s.AdmissionNumber,
+                    Phone = s.FatherMobile ?? s.MotherMobile ?? s.MobileNumber,
+                    IsOnline = false
+                });
+            }
+
+            // Also include students from Admissions table if not already represented
+            var admissionsQuery = _context.Admissions
+                .AsNoTracking()
+                .Where(a => !a.IsDeleted && (a.Status == "Active" || a.Status == "Enrolled" || a.Status == "Admitted" || a.Status == "Approved"));
+
+            var admissionList = await admissionsQuery.Take(250).ToListAsync();
+            foreach (var a in admissionList)
+            {
+                var admNo = a.ApplicationNo ?? a.RollNo ?? $"ADM-{a.AdmissionId}";
+                if (addedAdmissionNos.Contains(admNo)) continue;
+
+                var cleanClass = a.ClassId.HasValue && classLookup.TryGetValue(a.ClassId.Value, out var cName)
+                    ? cName
+                    : (a.ClassId.HasValue ? $"Class {a.ClassId.Value}" : "General");
+
+                if (!string.IsNullOrWhiteSpace(classFilter) && !classFilter.Equals("all", StringComparison.OrdinalIgnoreCase))
+                {
+                    var cf = classFilter.Trim().ToLower();
+                    if (!cleanClass.ToLower().Contains(cf) && a.ClassId?.ToString() != cf)
+                    {
+                        continue;
+                    }
+                }
+
+                var sName = a.StudentName ?? "Student";
+                contacts.Add(new ChatContactDto
+                {
+                    Id = $"ADM-{a.AdmissionId}",
+                    Name = sName,
+                    Role = "student",
+                    ClassName = cleanClass,
+                    Section = a.SectionLetter ?? "",
+                    AdmissionNo = admNo,
+                    Phone = a.FatherMobile,
+                    IsOnline = true
+                });
+
+                var pName = !string.IsNullOrWhiteSpace(a.FatherName) ? a.FatherName : $"{sName}'s Parent";
+                contacts.Add(new ChatContactDto
+                {
+                    Id = $"PAR-ADM-{a.AdmissionId}",
+                    Name = $"{pName} (Parent of {sName})",
+                    Role = "parent",
+                    ClassName = cleanClass,
+                    Section = a.SectionLetter ?? "",
+                    AdmissionNo = admNo,
+                    Phone = a.FatherMobile,
+                    IsOnline = false
+                });
             }
         }
 
         // 4. Populate latest messages and unread counts for each contact
-        var effectiveMyId = isStudent && currentStudentDbId.HasValue ? $"STU-{currentStudentDbId.Value}" : userId;
-
         var messageHistory = await _context.DirectChatMessages
             .AsNoTracking()
-            .Where(m => m.SenderId == effectiveMyId || m.ReceiverId == effectiveMyId || m.SenderId == userId || m.ReceiverId == userId)
+            .Where(m => myIds.Contains(m.SenderId) || myIds.Contains(m.ReceiverId))
             .OrderByDescending(m => m.CreatedAt)
             .ToListAsync();
 
         foreach (var contact in contacts)
         {
             var lastMsg = messageHistory.FirstOrDefault(m => 
-                (m.SenderId == contact.Id && (m.ReceiverId == effectiveMyId || m.ReceiverId == userId)) ||
-                (m.ReceiverId == contact.Id && (m.SenderId == effectiveMyId || m.SenderId == userId)));
+                (m.SenderId == contact.Id && myIds.Contains(m.ReceiverId)) ||
+                (m.ReceiverId == contact.Id && myIds.Contains(m.SenderId)));
 
             if (lastMsg != null)
             {
@@ -275,9 +381,12 @@ public class ChatController : ControllerBase
 
             contact.UnreadCount = messageHistory.Count(m => 
                 m.SenderId == contact.Id && 
-                (m.ReceiverId == effectiveMyId || m.ReceiverId == userId) && 
+                myIds.Contains(m.ReceiverId) && 
                 !m.IsRead);
         }
+
+        string? currentClassName = studentUser?.ClassGrade?.ClassName;
+        string? currentSection = studentUser?.ClassSection?.SectionName;
 
         return Ok(new
         {
@@ -287,8 +396,8 @@ public class ChatController : ControllerBase
                 id = effectiveMyId,
                 name = userName,
                 role = userRole,
-                className = studentClassName,
-                section = studentSection
+                className = currentClassName,
+                section = currentSection
             },
             data = contacts
         });
@@ -305,25 +414,12 @@ public class ChatController : ControllerBase
             return BadRequest(new { success = false, message = "contactId parameter is required." });
         }
 
-        var (userId, userName, userRole, _) = GetCurrentUserInfo();
-        var effectiveMyId = userId;
-
-        // If student, check if they use STU- format
-        if (string.Equals(userRole, "Student", StringComparison.OrdinalIgnoreCase))
-        {
-            int.TryParse(userId, out int parsedUid);
-            var st = await _context.Students.AsNoTracking().FirstOrDefaultAsync(s => 
-                (parsedUid > 0 && s.StudentId == parsedUid) || s.AdmissionNumber == userId);
-            if (st != null)
-            {
-                effectiveMyId = $"STU-{st.StudentId}";
-            }
-        }
+        var (_, userName, _, _, _, _, myIds, effectiveMyId) = await ResolveCurrentEntityAsync();
 
         var query = _context.DirectChatMessages
             .Where(m => 
-                ((m.SenderId == effectiveMyId || m.SenderId == userId) && m.ReceiverId == contactId) ||
-                (m.SenderId == contactId && (m.ReceiverId == effectiveMyId || m.ReceiverId == userId)));
+                (myIds.Contains(m.SenderId) && m.ReceiverId == contactId) ||
+                (m.SenderId == contactId && myIds.Contains(m.ReceiverId)));
 
         var rawList = await query.OrderBy(m => m.CreatedAt).ToListAsync();
 
@@ -331,7 +427,7 @@ public class ChatController : ControllerBase
         bool hasUnread = false;
         foreach (var m in rawList)
         {
-            if ((m.ReceiverId == effectiveMyId || m.ReceiverId == userId) && !m.IsRead)
+            if (myIds.Contains(m.ReceiverId) && !m.IsRead)
             {
                 m.IsRead = true;
                 hasUnread = true;
@@ -363,7 +459,7 @@ public class ChatController : ControllerBase
             AttachmentType = m.AttachmentType,
             CallType = m.CallType,
             CallMeetingUrl = m.CallMeetingUrl,
-            IsOutgoing = (m.SenderId == effectiveMyId || m.SenderId == userId)
+            IsOutgoing = myIds.Contains(m.SenderId)
         }).ToList();
 
         return Ok(new
@@ -391,30 +487,16 @@ public class ChatController : ControllerBase
             return BadRequest(new { success = false, message = "Message text or attachment is required." });
         }
 
-        var (userId, userName, userRole, userEmail) = GetCurrentUserInfo();
-        var isStudent = string.Equals(userRole, "Student", StringComparison.OrdinalIgnoreCase) || User.IsInRole("Student");
+        var (userId, userName, userRole, _, staffUser, studentUser, _, effectiveSenderId) = await ResolveCurrentEntityAsync();
+        bool isStudent = studentUser != null;
 
-        string effectiveSenderId = userId;
         string? senderClassName = null;
         int? senderClassId = null;
 
-        if (isStudent)
+        if (isStudent && studentUser != null)
         {
-            int.TryParse(userId, out int parsedSenderId);
-            var senderStudent = await _context.Students
-                .Include(s => s.ClassGrade)
-                .AsNoTracking()
-                .FirstOrDefaultAsync(s => 
-                    (parsedSenderId > 0 && s.StudentId == parsedSenderId) || 
-                    s.AdmissionNumber.ToLower() == userId.ToLower() ||
-                    (!string.IsNullOrEmpty(userEmail) && s.Email != null && s.Email.ToLower() == userEmail.ToLower()));
-
-            if (senderStudent != null)
-            {
-                effectiveSenderId = $"STU-{senderStudent.StudentId}";
-                senderClassId = senderStudent.ClassId;
-                senderClassName = senderStudent.ClassGrade?.ClassName ?? $"Class {senderStudent.ClassId}";
-            }
+            senderClassId = studentUser.ClassId;
+            senderClassName = studentUser.ClassGrade?.ClassName ?? $"Class {studentUser.ClassId}";
 
             // CHECK RECEIVER RULE:
             // "particular class students can message or call to that class students only not everyone and can msg to any teacher"
@@ -423,7 +505,6 @@ public class ChatController : ControllerBase
 
             if (isReceiverStudent)
             {
-                // Extract receiver student ID
                 string rawId = dto.ReceiverId.Replace("STU-", "", StringComparison.OrdinalIgnoreCase);
                 int.TryParse(rawId, out int parsedReceiverId);
                 var receiverStudent = await _context.Students
@@ -431,17 +512,13 @@ public class ChatController : ControllerBase
                     .AsNoTracking()
                     .FirstOrDefaultAsync(s => (parsedReceiverId > 0 && s.StudentId == parsedReceiverId) || s.AdmissionNumber == rawId);
 
-                if (receiverStudent != null)
+                if (receiverStudent != null && senderClassId.HasValue && receiverStudent.ClassId != senderClassId.Value)
                 {
-                    // Strict Class Validation
-                    if (senderClassId.HasValue && receiverStudent.ClassId != senderClassId.Value)
+                    return StatusCode(StatusCodes.Status403Forbidden, new
                     {
-                        return StatusCode(StatusCodes.Status403Forbidden, new
-                        {
-                            success = false,
-                            message = $"Access Denied: You can only message students in your enrolled class ({senderClassName}). Messaging students from other classes is restricted."
-                        });
-                    }
+                        success = false,
+                        message = $"Access Denied: You can only message students in your enrolled class ({senderClassName}). Messaging students from other classes is restricted."
+                    });
                 }
             }
         }
@@ -509,30 +586,16 @@ public class ChatController : ControllerBase
             return BadRequest(new { success = false, message = "Receiver ID is required to initiate call." });
         }
 
-        var (userId, userName, userRole, userEmail) = GetCurrentUserInfo();
-        var isStudent = string.Equals(userRole, "Student", StringComparison.OrdinalIgnoreCase) || User.IsInRole("Student");
+        var (userId, userName, userRole, _, staffUser, studentUser, _, effectiveSenderId) = await ResolveCurrentEntityAsync();
+        bool isStudent = studentUser != null;
 
-        string effectiveSenderId = userId;
         string? senderClassName = null;
         int? senderClassId = null;
 
-        if (isStudent)
+        if (isStudent && studentUser != null)
         {
-            int.TryParse(userId, out int parsedSenderId);
-            var senderStudent = await _context.Students
-                .Include(s => s.ClassGrade)
-                .AsNoTracking()
-                .FirstOrDefaultAsync(s => 
-                    (parsedSenderId > 0 && s.StudentId == parsedSenderId) || 
-                    s.AdmissionNumber.ToLower() == userId.ToLower() ||
-                    (!string.IsNullOrEmpty(userEmail) && s.Email != null && s.Email.ToLower() == userEmail.ToLower()));
-
-            if (senderStudent != null)
-            {
-                effectiveSenderId = $"STU-{senderStudent.StudentId}";
-                senderClassId = senderStudent.ClassId;
-                senderClassName = senderStudent.ClassGrade?.ClassName ?? $"Class {senderStudent.ClassId}";
-            }
+            senderClassId = studentUser.ClassId;
+            senderClassName = studentUser.ClassGrade?.ClassName ?? $"Class {studentUser.ClassId}";
 
             // CHECK RECEIVER RULE FOR CALLS
             bool isReceiverStudent = dto.ReceiverId.StartsWith("STU-", StringComparison.OrdinalIgnoreCase) ||
@@ -613,24 +676,10 @@ public class ChatController : ControllerBase
     [HttpGet("unread-count")]
     public async Task<IActionResult> GetUnreadCount()
     {
-        var (userId, _, userRole, userEmail) = GetCurrentUserInfo();
-        var effectiveMyId = userId;
-
-        if (string.Equals(userRole, "Student", StringComparison.OrdinalIgnoreCase))
-        {
-            int.TryParse(userId, out int parsedUid);
-            var st = await _context.Students.AsNoTracking().FirstOrDefaultAsync(s => 
-                (parsedUid > 0 && s.StudentId == parsedUid) || 
-                s.AdmissionNumber.ToLower() == userId.ToLower() ||
-                (!string.IsNullOrEmpty(userEmail) && s.Email != null && s.Email.ToLower() == userEmail.ToLower()));
-            if (st != null)
-            {
-                effectiveMyId = $"STU-{st.StudentId}";
-            }
-        }
+        var (_, _, _, _, _, _, myIds, _) = await ResolveCurrentEntityAsync();
 
         var count = await _context.DirectChatMessages
-            .CountAsync(m => (m.ReceiverId == effectiveMyId || m.ReceiverId == userId) && !m.IsRead);
+            .CountAsync(m => myIds.Contains(m.ReceiverId) && !m.IsRead);
 
         return Ok(new
         {
