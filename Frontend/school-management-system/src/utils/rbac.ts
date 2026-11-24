@@ -213,6 +213,7 @@ export const hasModuleAccess = (
   if (moduleId === "library-timetable") moduleId = "library";
   if (moduleId === "teacher-profile" || moduleId === "teacher-my-profile" || moduleId === "staff-my-payslips" || moduleId === "teacher-payslips") moduleId = "staff";
   if (moduleId === "roles") moduleId = "users";
+  if (moduleId === "chat" || moduleId === "meetings") moduleId = "communication";
   const preserveFullId = moduleId === "student-promotion" || moduleId === "marks-entry" || moduleId === "report-cards";
   const baseModule = (preserveFullId ? moduleId : moduleId.split("-")[0]) as ModuleId;
   const allowedModules =

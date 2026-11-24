@@ -24,7 +24,8 @@ export const MeetingsView: React.FC = () => {
     addMeeting, 
     updateMeeting, 
     cancelMeeting, 
-    deleteMeeting 
+    deleteMeeting,
+    refreshMeetings
   } = useData() || {};
 
   const meetings = Array.isArray(rawMeetings) ? rawMeetings : [];
@@ -34,9 +35,26 @@ export const MeetingsView: React.FC = () => {
   const { addToast } = useToast();
   const { user, role, selectedBranch, selectedAcademicYear } = useAuth();
 
-  const isAdminOrPrincipal = role === 'Super Admin' || role === 'Admin' || role === 'Principal' || role === 'HR';
-  const isTeacher = role === 'Teacher';
-  const canManageMeetings = isAdminOrPrincipal || isTeacher;
+  const userRoleLower = (user?.role || role || '').toLowerCase();
+  const isAdminOrPrincipal = role === 'Super Admin' || role === 'Admin' || role === 'Principal' || role === 'HR' || userRoleLower.includes('admin') || userRoleLower.includes('principal');
+  const isTeacher = role === 'Teacher' || userRoleLower.includes('teacher');
+  const isStudent = role === 'Student' || userRoleLower.includes('student');
+  const isParent = role === 'Parent' || userRoleLower.includes('parent');
+  // All verified roles (including Students and Parents) can schedule and manage their meetings
+  const canManageMeetings = isAdminOrPrincipal || isTeacher || isStudent || isParent;
+
+  // Identify current student and enrolled class for isolation
+  const currentStudent = isStudent ? students.find(s => 
+    s.id === user?.id || 
+    (s.admissionNo && user?.id && s.admissionNo.toLowerCase() === String(user.id).toLowerCase()) ||
+    (s.email && user?.email && s.email.toLowerCase() === user.email.toLowerCase()) ||
+    (user?.name && `${s.firstName} ${s.lastName}`.toLowerCase() === user.name.toLowerCase())
+  ) : null;
+  const currentStudentClass = currentStudent?.className || (user as any)?.className || (user as any)?.class || '';
+
+  useEffect(() => {
+    refreshMeetings?.();
+  }, [refreshMeetings]);
 
   // Filter States
   const [filterAudience, setFilterAudience] = useState<string>('');
@@ -173,7 +191,18 @@ export const MeetingsView: React.FC = () => {
   // Dynamic Options for Participant Type (Individual)
   const teachingStaffOptions = staff.filter(s => s.employeeCategory === 'Teacher' && s.status === 'Active');
   const nonTeachingStaffOptions = staff.filter(s => s.employeeCategory !== 'Teacher' && s.status === 'Active');
-  const studentOptions = students.filter(s => s.status === 'Active');
+  const studentOptions = students.filter(s => {
+    if (s.status !== 'Active') return false;
+    if (isStudent) {
+      if (currentStudent && s.id === currentStudent.id) return false;
+      if (currentStudentClass) {
+        const sClass = (s.className || '').toLowerCase().replace(/^class\s+/i, '').trim();
+        const myClass = currentStudentClass.toLowerCase().replace(/^class\s+/i, '').trim();
+        return sClass === myClass;
+      }
+    }
+    return true;
+  });
 
   // Pre-formatted Parent options with full Parent + Student data linkage
   const parentOptions = students.filter(s => s.status === 'Active').map(s => {
@@ -676,13 +705,15 @@ export const MeetingsView: React.FC = () => {
       floor: (meetingMode === 'In-Person' || meetingMode === 'Hybrid') ? formData.floor : undefined,
       roomVenue: (meetingMode === 'In-Person' || meetingMode === 'Hybrid') ? formData.roomVenue : undefined,
       roomCapacity: (meetingMode === 'In-Person' || meetingMode === 'Hybrid') ? formData.roomCapacity : undefined,
-      onlineMeetingUrl: (meetingMode === 'Online' || meetingMode === 'Hybrid') ? formData.onlineMeetingUrl : undefined,
+      onlineMeetingUrl: (meetingMode === 'Online' || meetingMode === 'Hybrid') 
+        ? (formData.onlineMeetingUrl || `https://meet.jit.si/SMS-Meeting-${Math.random().toString(36).substring(2, 9)}`) 
+        : undefined,
       meetingDate,
       startTime,
       endTime,
       status: (status || 'Scheduled') as MeetingStatus,
-      organizerName: user?.name || 'Administrator',
-      organizerRole: role || 'Admin',
+      organizerName: user?.name || (user as any)?.username || (isStudent ? 'Student' : 'Administrator'),
+      organizerRole: role || user?.role || (isStudent ? 'Student' : 'Admin'),
       priority: meetingPriority ? meetingPriority : undefined,
       attendanceRequired: attendanceRequired ? attendanceRequired : undefined,
       recurrence: recurrence ? recurrence : undefined,
@@ -691,9 +722,11 @@ export const MeetingsView: React.FC = () => {
 
     if (editingMeeting) {
       updateMeeting(editingMeeting.id, payload);
+      refreshMeetings?.();
       addToast('success', 'Meeting Updated', `Successfully updated meeting details for '${title}'.`);
     } else {
       addMeeting(payload);
+      refreshMeetings?.();
       if (status === 'Scheduled') {
         const targetName = meetingAudience === 'Individual' ? participantsList[0]?.name || 'the participant' : computedGroupTitle;
         addToast('success', 'Meeting Scheduled', `Dispatched notification exclusively to ${targetName}.`);
@@ -713,6 +746,7 @@ export const MeetingsView: React.FC = () => {
     }
 
     cancelMeeting(cancellingMeeting.id, cancellationReason);
+    refreshMeetings?.();
     const targetName = cancellingMeeting.meetingAudience === 'Individual' ? cancellingMeeting.participants?.[0]?.name : cancellingMeeting.targetGroupDescription;
     addToast('info', 'Meeting Cancelled', `Cancellation notification sent exclusively to ${targetName}.`);
     setCancellingMeeting(null);
@@ -1012,55 +1046,76 @@ export const MeetingsView: React.FC = () => {
 
                   {/* Action Buttons */}
                   <div className="flex items-center justify-between pt-2 border-t text-xs">
-                    <button
-                      onClick={() => setViewingMeeting(meeting)}
-                      className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-[11px] transition-colors"
-                    >
-                      View Details
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => setViewingMeeting(meeting)}
+                        className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-[11px] transition-colors"
+                      >
+                        View Details
+                      </button>
+                      {meeting.onlineMeetingUrl && (
+                        <a
+                          href={meeting.onlineMeetingUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-2.5 py-1.5 rounded-xl bg-sky-50 hover:bg-sky-100 dark:bg-sky-950/60 dark:hover:bg-sky-900 text-sky-600 dark:text-sky-300 font-bold text-[11px] flex items-center gap-1 border border-sky-200 dark:border-sky-800 transition-colors"
+                        >
+                          <Video className="w-3.5 h-3.5 text-sky-500" />
+                          <span>Join Call</span>
+                        </a>
+                      )}
+                    </div>
 
                     {canManageMeetings && (
                       <div className="flex items-center gap-1">
                         {meeting.status === 'Scheduled' && (
                           <>
-                            <button
-                              onClick={() => {
-                                updateMeeting(meeting.id, { status: 'Completed' });
-                                addToast('success', 'Meeting Completed', `Marked meeting '${meeting.title}' as Completed.`);
-                              }}
-                              title="Mark Completed"
-                              className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-colors"
-                            >
-                              <CheckCircle2 className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleOpenEditModal(meeting)}
-                              title="Edit Meeting"
-                              className="p-1.5 rounded-lg text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-950/30 transition-colors"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => setCancellingMeeting(meeting)}
-                              title="Cancel Meeting"
-                              className="p-1.5 rounded-lg text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-colors"
-                            >
-                              <XCircle className="w-4 h-4" />
-                            </button>
+                            {(isAdminOrPrincipal || isTeacher || (meeting.organizerName && user?.name && meeting.organizerName.toLowerCase() === user.name.toLowerCase())) && (
+                              <>
+                                <button
+                                  onClick={() => {
+                                    updateMeeting(meeting.id, { status: 'Completed' });
+                                    refreshMeetings?.();
+                                    addToast('success', 'Meeting Completed', `Marked meeting '${meeting.title}' as Completed.`);
+                                  }}
+                                  title="Mark Completed"
+                                  className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-colors"
+                                >
+                                  <CheckCircle2 className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleOpenEditModal(meeting)}
+                                  title="Edit Meeting"
+                                  className="p-1.5 rounded-lg text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-950/30 transition-colors"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => setCancellingMeeting(meeting)}
+                                  title="Cancel Meeting"
+                                  className="p-1.5 rounded-lg text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-colors"
+                                >
+                                  <XCircle className="w-4 h-4" />
+                                </button>
+                              </>
+                            )}
                           </>
                         )}
-                        <button
-                          onClick={() => {
-                            if (window.confirm(`Delete meeting '${meeting.title}'?`)) {
-                              deleteMeeting(meeting.id);
-                              addToast('info', 'Deleted', 'Meeting record removed.');
-                            }
-                          }}
-                          title="Delete Record"
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 transition-colors"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {(isAdminOrPrincipal || isTeacher || (meeting.organizerName && user?.name && meeting.organizerName.toLowerCase() === user.name.toLowerCase())) && (
+                          <button
+                            onClick={() => {
+                              if (window.confirm(`Delete meeting '${meeting.title}'?`)) {
+                                deleteMeeting(meeting.id);
+                                refreshMeetings?.();
+                                addToast('info', 'Deleted', 'Meeting record removed.');
+                              }
+                            }}
+                            title="Delete Record"
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
@@ -1156,11 +1211,13 @@ export const MeetingsView: React.FC = () => {
                     type="button"
                     onClick={() => {
                       setMeetingAudience('Individual');
-                      setParticipantType('Parent');
+                      setParticipantType(isStudent ? 'Teaching Staff' : 'Parent');
                       setFormData(prev => ({
                         ...prev,
-                        title: 'Class 10 Mid-Term Performance Review PTM',
-                        description: 'Individual parent-teacher discussion regarding student mid-term academic progress, attendance, and career stream guidance.',
+                        title: isStudent ? 'Teacher Doubt Clearing & Guidance' : 'Class 10 Mid-Term Performance Review PTM',
+                        description: isStudent 
+                          ? 'Doubt resolution, concept revision, and homework guidance with assigned teacher.'
+                          : 'Individual parent-teacher discussion regarding student mid-term academic progress, attendance, and career stream guidance.',
                         meetingMode: 'In-Person',
                         building: 'Academic Block A',
                         floor: '1st Floor',
@@ -1168,11 +1225,36 @@ export const MeetingsView: React.FC = () => {
                         startTime: '02:00 PM',
                         endTime: '02:30 PM',
                       }));
-                      addToast('info', 'Preset Loaded', 'Auto-filled Parent-Teacher Sync details.');
+                      addToast('info', 'Preset Loaded', isStudent ? 'Auto-filled Teacher Doubt Session.' : 'Auto-filled Parent-Teacher Sync details.');
                     }}
                     className="px-2.5 py-1 rounded-xl text-[11px] font-extrabold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-sky-50 transition-all flex items-center gap-1"
                   >
-                    <span>👨‍👩‍👧</span> PTM Sync
+                    <span>{isStudent ? '👨‍🏫' : '👨‍👩‍👧'}</span> {isStudent ? 'Teacher Doubt Session' : 'PTM Sync'}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMeetingAudience('Individual');
+                      setParticipantType(isStudent ? 'Student' : 'Teaching Staff');
+                      setFormData(prev => ({
+                        ...prev,
+                        title: isStudent ? 'Classmate Peer Study & Project Sync' : 'Faculty Counseling & Subject Feedback',
+                        description: isStudent 
+                          ? 'Peer discussion with classmate for group project, exam preparation, and doubt sharing.'
+                          : 'Discussion with subject faculty regarding student progress, homework submissions, and improvement plan.',
+                        meetingMode: 'In-Person',
+                        building: 'Library & Reading Hall',
+                        floor: 'Ground Floor',
+                        roomVenue: 'Discussion Room B',
+                        startTime: '03:30 PM',
+                        endTime: '04:00 PM',
+                      }));
+                      addToast('info', 'Preset Loaded', isStudent ? 'Auto-filled Classmate Peer Study details.' : 'Auto-filled Faculty Counseling details.');
+                    }}
+                    className="px-2.5 py-1 rounded-xl text-[11px] font-extrabold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-sky-50 transition-all flex items-center gap-1"
+                  >
+                    <span>{isStudent ? '👥' : '📝'}</span> {isStudent ? 'Classmate Peer Study' : 'Faculty Counseling'}
                   </button>
 
                   <button
@@ -1296,11 +1378,26 @@ export const MeetingsView: React.FC = () => {
                       className="w-full px-3 py-2 rounded-xl border bg-white dark:bg-slate-800 font-bold text-slate-900 dark:text-white"
                     >
                       <option value="">Select Participant Type</option>
-                      <option value="Parent">Parent</option>
-                      <option value="Student">Student</option>
-                      <option value="Teaching Staff">Teaching Staff</option>
-                      <option value="Non-Teaching Staff">Non-Teaching Staff</option>
+                      {isStudent ? (
+                        <>
+                          <option value="Teaching Staff">Teacher / Faculty</option>
+                          <option value="Student">Classmate ({currentStudentClass ? `Class ${currentStudentClass.replace(/^class\s+/i, '')}` : 'Enrolled Class'})</option>
+                        </>
+                      ) : (
+                        <>
+                          <option value="Parent">Parent</option>
+                          <option value="Student">Student</option>
+                          <option value="Teaching Staff">Teaching Staff</option>
+                          <option value="Non-Teaching Staff">Non-Teaching Staff</option>
+                        </>
+                      )}
                     </select>
+                    {isStudent && participantType === 'Student' && (
+                      <div className="mt-1.5 px-3 py-1.5 rounded-xl bg-sky-100/70 dark:bg-sky-950/40 border border-sky-300 dark:border-sky-800 text-[11px] text-sky-800 dark:text-sky-300 font-semibold flex items-center gap-1.5">
+                        <span>ℹ️</span>
+                        <span>Class Isolation Active: You can only schedule meetings with classmates from your enrolled class ({currentStudentClass || 'your class'}).</span>
+                      </div>
+                    )}
                   </div>
 
                   <div>

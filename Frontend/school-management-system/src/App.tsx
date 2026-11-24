@@ -408,7 +408,7 @@ const MainLayout: React.FC = () => {
       case "parent-hostel-details":
         return <ParentHostelView />;
       case "parent-teacher-info":
-        return <ParentTeacherInfoView />;
+        return <ParentTeacherInfoView onNavigate={setActiveModule} />;
       case "parent-bus-info":
         return <ParentBusInfoView />;
       default:
@@ -841,6 +841,10 @@ const MainLayout: React.FC = () => {
         ) : (
           <InventoryView />
         );
+      case "chat":
+        return <CommunicationView initialTab="chat" />;
+      case "meetings":
+        return <CommunicationView initialTab="meetings" />;
       case "communication":
         return <CommunicationView />;
       case "events":

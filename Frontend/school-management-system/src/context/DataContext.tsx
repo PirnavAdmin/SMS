@@ -1215,6 +1215,7 @@ interface DataContextType {
   deleteQuestionPaper: (id: string) => void;
 
   meetings: SchoolMeeting[];
+  refreshMeetings?: () => Promise<void>;
   addMeeting: (
     meeting: Omit<SchoolMeeting, "id" | "createdAt">,
   ) => SchoolMeeting;
@@ -1718,9 +1719,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
   const [questionPapers, setQuestionPapers] = useState<QuestionPaper[]>(() =>
     getStored("question_papers", initialQuestionPapers),
   );
-  const [meetings, setMeetings] = useState<SchoolMeeting[]>(() =>
-    getStored("school_meetings", initialMeetings),
-  );
+  const [meetings, setMeetings] = useState<SchoolMeeting[]>([]);
   const [departments, setDepartments] = useState<Department[]>(() =>
     getStored("departments", initialDepartments),
   );
@@ -5925,20 +5924,59 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
     if (!isAuthenticated || !token) return;
     try {
       const response: any = await fetchMeetingsApi();
-      const items = Array.isArray(response)
+      const rawItems = Array.isArray(response)
         ? response
-        : response?.data?.items || response?.data || [];
-      if (Array.isArray(items) && items.length > 0) {
-        setMeetings((prev) => {
-          const apiIds = new Set(items.map((i: any) => i.id));
-          const localOnly = (prev || []).filter((i: any) => !apiIds.has(i.id));
-          return [...items, ...localOnly];
-        });
-      }
+        : response?.data?.data || response?.data?.items || (Array.isArray(response?.data) ? response.data : []);
+
+      const mapped: SchoolMeeting[] = (rawItems || []).map((m: any) => ({
+        id: String(m.id || m.meetingId || '').startsWith('MTG-') ? String(m.id || m.meetingId) : `MTG-${m.id || m.meetingId}`,
+        title: m.title || m.meetingTitle || 'Meeting',
+        description: m.description || m.agenda || '',
+        academicYear: m.academicYear || '',
+        branch: m.branch || '',
+        meetingAudience: (m.meetingAudience || m.audience || 'Individual') as any,
+        participantType: (m.participantType || 'Parent') as any,
+        participants: Array.isArray(m.participants) && m.participants.length > 0 ? m.participants : (m.participantName ? [{
+          id: String(m.participantId || m.wardAdmissionNo || 'P1'),
+          name: m.participantName,
+          type: m.participantType || 'Parent',
+          role: m.participantType || 'Parent',
+          email: m.participantEmail || '',
+          phone: m.participantPhone || '',
+          wardName: m.wardStudentName,
+          admissionNo: m.wardAdmissionNo,
+          className: m.wardClass
+        } as any] : []),
+        targetGroupDescription: m.targetGroupDescription || m.participantDetails || m.participantName || '',
+        meetingMode: (m.meetingMode || m.mode || 'In-Person') as any,
+        mode: (m.meetingMode || m.mode || 'In-Person'),
+        building: m.building || '',
+        floor: m.floor || '',
+        roomVenue: m.meetingRoom || m.roomVenue || m.venue || '',
+        venue: m.venue || m.meetingRoom || '',
+        roomCapacity: m.roomCapacity || 10,
+        onlineMeetingUrl: m.onlineMeetingUrl || m.onlineVideoUrl || m.videoUrl || '',
+        meetingDate: m.meetingDate || m.date || '',
+        date: m.meetingDate || m.date || '',
+        startTime: m.startTime || '',
+        endTime: m.endTime || '',
+        status: (m.status || m.meetingStatus || 'Scheduled').toUpperCase() === 'SCHEDULED' ? 'Scheduled' :
+                (m.status || m.meetingStatus || '').toUpperCase() === 'COMPLETED' ? 'Completed' :
+                (m.status || m.meetingStatus || '').toUpperCase() === 'CANCELLED' ? 'Cancelled' : (m.status || 'Scheduled'),
+        organizerName: m.organizerName || 'Organizer',
+        organizerRole: m.organizerRole || 'Staff',
+        createdAt: m.createdAt || new Date().toISOString(),
+        cancellationReason: m.cancellationReason || '',
+        priority: m.priority || 'Normal',
+        attendanceRequired: (m.attendancePolicy || m.attendanceRequired || 'Mandatory') as any,
+        recurrence: m.recurrence || 'None'
+      }));
+
+      setMeetings(mapped);
     } catch (err) {
       console.warn("Failed to fetch meetings from API", err);
     }
-  }, []);
+  }, [isAuthenticated, token]);
   const fetchFinanceData = useCallback(async (force = false) => {
     if (!isAuthenticated || !token) return;
     const userRole = (role || user?.role || "").toLowerCase().replace(/[\s_-]+/g, "");
@@ -23056,7 +23094,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
       attendancePolicy: newMeeting.attendanceRequired || "Mandatory",
       recurrence: newMeeting.recurrence || "None (One-time)",
       totalRecipients: newMeeting.participants?.length || 1,
-    }).catch((e) => console.warn("API scheduleMeeting error:", e));
+    })
+      .then((res: any) => {
+        const realId = res?.data?.id || res?.data?.meetingId;
+        if (realId) {
+          setMeetings((prev) =>
+            prev.map((m) => (m.id === id ? { ...m, id: `MTG-${realId}` } : m)),
+          );
+        }
+      })
+      .catch((e) => console.warn("API scheduleMeeting error:", e));
 
     if (newMeeting.status === "Scheduled") {
       const targets = newMeeting.participants.map((p) => p.name).join(", ");
@@ -23125,6 +23172,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
           : m,
       ),
     );
+    const numericId = parseInt(id.replace(/\D/g, ""), 10);
+    if (numericId) {
+      updateMeetingApi(numericId, {
+        meetingStatus: "CANCELLED",
+        agenda: reason ? `Cancelled: ${reason}` : undefined,
+      }).catch((e) => console.warn("API cancelMeeting error:", e));
+    }
     logActivity(
       "Cancelled Meeting",
       `Cancelled meeting ID ${id}. Reason: ${reason}`,
@@ -23133,6 +23187,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const deleteMeeting = (id: string) => {
     setMeetings((prev) => prev.filter((m) => m.id !== id));
+    const numericId = parseInt(id.replace(/\D/g, ""), 10);
+    if (numericId) {
+      deleteMeetingApi(numericId).catch((e) =>
+        console.warn("API deleteMeeting error:", e),
+      );
+    }
     logActivity("Deleted Meeting", `Removed meeting record ID ${id}`);
   };
 
@@ -27708,6 +27768,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({
         updateQuestionPaper,
         deleteQuestionPaper,
         meetings: filteredMeetings,
+        refreshMeetings: fetchMeetingsData,
         addMeeting,
         updateMeeting,
         cancelMeeting,

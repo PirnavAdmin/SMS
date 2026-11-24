@@ -1,6 +1,6 @@
 // @ts-nocheck
 import React, { useState, useEffect, useMemo } from 'react';
-import { UserCheck, BookOpen, Search, Filter, Phone, Mail, ChevronDown, GraduationCap } from 'lucide-react';
+import { UserCheck, BookOpen, Search, Filter, Phone, Mail, ChevronDown, GraduationCap, MessagesSquare, Calendar } from 'lucide-react';
 import { useData } from '../../../context/DataContext';
 import { useAuth } from '../../../context/AuthContext';
 import { getParentTeachers } from '../../../api/parent/parentApi';
@@ -18,7 +18,11 @@ interface TeacherItem {
   isClassTeacher: boolean;
 }
 
-export const ParentTeacherInfoView: React.FC = () => {
+export interface ParentTeacherInfoViewProps {
+  onNavigate?: (module: string, params?: any) => void;
+}
+
+export const ParentTeacherInfoView: React.FC<ParentTeacherInfoViewProps> = ({ onNavigate }) => {
   const { 
     staff, 
     academicClasses, 
@@ -49,6 +53,21 @@ export const ParentTeacherInfoView: React.FC = () => {
 
 
   const currentWard = parentWards[selectedWardIdx] || parentWards[0];
+
+  const handleOpenChatWithTeacher = (t: TeacherItem) => {
+    localStorage.setItem('chat_preselected_contact', String(t.id));
+    localStorage.setItem('communication_active_tab', 'chat');
+    if (onNavigate) {
+      onNavigate('communication');
+    }
+  };
+
+  const handleScheduleMeetingWithTeacher = (_t: TeacherItem) => {
+    localStorage.setItem('communication_active_tab', 'meetings');
+    if (onNavigate) {
+      onNavigate('communication');
+    }
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -501,8 +520,27 @@ export const ParentTeacherInfoView: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Right: Contact Information Pills */}
+                    {/* Right: Contact Information Pills & Quick Actions */}
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 text-left pt-3 lg:pt-0 border-t lg:border-t-0 lg:border-l lg:border-slate-200/80 lg:dark:border-slate-800 lg:pl-6">
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenChatWithTeacher(teacher)}
+                          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-xs transition-all cursor-pointer whitespace-nowrap"
+                        >
+                          <MessagesSquare className="w-3.5 h-3.5" />
+                          <span>Chat</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleScheduleMeetingWithTeacher(teacher)}
+                          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 font-bold text-xs border border-slate-200 dark:border-slate-700 shadow-2xs transition-all cursor-pointer whitespace-nowrap"
+                        >
+                          <Calendar className="w-3.5 h-3.5 text-sky-500" />
+                          <span>Meet</span>
+                        </button>
+                      </div>
+
                       <div className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400 sm:hidden mb-0.5">
                         Class Teacher Contact
                       </div>
@@ -553,26 +591,49 @@ export const ParentTeacherInfoView: React.FC = () => {
             return (
               <div 
                 key={teacher.id} 
-                className="rounded-2xl p-4 bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 hover:border-sky-400 dark:hover:border-sky-600 shadow-xs hover:shadow-md transition-all duration-300 group flex items-center gap-3.5 text-left"
+                className="rounded-2xl p-4 bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 hover:border-sky-400 dark:hover:border-sky-600 shadow-xs hover:shadow-md transition-all duration-300 group flex items-center justify-between gap-3.5 text-left"
               >
-                <div className="w-11 h-11 rounded-full bg-sky-50 dark:bg-sky-950/50 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800 flex items-center justify-center text-sm font-extrabold shrink-0 shadow-2xs group-hover:scale-105 transition-transform duration-300">
-                  {teacher.firstName.charAt(0)}{teacher.lastName.charAt(0) || teacher.firstName.charAt(1) || 'T'}
+                <div className="flex items-center gap-3.5 min-w-0">
+                  <div className="w-11 h-11 rounded-full bg-sky-50 dark:bg-sky-950/50 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800 flex items-center justify-center text-sm font-extrabold shrink-0 shadow-2xs group-hover:scale-105 transition-transform duration-300">
+                    {teacher.firstName.charAt(0)}{teacher.lastName.charAt(0) || teacher.firstName.charAt(1) || 'T'}
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-extrabold text-slate-900 dark:text-white text-sm sm:text-base truncate">
+                      {teacher.firstName} {teacher.lastName}
+                    </h3>
+
+                    {teacher.subject && (
+                      <div className="flex items-center gap-1.5 mt-1 text-slate-500 dark:text-slate-400 text-xs font-semibold">
+                        <BookOpen className="w-3.5 h-3.5 text-sky-500 shrink-0" />
+                        <span className="truncate">{teacher.subject}</span>
+                        {teacher.subjectCode && (
+                          <span className="opacity-70 text-[10.5px] whitespace-nowrap font-mono">({teacher.subjectCode})</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                <div className="min-w-0 flex-1">
-                  <h3 className="font-extrabold text-slate-900 dark:text-white text-sm sm:text-base truncate">
-                    {teacher.firstName} {teacher.lastName}
-                  </h3>
-
-                  {teacher.subject && (
-                    <div className="flex items-center gap-1.5 mt-1 text-slate-500 dark:text-slate-400 text-xs font-semibold">
-                      <BookOpen className="w-3.5 h-3.5 text-sky-500 shrink-0" />
-                      <span className="truncate">{teacher.subject}</span>
-                      {teacher.subjectCode && (
-                        <span className="opacity-70 text-[10.5px] whitespace-nowrap font-mono">({teacher.subjectCode})</span>
-                      )}
-                    </div>
-                  )}
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => handleOpenChatWithTeacher(teacher)}
+                    title="Direct Message Teacher"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-50 hover:bg-sky-100 dark:bg-sky-950/60 dark:hover:bg-sky-900 text-sky-600 dark:text-sky-400 border border-sky-200 dark:border-sky-800 transition-all cursor-pointer text-xs font-bold"
+                  >
+                    <MessagesSquare className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Chat</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleScheduleMeetingWithTeacher(teacher)}
+                    title="Schedule Meeting with Teacher"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition-all cursor-pointer text-xs font-bold"
+                  >
+                    <Calendar className="w-3.5 h-3.5 text-sky-500" />
+                    <span className="hidden sm:inline">Meet</span>
+                  </button>
                 </div>
               </div>
             );
