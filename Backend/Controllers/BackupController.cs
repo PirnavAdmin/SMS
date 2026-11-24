@@ -124,8 +124,7 @@ namespace SMS.Api.Controllers
 
         // POST: api/backup/restore
         [HttpPost("restore")]
-        [Consumes("multipart/form-data", "application/json")]
-        public async Task<IActionResult> RestoreBackup([FromForm] IFormFile? file, [FromBody] RestoreSnapshotRequestDto? requestDto)
+        public async Task<IActionResult> RestoreBackup([FromQuery] string? fileName)
         {
             try
             {
@@ -133,26 +132,48 @@ namespace SMS.Api.Controllers
                 var userName = User.FindFirst(ClaimTypes.Name)?.Value ?? "Administrator";
                 var userRole = User.FindFirst(ClaimTypes.Role)?.Value ?? "Admin";
 
-                // 1. If uploaded file
-                if (file != null && file.Length > 0)
+                // 1. If multipart form data (file upload or form fields)
+                if (Request.HasFormContentType)
                 {
-                    var result = await _backupService.RestoreFromUploadedFileAsync(file, schoolId, userName, userRole);
+                    var form = await Request.ReadFormAsync();
+                    if (form.Files.Count > 0)
+                    {
+                        var formFile = form.Files[0];
+                        var result = await _backupService.RestoreFromUploadedFileAsync(formFile, schoolId, userName, userRole);
+                        return Ok(new { success = true, message = result.Message, data = result });
+                    }
+
+                    if (form.ContainsKey("fileName") && !string.IsNullOrWhiteSpace(form["fileName"]))
+                    {
+                        var fileParam = form["fileName"].ToString();
+                        var result = await _backupService.RestoreFromSnapshotFileAsync(fileParam, schoolId, userName, userRole);
+                        return Ok(new { success = true, message = result.Message, data = result });
+                    }
+                }
+
+                // 2. Query param fileName
+                if (!string.IsNullOrWhiteSpace(fileName))
+                {
+                    var result = await _backupService.RestoreFromSnapshotFileAsync(fileName, schoolId, userName, userRole);
                     return Ok(new { success = true, message = result.Message, data = result });
                 }
 
-                // 2. If request has form file or body file name
-                if (Request.HasFormContentType && Request.Form.Files.Count > 0)
+                // 3. JSON body
+                if (Request.ContentLength > 0 || (Request.ContentType != null && Request.ContentType.Contains("application/json")))
                 {
-                    var formFile = Request.Form.Files[0];
-                    var result = await _backupService.RestoreFromUploadedFileAsync(formFile, schoolId, userName, userRole);
-                    return Ok(new { success = true, message = result.Message, data = result });
-                }
-
-                // 3. If restoring from saved server snapshot fileName
-                if (requestDto != null && !string.IsNullOrWhiteSpace(requestDto.FileName))
-                {
-                    var result = await _backupService.RestoreFromSnapshotFileAsync(requestDto.FileName, schoolId, userName, userRole);
-                    return Ok(new { success = true, message = result.Message, data = result });
+                    using var reader = new System.IO.StreamReader(Request.Body);
+                    var body = await reader.ReadToEndAsync();
+                    if (!string.IsNullOrWhiteSpace(body))
+                    {
+                        var requestDto = System.Text.Json.JsonSerializer.Deserialize<RestoreSnapshotRequestDto>(
+                            body,
+                            new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                        if (requestDto != null && !string.IsNullOrWhiteSpace(requestDto.FileName))
+                        {
+                            var result = await _backupService.RestoreFromSnapshotFileAsync(requestDto.FileName, schoolId, userName, userRole);
+                            return Ok(new { success = true, message = result.Message, data = result });
+                        }
+                    }
                 }
 
                 return BadRequest(new { success = false, message = "Please provide a backup JSON file or a valid server snapshot name." });
