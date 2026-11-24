@@ -505,19 +505,25 @@ export const AiAssistantView: React.FC = () => {
         academicYearId: ayId,
       });
 
-      if (!activeConversationId) {
+      if (!res) {
+        setErrorBanner('The AI service did not return a response. Please ensure the backend server is running and try again.');
+        setMessages((prev) => prev.filter((m) => m.id !== tempUserMsg.id));
+        return;
+      }
+
+      if (!activeConversationId && res.conversationId) {
         setActiveConversationId(res.conversationId);
       }
 
       const assistantMsg: AiChatMessage = {
-        id: res.messageId,
+        id: res.messageId || ('assistant-' + Date.now()),
         sender: 'assistant',
-        content: res.reply,
+        content: res.reply || 'I processed your request.',
         visualType: res.visualType,
         visualData: res.visualData,
         toolCalls: res.toolCallsExecuted,
         pendingAction: res.pendingAction,
-        createdAt: res.timestamp,
+        createdAt: res.timestamp || new Date().toISOString(),
       };
 
       setMessages((prev) => [...prev, assistantMsg]);
@@ -528,6 +534,7 @@ export const AiAssistantView: React.FC = () => {
       setLoading(false);
     }
   };
+
 
   const handleConfirmAction = async (token: string, confirmed: boolean) => {
     try {

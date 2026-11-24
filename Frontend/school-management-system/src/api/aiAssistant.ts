@@ -75,13 +75,21 @@ export interface AiSuggestedPrompt {
 }
 
 export const fetchAiConversationsApi = async (): Promise<AiConversationSummary[]> => {
-  const res = await apiClient<{ success: boolean; data: AiConversationSummary[] }>('/api/ai/conversations');
-  return res?.data || [];
+  try {
+    const res = await apiClient<{ success: boolean; data: AiConversationSummary[] }>('/api/ai/conversations');
+    return res?.data || [];
+  } catch {
+    return [];
+  }
 };
 
 export const fetchAiConversationDetailApi = async (conversationId: string): Promise<AiConversationDetail | null> => {
-  const res = await apiClient<{ success: boolean; data: AiConversationDetail }>(`/api/ai/conversations/${conversationId}`);
-  return res?.data || null;
+  try {
+    const res = await apiClient<{ success: boolean; data: AiConversationDetail }>(`/api/ai/conversations/${conversationId}`);
+    return res?.data || null;
+  } catch {
+    return null;
+  }
 };
 
 export const createAiConversationApi = async (title?: string): Promise<AiConversationSummary> => {
@@ -89,22 +97,30 @@ export const createAiConversationApi = async (title?: string): Promise<AiConvers
     method: 'POST',
     body: JSON.stringify({ title }),
   });
-  return res.data;
+  return res?.data;
 };
 
 export const renameAiConversationApi = async (conversationId: string, title: string): Promise<boolean> => {
-  const res = await apiClient<{ success: boolean }>(`/api/ai/conversations/${conversationId}`, {
-    method: 'PATCH',
-    body: JSON.stringify({ title }),
-  });
-  return res?.success ?? true;
+  try {
+    const res = await apiClient<{ success: boolean }>(`/api/ai/conversations/${conversationId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ title }),
+    });
+    return res?.success ?? true;
+  } catch {
+    return false;
+  }
 };
 
 export const deleteAiConversationApi = async (conversationId: string): Promise<boolean> => {
-  const res = await apiClient<{ success: boolean }>(`/api/ai/conversations/${conversationId}`, {
-    method: 'DELETE',
-  });
-  return res?.success ?? true;
+  try {
+    const res = await apiClient<{ success: boolean }>(`/api/ai/conversations/${conversationId}`, {
+      method: 'DELETE',
+    });
+    return res?.success ?? true;
+  } catch {
+    return false;
+  }
 };
 
 export const sendAiChatMessageApi = async (params: {
@@ -113,11 +129,16 @@ export const sendAiChatMessageApi = async (params: {
   branchId?: number;
   academicYearId?: number;
 }): Promise<AiChatResponse> => {
-  const res = await apiClient<{ success: boolean; data: AiChatResponse }>('/api/ai/chat', {
+  const res = await apiClient<{ success: boolean; data: AiChatResponse } | AiChatResponse>('/api/ai/chat', {
     method: 'POST',
     body: JSON.stringify(params),
   });
-  return res.data;
+
+  // Handle both wrapped { success, data } and unwrapped direct response shapes
+  if (!res) throw new Error('No response received from AI service. Please check if the backend is running.');
+  const payload = (res as any)?.data ?? res as AiChatResponse;
+  if (!payload) throw new Error('AI service returned an empty response.');
+  return payload as AiChatResponse;
 };
 
 export const confirmAiActionApi = async (confirmationToken: string, confirmed: boolean = true): Promise<{ success: boolean; message: string; resultDetails?: any }> => {
@@ -125,10 +146,14 @@ export const confirmAiActionApi = async (confirmationToken: string, confirmed: b
     method: 'POST',
     body: JSON.stringify({ confirmationToken, confirmed }),
   });
-  return res.data || res;
+  return res?.data || (res as any) || { success: false, message: 'No response' };
 };
 
 export const fetchAiSuggestedPromptsApi = async (): Promise<AiSuggestedPrompt[]> => {
-  const res = await apiClient<{ success: boolean; data: AiSuggestedPrompt[] }>('/api/ai/suggested-prompts');
-  return res?.data || [];
+  try {
+    const res = await apiClient<{ success: boolean; data: AiSuggestedPrompt[] }>('/api/ai/suggested-prompts');
+    return res?.data || [];
+  } catch {
+    return [];
+  }
 };
