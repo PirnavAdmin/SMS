@@ -109,5 +109,18 @@ namespace Backend.Tests.Repositories
             Assert.Equal(30, fetched2.DueDateOffsetDays);
             Assert.Equal("2026-07-01", fetched2.Terms[0].DueDate);
         }
+
+        [Fact]
+        public void AppDbContext_ModelValidation_DoesNotThrowQueryFilterWarnings()
+        {
+            var options = new DbContextOptionsBuilder<AppDbContext>()
+                .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+                .ConfigureWarnings(w => w.Throw(Microsoft.EntityFrameworkCore.Diagnostics.CoreEventId.PossibleIncorrectRequiredNavigationWithQueryFilterInteractionWarning))
+                .Options;
+
+            using var db = new AppDbContext(options);
+            var model = db.Model;
+            Assert.NotNull(model);
+        }
     }
 }

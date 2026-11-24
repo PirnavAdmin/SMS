@@ -1458,10 +1458,12 @@ namespace SMS.Api.Data
                 entity.HasMany(x => x.Terms)
                     .WithOne(t => t.FeeSchedule)
                     .HasForeignKey(t => t.FeeScheduleId)
+                    .IsRequired(false)
                     .OnDelete(DeleteBehavior.Cascade);
                 entity.HasMany(x => x.MonthlyDates)
                     .WithOne(m => m.FeeSchedule)
                     .HasForeignKey(m => m.FeeScheduleId)
+                    .IsRequired(false)
                     .OnDelete(DeleteBehavior.Cascade);
             });
 
@@ -1469,12 +1471,16 @@ namespace SMS.Api.Data
             {
                 entity.ToTable("fee_schedule_terms");
                 entity.HasKey(x => x.Id);
+                entity.Property<string>("TenantId").HasDefaultValue("tenant-default");
+                entity.HasQueryFilter(x => (TenantInfo == null || EF.Property<string>(x, "TenantId") == TenantInfo.Id));
             });
 
             modelBuilder.Entity<SMS.Api.Models.FinanceManagement.FeeScheduleMonthlyDate>(entity =>
             {
                 entity.ToTable("fee_schedule_monthly_dates");
                 entity.HasKey(x => x.Id);
+                entity.Property<string>("TenantId").HasDefaultValue("tenant-default");
+                entity.HasQueryFilter(x => (TenantInfo == null || EF.Property<string>(x, "TenantId") == TenantInfo.Id));
             });
             modelBuilder.Entity<SMS.Api.Models.FinanceManagement.Scholarship>(entity =>
             {
