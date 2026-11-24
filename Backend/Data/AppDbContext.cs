@@ -561,6 +561,9 @@ namespace SMS.Api.Data
 
                 entity.HasIndex(x => x.MobileNumber)
                     .IsUnique();
+
+                entity.Property(x => x.TenantId)
+                    .IsRequired(false);
             });
         }
 
@@ -611,6 +614,9 @@ namespace SMS.Api.Data
 
                 entity.HasIndex(x => x.MobileNumber)
                     .IsUnique();
+
+                entity.Property(x => x.TenantId)
+                    .IsRequired(false);
             });
         }
 

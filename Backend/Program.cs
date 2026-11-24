@@ -839,10 +839,10 @@ using (var scope = app.Services.CreateScope())
                                 {
                                     cmd.CommandText = $"ALTER TABLE `{targetTable}` ADD COLUMN `TenantId` varchar(64) NULL DEFAULT 'tenant-default';";
                                     cmd.ExecuteNonQuery();
-                                    cmd.CommandText = $"UPDATE `{targetTable}` SET `TenantId` = 'tenant-default' WHERE `TenantId` IS NULL;";
-                                    cmd.ExecuteNonQuery();
                                     System.Console.WriteLine($"[Database Schema Upgrade] Added column `TenantId` to `{targetTable}`.");
                                 }
+                                cmd.CommandText = $"UPDATE `{targetTable}` SET `TenantId` = 'tenant-default' WHERE `TenantId` IS NULL OR `TenantId` = '';";
+                                cmd.ExecuteNonQuery();
                             }
                             catch (System.Exception exCol)
                             {
@@ -2472,6 +2472,13 @@ using (var scope = app.Services.CreateScope())
 
         const string adminEmail = "admin@pirnavschools.com";
         const string adminMobile = "9876543210";
+
+        try
+        {
+            await context.Database.ExecuteSqlRawAsync("UPDATE `admins` SET `TenantId` = 'tenant-default' WHERE `TenantId` IS NULL OR `TenantId` = '';");
+            await context.Database.ExecuteSqlRawAsync("UPDATE `users` SET `TenantId` = 'tenant-default' WHERE `TenantId` IS NULL OR `TenantId` = '';");
+        }
+        catch { }
 
         var existingAdmin = await context.Admins.IgnoreQueryFilters().FirstOrDefaultAsync(
             a => (a.Email != null && a.Email.ToLower() == adminEmail) ||

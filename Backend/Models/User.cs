@@ -9,11 +9,11 @@ public class User
 {
     public int UserId { get; set; }
     public string? TenantId { get; set; }
-    public string FullName { get; set; } = string.Empty;
+    public string? FullName { get; set; } = string.Empty;
     public string? Email { get; set; }
-    public string MobileNumber { get; set; } = string.Empty;
-    public string PasswordHash { get; set; } = string.Empty;
-    public string Role { get; set; } = "Admin";
+    public string? MobileNumber { get; set; } = string.Empty;
+    public string? PasswordHash { get; set; } = string.Empty;
+    public string? Role { get; set; } = "Admin";
     public bool IsEmailVerified { get; set; } = false;
     public bool IsMobileVerified { get; set; } = false;
     public string? Avatar { get; set; }
