@@ -266,7 +266,7 @@ public class ChatController : ControllerBase
             {
                 var cf = classFilter.Trim().ToLower();
                 studentsQuery = studentsQuery.Where(s => 
-                    (s.ClassGrade != null && s.ClassGrade.ClassName.ToLower().Contains(cf)) ||
+                    (s.ClassGrade != null && s.ClassGrade.ClassName != null && s.ClassGrade.ClassName.ToLower().Contains(cf)) ||
                     (s.ClassId.ToString() == cf));
             }
 
@@ -326,7 +326,7 @@ public class ChatController : ControllerBase
                 if (!string.IsNullOrWhiteSpace(classFilter) && !classFilter.Equals("all", StringComparison.OrdinalIgnoreCase))
                 {
                     var cf = classFilter.Trim().ToLower();
-                    if (!cleanClass.ToLower().Contains(cf) && a.ClassId?.ToString() != cf)
+                    if (cleanClass != null && !cleanClass.ToLower().Contains(cf) && a.ClassId?.ToString() != cf)
                     {
                         continue;
                     }

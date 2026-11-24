@@ -782,7 +782,7 @@ namespace SMS.Api.Services.Implementations.Settings
                     dto = new UserProfileDto
                     {
                         Id = admin.AdminId.ToString(),
-                        Name = !IsPlaceholderProfileName(admin.FullName) ? admin.FullName.Trim() : (!IsPlaceholderProfileName(claimName) ? claimName!.Trim() : string.Empty),
+                        Name = !IsPlaceholderProfileName(admin.FullName) ? admin.FullName!.Trim() : (!IsPlaceholderProfileName(claimName) ? claimName!.Trim() : string.Empty),
                         Email = !string.IsNullOrWhiteSpace(admin.Email) ? admin.Email.Trim() : (email ?? string.Empty),
                         Phone = !string.IsNullOrWhiteSpace(admin.MobileNumber) ? admin.MobileNumber.Trim() : (mobile ?? string.Empty),
                         Avatar = !IsPlaceholderAvatarUrl(admin.Avatar) ? admin.Avatar!.Trim() : string.Empty,
@@ -799,7 +799,7 @@ namespace SMS.Api.Services.Implementations.Settings
                         dto = new UserProfileDto
                         {
                             Id = dbUser.UserId.ToString(),
-                            Name = !IsPlaceholderProfileName(dbUser.FullName) ? dbUser.FullName.Trim() : (!IsPlaceholderProfileName(claimName) ? claimName!.Trim() : string.Empty),
+                            Name = !IsPlaceholderProfileName(dbUser.FullName) ? dbUser.FullName!.Trim() : (!IsPlaceholderProfileName(claimName) ? claimName!.Trim() : string.Empty),
                             Email = !string.IsNullOrWhiteSpace(dbUser.Email) ? dbUser.Email.Trim() : (email ?? string.Empty),
                             Phone = !string.IsNullOrWhiteSpace(dbUser.MobileNumber) ? dbUser.MobileNumber.Trim() : (mobile ?? string.Empty),
                             Avatar = !IsPlaceholderAvatarUrl(dbUser.Avatar) ? dbUser.Avatar!.Trim() : string.Empty,

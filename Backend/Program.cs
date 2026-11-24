@@ -2913,7 +2913,7 @@ using (var scope = app.Services.CreateScope())
                                 u.Role == "Student" && (
                                     u.MobileNumber == newStudentId ||
                                     (u.Email != null && u.Email.ToLower().StartsWith(newStudentId.ToLower() + "@")) ||
-                                    u.FullName.ToLower() == sName.ToLower()
+                                    (u.FullName != null && u.FullName.ToLower() == sName.ToLower())
                                 )
                             );
 

@@ -941,7 +941,7 @@ public class SuperAdminService : ISuperAdminService
 
     // --- Private Helper Methods ---
 
-    private async Task LogActivityAsync(int userId, string userName, string userRole, string action, string details)
+    private async Task LogActivityAsync(int userId, string? userName, string? userRole, string action, string details)
     {
         var log = new AuditLog
         {
@@ -986,12 +986,12 @@ public class SuperAdminService : ISuperAdminService
         return new AdminResponseDto
         {
             UserId = admin.AdminId,
-            FullName = admin.FullName,
+            FullName = admin.FullName ?? string.Empty,
             Email = admin.Email ?? string.Empty,
-            MobileNumber = admin.MobileNumber,
+            MobileNumber = admin.MobileNumber ?? string.Empty,
             SchoolId = admin.SchoolId,
             SchoolName = admin.School?.SchoolName,
-            Role = admin.Role,
+            Role = admin.Role ?? "Admin",
             CreatedAt = admin.CreatedAt
         };
     }
@@ -1001,8 +1001,8 @@ public class SuperAdminService : ISuperAdminService
         var claims = new List<Claim>
         {
             new Claim(ClaimTypes.NameIdentifier, user.UserId.ToString()),
-            new Claim(ClaimTypes.Name, user.FullName),
-            new Claim(ClaimTypes.MobilePhone, user.MobileNumber)
+            new Claim(ClaimTypes.Name, user.FullName ?? string.Empty),
+            new Claim(ClaimTypes.MobilePhone, user.MobileNumber ?? string.Empty)
         };
 
         if (!string.IsNullOrEmpty(user.Email))

@@ -41,7 +41,7 @@ public class OtpService : IOtpService
         int? userId = null;
         int? adminId = null;
         string? email = null;
-        string mobileNumber = "";
+        string? mobileNumber = null;
 
         var user = await _userRepository.GetByIdentifierAsync(dto.EmailOrPhone);
         if (user != null)

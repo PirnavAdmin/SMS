@@ -226,7 +226,7 @@ namespace SMS.Api.Services.Implementations
                                 (student.FatherMobile != null && u.MobileNumber == student.FatherMobile) ||
                                 (digitsOnly.Length >= 10 && u.MobileNumber.EndsWith(digitsOnly))
                             )) ||
-                             (u.FullName.ToLower() == student.StudentName.ToLower()))
+                             (u.FullName != null && student.StudentName != null && u.FullName.ToLower() == student.StudentName.ToLower()))
                         );
 
                     bool passValid = false;
@@ -320,7 +320,7 @@ namespace SMS.Api.Services.Implementations
                         .FirstOrDefaultAsync(u => 
                             (u.Email != null && driver.Email != null && u.Email.ToLower() == driver.Email.ToLower()) ||
                             (u.MobileNumber != null && driver.MobileNumber != null && (u.MobileNumber == driver.MobileNumber || (digitsOnly.Length >= 10 && u.MobileNumber.EndsWith(digitsOnly)))) ||
-                            (u.Role == "Driver" && u.FullName.ToLower() == (driver.DriverName ?? "").ToLower())
+                            (u.Role == "Driver" && u.FullName != null && u.FullName.ToLower() == (driver.DriverName ?? "").ToLower())
                         );
 
                     bool passValid = linkedUser != null && !string.IsNullOrEmpty(linkedUser.PasswordHash) && VerifyPassword(linkedUser.PasswordHash, dto.Password);
@@ -386,7 +386,7 @@ namespace SMS.Api.Services.Implementations
                             (u.Email != null && staffMember.Email != null && u.Email.ToLower() == staffMember.Email.ToLower()) ||
                             (u.MobileNumber != null && staffMember.Phone != null && (u.MobileNumber == staffMember.Phone || (digitsOnly.Length >= 10 && u.MobileNumber.EndsWith(digitsOnly)))) ||
                             (!string.IsNullOrEmpty(staffMember.EmployeeId) && (u.MobileNumber == staffMember.EmployeeId || (u.Email != null && u.Email.ToLower() == staffMember.EmployeeId.ToLower()))) ||
-                            u.FullName.ToLower() == $"{staffMember.FirstName} {staffMember.LastName}".Trim().ToLower()
+                            (u.FullName != null && u.FullName.ToLower() == $"{staffMember.FirstName} {staffMember.LastName}".Trim().ToLower())
                         );
 
                     bool passValid = false;
@@ -411,7 +411,7 @@ namespace SMS.Api.Services.Implementations
                     if (passValid)
                     {
                         string staffFullName = $"{staffMember.FirstName} {staffMember.LastName}".Trim();
-                        if (string.IsNullOrWhiteSpace(staffFullName) && linkedUser != null) staffFullName = linkedUser.FullName;
+                        if (string.IsNullOrWhiteSpace(staffFullName) && linkedUser != null && !string.IsNullOrWhiteSpace(linkedUser.FullName)) staffFullName = linkedUser.FullName;
 
                         string resolvedRole = "Staff";
                         var designation = (staffMember.Designation ?? "").ToLower();
@@ -497,7 +497,7 @@ namespace SMS.Api.Services.Implementations
                         .FirstOrDefaultAsync(u => 
                             (u.Email != null && warden.EmailAddress != null && u.Email.ToLower() == warden.EmailAddress.ToLower()) ||
                             (u.MobileNumber != null && warden.MobileNumber != null && (u.MobileNumber == warden.MobileNumber || (digitsOnly.Length >= 10 && u.MobileNumber.EndsWith(digitsOnly)))) ||
-                            (u.Role == "Hostel Warden" && u.FullName.ToLower() == (warden.WardenName ?? "").ToLower())
+                            (u.Role == "Hostel Warden" && u.FullName != null && u.FullName.ToLower() == (warden.WardenName ?? "").ToLower())
                         );
 
                     bool passValid = linkedUser != null && !string.IsNullOrEmpty(linkedUser.PasswordHash) && VerifyPassword(linkedUser.PasswordHash, dto.Password);
@@ -505,7 +505,7 @@ namespace SMS.Api.Services.Implementations
                     if (passValid && linkedUser != null)
                     {
                         var wardenRoles = new List<string> { "Hostel Warden" };
-                        string wardenName = !string.IsNullOrWhiteSpace(warden.WardenName) 
+                        string? wardenName = !string.IsNullOrWhiteSpace(warden.WardenName) 
                             ? warden.WardenName 
                             : (warden.Staff != null ? $"{warden.Staff.FirstName} {warden.Staff.LastName}".Trim() : linkedUser.FullName);
 
@@ -637,7 +637,7 @@ namespace SMS.Api.Services.Implementations
                     {
                         user = await userQuery.FirstOrDefaultAsync(u =>
                             u.Role == "Student" && (
-                                u.FullName.ToLower() == matchedStudent.StudentName.ToLower() ||
+                                (u.FullName != null && matchedStudent.StudentName != null && u.FullName.ToLower() == matchedStudent.StudentName.ToLower()) ||
                                 (!string.IsNullOrEmpty(matchedStudent.Email) && u.Email != null && u.Email.ToLower() == matchedStudent.Email.ToLower()) ||
                                 (!string.IsNullOrEmpty(matchedStudent.MobileNumber) && u.MobileNumber == matchedStudent.MobileNumber) ||
                                 (u.MobileNumber == matchedStudent.RollNumber) ||
@@ -658,7 +658,7 @@ namespace SMS.Api.Services.Implementations
                             userRolesList = new List<string> { !string.IsNullOrEmpty(user.Role) ? user.Role : "Student" };
                         }
 
-                        string fullName = user.FullName;
+                        string? fullName = user.FullName;
                         int userId = user.UserId;
 
                         var primaryRole = userRolesList.FirstOrDefault() ?? user.Role ?? "";
@@ -668,7 +668,7 @@ namespace SMS.Api.Services.Implementations
                                 (s.Email != null && user.Email != null && s.Email.ToLower() == user.Email.ToLower()) ||
                                 (!string.IsNullOrEmpty(s.RollNumber) && (user.MobileNumber == s.RollNumber || (user.Email != null && user.Email.ToLower().StartsWith(s.RollNumber.ToLower() + "@")))) ||
                                 (s.MobileNumber != null && user.MobileNumber != null && (s.MobileNumber == user.MobileNumber || (digitsOnly.Length >= 10 && s.MobileNumber.EndsWith(digitsOnly)))) ||
-                                s.StudentName.ToLower() == user.FullName.ToLower());
+                                (s.StudentName != null && user.FullName != null && s.StudentName.ToLower() == user.FullName.ToLower()));
                             if (matchedStudent != null)
                             {
                                 fullName = matchedStudent.StudentName;
@@ -896,7 +896,7 @@ namespace SMS.Api.Services.Implementations
                             .FirstOrDefaultAsync(s =>
                                 (!string.IsNullOrEmpty(directUser.MobileNumber) && (s.RollNumber == directUser.MobileNumber || s.AdmissionNumber == directUser.MobileNumber || s.MobileNumber == directUser.MobileNumber)) ||
                                 (!string.IsNullOrEmpty(directUser.Email) && (s.Email == directUser.Email || (s.RollNumber != null && directUser.Email.ToLower().StartsWith(s.RollNumber.ToLower() + "@")) || (s.AdmissionNumber != null && directUser.Email.ToLower().StartsWith(s.AdmissionNumber.ToLower() + "@")))) ||
-                                (s.StudentName.ToLower() == directUser.FullName.ToLower())
+                                (s.StudentName != null && directUser.FullName != null && s.StudentName.ToLower() == directUser.FullName.ToLower())
                             );
 
                         if (studentEntity != null)
@@ -927,7 +927,7 @@ namespace SMS.Api.Services.Implementations
                             .FirstOrDefaultAsync(a =>
                                 (!string.IsNullOrEmpty(directUser.MobileNumber) && (a.RegistrationNo == directUser.MobileNumber || a.AdmissionNo == directUser.MobileNumber)) ||
                                 (!string.IsNullOrEmpty(directUser.Email) && (a.ParentEmail == directUser.Email || (a.RegistrationNo != null && directUser.Email.ToLower().StartsWith(a.RegistrationNo.ToLower() + "@")))) ||
-                                ((a.FirstName + " " + a.LastName).Trim().ToLower() == directUser.FullName.ToLower())
+                                (directUser.FullName != null && ((a.FirstName + " " + a.LastName).Trim().ToLower() == directUser.FullName.ToLower()))
                             );
 
                         if (admissionApp != null)
@@ -1053,7 +1053,7 @@ namespace SMS.Api.Services.Implementations
             var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.NameIdentifier, user.UserId.ToString()),
-                new Claim(ClaimTypes.Name, user.FullName),
+                new Claim(ClaimTypes.Name, user.FullName ?? string.Empty),
                 new Claim(ClaimTypes.MobilePhone, user.MobileNumber ?? "")
             };
 

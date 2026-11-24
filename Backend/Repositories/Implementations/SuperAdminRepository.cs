@@ -219,7 +219,7 @@ public class SuperAdminRepository : ISuperAdminRepository
         if (!string.IsNullOrWhiteSpace(search))
         {
             var cleanSearch = search.Trim();
-            query = query.Where(a => a.FullName.Contains(cleanSearch) || (a.Email != null && a.Email.Contains(cleanSearch)));
+            query = query.Where(a => (a.FullName != null && a.FullName.Contains(cleanSearch)) || (a.Email != null && a.Email.Contains(cleanSearch)));
         }
 
         return await query.OrderByDescending(a => a.CreatedAt).ToListAsync();

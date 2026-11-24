@@ -649,7 +649,7 @@ public class StaffService : IStaffService
                 (!string.IsNullOrWhiteSpace(staff.Email) && u.Email != null && u.Email.ToLower() == staff.Email.ToLower()) ||
                 (!string.IsNullOrWhiteSpace(oldPhone) && u.MobileNumber == oldPhone.Trim()) ||
                 (!string.IsNullOrWhiteSpace(mobileNo) && u.MobileNumber == mobileNo) ||
-                (!string.IsNullOrWhiteSpace(oldFullName) && u.FullName.ToLower() == oldFullName.ToLower()));
+                (!string.IsNullOrWhiteSpace(oldFullName) && u.FullName != null && u.FullName.ToLower() == oldFullName.ToLower()));
 
             if (existingUser != null)
             {

@@ -2517,7 +2517,7 @@ public class SchoolService : ISchoolService
 													u.Role == "Student" && (
 														(u.Email != null && (u.Email.ToLower() == studentRegNo.ToLower() || u.Email.ToLower().StartsWith(studentRegNo.ToLower() + "@"))) ||
 														u.MobileNumber == studentRegNo ||
-														u.FullName.ToLower() == targetStudent.StudentName.ToLower()
+														(u.FullName != null && targetStudent.StudentName != null && u.FullName.ToLower() == targetStudent.StudentName.ToLower())
 													)
 											);
 

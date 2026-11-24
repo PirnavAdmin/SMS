@@ -1177,7 +1177,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
         }).ToList();
 
         decimal previousYearsArrears = 0m;
-        if (student != null && student.AcademicYearId > 0)
+        if (student.AcademicYearId > 0)
         {
             previousYearsArrears = await _context.FeeCharges.AsNoTracking()
                 .Where(c => c.StudentId == student.StudentId && c.AcademicYearId < student.AcademicYearId && c.OutstandingAmount > 0 && c.Status != "Cancelled")
@@ -1493,7 +1493,8 @@ public class FeeCollectionRepository : IFeeCollectionRepository
                 }
             }
 
-            foreach (var item in request.SelectedItems)
+            var selectedItems = request.SelectedItems ?? new();
+            foreach (var item in selectedItems)
             {
                 string headName = item.GetEffectiveHeadName();
                 int resolvedHeadId = 0;
@@ -1574,7 +1575,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             }
 
             // Sync Hostel Security Deposit status on Admission Application if deposit was collected
-            decimal allocatedDeposit = request.SelectedItems
+            decimal allocatedDeposit = selectedItems
                 .Where(i => i.GetEffectiveHeadName().Contains("Security Deposit", StringComparison.OrdinalIgnoreCase) ||
                             (!string.IsNullOrEmpty(i.TermName) && i.TermName.Contains("Security Deposit", StringComparison.OrdinalIgnoreCase)))
                 .Sum(i => i.Amount);
@@ -1587,7 +1588,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             }
 
             // Sync Admission Fee status on Admission Application if admission fee was collected
-            decimal allocatedAdmissionFee = request.SelectedItems
+            decimal allocatedAdmissionFee = selectedItems
                 .Where(i => (i.GetEffectiveHeadName().Contains("Admission Fee", StringComparison.OrdinalIgnoreCase) ||
                              i.GetEffectiveHeadName().Equals("Admission", StringComparison.OrdinalIgnoreCase)) &&
                             !i.GetEffectiveHeadName().Contains("Security Deposit", StringComparison.OrdinalIgnoreCase))
