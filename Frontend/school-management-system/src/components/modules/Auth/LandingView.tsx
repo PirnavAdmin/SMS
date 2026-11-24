@@ -449,7 +449,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
   };
 
   const checkPackageScroll = () => {
-    if (!packageScrollRef.current || activePackages.length === 0) return;
+    if (!packageScrollRef.current || activePackages.length <= 3) return;
     const { scrollLeft } = packageScrollRef.current;
     const cardEl = packageScrollRef.current.firstElementChild as HTMLElement | null;
     const cardWidth = cardEl ? cardEl.offsetWidth + 16 : 356;
@@ -458,7 +458,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
   };
 
   const scrollToPackageIndex = (index: number) => {
-    if (!packageScrollRef.current || activePackages.length === 0) return;
+    if (!packageScrollRef.current || activePackages.length <= 3) return;
     const cardEl = packageScrollRef.current.firstElementChild as HTMLElement | null;
     const cardWidth = cardEl ? cardEl.offsetWidth + 16 : 356;
     packageScrollRef.current.scrollTo({ left: index * cardWidth, behavior: 'smooth' });
@@ -507,9 +507,9 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
     return () => clearInterval(timer);
   }, [isModuleHovered, filteredFeatures.length]);
 
-  // Continuous auto-rotate Subscriptions Carousel Timer (every 3.5 seconds)
+  // Continuous auto-rotate Subscriptions Carousel Timer (every 3.5 seconds, only active when > 3 packages)
   useEffect(() => {
-    if (isPackageHovered || activePackages.length <= 1) return;
+    if (isPackageHovered || activePackages.length <= 3) return;
 
     const timer = setInterval(() => {
       if (packageScrollRef.current) {
@@ -551,7 +551,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
 
   // Reset subscriptions carousel to 0 when packages update
   useEffect(() => {
-    if (packageScrollRef.current) {
+    if (packageScrollRef.current && activePackages.length > 3) {
       packageScrollRef.current.scrollTo({ left: 0, behavior: 'smooth' });
       setActivePackageIndex(0);
     }
@@ -1194,16 +1194,16 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
               </div>
             </div>
 
-            {/* Subscriptions Carousel Slider */}
+            {/* Subscriptions Carousel Slider / Centered Grid */}
             <div
               ref={packageScrollRef}
-              onScroll={checkPackageScroll}
-              className={`flex items-stretch gap-4 ${
-                activePackages.length === 1
-                  ? 'justify-center py-4'
-                  : 'overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory py-4 px-1'
+              onScroll={activePackages.length > 3 ? checkPackageScroll : undefined}
+              className={`items-stretch ${
+                activePackages.length <= 3
+                  ? 'flex flex-wrap justify-center gap-5 sm:gap-6 py-4 px-2'
+                  : 'flex gap-4 overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory py-4 px-1'
               }`}
-              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              style={activePackages.length > 3 ? { scrollbarWidth: 'none', msOverflowStyle: 'none' } : undefined}
             >
               {activePackages.map((pkg) => {
                 const isPopular = pkg.isPopular;
@@ -1212,11 +1212,16 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
                   ? (pkg.monthlyPrice > 0 ? pkg.monthlyPrice : Math.round(pkg.yearlyPrice / 12))
                   : (pkg.yearlyPrice > 0 ? pkg.yearlyPrice : pkg.monthlyPrice * 12);
                 const cycleLabel = isMonthly ? '/month' : '/yearly';
+                const isCarousel = activePackages.length > 3;
 
                 return (
                   <div
                     key={pkg.id || pkg.name}
-                    className={`w-[85vw] sm:w-[320px] md:w-[340px] lg:w-[350px] shrink-0 snap-start relative rounded-2xl p-4 sm:p-5 flex flex-col justify-between transition-all duration-300 hover:scale-[1.01] backdrop-blur-xl select-none ${
+                    className={`${
+                      isCarousel
+                        ? 'w-[85vw] sm:w-[320px] md:w-[340px] lg:w-[350px] shrink-0 snap-start'
+                        : 'w-full max-w-[340px] sm:w-[310px] md:w-[320px] lg:w-[310px] xl:w-[350px]'
+                    } relative rounded-2xl p-4 sm:p-5 flex flex-col justify-between transition-all duration-300 hover:scale-[1.01] backdrop-blur-xl select-none ${
                       isPopular
                         ? 'bg-white/95 dark:bg-slate-900/95 border-2 border-sky-500 shadow-xl shadow-sky-500/10 ring-2 ring-sky-500/10'
                         : 'bg-white/80 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800 shadow-md'
@@ -1324,7 +1329,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
             </div>
 
             {/* Dot Indicators */}
-            {activePackages.length > 1 && (
+            {activePackages.length > 3 && (
               <div className="flex items-center justify-center gap-1.5 mt-3.5">
                 {activePackages.map((pkg, idx) => (
                   <button
@@ -1381,14 +1386,13 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
                   </div>
                   <div>
                     <h3 className="text-base font-bold text-slate-900 dark:text-white">{platformProfile.companyName}</h3>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Affordable, cloud-ready subscription packages tailored for independent schools and multi-branch institutions.</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Have questions or looking for tailored campus deployment? Get in touch with our team for quick assistance and live onboarding.</p>
                   </div>
                   <button
-                    onClick={() => scrollToSection('subscriptions')}
+                    onClick={() => scrollToSection('contact')}
                     className="w-full py-2.5 bg-sky-500 hover:bg-sky-400 text-white font-bold rounded-xl text-xs shadow-lg shadow-sky-500/25 active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                   >
-                    <span>View Subscription Plans</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
+                    <span>Contact Us</span>
                   </button>
                 </div>
               </div>

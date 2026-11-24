@@ -474,7 +474,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
       return '';
     }
     if (clean.includes('@')) {
-      const emailPattern = /^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/;
+      const emailPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
       if (!emailPattern.test(clean)) {
         return 'Please enter a valid email address';
       }
@@ -575,8 +575,12 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
   const handleForgotSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     setForgotSubmitted(true);
+    setForgotIdentifierTouched(true);
     const forgotErr = getForgotIdentifierError();
-    if (forgotErr || !forgotIdentifier.trim()) return;
+    if (forgotErr || !forgotIdentifier.trim()) {
+      setError(forgotErr || 'Please enter a valid email or mobile number.');
+      return;
+    }
     setError('');
     setLoading(true);
     try {
@@ -584,7 +588,23 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
       addToast('info', 'OTP Sent', `Verification code sent to ${forgotIdentifier.trim()}.`);
       setMode('verify-otp');
     } catch (err: any) {
-      setError(err?.message || 'Failed to send OTP');
+      const msg = err?.message || 'Failed to send OTP';
+      if (
+        msg.toLowerCase().includes('not found') ||
+        msg.toLowerCase().includes('no registered') ||
+        msg.toLowerCase().includes('no account')
+      ) {
+        setError('No registered account found with this email or mobile number. Please check and try again.');
+      } else if (
+        msg.toLowerCase().includes('internal server error') ||
+        msg.toLowerCase().includes('mail') ||
+        msg.toLowerCase().includes('smtp') ||
+        msg.toLowerCase().includes('failure sending')
+      ) {
+        setError('Unable to send verification email due to mail server connection error. Please try entering your registered mobile number to receive OTP via SMS, or contact administrator.');
+      } else {
+        setError(msg || 'Failed to send verification code. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -593,15 +613,33 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
   const handleVerifyOtpSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     setOtpSubmitted(true);
-    if (!otp.trim() || otp.trim().length < 6) return;
+    setOtpTouched(true);
+    if (!otp.trim()) {
+      setError('Please enter the 6-digit verification code.');
+      return;
+    }
+    if (otp.trim().length < 6) {
+      setError('Verification code must be exactly 6 digits.');
+      return;
+    }
     setError('');
     setLoading(true);
     try {
       await verifyOtp(forgotIdentifier.trim(), otp.trim());
       addToast('success', 'OTP Verified', 'Please set your new password.');
       setMode('reset-password');
+      setError('');
     } catch (err: any) {
-      setError(err?.message || 'Invalid or expired code');
+      const msg = err?.message || 'Invalid or expired code';
+      if (
+        msg.toLowerCase().includes('invalid') ||
+        msg.toLowerCase().includes('incorrect') ||
+        msg.toLowerCase().includes('expired')
+      ) {
+        setError('Incorrect or expired verification code. Please check and try again.');
+      } else {
+        setError(msg || 'Verification failed. Please check the code.');
+      }
     } finally {
       setLoading(false);
     }
@@ -741,8 +779,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
                     <span>{effectiveBoard ? `${effectiveBoard} Affiliated Institution` : 'Official Institutional Portal'}</span>
                   </>
                 )}
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse ml-1" />
-                <span className="text-emerald-300 font-semibold text-[11px]">Campus Online</span>
               </div>
             </div>
 
@@ -1314,6 +1350,8 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
                       </div>
                       <input
                         type="text"
+                        name="email"
+                        autoComplete="email"
                         value={forgotIdentifier}
                         onChange={e => {
                           setForgotIdentifier(e.target.value);
@@ -1322,7 +1360,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
                         onBlur={() => setForgotIdentifierTouched(true)}
                         placeholder="Enter registered email or phone"
                         className={`w-full pl-11 pr-4 py-2.5 rounded-xl bg-slate-50/70 dark:bg-slate-950/80 border text-slate-900 dark:text-white text-sm placeholder-slate-400 focus:outline-none focus:ring-4 transition-all font-medium ${
-                          forgotError
+                          (forgotError || (error && mode === 'forgot'))
                             ? 'border-rose-500 focus:ring-rose-500/20 focus:border-rose-500 bg-rose-50/20'
                             : 'border-slate-200 dark:border-slate-800 focus:border-sky-500 dark:focus:border-sky-400 focus:ring-sky-500/20 focus:bg-white dark:focus:bg-slate-950'
                         }`}
@@ -1374,6 +1412,8 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
                     </label>
                     <input
                       type="text"
+                      name="one-time-code"
+                      autoComplete="one-time-code"
                       value={otp}
                       onChange={e => {
                         setOtp(e.target.value.replace(/\D/g, ''));
@@ -1383,23 +1423,51 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
                       placeholder="123456"
                       maxLength={6}
                       className={`w-full px-4 py-3.5 text-center tracking-[0.4em] text-2xl font-black rounded-2xl bg-slate-50/70 dark:bg-slate-950/80 border text-slate-900 dark:text-white placeholder-slate-300 focus:outline-none focus:ring-4 transition-all ${
-                        (!otp.trim() && (otpTouched || otpSubmitted))
+                        (!otp.trim() && (otpTouched || otpSubmitted)) || (error && mode === 'verify-otp')
                           ? 'border-rose-500 focus:ring-rose-500/20 focus:border-rose-500 bg-rose-50/20'
                           : 'border-slate-200 dark:border-slate-800 focus:border-sky-500 dark:focus:border-sky-400 focus:ring-sky-500/20 focus:bg-white dark:focus:bg-slate-950'
                       }`}
                     />
                     {(!otp.trim() && (otpTouched || otpSubmitted)) && (
-                      <div className="flex items-center gap-1.5 text-xs text-rose-600 dark:text-rose-400 font-medium mt-1 animate-in fade-in">
+                      <div className="flex items-center gap-1.5 text-xs text-rose-600 dark:text-rose-400 font-medium mt-1 animate-in fade-in justify-center">
                         <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                         <span>Verification code is required</span>
                       </div>
                     )}
                     {otp.trim() && otp.trim().length < 6 && (otpTouched || otpSubmitted) && (
-                      <div className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 font-medium mt-1 animate-in fade-in">
+                      <div className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 font-medium mt-1 animate-in fade-in justify-center">
                         <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                         <span>Code must be 6 digits</span>
                       </div>
                     )}
+                    {error && mode === 'verify-otp' && (
+                      <div className="flex items-center gap-1.5 text-xs text-rose-600 dark:text-rose-400 font-semibold mt-1.5 animate-in fade-in justify-center">
+                        <AlertCircle className="w-3.5 h-3.5 shrink-0 text-rose-500" />
+                        <span>{error}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between text-xs px-1 pt-1.5">
+                      <span className="text-slate-500 dark:text-slate-400">Didn't receive code?</span>
+                      <button
+                        type="button"
+                        disabled={loading}
+                        onClick={async () => {
+                          setError('');
+                          setLoading(true);
+                          try {
+                            await sendOtp(forgotIdentifier.trim());
+                            addToast('info', 'OTP Resent', `New code sent to ${forgotIdentifier.trim()}`);
+                          } catch (err: any) {
+                            setError(err?.message || 'Failed to resend code');
+                          } finally {
+                            setLoading(false);
+                          }
+                        }}
+                        className="font-bold text-sky-600 dark:text-sky-400 hover:text-sky-700 hover:underline cursor-pointer disabled:opacity-50"
+                      >
+                        Resend Code
+                      </button>
+                    </div>
                   </div>
 
                   <div className="space-y-2.5 pt-2">
@@ -1421,11 +1489,11 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, initialRole }) => 
                       type="button"
                       onClick={() => {
                         setError('');
-                        setMode('login');
+                        setMode('forgot');
                       }}
                       className="w-full py-2 sm:py-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-300 font-bold rounded-2xl text-xs transition-colors cursor-pointer"
                     >
-                      Cancel
+                      Back to Email / Phone
                     </button>
                   </div>
                 </form>

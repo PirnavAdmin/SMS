@@ -21,9 +21,10 @@ export const loginApi = async (emailOrPhone: string, password?: string, portal?:
 };
 
 export const sendOtpApi = async (emailOrPhone: string) => {
+  const isEmail = emailOrPhone.includes('@');
   return apiClient('/api/auth/otp/send', {
     method: 'POST',
-    body: JSON.stringify({ emailOrPhone, deliveryMethod: 'Email' })
+    body: JSON.stringify({ emailOrPhone, deliveryMethod: isEmail ? 'Email' : 'SMS' })
   });
 };
 

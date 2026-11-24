@@ -729,12 +729,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const sendOtp = async (emailOrPhone: string): Promise<boolean> => {
-    try {
-      await sendOtpApi(emailOrPhone);
-      return true;
-    } catch {
-      return false;
-    }
+    await sendOtpApi(emailOrPhone);
+    return true;
   };
 
   const verifyOtp = async (emailOrPhone: string, otpCode: string): Promise<boolean> => {
