@@ -49,6 +49,8 @@ import {
   Activity,
   LifeBuoy,
   ShieldAlert,
+  Sparkles,
+  Bot,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useData } from "../../context/DataContext";
@@ -934,6 +936,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           title: "Core Operations",
           items: [
             { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+            { id: "ai-assistant", label: "AI ERP Assistant", icon: Sparkles },
             {
               id: "staff",
               label:

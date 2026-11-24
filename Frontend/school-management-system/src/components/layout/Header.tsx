@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Search, Sun, Moon, Palette, Bell, Shield, LogOut, Key, Calendar, CheckCircle2,
-  Megaphone, Building2, Plus, Edit, Trash2, ChevronDown, X, Menu, User
+  Megaphone, Building2, Plus, Edit, Trash2, ChevronDown, X, Menu, User, Sparkles
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -749,6 +749,17 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Right side tools: Notifications & User Profile */}
         <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+          {/* AI Assistant Quick Access */}
+          <button
+            type="button"
+            onClick={() => onNavigate?.('ai-assistant')}
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-2xl bg-gradient-to-r from-sky-500/10 to-indigo-500/10 hover:from-sky-500/20 hover:to-indigo-500/20 border border-sky-400/30 text-sky-700 dark:text-sky-300 font-bold text-xs shadow-xs active:scale-95 cursor-pointer transition-all"
+            title="Open AI School ERP Assistant"
+          >
+            <Sparkles className="w-4 h-4 text-sky-600 dark:text-sky-400 stroke-[2.2] animate-pulse" />
+            <span className="hidden sm:inline">Ask AI</span>
+          </button>
+
           {/* Theme Customizer Quick Studio Toggle */}
           <button
             type="button"
