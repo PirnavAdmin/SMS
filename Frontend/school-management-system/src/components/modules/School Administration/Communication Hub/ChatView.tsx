@@ -57,15 +57,21 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const [isSending, setIsSending] = useState<boolean>(false);
 
   // Filters
-  const [contactFilter, setContactFilter] = useState<'all' | 'teachers' | 'students' | 'parents'>('all');
+  const [contactFilter, setContactFilter] = useState<'all' | 'teaching' | 'non-teaching' | 'students' | 'parents'>('all');
   const [selectedClassFilter, setSelectedClassFilter] = useState<string>('all');
+  const [apiClasses, setApiClasses] = useState<string[]>([]);
   const [contactSearch, setContactSearch] = useState('');
   const [inputText, setInputText] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
-  // Extract all distinct classes for filtering
+  // Extract all dynamic classes from API & context for filtering
   const availableClasses = useMemo(() => {
     const set = new Set<string>();
+    if (Array.isArray(apiClasses)) {
+      apiClasses.forEach((c) => {
+        if (typeof c === 'string' && c.trim()) set.add(c.trim());
+      });
+    }
     if (Array.isArray(academicClasses)) {
       academicClasses.forEach((c: any) => {
         const name = c.name || c.className;
@@ -78,7 +84,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
       }
     });
     return Array.from(set).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
-  }, [academicClasses, contacts]);
+  }, [apiClasses, academicClasses, contacts]);
 
   // 1. Fetch Contacts from Backend API
   const loadContacts = async (preserveSelectedId?: string, classFilterParam?: string) => {
@@ -87,6 +93,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
       const res = await fetchChatContactsApi(activeClass);
       if (res && res.success && Array.isArray(res.data)) {
         setContacts(res.data);
+        if (Array.isArray(res.classes) && res.classes.length > 0) {
+          setApiClasses(res.classes);
+        }
         if (res.currentUser) {
           setCurrentUserProfile(res.currentUser);
         }
@@ -156,7 +165,18 @@ export const ChatView: React.FC<ChatViewProps> = ({
   // Filtered Contacts List with Category & Class Filters
   const filteredContacts = useMemo(() => {
     return contacts.filter(c => {
-      if (contactFilter === 'teachers' && c.role !== 'teacher') return false;
+      // Teaching Staff filter
+      if (contactFilter === 'teaching') {
+        if (c.role !== 'teacher') return false;
+        const isNonTeaching = c.staffCategory && c.staffCategory.toLowerCase().includes('non-teaching');
+        if (isNonTeaching) return false;
+      }
+      // Non-Teaching Staff filter
+      if (contactFilter === 'non-teaching') {
+        if (c.role !== 'teacher') return false;
+        const isNonTeaching = c.staffCategory && c.staffCategory.toLowerCase().includes('non-teaching');
+        if (!isNonTeaching) return false;
+      }
       if (contactFilter === 'students' && c.role !== 'student') return false;
       if (contactFilter === 'parents' && c.role !== 'parent') return false;
 
@@ -166,7 +186,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
           if (!c.className || !c.className.toLowerCase().includes(selectedClassFilter.toLowerCase())) {
             return false;
           }
-        } else if (c.role === 'teacher' && contactFilter !== 'teachers') {
+        } else if (c.role === 'teacher' && contactFilter !== 'teaching' && contactFilter !== 'non-teaching') {
           // Under 'All', when a specific class is chosen, focus on that class's students & parents
           return false;
         }
@@ -178,6 +198,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
           c.name.toLowerCase().includes(q) || 
           (c.subject && c.subject.toLowerCase().includes(q)) ||
           (c.className && c.className.toLowerCase().includes(q)) ||
+          (c.designation && c.designation.toLowerCase().includes(q)) ||
+          (c.staffCategory && c.staffCategory.toLowerCase().includes(q)) ||
+          (c.department && c.department.toLowerCase().includes(q)) ||
           (c.admissionNo && c.admissionNo.toLowerCase().includes(q))
         );
       }
@@ -400,33 +423,45 @@ export const ChatView: React.FC<ChatViewProps> = ({
           </div>
 
           {/* Contact Category Filter Tabs */}
-          <div className="flex items-center gap-1 mt-2.5 p-0.5 bg-slate-200/70 dark:bg-slate-800/70 rounded-xl text-[11px] font-bold">
+          <div className="flex flex-wrap items-center gap-1 mt-2.5 p-1 bg-slate-200/70 dark:bg-slate-800/70 rounded-xl text-[11px] font-bold">
             <button
               onClick={() => setContactFilter('all')}
-              className={`flex-1 py-1 rounded-lg transition-all ${
+              className={`flex-1 min-w-[36px] py-1 px-1.5 text-center rounded-lg transition-all ${
                 contactFilter === 'all'
                   ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-2xs font-extrabold'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
               }`}
             >
               All
             </button>
             <button
-              onClick={() => setContactFilter('teachers')}
-              className={`flex-1 py-1 rounded-lg transition-all ${
-                contactFilter === 'teachers'
+              onClick={() => setContactFilter('teaching')}
+              className={`flex-1 min-w-[62px] py-1 px-1.5 text-center rounded-lg transition-all ${
+                contactFilter === 'teaching'
                   ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-2xs font-extrabold'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
               }`}
+              title="Teaching Staff / Faculty"
             >
-              Teachers
+              Teaching
+            </button>
+            <button
+              onClick={() => setContactFilter('non-teaching')}
+              className={`flex-1 min-w-[82px] py-1 px-1.5 text-center rounded-lg transition-all ${
+                contactFilter === 'non-teaching'
+                  ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-2xs font-extrabold'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+              }`}
+              title="Non-Teaching Staff"
+            >
+              Non-Teaching
             </button>
             <button
               onClick={() => setContactFilter('students')}
-              className={`flex-1 py-1 rounded-lg transition-all ${
+              className={`flex-1 min-w-[58px] py-1 px-1.5 text-center rounded-lg transition-all ${
                 contactFilter === 'students'
                   ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-2xs font-extrabold'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
               }`}
             >
               {safeRole === 'student' ? 'Classmates' : 'Students'}
@@ -434,10 +469,10 @@ export const ChatView: React.FC<ChatViewProps> = ({
             {safeRole !== 'student' && (
               <button
                 onClick={() => setContactFilter('parents')}
-                className={`flex-1 py-1 rounded-lg transition-all ${
+                className={`flex-1 min-w-[48px] py-1 px-1.5 text-center rounded-lg transition-all ${
                   contactFilter === 'parents'
                     ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-2xs font-extrabold'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                 }`}
               >
                 Parents
@@ -445,7 +480,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
             )}
           </div>
 
-          {/* Class Filter Bar (for Teachers, Staff & Admins) */}
+          {/* Dynamic Class Filter Bar (for Teachers, Staff & Admins) */}
           {safeRole !== 'student' && (
             <div className="mt-2.5 flex items-center gap-2">
               <div className="relative flex-1">
@@ -461,7 +496,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 >
                   <option value="all">🎓 All Classes</option>
                   {availableClasses.map(cls => (
-                    <option key={cls} value={cls}>Class {cls.replace(/^Class\s*/i, '')}</option>
+                    <option key={cls} value={cls}>{cls}</option>
                   ))}
                 </select>
                 <ChevronDown className="w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
@@ -504,6 +539,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
               const isSelected = contact.id === selectedContactId;
               const isTeacherContact = contact.role === 'teacher';
               const isStudentContact = contact.role === 'student';
+              const isNonTeachingContact = isTeacherContact && (contact.staffCategory?.toLowerCase().includes('non-teaching') || false);
 
               return (
                 <div
@@ -519,7 +555,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
                     {/* Avatar */}
                     <div className="relative shrink-0">
                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xs font-extrabold text-white shadow-xs ${
-                        isTeacherContact 
+                        isNonTeachingContact
+                          ? 'bg-gradient-to-tr from-purple-500 to-pink-600'
+                          : isTeacherContact 
                           ? 'bg-gradient-to-tr from-sky-500 to-indigo-600'
                           : isStudentContact
                           ? 'bg-gradient-to-tr from-emerald-500 to-teal-600'
@@ -547,18 +585,20 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <span className={`px-1.5 py-0.2 rounded-md text-[9px] font-black uppercase tracking-wider ${
-                          isTeacherContact
+                          isNonTeachingContact
+                            ? 'bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200/80'
+                            : isTeacherContact
                             ? 'bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 border border-sky-200/80'
                             : isStudentContact
                             ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200/80'
                             : 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200/80'
                         }`}>
-                          {isTeacherContact ? 'Teacher' : isStudentContact ? 'Classmate' : 'Parent'}
+                          {isNonTeachingContact ? 'Non-Teaching' : isTeacherContact ? 'Teaching' : isStudentContact ? 'Classmate' : 'Parent'}
                         </span>
 
-                        {contact.subject && (
-                          <span className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold truncate max-w-[120px]">
-                            {contact.subject}
+                        {(contact.designation || contact.subject || contact.department) && (
+                          <span className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold truncate max-w-[130px]">
+                            {contact.designation || contact.subject || contact.department}
                           </span>
                         )}
                         {contact.className && (
@@ -600,7 +640,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
               <div className="flex items-center gap-3 min-w-0">
                 <div className="relative shrink-0">
                   <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xs font-black text-white shadow-xs ${
-                    activeContact.role === 'teacher'
+                    activeContact.role === 'teacher' && activeContact.staffCategory?.toLowerCase().includes('non-teaching')
+                      ? 'bg-gradient-to-tr from-purple-500 to-pink-600'
+                      : activeContact.role === 'teacher'
                       ? 'bg-gradient-to-tr from-sky-600 to-indigo-600'
                       : activeContact.role === 'student'
                       ? 'bg-gradient-to-tr from-emerald-500 to-teal-600'
@@ -619,17 +661,26 @@ export const ChatView: React.FC<ChatViewProps> = ({
                       {activeContact.name}
                     </h3>
                     <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${
-                      activeContact.role === 'teacher'
+                      activeContact.role === 'teacher' && activeContact.staffCategory?.toLowerCase().includes('non-teaching')
+                        ? 'bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800'
+                        : activeContact.role === 'teacher'
                         ? 'bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-800'
                         : activeContact.role === 'student'
                         ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
                         : 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
                     }`}>
-                      {activeContact.role === 'teacher' ? 'Faculty Teacher' : activeContact.role === 'student' ? 'Enrolled Classmate' : 'Parent'}
+                      {activeContact.role === 'teacher' && activeContact.staffCategory?.toLowerCase().includes('non-teaching')
+                        ? 'Non-Teaching Staff'
+                        : activeContact.role === 'teacher'
+                        ? 'Teaching Staff'
+                        : activeContact.role === 'student'
+                        ? 'Enrolled Classmate'
+                        : 'Parent'}
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium truncate">
-                    {activeContact.subject ? `Subject: ${activeContact.subject}` : ''}
+                    {activeContact.designation ? `Designation: ${activeContact.designation}` : (activeContact.subject ? `Subject: ${activeContact.subject}` : '')}
+                    {activeContact.department ? ` • Dept: ${activeContact.department}` : ''}
                     {activeContact.className ? ` • Class: ${activeContact.className}${activeContact.section ? `-${activeContact.section}` : ''}` : ''}
                     {activeContact.admissionNo ? ` • Adm: ${activeContact.admissionNo}` : ''}
                   </p>

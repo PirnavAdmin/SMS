@@ -4,6 +4,8 @@ export interface ChatContact {
   id: string;
   name: string;
   role: 'teacher' | 'student' | 'parent';
+  staffCategory?: 'Teaching Staff' | 'Non-Teaching Staff' | string;
+  department?: string;
   avatar?: string;
   email?: string;
   phone?: string;
@@ -62,7 +64,7 @@ export interface InitiateCallPayload {
  * Enforces business rule: Students only see peers from their own class & all teachers.
  * Teachers, admins, and staff can view all contacts and filter students/parents by class.
  */
-export const fetchChatContactsApi = async (classFilter?: string): Promise<{
+export const fetchChatContactsApi = async (classFilter?: string, staffCategory?: string): Promise<{
   success: boolean;
   currentUser?: {
     id: string;
@@ -71,9 +73,13 @@ export const fetchChatContactsApi = async (classFilter?: string): Promise<{
     className?: string;
     section?: string;
   };
+  classes?: string[];
   data: ChatContact[];
 }> => {
-  const query = classFilter && classFilter !== 'all' ? `?classFilter=${encodeURIComponent(classFilter)}` : '';
+  const params = new URLSearchParams();
+  if (classFilter && classFilter !== 'all') params.append('classFilter', classFilter);
+  if (staffCategory && staffCategory !== 'all') params.append('staffCategory', staffCategory);
+  const query = params.toString() ? `?${params.toString()}` : '';
   return apiClient(`/api/chat/contacts${query}`, { method: 'GET' });
 };
 

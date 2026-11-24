@@ -174,10 +174,10 @@ public class ChatController : ControllerBase
     // 1. GET CONTACTS
     // Business Rule:
     // "students can message or call to that class students only not everyone and can msg to any teacher"
-    // Teachers/Staff/Admins can message all students, parents, and colleagues, and filter by class.
+    // Teachers/Staff/Admins can message all students, parents, and colleagues, and filter by class & staff category.
     // =========================================================
     [HttpGet("contacts")]
-    public async Task<IActionResult> GetContacts([FromQuery] string? classFilter = null)
+    public async Task<IActionResult> GetContacts([FromQuery] string? classFilter = null, [FromQuery] string? staffCategory = null)
     {
         var (userId, userName, userRole, userEmail, staffUser, studentUser, myIds, effectiveMyId) = await ResolveCurrentEntityAsync();
         bool isStudent = studentUser != null || (string.Equals(userRole, "student", StringComparison.OrdinalIgnoreCase) && staffUser == null);
@@ -188,24 +188,74 @@ public class ChatController : ControllerBase
         var classLookup = await _context.Classes.AsNoTracking()
             .ToDictionaryAsync(c => c.ClassId, c => c.ClassName);
 
+        // Load dynamic class list directly from Classes table (ordered by display order or class name)
+        var dynamicClasses = await _context.Classes.AsNoTracking()
+            .Where(c => c.Status == "Active" || string.IsNullOrEmpty(c.Status))
+            .OrderBy(c => c.DisplayOrder)
+            .ThenBy(c => c.ClassName)
+            .Select(c => c.ClassName)
+            .Where(cn => !string.IsNullOrEmpty(cn))
+            .Distinct()
+            .ToListAsync();
+
         // 1. TEACHERS & STAFF (available to ANY student, parent, or colleague)
         var staffQuery = _context.Staff.AsNoTracking().Where(s => s.IsActive != false);
-        var staffList = await staffQuery.Take(150).ToListAsync();
+        var staffList = await staffQuery.Take(250).ToListAsync();
         foreach (var t in staffList)
         {
             // Do not show the current user to themselves
             if (staffUser != null && t.StaffId == staffUser.StaffId) continue;
             if (myIds.Contains(t.StaffId.ToString()) || (!string.IsNullOrEmpty(t.EmployeeId) && myIds.Contains(t.EmployeeId))) continue;
 
+            string resolvedStaffCategory = "Teaching Staff";
+            if (!string.IsNullOrWhiteSpace(t.EmployeeCategory))
+            {
+                resolvedStaffCategory = t.EmployeeCategory.Contains("Non-Teaching", StringComparison.OrdinalIgnoreCase)
+                    ? "Non-Teaching Staff"
+                    : "Teaching Staff";
+            }
+            else
+            {
+                var des = (t.Designation ?? "").ToLower();
+                var dep = (t.Department ?? "").ToLower();
+                var sRole = (t.SystemRole ?? "").ToLower();
+
+                if (des.Contains("account") || des.Contains("librar") || des.Contains("clerk") || 
+                    des.Contains("driver") || des.Contains("warden") || des.Contains("peon") || 
+                    des.Contains("security") || des.Contains("admin") || des.Contains("reception") ||
+                    des.Contains("office") || des.Contains("bus") || des.Contains("nurse") ||
+                    dep.Contains("admin") || dep.Contains("account") || dep.Contains("transport") ||
+                    dep.Contains("hostel") || dep.Contains("library") ||
+                    sRole.Contains("driver") || sRole.Contains("accountant") || sRole.Contains("librarian"))
+                {
+                    resolvedStaffCategory = "Non-Teaching Staff";
+                }
+                else
+                {
+                    resolvedStaffCategory = "Teaching Staff";
+                }
+            }
+
+            // Optional staffCategory query filter
+            if (!string.IsNullOrWhiteSpace(staffCategory) && !staffCategory.Equals("all", StringComparison.OrdinalIgnoreCase))
+            {
+                if (staffCategory.Contains("Non-Teaching", StringComparison.OrdinalIgnoreCase) && resolvedStaffCategory != "Non-Teaching Staff")
+                    continue;
+                if (!staffCategory.Contains("Non-Teaching", StringComparison.OrdinalIgnoreCase) && resolvedStaffCategory != "Teaching Staff")
+                    continue;
+            }
+
             contacts.Add(new ChatContactDto
             {
                 Id = $"TEA-{t.StaffId}",
                 Name = $"{t.FirstName} {t.LastName}".Trim(),
                 Role = "teacher",
+                StaffCategory = resolvedStaffCategory,
+                Department = t.Department,
                 Email = t.Email,
                 Phone = t.Phone,
-                Subject = t.PrimarySubject ?? t.Department ?? "Academics",
-                Designation = t.Designation ?? (t.SystemRole ?? "Faculty Teacher"),
+                Subject = t.PrimarySubject ?? t.Department ?? (resolvedStaffCategory == "Teaching Staff" ? "Academics" : "Administration"),
+                Designation = t.Designation ?? (t.SystemRole ?? (resolvedStaffCategory == "Teaching Staff" ? "Faculty Teacher" : "Staff Member")),
                 IsOnline = true
             });
         }
@@ -399,6 +449,7 @@ public class ChatController : ControllerBase
                 className = currentClassName,
                 section = currentSection
             },
+            classes = dynamicClasses,
             data = contacts
         });
     }
