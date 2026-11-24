@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../../../context/AuthContext';
 import { useToast } from '../../../../context/ToastContext';
+import { useData } from '../../../../context/DataContext';
 import { DateInput } from '../../../common/DateInput';
 import { TimeInput } from '../../../common/TimeInput';
 import { 
@@ -32,10 +33,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
 }) => {
   const { user, role, selectedBranch, selectedAcademicYear } = useAuth();
   const { addToast } = useToast();
-
-  const safeRole = (user?.role || role || '').toLowerCase();
-  const currentUserId = String(user?.id || user?.email || 'current-user');
-  const currentUserName = user?.name || user?.username || 'You';
+  const { academicClasses } = useData();
 
   // Live Contacts & Messages state loaded from Backend
   const [contacts, setContacts] = useState<ChatContact[]>([]);
@@ -48,6 +46,11 @@ export const ChatView: React.FC<ChatViewProps> = ({
     section?: string;
   } | null>(null);
 
+  const effectiveRole = (currentUserProfile?.role || user?.role || role || '').toLowerCase();
+  const safeRole = effectiveRole.includes('student') ? 'student' : (effectiveRole.includes('teacher') ? 'teacher' : (effectiveRole.includes('parent') ? 'parent' : 'staff'));
+  const currentUserId = String(currentUserProfile?.id || user?.id || user?.email || 'current-user');
+  const currentUserName = currentUserProfile?.name || user?.name || user?.username || 'You';
+
   const [selectedContactId, setSelectedContactId] = useState<string>(preselectedContactId || '');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loadingMessages, setLoadingMessages] = useState<boolean>(false);
@@ -55,14 +58,33 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
   // Filters
   const [contactFilter, setContactFilter] = useState<'all' | 'teachers' | 'students' | 'parents'>('all');
+  const [selectedClassFilter, setSelectedClassFilter] = useState<string>('all');
   const [contactSearch, setContactSearch] = useState('');
   const [inputText, setInputText] = useState('');
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
+  // Extract all distinct classes for filtering
+  const availableClasses = useMemo(() => {
+    const set = new Set<string>();
+    if (Array.isArray(academicClasses)) {
+      academicClasses.forEach((c: any) => {
+        const name = c.name || c.className;
+        if (name && typeof name === 'string' && name.trim()) set.add(name.trim());
+      });
+    }
+    contacts.forEach(c => {
+      if (c.className && typeof c.className === 'string' && c.className.trim()) {
+        set.add(c.className.trim());
+      }
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+  }, [academicClasses, contacts]);
+
   // 1. Fetch Contacts from Backend API
-  const loadContacts = async (preserveSelectedId?: string) => {
+  const loadContacts = async (preserveSelectedId?: string, classFilterParam?: string) => {
     try {
-      const res = await fetchChatContactsApi();
+      const activeClass = classFilterParam !== undefined ? classFilterParam : selectedClassFilter;
+      const res = await fetchChatContactsApi(activeClass);
       if (res && res.success && Array.isArray(res.data)) {
         setContacts(res.data);
         if (res.currentUser) {
@@ -131,12 +153,25 @@ export const ChatView: React.FC<ChatViewProps> = ({
     chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages.length, selectedContactId]);
 
-  // Filtered Contacts List
+  // Filtered Contacts List with Category & Class Filters
   const filteredContacts = useMemo(() => {
     return contacts.filter(c => {
       if (contactFilter === 'teachers' && c.role !== 'teacher') return false;
       if (contactFilter === 'students' && c.role !== 'student') return false;
       if (contactFilter === 'parents' && c.role !== 'parent') return false;
+
+      // Filter by class (for students and parents)
+      if (selectedClassFilter !== 'all') {
+        if (c.role === 'student' || c.role === 'parent') {
+          if (!c.className || !c.className.toLowerCase().includes(selectedClassFilter.toLowerCase())) {
+            return false;
+          }
+        } else if (c.role === 'teacher' && contactFilter !== 'teachers') {
+          // Under 'All', when a specific class is chosen, focus on that class's students & parents
+          return false;
+        }
+      }
+
       if (contactSearch.trim()) {
         const q = contactSearch.toLowerCase();
         return (
@@ -148,7 +183,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
       }
       return true;
     });
-  }, [contacts, contactFilter, contactSearch]);
+  }, [contacts, contactFilter, contactSearch, selectedClassFilter]);
 
   // Send Direct Message via Backend API
   const handleSendMessage = async (e?: React.FormEvent) => {
@@ -357,7 +392,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
             <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
-              placeholder="Search contacts..."
+              placeholder="Search"
               value={contactSearch}
               onChange={e => setContactSearch(e.target.value)}
               className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500/30"
@@ -409,6 +444,42 @@ export const ChatView: React.FC<ChatViewProps> = ({
               </button>
             )}
           </div>
+
+          {/* Class Filter Bar (for Teachers, Staff & Admins) */}
+          {safeRole !== 'student' && (
+            <div className="mt-2.5 flex items-center gap-2">
+              <div className="relative flex-1">
+                <GraduationCap className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                <select
+                  value={selectedClassFilter}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setSelectedClassFilter(val);
+                    loadContacts(selectedContactId, val);
+                  }}
+                  className="w-full pl-8 pr-7 py-1.5 rounded-xl bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/80 text-[11px] font-bold text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-sky-500/30 appearance-none cursor-pointer transition-all hover:bg-slate-200/70 dark:hover:bg-slate-700/70"
+                >
+                  <option value="all">🎓 All Classes</option>
+                  {availableClasses.map(cls => (
+                    <option key={cls} value={cls}>Class {cls.replace(/^Class\s*/i, '')}</option>
+                  ))}
+                </select>
+                <ChevronDown className="w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              </div>
+              {selectedClassFilter !== 'all' && (
+                <button
+                  onClick={() => {
+                    setSelectedClassFilter('all');
+                    loadContacts(selectedContactId, 'all');
+                  }}
+                  className="px-2 py-1 text-[10px] font-extrabold text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/60 rounded-lg hover:bg-sky-100 dark:hover:bg-sky-900/60 transition-colors shrink-0"
+                  title="Reset to All Classes"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Contacts Scrollable List */}
@@ -423,7 +494,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
               <Users className="w-8 h-8 text-slate-300 dark:text-slate-600 mx-auto" />
               <p className="text-xs font-bold text-slate-600 dark:text-slate-300">No contacts found</p>
               <p className="text-[11px] text-slate-400">
-                {safeRole === 'student' ? 'No peers found matching your enrolled class.' : 'Try adjusting your search criteria.'}
+                {selectedClassFilter !== 'all' 
+                  ? `No contacts found in ${selectedClassFilter}.` 
+                  : (safeRole === 'student' ? 'No peers found matching your enrolled class.' : 'Try adjusting your search criteria.')}
               </p>
             </div>
           ) : (
