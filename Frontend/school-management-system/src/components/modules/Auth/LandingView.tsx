@@ -160,7 +160,6 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
   }, []);
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'all' | 'academic' | 'management' | 'campus'>('all');
   const [heroConsoleTab, setHeroConsoleTab] = useState<'admin' | 'teacher' | 'parent'>('admin');
 
   // Super Admin Platform Branding & Profile (NO localStorage / NO mock data - direct from database API)
@@ -395,10 +394,6 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
     },
   ];
 
-  const filteredFeatures = activeTab === 'all' 
-    ? erpFeatures 
-    : erpFeatures.filter(f => f.category === activeTab);
-
   // Carousel Refs & States for Portals
   const portalScrollRef = useRef<HTMLDivElement>(null);
   const [activePortalIndex, setActivePortalIndex] = useState(0);
@@ -432,16 +427,16 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
   };
 
   const checkModuleScroll = () => {
-    if (!moduleScrollRef.current || filteredFeatures.length === 0) return;
+    if (!moduleScrollRef.current || erpFeatures.length === 0) return;
     const { scrollLeft } = moduleScrollRef.current;
     const cardEl = moduleScrollRef.current.firstElementChild as HTMLElement | null;
     const cardWidth = cardEl ? cardEl.offsetWidth + 16 : 310;
     const rawIdx = Math.round(scrollLeft / cardWidth);
-    setActiveModuleIndex(Math.min(filteredFeatures.length - 1, Math.max(0, rawIdx)));
+    setActiveModuleIndex(Math.min(erpFeatures.length - 1, Math.max(0, rawIdx)));
   };
 
   const scrollToModuleIndex = (index: number) => {
-    if (!moduleScrollRef.current || filteredFeatures.length === 0) return;
+    if (!moduleScrollRef.current || erpFeatures.length === 0) return;
     const cardEl = moduleScrollRef.current.firstElementChild as HTMLElement | null;
     const cardWidth = cardEl ? cardEl.offsetWidth + 16 : 310;
     moduleScrollRef.current.scrollTo({ left: index * cardWidth, behavior: 'smooth' });
@@ -488,7 +483,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
 
   // Continuous auto-rotate Modules Carousel Timer (every 3.5 seconds)
   useEffect(() => {
-    if (isModuleHovered || filteredFeatures.length <= 1) return;
+    if (isModuleHovered || erpFeatures.length <= 1) return;
 
     const timer = setInterval(() => {
       if (moduleScrollRef.current) {
@@ -505,7 +500,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
     }, 3500);
 
     return () => clearInterval(timer);
-  }, [isModuleHovered, filteredFeatures.length]);
+  }, [isModuleHovered, erpFeatures.length]);
 
   // Continuous auto-rotate Subscriptions Carousel Timer (every 3.5 seconds, only active when > 3 packages)
   useEffect(() => {
@@ -540,14 +535,6 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
 
     return () => clearInterval(timer);
   }, []);
-
-  // Reset module carousel to 0 when tab filter changes
-  useEffect(() => {
-    if (moduleScrollRef.current) {
-      moduleScrollRef.current.scrollTo({ left: 0, behavior: 'smooth' });
-      setActiveModuleIndex(0);
-    }
-  }, [activeTab]);
 
   // Reset subscriptions carousel to 0 when packages update
   useEffect(() => {
@@ -1069,28 +1056,6 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
             </p>
           </div>
 
-          {/* Tab Filters */}
-          <div className="flex flex-wrap items-center justify-center gap-2 mb-4">
-            {[
-              { id: 'all', label: 'All Modules' },
-              { id: 'academic', label: 'Academics & Exams' },
-              { id: 'management', label: 'Admin & Finance' },
-              { id: 'campus', label: 'Campus Facilities' },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                  activeTab === tab.id
-                    ? 'bg-sky-500 text-white shadow-md shadow-sky-500/25'
-                    : 'bg-white/80 dark:bg-slate-900/80 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-slate-800 backdrop-blur-md'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
           {/* Module Cards Carousel Track */}
           <div
             ref={moduleScrollRef}
@@ -1098,7 +1063,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
             className="flex items-stretch gap-4 overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory py-2.5 px-0.5"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
-            {filteredFeatures.map((feat) => {
+            {erpFeatures.map((feat) => {
               const Icon = feat.icon;
               return (
                 <div
@@ -1106,8 +1071,13 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
                   className="w-[85vw] sm:w-[280px] md:w-[290px] lg:w-[310px] shrink-0 snap-start p-5 rounded-2xl bg-white/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800/90 hover:border-slate-300 dark:hover:border-slate-700 transition-all hover:bg-white dark:hover:bg-slate-900 group shadow-md backdrop-blur-md flex flex-col justify-between select-none"
                 >
                   <div>
-                    <div className={`w-10 h-10 rounded-xl border ${feat.color} flex items-center justify-center mb-3 group-hover:scale-105 transition-transform`}>
-                      <Icon className="w-5 h-5" />
+                    <div className="flex items-center justify-between mb-3">
+                      <div className={`w-10 h-10 rounded-xl border ${feat.color} flex items-center justify-center group-hover:scale-105 transition-transform`}>
+                        <Icon className="w-5 h-5" />
+                      </div>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 border border-slate-200/80 dark:border-slate-700/80">
+                        {feat.category === 'academic' ? 'Academics & Exams' : feat.category === 'management' ? 'Admin & Finance' : 'Campus Facilities'}
+                      </span>
                     </div>
                     <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-1.5">{feat.title}</h3>
                     <p className="text-slate-600 dark:text-slate-400 text-xs leading-relaxed">{feat.description}</p>
@@ -1118,9 +1088,9 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
           </div>
 
           {/* Dot Indicators */}
-          {filteredFeatures.length > 1 && (
+          {erpFeatures.length > 1 && (
             <div className="flex items-center justify-center gap-1.5 mt-3.5">
-              {filteredFeatures.map((_, idx) => (
+              {erpFeatures.map((_, idx) => (
                 <button
                   key={idx}
                   type="button"
