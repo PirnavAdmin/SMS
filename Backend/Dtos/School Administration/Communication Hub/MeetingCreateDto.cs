@@ -172,5 +172,11 @@ namespace SMS.Api.Dtos
 
         [JsonPropertyName("totalRecipients")]
         public int TotalRecipients { get; set; } = 47;
+
+        [JsonPropertyName("organizerName")]
+        public string? OrganizerName { get; set; }
+
+        [JsonPropertyName("organizerRole")]
+        public string? OrganizerRole { get; set; }
     }
 }

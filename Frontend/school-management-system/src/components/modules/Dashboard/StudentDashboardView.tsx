@@ -1,6 +1,6 @@
 // @ts-nocheck
 import React from 'react';
-import { BookOpen, Calendar, Clock, Target, Home, MapPin, User, Megaphone, AlertCircle, Users, Sparkles, Sun, Moon, Building2, Bus } from 'lucide-react';
+import { BookOpen, Calendar, Clock, Target, Home, MapPin, User, Megaphone, AlertCircle, Users, Sparkles, Sun, Moon, Building2, Bus, MessagesSquare } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { useData } from '../../../context/DataContext';
 import { normalizeStudentType } from '../../../utils/studentTypeUtils';
@@ -664,20 +664,30 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ onNa
           {(() => {
             const studentMeetings = meetings.filter(m => 
               m.status === 'Scheduled' &&
-              m.participants.some(p => p.id === currentWard.id || p.name.toLowerCase().includes(currentWard.firstName.toLowerCase()))
+              (
+                (m.organizerName && user?.name && m.organizerName.toLowerCase() === user.name.toLowerCase()) ||
+                m.participants.some(p => p.id === currentWard.id || (p.name && currentWard.firstName && p.name.toLowerCase().includes(currentWard.firstName.toLowerCase())))
+              )
             );
 
-            if (studentMeetings.length === 0) return null;
-
             return (
-              <div className="bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 hover:border-sky-400 dark:hover:border-sky-600 p-4 rounded-xl shadow-sm space-y-3">
-                <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-2.5">
-                  <Users className="w-4 h-4 text-sky-500" />
-                  <h3 className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white">Scheduled Meetings</h3>
+              <div className="bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 hover:border-sky-400 dark:hover:border-sky-600 p-4 rounded-2xl shadow-xs space-y-3">
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2.5">
+                  <div className="flex items-center gap-2">
+                    <Users className="w-4 h-4 text-sky-500" />
+                    <h3 className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white">Scheduled Meetings</h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => onNavigate?.('meetings')}
+                    className="text-[11px] font-bold text-sky-600 dark:text-sky-400 hover:underline cursor-pointer"
+                  >
+                    View All
+                  </button>
                 </div>
 
                 <div className="space-y-2">
-                  {studentMeetings.map(m => (
+                  {studentMeetings.length > 0 ? studentMeetings.slice(0, 3).map(m => (
                     <div key={m.id} className="p-2.5 rounded-xl border border-sky-200 dark:border-sky-800 bg-sky-50/30 dark:bg-sky-950/30 hover:border-sky-300 space-y-1.5 text-xs transition-all">
                       <div className="flex items-center justify-between">
                         <span className="px-2 py-0.5 rounded-md text-[9px] font-extrabold uppercase bg-sky-100 text-sky-700 dark:bg-sky-900/50 dark:text-sky-300">
@@ -686,12 +696,62 @@ export const StudentDashboardView: React.FC<StudentDashboardViewProps> = ({ onNa
                         <span className="font-mono text-[10px] text-slate-400 font-bold">{m.meetingDate}</span>
                       </div>
                       <h4 className="font-bold text-slate-900 dark:text-white text-xs">{m.title}</h4>
+                      {m.onlineMeetingUrl && (
+                        <div className="pt-1">
+                          <a
+                            href={m.onlineMeetingUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-[11px] font-bold text-sky-600 dark:text-sky-400 hover:underline"
+                          >
+                            <span>🎥 Join Video Call</span>
+                          </a>
+                        </div>
+                      )}
                     </div>
-                  ))}
+                  )) : (
+                    <div className="text-center py-3.5 space-y-2">
+                      <p className="text-xs text-slate-400">No upcoming meetings scheduled.</p>
+                      <button
+                        type="button"
+                        onClick={() => onNavigate?.('meetings')}
+                        className="px-3 py-1 bg-sky-50 dark:bg-sky-950/60 text-sky-700 dark:text-sky-300 rounded-lg text-xs font-bold border border-sky-200 dark:border-sky-800 hover:bg-sky-100 transition-colors cursor-pointer"
+                      >
+                        + Book Doubt Session
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             );
           })()}
+
+          {/* Quick Chat & Peer Discussion Card */}
+          <div className="bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 rounded-2xl p-4 shadow-xs space-y-2.5">
+            <div className="flex items-center gap-2">
+              <MessagesSquare className="w-4 h-4 text-sky-500" />
+              <h4 className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white">Chat & Peer Study Sync</h4>
+            </div>
+            <p className="text-[11px] text-slate-500">Ask doubts directly to your teachers or chat with classmates for peer study.</p>
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => onNavigate?.('chat')}
+                className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-xs transition-all cursor-pointer"
+              >
+                <MessagesSquare className="w-3.5 h-3.5" />
+                <span>Open Chat</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onNavigate?.('meetings')}
+                className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 font-bold text-xs border border-slate-200 dark:border-slate-700 transition-all cursor-pointer"
+              >
+                <Calendar className="w-3.5 h-3.5 text-sky-500" />
+                <span>Meetings</span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

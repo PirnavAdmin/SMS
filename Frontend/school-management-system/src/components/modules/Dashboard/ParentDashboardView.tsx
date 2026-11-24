@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   User, Activity, AlertCircle, Calendar, GraduationCap, Clock, 
-  Home, MapPin, Users, Heart, Phone, IndianRupee, ClipboardList, Building2
+  Home, MapPin, Users, Heart, Phone, IndianRupee, ClipboardList, Building2, MessagesSquare
 } from 'lucide-react';
 import { StatCard } from '../../common/StatCard';
 import { Badge } from '../../common/Badge';
@@ -790,6 +790,37 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
         </div>
       </div>
 
+      {/* Quick Communication & Sync Banner */}
+      <div className="bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-800 rounded-2xl p-4 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-sky-50 dark:bg-sky-950/60 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0 border border-sky-200 dark:border-sky-800">
+            <MessagesSquare className="w-5 h-5" />
+          </div>
+          <div>
+            <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">Teacher & School Communication</h4>
+            <p className="text-xs text-slate-500">Connect with assigned class teachers, send direct messages, or schedule parent-teacher meetings.</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0 w-full sm:w-auto">
+          <button
+            type="button"
+            onClick={() => onNavigate?.('chat')}
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-xs transition-all cursor-pointer whitespace-nowrap"
+          >
+            <MessagesSquare className="w-3.5 h-3.5" />
+            <span>Chat with Teachers</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => onNavigate?.('meetings')}
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-100 font-bold text-xs border border-slate-200 dark:border-slate-700 transition-all cursor-pointer whitespace-nowrap"
+          >
+            <Calendar className="w-3.5 h-3.5 text-sky-500" />
+            <span>Parent Meetings</span>
+          </button>
+        </div>
+      </div>
+
       {/* Dynamic Alerts / Widgets (Hostel details and meetings, full width) */}
       {((isResidential && wardHostel && hostelDetails && roomDetails) || meetings.filter(m => m.status === 'Scheduled' && m.participants.some(p => p.id?.includes(currentWard.id) || p.name?.toLowerCase().includes(currentWard.firstName.toLowerCase()))).length > 0) && (
         <div className="space-y-4">
@@ -846,6 +877,18 @@ export const ParentDashboardView: React.FC<ParentDashboardViewProps> = ({ onNavi
                         <span className="font-mono text-slate-550 dark:text-slate-455 font-bold">{m.meetingDate}</span>
                       </div>
                       <h4 className="font-extrabold text-slate-900 dark:text-white leading-tight">{m.title}</h4>
+                      {m.onlineMeetingUrl && (
+                        <div>
+                          <a
+                            href={m.onlineMeetingUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-[11px] font-bold text-sky-600 dark:text-sky-400 hover:underline"
+                          >
+                            <span>🎥 Join Video Call</span>
+                          </a>
+                        </div>
+                      )}
                       <div className="flex items-center justify-between text-[10px] text-slate-650 dark:text-slate-355 font-bold pt-2 border-t border-sky-100 dark:border-sky-900/35">
                         <span className="truncate max-w-[150px]">{m.meetingMode === 'In-Person' ? `📍 ${m.roomVenue}` : `🔗 ${m.onlineMeetingUrl}`}</span>
                         <span className="font-mono text-indigo-650 dark:text-indigo-400">{m.startTime} - {m.endTime}</span>

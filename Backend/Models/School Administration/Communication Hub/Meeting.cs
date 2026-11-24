@@ -47,5 +47,8 @@ public class Meeting
     public string Recurrence { get; set; } = "None (One-time)";
     public int TotalRecipients { get; set; } = 47;
 
+    public string? OrganizerName { get; set; } = "Administrator";
+    public string? OrganizerRole { get; set; } = "Admin";
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

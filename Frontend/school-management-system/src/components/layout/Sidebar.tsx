@@ -17,6 +17,7 @@ import {
   Home,
   Package,
   Megaphone,
+  MessagesSquare,
   Calendar,
   BarChart3,
   Settings,
@@ -2237,7 +2238,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   (item.id === "report-cards" && ["report-cards", "examination-report-cards"].includes(activeModule)) ||
                   (item.id === "homework" && activeModule === "homework") ||
                   (item.id === "inventory" && activeModule === "inventory") ||
-                  (item.id === "communication" && activeModule === "communication") ||
+                  (item.id === "communication" && ["communication", "chat", "meetings"].includes(activeModule)) ||
                   (item.id === "events" && activeModule === "events") ||
                   (item.id === "training" && activeModule === "training") ||
                   (item.id === "reports" && activeModule === "reports") ||
@@ -2285,18 +2286,29 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           : "gap-3 truncate"
                       }`}
                     >
-                      <Icon
-                        className={`${
-                          effectiveCollapsed ? "w-5 h-5" : "w-4 h-4"
-                        } shrink-0 stroke-[2] ${
-                          isActive
-                            ? "text-white"
-                            : "text-slate-400 dark:text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200"
-                        }`}
-                      />
-                      {!effectiveCollapsed && (
-                        <span className="truncate">{item.label}</span>
-                      )}
+                      {(() => {
+                        const isComm = item.id === "communication";
+                        const isParentOrStudent = safeRole === "student" || safeRole === "parent";
+                        const EffectiveIcon = isComm && isParentOrStudent ? MessagesSquare : Icon;
+                        const effectiveLabel = isComm && isParentOrStudent ? "Chat & Meetings" : item.label;
+
+                        return (
+                          <>
+                            <EffectiveIcon
+                              className={`${
+                                effectiveCollapsed ? "w-5 h-5" : "w-4 h-4"
+                              } shrink-0 stroke-[2] ${
+                                isActive
+                                  ? "text-white"
+                                  : "text-slate-400 dark:text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200"
+                              }`}
+                            />
+                            {!effectiveCollapsed && (
+                              <span className="truncate">{effectiveLabel}</span>
+                            )}
+                          </>
+                        );
+                      })()}
                     </div>
 
                     {!effectiveCollapsed && (item as any).badge && (

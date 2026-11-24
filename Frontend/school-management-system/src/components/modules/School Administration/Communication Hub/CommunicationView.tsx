@@ -2,12 +2,13 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Megaphone, Send, Calendar, Clock, Plus, X, Edit3, Trash2, Pin, CheckCircle2, 
-  ShieldAlert
+  ShieldAlert, MessagesSquare
 } from 'lucide-react';
 import { useData } from '../../../../context/DataContext';
 import { useToast } from '../../../../context/ToastContext';
 import { useAuth } from '../../../../context/AuthContext';
 import { MeetingsView } from './MeetingsView';
+import { ChatView } from './ChatView';
 import { WardenCommunicationHubView } from './WardenCommunicationHubView';
 import { fetchNotificationsApi, createNotificationApi, updateNotificationApi, deleteNotificationApi } from '../../../../api/communication';
 import { DateInput } from '../../../common/DateInput';
@@ -32,7 +33,15 @@ export interface AnnouncementItem {
   academicYear?: string;
 }
 
-export const CommunicationView: React.FC = () => {
+export interface CommunicationViewProps {
+  initialTab?: 'notifications' | 'chat' | 'meetings';
+  preselectedContactId?: string;
+}
+
+export const CommunicationView: React.FC<CommunicationViewProps> = ({
+  initialTab = 'notifications',
+  preselectedContactId
+}) => {
   const { user, role, selectedBranch, selectedAcademicYear } = useAuth();
   const userRole = (user?.role || role || '').toLowerCase();
   const { announcements: contextAnnouncements, addAnnouncement, saveAnnouncements, students = [], staff = [] } = useData();
@@ -63,7 +72,18 @@ export const CommunicationView: React.FC = () => {
     }
   };
 
-  const [activeTab, setActiveTab] = useState<'notifications' | 'meetings'>('notifications');
+  const [activeTab, setActiveTab] = useState<'notifications' | 'chat' | 'meetings'>(initialTab);
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+    const savedTab = localStorage.getItem('communication_active_tab');
+    if (savedTab === 'chat' || savedTab === 'meetings' || savedTab === 'notifications') {
+      setActiveTab(savedTab);
+      localStorage.removeItem('communication_active_tab');
+    }
+  }, [initialTab]);
   const [isComposeModalOpen, setIsComposeModalOpen] = useState(false);
   const [isEmergencyModalOpen, setIsEmergencyModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<AnnouncementItem | null>(null);
@@ -577,7 +597,7 @@ export const CommunicationView: React.FC = () => {
         </div>
 
         {/* Action Buttons Aligned Cleanly on Right */}
-        {canModify && (
+        {canModify && activeTab === 'notifications' && (
           <div className="flex items-center gap-2">
             <button
               onClick={handleOpenEmergencyModal}
@@ -612,19 +632,28 @@ export const CommunicationView: React.FC = () => {
             <Megaphone className="w-3.5 h-3.5" />
             Broadcast Notifications
           </button>
-          {!(role.toLowerCase() === 'parent' || role.toLowerCase() === 'student' || isWardenRole || isDriverRole) && (
-            <button
-              onClick={() => setActiveTab('meetings')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                activeTab === 'meetings'
-                  ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-xs border border-slate-200/60 dark:border-slate-700'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <Calendar className="w-3.5 h-3.5" />
-              Meetings & Schedules
-            </button>
-          )}
+          <button
+            onClick={() => setActiveTab('chat')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              activeTab === 'chat'
+                ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-xs border border-slate-200/60 dark:border-slate-700'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <MessagesSquare className="w-3.5 h-3.5" />
+            Direct Messages & Chat
+          </button>
+          <button
+            onClick={() => setActiveTab('meetings')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              activeTab === 'meetings'
+                ? 'bg-white dark:bg-slate-900 text-sky-600 dark:text-sky-400 shadow-xs border border-slate-200/60 dark:border-slate-700'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <Calendar className="w-3.5 h-3.5" />
+            Meetings & Schedules
+          </button>
         </div>
 
         {activeTab === 'notifications' && (
@@ -663,7 +692,12 @@ export const CommunicationView: React.FC = () => {
         )}
       </div>
 
-      {activeTab === 'meetings' && !(role.toLowerCase() === 'parent' || role.toLowerCase() === 'student' || isWardenRole || isDriverRole) ? (
+      {activeTab === 'chat' ? (
+        <ChatView
+          preselectedContactId={preselectedContactId}
+          onNavigateToMeetings={() => setActiveTab('meetings')}
+        />
+      ) : activeTab === 'meetings' ? (
         <MeetingsView />
       ) : (
         <div className="space-y-3 max-w-full">

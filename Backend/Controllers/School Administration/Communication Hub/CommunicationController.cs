@@ -9,6 +9,7 @@ using SMS.Api.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
 
 [ApiController]
@@ -335,6 +336,53 @@ public class CommunicationController : ControllerBase
                                      (m.Agenda != null && m.Agenda.ToLower().Contains(s)));
         }
 
+        var userRole = User.FindFirst(ClaimTypes.Role)?.Value ?? User.FindFirst("role")?.Value ?? "Admin";
+        var userName = User.FindFirst(ClaimTypes.Name)?.Value ?? User.FindFirst("name")?.Value ?? "";
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value ?? "";
+        var userEmail = User.FindFirst(ClaimTypes.Email)?.Value ?? "";
+
+        var isStudent = string.Equals(userRole, "Student", StringComparison.OrdinalIgnoreCase) || User.IsInRole("Student");
+        var isParent = string.Equals(userRole, "Parent", StringComparison.OrdinalIgnoreCase) || User.IsInRole("Parent");
+        var isAdminOrStaff = string.Equals(userRole, "Admin", StringComparison.OrdinalIgnoreCase) ||
+                              string.Equals(userRole, "Super Admin", StringComparison.OrdinalIgnoreCase) ||
+                              string.Equals(userRole, "Principal", StringComparison.OrdinalIgnoreCase) ||
+                              string.Equals(userRole, "Teacher", StringComparison.OrdinalIgnoreCase) ||
+                              string.Equals(userRole, "HR", StringComparison.OrdinalIgnoreCase) ||
+                              User.IsInRole("Admin") || User.IsInRole("Principal") || User.IsInRole("Teacher");
+
+        if (!isAdminOrStaff)
+        {
+            if (isStudent)
+            {
+                int.TryParse(userId, out int parsedId);
+                var student = await _context.Students
+                    .Include(s => s.ClassGrade)
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(s => 
+                        (parsedId > 0 && s.StudentId == parsedId) || 
+                        s.AdmissionNumber.ToLower() == userId.ToLower() ||
+                        (!string.IsNullOrEmpty(userEmail) && s.Email != null && s.Email.ToLower() == userEmail.ToLower()));
+
+                var studentName = student?.StudentName ?? userName;
+                var studentAdm = student?.AdmissionNumber ?? "";
+                var studentClass = student?.ClassGrade?.ClassName ?? "";
+
+                query = query.Where(m => 
+                    (m.OrganizerName != null && m.OrganizerName.ToLower() == userName.ToLower()) ||
+                    (m.ParticipantName != null && (m.ParticipantName.ToLower().Contains(studentName.ToLower()) || (!string.IsNullOrEmpty(studentAdm) && m.ParticipantName.ToLower().Contains(studentAdm.ToLower())))) ||
+                    (!string.IsNullOrEmpty(studentAdm) && m.WardAdmissionNo != null && m.WardAdmissionNo.ToLower() == studentAdm.ToLower()) ||
+                    (!string.IsNullOrEmpty(studentClass) && m.WardClass != null && m.WardClass.ToLower() == studentClass.ToLower()) ||
+                    (m.MeetingAudience != null && (m.MeetingAudience.ToLower().Contains("student") || m.MeetingAudience.ToLower().Contains("group"))));
+            }
+            else if (isParent)
+            {
+                query = query.Where(m => 
+                    (m.OrganizerName != null && m.OrganizerName.ToLower() == userName.ToLower()) ||
+                    (m.ParticipantName != null && m.ParticipantName.ToLower().Contains(userName.ToLower())) ||
+                    (m.MeetingAudience != null && (m.MeetingAudience.ToLower().Contains("parent") || m.MeetingAudience.ToLower().Contains("ptm"))));
+            }
+        }
+
         var list = await query.OrderByDescending(m => m.CreatedAt).ToListAsync();
 
         // Do not seed default meetings. Everything should come from the database.
@@ -375,10 +423,68 @@ public class CommunicationController : ControllerBase
             return BadRequest(new { success = false, message = "Meeting title is mandatory." });
         }
 
+        var userRole = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value 
+            ?? User.FindFirst("role")?.Value 
+            ?? "";
+        var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            ?? User.FindFirst("id")?.Value
+            ?? "";
+        var userEmail = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? "";
+        bool isStudent = string.Equals(userRole, "Student", StringComparison.OrdinalIgnoreCase) || User.IsInRole("Student");
+
+        if (isStudent)
+        {
+            int parsedUserId = 0;
+            int.TryParse(userId, out parsedUserId);
+            var currentStudent = await _context.Students
+                .Include(s => s.ClassGrade)
+                .AsNoTracking()
+                .FirstOrDefaultAsync(s => 
+                    (parsedUserId > 0 && s.StudentId == parsedUserId) ||
+                    s.AdmissionNumber.ToLower() == userId.ToLower() ||
+                    (!string.IsNullOrEmpty(userEmail) && s.Email != null && s.Email.ToLower() == userEmail.ToLower()));
+
+            var studentClassName = currentStudent?.ClassGrade?.ClassName ?? "";
+
+            bool isTargetStudent = string.Equals(dto.ParticipantType, "Student", StringComparison.OrdinalIgnoreCase);
+            bool isTargetTeacher = string.Equals(dto.ParticipantType, "Teaching Staff", StringComparison.OrdinalIgnoreCase) ||
+                                  string.Equals(dto.ParticipantType, "Teacher", StringComparison.OrdinalIgnoreCase);
+
+            if (isTargetStudent)
+            {
+                if (!string.IsNullOrWhiteSpace(dto.WardClass) && !string.IsNullOrWhiteSpace(studentClassName) &&
+                    !string.Equals(dto.WardClass.Trim(), studentClassName.Trim(), StringComparison.OrdinalIgnoreCase))
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, new
+                    {
+                        success = false,
+                        message = $"Access Denied: You can only schedule meetings with students in your enrolled class ({studentClassName})."
+                    });
+                }
+            }
+            else if (!isTargetTeacher)
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new
+                {
+                    success = false,
+                    message = "Access Denied: Students can only schedule meetings with classmates in their enrolled class or with teachers."
+                });
+            }
+        }
+
         DateTime mDate = DateTime.UtcNow;
         if (!string.IsNullOrWhiteSpace(dto.MeetingDate) && DateTime.TryParse(dto.MeetingDate, out var d))
         {
             mDate = d;
+        }
+
+        var isOnlineMode = string.Equals(dto.MeetingMode?.Trim(), "Online", StringComparison.OrdinalIgnoreCase) ||
+                           string.Equals(dto.MeetingMode?.Trim(), "Online Video Meeting", StringComparison.OrdinalIgnoreCase);
+
+        var meetingUrl = dto.OnlineMeetingUrl?.Trim();
+        if (isOnlineMode && string.IsNullOrWhiteSpace(meetingUrl))
+        {
+            meetingUrl = $"https://meet.jit.si/SMS-Meeting-{Guid.NewGuid().ToString("N")[..8]}";
         }
 
         var entity = new Meeting
@@ -397,7 +503,7 @@ public class CommunicationController : ControllerBase
             Floor = dto.Floor?.Trim() ?? string.Empty,
             MeetingRoom = dto.MeetingRoom?.Trim() ?? string.Empty,
             RoomCapacity = dto.RoomCapacity > 0 ? dto.RoomCapacity : 0,
-            OnlineMeetingUrl = dto.OnlineMeetingUrl?.Trim(),
+            OnlineMeetingUrl = meetingUrl,
             MeetingDate = mDate,
             StartTime = dto.StartTime?.Trim() ?? string.Empty,
             EndTime = dto.EndTime?.Trim() ?? string.Empty,
@@ -406,6 +512,8 @@ public class CommunicationController : ControllerBase
             AttendancePolicy = dto.AttendancePolicy?.Trim() ?? string.Empty,
             Recurrence = dto.Recurrence?.Trim() ?? string.Empty,
             TotalRecipients = dto.TotalRecipients > 0 ? dto.TotalRecipients : 1,
+            OrganizerName = !string.IsNullOrWhiteSpace(dto.OrganizerName) ? dto.OrganizerName.Trim() : (User.FindFirst(System.Security.Claims.ClaimTypes.Name)?.Value ?? "Administrator"),
+            OrganizerRole = !string.IsNullOrWhiteSpace(dto.OrganizerRole) ? dto.OrganizerRole.Trim() : (User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value ?? "Admin"),
             CreatedAt = DateTime.UtcNow
         };
 
@@ -488,6 +596,8 @@ public class CommunicationController : ControllerBase
         Priority = m.Priority ?? "Normal",
         AttendancePolicy = m.AttendancePolicy ?? "",
         Recurrence = m.Recurrence ?? "",
-        TotalRecipients = m.TotalRecipients > 0 ? m.TotalRecipients : 1
+        TotalRecipients = m.TotalRecipients > 0 ? m.TotalRecipients : 1,
+        OrganizerName = m.OrganizerName ?? "Administrator",
+        OrganizerRole = m.OrganizerRole ?? "Admin"
     };
 }
