@@ -76,11 +76,11 @@ namespace SMS.Api.Services.Ai.Tools
 
             if (!string.IsNullOrWhiteSpace(clsFilter))
             {
-                studentQuery = studentQuery.Where(s => s.ClassGrade != null && s.ClassGrade.ClassName.ToLower().Contains(clsFilter));
+                studentQuery = studentQuery.Where(s => s.ClassGrade != null && s.ClassGrade.ClassName != null && s.ClassGrade.ClassName.ToLower().Contains(clsFilter));
             }
             if (!string.IsNullOrWhiteSpace(secFilter))
             {
-                studentQuery = studentQuery.Where(s => s.ClassSection != null && s.ClassSection.SectionName.ToLower().Contains(secFilter));
+                studentQuery = studentQuery.Where(s => s.ClassSection != null && s.ClassSection.SectionName != null && s.ClassSection.SectionName.ToLower().Contains(secFilter));
             }
 
             var totalEnrolled = await studentQuery.CountAsync();

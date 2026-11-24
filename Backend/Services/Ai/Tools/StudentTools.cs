@@ -89,12 +89,12 @@ namespace SMS.Api.Services.Ai.Tools
 
             if (!string.IsNullOrWhiteSpace(cls))
             {
-                query = query.Where(s => s.ClassGrade.ClassName.ToLower().Contains(cls));
+                query = query.Where(s => s.ClassGrade != null && s.ClassGrade.ClassName != null && s.ClassGrade.ClassName.ToLower().Contains(cls));
             }
 
             if (!string.IsNullOrWhiteSpace(sec))
             {
-                query = query.Where(s => s.ClassSection.SectionName.ToLower().Contains(sec));
+                query = query.Where(s => s.ClassSection != null && s.ClassSection.SectionName != null && s.ClassSection.SectionName.ToLower().Contains(sec));
             }
 
             var students = await query.Take(25).ToListAsync();

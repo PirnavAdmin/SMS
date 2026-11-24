@@ -3,6 +3,7 @@ using Finbuckle.MultiTenant.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using SMS.Api.Models;
 using SMS.Api.Models.AcademicManagement;
+using SMS.Api.Models.Ai;
 using SMS.Api.Models.Examination;
 
 namespace SMS.Api.Data
@@ -242,6 +243,12 @@ namespace SMS.Api.Data
         public DbSet<ParentStudentMapping> ParentStudentMappings { get; set; } = null!;
         //public DbSet<AdmissionApplication> AdmissionApplications { get; set; } = null!;
 
+        // =====================================================
+        // AI Assistant Module
+        // =====================================================
+        public DbSet<AiConversation> AiConversations { get; set; } = null!;
+        public DbSet<AiChatMessage> AiChatMessages { get; set; } = null!;
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -302,6 +309,7 @@ namespace SMS.Api.Data
             ConfigureSchoolSettings(modelBuilder);
             ConfigurePlatformCompanyProfile(modelBuilder);
             ConfigureSubscriptionPackage(modelBuilder);
+            ConfigureAiEntities(modelBuilder);
         }
 
         private static void ConfigureSubscriptionPackage(ModelBuilder modelBuilder)
@@ -2318,6 +2326,49 @@ namespace SMS.Api.Data
                     .WithMany()
                     .HasForeignKey(x => x.StaffId)
                     .OnDelete(DeleteBehavior.Cascade);
+            });
+        }
+
+        private static void ConfigureAiEntities(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<AiConversation>(entity =>
+            {
+                entity.ToTable("ai_conversations");
+                entity.HasKey(x => x.Id);
+                entity.Property(x => x.Id).HasColumnName("id").HasMaxLength(64);
+                entity.Property(x => x.TenantId).HasColumnName("TenantId").HasMaxLength(64);
+                entity.Property(x => x.UserId).HasColumnName("user_id").IsRequired();
+                entity.Property(x => x.UserRole).HasColumnName("user_role").HasMaxLength(50).IsRequired();
+                entity.Property(x => x.Title).HasColumnName("title").HasMaxLength(255).IsRequired();
+                entity.Property(x => x.SchoolId).HasColumnName("school_id");
+                entity.Property(x => x.BranchId).HasColumnName("branch_id");
+                entity.Property(x => x.AcademicYearId).HasColumnName("academic_year_id");
+                entity.Property(x => x.IsPinned).HasColumnName("is_pinned");
+                entity.Property(x => x.IsDeleted).HasColumnName("is_deleted");
+                entity.Property(x => x.CreatedAt).HasColumnName("created_at");
+                entity.Property(x => x.UpdatedAt).HasColumnName("updated_at");
+
+                entity.HasMany(x => x.Messages)
+                    .WithOne(m => m.Conversation)
+                    .HasForeignKey(m => m.ConversationId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<AiChatMessage>(entity =>
+            {
+                entity.ToTable("ai_chat_messages");
+                entity.HasKey(x => x.Id);
+                entity.Property(x => x.Id).HasColumnName("id").HasMaxLength(64);
+                entity.Property(x => x.TenantId).HasColumnName("TenantId").HasMaxLength(64);
+                entity.Property(x => x.ConversationId).HasColumnName("conversation_id").HasMaxLength(64).IsRequired();
+                entity.Property(x => x.Sender).HasColumnName("sender").HasMaxLength(20).IsRequired();
+                entity.Property(x => x.Content).HasColumnName("content").IsRequired();
+                entity.Property(x => x.ToolCallsJson).HasColumnName("tool_calls_json");
+                entity.Property(x => x.VisualType).HasColumnName("visual_type").HasMaxLength(50);
+                entity.Property(x => x.VisualDataJson).HasColumnName("visual_data_json");
+                entity.Property(x => x.PendingActionJson).HasColumnName("pending_action_json");
+                entity.Property(x => x.IsActionExecuted).HasColumnName("is_action_executed");
+                entity.Property(x => x.CreatedAt).HasColumnName("created_at");
             });
         }
     }
