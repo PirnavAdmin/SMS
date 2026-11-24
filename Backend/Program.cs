@@ -2102,6 +2102,8 @@ using (var scope = app.Services.CreateScope())
         EnsureColumnExists("meetings", "AttendancePolicy", "varchar(50) NULL DEFAULT 'Mandatory'");
         EnsureColumnExists("meetings", "Recurrence", "varchar(100) NULL DEFAULT 'None (One-time)'");
         EnsureColumnExists("meetings", "TotalRecipients", "int NOT NULL DEFAULT 47");
+        EnsureColumnExists("meetings", "OrganizerName", "varchar(150) NULL DEFAULT 'Administrator'");
+        EnsureColumnExists("meetings", "OrganizerRole", "varchar(50) NULL DEFAULT 'Admin'");
         EnsureColumnExists("hostel_blocks", "HostelName", "varchar(150) NULL");
         EnsureColumnExists("hostel_blocks", "hostel_name", "varchar(150) NULL");
         EnsureColumnExists("hostel_blocks", "HostelCode", "varchar(50) NULL");

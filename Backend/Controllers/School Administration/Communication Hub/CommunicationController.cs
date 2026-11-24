@@ -360,7 +360,7 @@ public class CommunicationController : ControllerBase
                     .AsNoTracking()
                     .FirstOrDefaultAsync(s => 
                         (parsedId > 0 && s.StudentId == parsedId) || 
-                        s.AdmissionNumber.ToLower() == userId.ToLower() ||
+                        (!string.IsNullOrEmpty(s.AdmissionNumber) && s.AdmissionNumber.ToLower() == userId.ToLower()) ||
                         (!string.IsNullOrEmpty(userEmail) && s.Email != null && s.Email.ToLower() == userEmail.ToLower()));
 
                 var studentName = student?.StudentName ?? userName;
