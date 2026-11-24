@@ -19,6 +19,10 @@ using SMS.Api.Repositories.Implementations.Examination;
 using SMS.Api.Services.Interfaces.Examination;
 using SMS.Api.Services.Implementations.Examination;
 using SMS.Api.Services.Implementations.AcademicManagement;
+using SMS.Api.Services.Ai;
+using SMS.Api.Services.Ai.Interfaces;
+using SMS.Api.Services.Ai.Providers;
+using SMS.Api.Services.Ai.Tools;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -212,6 +216,32 @@ builder.Services.AddScoped<SMS.Api.Services.Interfaces.Dashboard.IDashboardServi
 builder.Services.AddScoped<SMS.Api.Repositories.Interfaces.Settings.ISettingsRepository, SMS.Api.Repositories.Implementations.Settings.SettingsRepository>();
 builder.Services.AddScoped<SMS.Api.Services.Interfaces.Settings.ISettingsService, SMS.Api.Services.Implementations.Settings.SettingsService>();
 builder.Services.AddScoped<SMS.Api.Services.Interfaces.IBackupService, SMS.Api.Services.Implementations.BackupService>();
+builder.Services.AddScoped<SMS.Api.Services.Interfaces.ILibraryService, SMS.Api.Services.Implementations.LibraryService>();
+
+// =========================================================
+// AI SCHOOL ERP ASSISTANT SERVICES & TOOLS
+// =========================================================
+builder.Services.AddHttpClient();
+builder.Services.AddScoped<DeterministicAiEngine>();
+builder.Services.AddScoped<GeminiAiProvider>();
+
+builder.Services.AddScoped<IAiTool, StudentSearchTool>();
+builder.Services.AddScoped<IAiTool, StudentDetailsTool>();
+builder.Services.AddScoped<IAiTool, AttendanceDailySummaryTool>();
+builder.Services.AddScoped<IAiTool, AttendanceClassSummaryTool>();
+builder.Services.AddScoped<IAiTool, FeeStudentProfileTool>();
+builder.Services.AddScoped<IAiTool, FeeCollectionStatsTool>();
+builder.Services.AddScoped<IAiTool, ExamStudentResultsTool>();
+builder.Services.AddScoped<IAiTool, ExamScheduleTool>();
+builder.Services.AddScoped<IAiTool, TransportFleetTool>();
+builder.Services.AddScoped<IAiTool, LibraryCatalogTool>();
+builder.Services.AddScoped<IAiTool, TimetableScheduleTool>();
+builder.Services.AddScoped<IAiTool, AdminStaffDirectoryTool>();
+builder.Services.AddScoped<IAiTool, AdminClassesTool>();
+builder.Services.AddScoped<IAiTool, ActionCreateAnnouncementTool>();
+builder.Services.AddScoped<IAiTool, ActionScheduleMeetingTool>();
+
+builder.Services.AddScoped<IAiService, AiService>();
 
 // =========================================================
 // 3. JWT AUTHENTICATION
@@ -502,6 +532,40 @@ using (var scope = app.Services.CreateScope())
                 ");
 
                 context.Database.ExecuteSqlRaw(@"
+                    CREATE TABLE IF NOT EXISTS `ai_conversations` (
+                        `id` varchar(64) NOT NULL,
+                        `TenantId` varchar(64) NULL DEFAULT 'tenant-default',
+                        `user_id` int NOT NULL,
+                        `user_role` varchar(50) NOT NULL DEFAULT 'Admin',
+                        `title` varchar(255) NOT NULL DEFAULT 'New Conversation',
+                        `school_id` int NULL,
+                        `branch_id` int NULL,
+                        `academic_year_id` int NULL,
+                        `is_pinned` tinyint(1) NOT NULL DEFAULT 0,
+                        `is_deleted` tinyint(1) NOT NULL DEFAULT 0,
+                        `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+                        `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+                        PRIMARY KEY (`id`)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+                    CREATE TABLE IF NOT EXISTS `ai_chat_messages` (
+                        `id` varchar(64) NOT NULL,
+                        `TenantId` varchar(64) NULL DEFAULT 'tenant-default',
+                        `conversation_id` varchar(64) NOT NULL,
+                        `sender` varchar(20) NOT NULL DEFAULT 'user',
+                        `content` longtext NOT NULL,
+                        `tool_calls_json` longtext NULL,
+                        `visual_type` varchar(50) NULL,
+                        `visual_data_json` longtext NULL,
+                        `pending_action_json` longtext NULL,
+                        `is_action_executed` tinyint(1) NULL,
+                        `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+                        PRIMARY KEY (`id`),
+                        KEY `IX_ai_chat_messages_conv` (`conversation_id`)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+                ");
+
+                context.Database.ExecuteSqlRaw(@"
                     CREATE TABLE IF NOT EXISTS `subscription_packages` (
                         `Id` varchar(100) NOT NULL,
                         `Name` varchar(200) NOT NULL,
@@ -519,6 +583,40 @@ using (var scope = app.Services.CreateScope())
                         `CreatedAt` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
                         `UpdatedAt` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
                         PRIMARY KEY (`Id`)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+                ");
+
+                context.Database.ExecuteSqlRaw(@"
+                    CREATE TABLE IF NOT EXISTS `ai_conversations` (
+                        `id` varchar(64) NOT NULL,
+                        `TenantId` varchar(64) NULL DEFAULT 'tenant-default',
+                        `user_id` int NOT NULL,
+                        `user_role` varchar(50) NOT NULL DEFAULT 'Admin',
+                        `title` varchar(255) NOT NULL DEFAULT 'New Conversation',
+                        `school_id` int NULL,
+                        `branch_id` int NULL,
+                        `academic_year_id` int NULL,
+                        `is_pinned` tinyint(1) NOT NULL DEFAULT 0,
+                        `is_deleted` tinyint(1) NOT NULL DEFAULT 0,
+                        `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+                        `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+                        PRIMARY KEY (`id`)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+                    CREATE TABLE IF NOT EXISTS `ai_chat_messages` (
+                        `id` varchar(64) NOT NULL,
+                        `TenantId` varchar(64) NULL DEFAULT 'tenant-default',
+                        `conversation_id` varchar(64) NOT NULL,
+                        `sender` varchar(20) NOT NULL DEFAULT 'user',
+                        `content` longtext NOT NULL,
+                        `tool_calls_json` longtext NULL,
+                        `visual_type` varchar(50) NULL,
+                        `visual_data_json` longtext NULL,
+                        `pending_action_json` longtext NULL,
+                        `is_action_executed` tinyint(1) NULL,
+                        `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+                        PRIMARY KEY (`id`),
+                        KEY `IX_ai_chat_messages_conv` (`conversation_id`)
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
                 ");
             }
@@ -543,7 +641,7 @@ using (var scope = app.Services.CreateScope())
                     "employee_salary_assignments", "faculty_training_participations",
                     "leave_applications", "staff_attendances", "staff_documents",
                     "staff_experiences", "staff_qualifications", "teacher_attendance_corrections",
-                    "teacher_substitutions", "homework_submissions"
+                    "teacher_substitutions", "homework_submissions", "ai_conversations", "ai_chat_messages"
                 };
 
                 foreach (var tbl in multiTenantTables)
