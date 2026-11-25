@@ -44,25 +44,43 @@ export default defineConfig(async ({ command, mode }): Promise<UserConfig> => {
   const configuredTarget = (env.VITE_BACKEND_TARGET || env.VITE_API_URL || '').trim().replace(/\/+$/, '');
   const forceRemote = env.VITE_FORCE_REMOTE_PROXY === 'true';
 
-  let localTarget = '';
-  if (command === 'serve' && !forceRemote) {
+  const pickLocalTarget = async (): Promise<string> => {
     if (await isPortReachable('127.0.0.1', 5151)) {
-      localTarget = 'http://127.0.0.1:5151';
-    } else if (await isPortReachable('::1', 5151)) {
-      localTarget = 'http://[::1]:5151';
+      return 'http://127.0.0.1:5151';
     }
-  }
+    if (await isPortReachable('::1', 5151)) {
+      return 'http://[::1]:5151';
+    }
+    return '';
+  };
 
-  const apiTarget = localTarget || configuredTarget || 'http://127.0.0.1:5151';
-  const isHttps = apiTarget.startsWith('https');
+  let cachedTarget = '';
+  let lastCheckedAt = 0;
+  let lastProxyWarnAt = 0;
+
+  const resolveProxyTarget = async (): Promise<string> => {
+    if (command === 'serve' && !forceRemote) {
+      const now = Date.now();
+      if (!cachedTarget || now - lastCheckedAt > 1500) {
+        const reachable = await pickLocalTarget();
+        cachedTarget = reachable || 'http://127.0.0.1:5151';
+        lastCheckedAt = now;
+      }
+      return cachedTarget;
+    }
+    return configuredTarget || 'http://127.0.0.1:5151';
+  };
+
+  const initialTarget = await resolveProxyTarget();
+  const isHttps = forceRemote && initialTarget.startsWith('https');
 
   const sharedProxyOptions: ProxyOptions = {
-    target: apiTarget,
+    target: initialTarget,
     changeOrigin: true,
     secure: false,
     agent: isHttps ? httpsAgent : httpAgent,
-    timeout: 30000,
-    proxyTimeout: 30000,
+    timeout: 60000,
+    proxyTimeout: 60000,
     headers: {
       'ngrok-skip-browser-warning': 'true',
     },
@@ -71,13 +89,33 @@ export default defineConfig(async ({ command, mode }): Promise<UserConfig> => {
   const proxy: Record<string, ProxyOptions> = {
     '/api': {
       ...sharedProxyOptions,
-      configure: (proxyServer) => {
+      configure: (proxyServer, options) => {
+        if (command === 'serve' && !forceRemote) {
+          const timer = setInterval(() => {
+            void resolveProxyTarget().then((nextTarget) => {
+              options.target = nextTarget;
+            });
+          }, 2000);
+          timer.unref();
+        }
         proxyServer.on('error', (err, _req, res) => {
-          console.warn('[vite proxy error] Target backend connection failed:', err.message);
+          void resolveProxyTarget().then((nextTarget) => {
+            options.target = nextTarget;
+          });
+          const now = Date.now();
+          if (now - lastProxyWarnAt > 5000) {
+            lastProxyWarnAt = now;
+            console.warn(
+              `[vite proxy] Local ASP.NET Core backend is unavailable (${err.message}). Wait for "dotnet run" on :5151 or run .\\start-dev.ps1.`
+            );
+          }
           const httpRes = res as http.ServerResponse | undefined;
           if (httpRes && !httpRes.headersSent && typeof httpRes.writeHead === 'function') {
-            httpRes.writeHead(503, { 'Content-Type': 'application/json' });
-            httpRes.end(JSON.stringify({ error: 'Backend proxy offline or TLS disconnected', details: err.message }));
+            httpRes.writeHead(503, {
+              'Content-Type': 'application/json',
+              'Retry-After': '2',
+            });
+            httpRes.end(JSON.stringify({ error: 'Backend starting or offline', details: err.message }));
           }
         });
       },
