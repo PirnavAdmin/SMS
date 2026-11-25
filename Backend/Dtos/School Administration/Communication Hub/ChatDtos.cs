@@ -17,6 +17,9 @@ public class ChatContactDto
     public string? Subject { get; set; }
     public string? Designation { get; set; }
     public string? AdmissionNo { get; set; }
+    public string? StudentId { get; set; }
+    public string? RollNo { get; set; }
+    public string? EmployeeId { get; set; }
     public bool IsOnline { get; set; }
     public string? LastMessage { get; set; }
     public string? LastMessageTime { get; set; }
@@ -63,4 +66,9 @@ public class InitiateCallDto
     public string? ReceiverName { get; set; }
     public string? ReceiverRole { get; set; }
     public string CallType { get; set; } = "video"; // "video" | "audio"
+}
+
+public class DeleteMessagesDto
+{
+    public System.Collections.Generic.List<int> MessageIds { get; set; } = new();
 }

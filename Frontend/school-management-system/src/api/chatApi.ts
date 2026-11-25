@@ -14,6 +14,10 @@ export interface ChatContact {
   subject?: string;
   designation?: string;
   admissionNo?: string;
+  studentId?: string;
+  rollNo?: string;
+  employeeId?: string;
+  empId?: string;
   isOnline: boolean;
   lastMessage?: string;
   lastMessageTime?: string;
@@ -89,11 +93,19 @@ export const fetchChatContactsApi = async (classFilter?: string, staffCategory?:
 export const fetchChatMessagesApi = async (contactId: string): Promise<{
   success: boolean;
   contactId: string;
+  isContactOnline?: boolean;
   data: ChatMessage[];
 }> => {
   return apiClient(`/api/chat/messages?contactId=${encodeURIComponent(contactId)}`, {
     method: 'GET'
   });
+};
+
+/**
+ * Send presence heartbeat to backend.
+ */
+export const sendChatHeartbeatApi = async (): Promise<{ success: boolean }> => {
+  return apiClient('/api/chat/heartbeat', { method: 'POST' });
 };
 
 /**
@@ -134,4 +146,32 @@ export const fetchChatUnreadCountApi = async (): Promise<{
   unreadCount: number;
 }> => {
   return apiClient('/api/chat/unread-count', { method: 'GET' });
+};
+
+/**
+ * Delete / clear all messages in a conversation with a contact.
+ */
+export const deleteConversationApi = async (contactId: string): Promise<{
+  success: boolean;
+  contactId: string;
+  deletedCount: number;
+  message: string;
+}> => {
+  return apiClient(`/api/chat/conversation?contactId=${encodeURIComponent(contactId)}`, {
+    method: 'DELETE'
+  });
+};
+
+/**
+ * Delete specific messages by their IDs.
+ */
+export const deleteSpecificMessagesApi = async (messageIds: number[]): Promise<{
+  success: boolean;
+  deletedCount: number;
+  message: string;
+}> => {
+  return apiClient('/api/chat/messages', {
+    method: 'DELETE',
+    body: JSON.stringify({ messageIds })
+  });
 };
