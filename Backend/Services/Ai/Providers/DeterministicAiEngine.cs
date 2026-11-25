@@ -18,10 +18,65 @@ namespace SMS.Api.Services.Ai.Providers
             var msg = (context.LatestUserMessage ?? "").Trim().ToLowerInvariant();
             var result = new AiCompletionResult();
 
+            // 0. WRITE ACTION INTENTS (Announcements & Meeting Scheduling with Confirmation Requirement)
+            if (msg.Contains("announcement") || msg.Contains("circular") || msg.Contains("broadcast"))
+            {
+                var actionTool = availableTools.FirstOrDefault(t => t.Name == "action_create_announcement");
+                if (actionTool != null)
+                {
+                    var titleMatch = Regex.Match(context.LatestUserMessage ?? "", @"(?:titled|title|subject|announcement:?)\s*[:'-]?\s*['""]?([^'""\n\r]+)['""]?", RegexOptions.IgnoreCase);
+                    var title = titleMatch.Success ? titleMatch.Groups[1].Value.Trim() : "School Circular";
+                    var content = "Important school notification regarding upcoming schedule.";
+
+                    var payload = new Dictionary<string, string>
+                    {
+                        ["title"] = title,
+                        ["content"] = content,
+                        ["targetAudience"] = msg.Contains("parent") ? "Parents" : msg.Contains("teacher") ? "Teachers" : msg.Contains("student") ? "Students" : "All",
+                        ["category"] = msg.Contains("holiday") ? "HOLIDAY" : msg.Contains("exam") ? "EXAM" : "ACADEMIC"
+                    };
+
+                    var jsonArgs = JsonSerializer.Serialize(payload);
+                    result.ToolCallsRequested.Add(new AiToolCallRequest
+                    {
+                        ToolName = actionTool.Name,
+                        Arguments = JsonDocument.Parse(jsonArgs).RootElement
+                    });
+                    result.ReplyText = "Preparing announcement draft for your confirmation...";
+                    return Task.FromResult(result);
+                }
+            }
+
+            if (msg.Contains("meeting") || msg.Contains("ptm") || msg.Contains("parent teacher meeting") || msg.Contains("parent-teacher meeting"))
+            {
+                var meetTool = availableTools.FirstOrDefault(t => t.Name == "action_schedule_meeting");
+                if (meetTool != null)
+                {
+                    var payload = new Dictionary<string, string>
+                    {
+                        ["meetingTitle"] = "PTM: Parent-Teacher Meeting",
+                        ["meetingDate"] = DateTime.Today.AddDays(3).ToString("yyyy-MM-dd"),
+                        ["meetingTime"] = "10:30 AM",
+                        ["audience"] = "Parent",
+                        ["mode"] = "In-Person",
+                        ["agenda"] = "Review of academic progress, attendance and term assessments."
+                    };
+
+                    var jsonArgs = JsonSerializer.Serialize(payload);
+                    result.ToolCallsRequested.Add(new AiToolCallRequest
+                    {
+                        ToolName = meetTool.Name,
+                        Arguments = JsonDocument.Parse(jsonArgs).RootElement
+                    });
+                    result.ReplyText = "Preparing meeting schedule preview for your review...";
+                    return Task.FromResult(result);
+                }
+            }
+
             // 1. ATTENDANCE INTENTS
             if (msg.Contains("highest") && (msg.Contains("attendance") || msg.Contains("present")))
             {
-                var tool = availableTools.FirstOrDefault(t => t.Name == "attendance_get_class_summary");
+                var tool = availableTools.FirstOrDefault(t => t.Name == "attendance_get_class_comparison" || t.Name == "attendance_get_class_summary");
                 if (tool != null)
                 {
                     result.ToolCallsRequested.Add(new AiToolCallRequest
@@ -63,7 +118,9 @@ namespace SMS.Api.Services.Ai.Providers
             if (msg.Contains("fee") || msg.Contains("dues") || msg.Contains("pending fee") || msg.Contains("overdue") || msg.Contains("collection"))
             {
                 // School-wide fee collection
-                if (msg.Contains("total collection") || msg.Contains("collection summary") || msg.Contains("overall fee") || msg.Contains("school collection"))
+                if ((msg.Contains("collection") && (msg.Contains("total") || msg.Contains("stats") || msg.Contains("summary") || msg.Contains("overall") || msg.Contains("overdue"))) ||
+                    (msg.Contains("total") && msg.Contains("collection")) ||
+                    msg.Contains("school collection") || msg.Contains("overall fee"))
                 {
                     var tool = availableTools.FirstOrDefault(t => t.Name == "fee_get_collection_stats");
                     if (tool != null)
@@ -141,7 +198,7 @@ namespace SMS.Api.Services.Ai.Providers
             // 4. TRANSPORT INTENTS
             if (msg.Contains("bus") || msg.Contains("transport") || msg.Contains("route") || msg.Contains("driver") || msg.Contains("pickup"))
             {
-                var transTool = availableTools.FirstOrDefault(t => t.Name == "transport_get_routes_stops");
+                var transTool = availableTools.FirstOrDefault(t => t.Name == "transport_get_fleet_info" || t.Name == "transport_get_routes_stops");
                 if (transTool != null)
                 {
                     var payload = new Dictionary<string, string>();
@@ -162,7 +219,7 @@ namespace SMS.Api.Services.Ai.Providers
             // 5. LIBRARY INTENTS
             if (msg.Contains("library") || msg.Contains("book") || msg.Contains("author") || msg.Contains("isbn") || msg.Contains("overdue book"))
             {
-                var libTool = availableTools.FirstOrDefault(t => t.Name == "library_check_availability");
+                var libTool = availableTools.FirstOrDefault(t => t.Name == "library_search_catalog" || t.Name == "library_check_availability");
                 if (libTool != null)
                 {
                     bool checkIssued = msg.Contains("issued") || msg.Contains("overdue") || msg.Contains("borrowed");

@@ -14,6 +14,7 @@ export const SUPERADMIN_MODULES = [
 
 export const SCHOOL_MODULES = [
   "dashboard",
+  "ai-assistant",
   "students",
   "staff",
   "admissions",
@@ -57,6 +58,7 @@ export const ROLE_PERMISSIONS: Record<Role, ModuleId[]> = {
   Admin: [...SCHOOL_MODULES],
   Principal: [
     "dashboard",
+    "ai-assistant",
     "students",
     "staff",
     "fees",
@@ -76,6 +78,7 @@ export const ROLE_PERMISSIONS: Record<Role, ModuleId[]> = {
   ],
   Teacher: [
     "dashboard",
+    "ai-assistant",
     "students",
     "attendance",
     "timetable",
@@ -87,26 +90,29 @@ export const ROLE_PERMISSIONS: Record<Role, ModuleId[]> = {
     "events",
     "staff",
   ],
-  HR: ["dashboard", "staff", "communication", "events", "training"],
+  HR: ["dashboard", "ai-assistant", "staff", "communication", "events", "training"],
   Accountant: [
     "dashboard",
+    "ai-assistant",
     "staff",
     "fees",
     "inventory",
     "communication",
     "events",
   ],
-  Librarian: ["dashboard", "library", "communication", "events", "staff"],
+  Librarian: ["dashboard", "ai-assistant", "library", "communication", "events", "staff"],
   "Transport Manager": [
     "dashboard",
+    "ai-assistant",
     "transport",
     "communication",
     "events",
     "training",
   ],
-  Driver: ["dashboard", "transport", "communication", "events", "staff"],
+  Driver: ["dashboard", "ai-assistant", "transport", "communication", "events", "staff"],
   "Hostel Warden": [
     "dashboard",
+    "ai-assistant",
     "hostel",
     "students",
     "communication",
@@ -115,6 +121,7 @@ export const ROLE_PERMISSIONS: Record<Role, ModuleId[]> = {
   ],
   Receptionist: [
     "dashboard",
+    "ai-assistant",
     "admissions",
     "students",
     "certificates",
@@ -124,6 +131,7 @@ export const ROLE_PERMISSIONS: Record<Role, ModuleId[]> = {
   ],
   Student: [
     "dashboard",
+    "ai-assistant",
     "attendance",
     "timetable",
     "report-cards",
@@ -138,6 +146,7 @@ export const ROLE_PERMISSIONS: Record<Role, ModuleId[]> = {
   ],
   Parent: [
     "dashboard",
+    "ai-assistant",
     "attendance",
     "timetable",
     "report-cards",
@@ -149,7 +158,7 @@ export const ROLE_PERMISSIONS: Record<Role, ModuleId[]> = {
     "staff",
     "transport",
   ],
-  Staff: ["dashboard", "staff", "communication", "events", "training"],
+  Staff: ["dashboard", "ai-assistant", "staff", "communication", "events", "training"],
 };
 
 const normalizeRoleForRbac = (roleStr: string): Role => {

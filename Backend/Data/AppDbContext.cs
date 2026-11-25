@@ -5,6 +5,7 @@ using SMS.Api.Models;
 using SMS.Api.Models.AcademicManagement;
 using SMS.Api.Models.Ai;
 using SMS.Api.Models.Examination;
+using SMS.Api.Models.Ai;
 
 namespace SMS.Api.Data
 {
@@ -125,6 +126,10 @@ namespace SMS.Api.Data
         public DbSet<Circular> Circulars { get; set; } = null!;
         public DbSet<Meeting> Meetings { get; set; } = null!;
         public DbSet<DirectChatMessage> DirectChatMessages { get; set; } = null!;
+
+        // AI Assistant Chat History
+        public DbSet<AiConversation> AiConversations { get; set; } = null!;
+        public DbSet<AiChatMessage> AiChatMessages { get; set; } = null!;
 
         // Academic Calendar & Events Module
         public DbSet<SchoolEvent> SchoolEvents { get; set; } = null!;
@@ -1393,6 +1398,8 @@ namespace SMS.Api.Data
             modelBuilder.Entity<Circular>().ToTable("circulars");
             modelBuilder.Entity<Meeting>().ToTable("meetings");
             modelBuilder.Entity<DirectChatMessage>().ToTable("direct_chat_messages");
+            modelBuilder.Entity<AiConversation>().ToTable("ai_conversations");
+            modelBuilder.Entity<AiChatMessage>().ToTable("ai_chat_messages");
             modelBuilder.Entity<SchoolEvent>().ToTable("school_events");
             modelBuilder.Entity<PayrollConfig>().ToTable("payroll_configs");
             modelBuilder.Entity<SalaryComponent>().ToTable("salary_components");
