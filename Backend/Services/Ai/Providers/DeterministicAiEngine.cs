@@ -287,13 +287,41 @@ namespace SMS.Api.Services.Ai.Providers
                 }
             }
 
+            // 7b. STUDENT OVERVIEW & COUNT INTENTS
+            if (msg.Contains("how many student") || msg.Contains("total student") || msg.Contains("number of student") ||
+                msg.Contains("student count") || msg.Contains("count of student") || msg.Contains("students are there") ||
+                msg.Contains("students in our school") || msg.Contains("students in school") || msg.Contains("student strength") ||
+                msg.Contains("enrolled student") || msg.Contains("how many enrolled") || msg.Contains("total enrolled") ||
+                msg.Contains("enrollment") || msg.Contains("class-wise student") || msg.Contains("classwise student") ||
+                ((msg.Contains("how many") || msg.Contains("total")) && (msg.Contains("student") || msg.Contains("boys") || msg.Contains("girls"))))
+            {
+                var overviewTool = availableTools.FirstOrDefault(t => t.Name == "student_get_overview");
+                if (overviewTool != null)
+                {
+                    var cls = ExtractClass(msg);
+                    var sec = ExtractSection(msg);
+                    var payload = new Dictionary<string, string>();
+                    if (!string.IsNullOrEmpty(cls)) payload["className"] = cls;
+                    if (!string.IsNullOrEmpty(sec)) payload["sectionName"] = sec;
+
+                    var jsonArgs = JsonSerializer.Serialize(payload);
+                    result.ToolCallsRequested.Add(new AiToolCallRequest
+                    {
+                        ToolName = overviewTool.Name,
+                        Arguments = JsonDocument.Parse(jsonArgs).RootElement
+                    });
+                    result.ReplyText = "Retrieving total student enrollment and class-wise distribution records from the database...";
+                    return Task.FromResult(result);
+                }
+            }
+
             // 8. STUDENT SEARCH / DIRECTORY INTENTS
             if (msg.Contains("student") || msg.Contains("roll") || msg.Contains("admission") || msg.Contains("find student") || msg.Contains("search student") || msg.Contains("profile"))
             {
                 var studentTool = availableTools.FirstOrDefault(t => t.Name == "student_search");
                 if (studentTool != null)
                 {
-                    var q = ExtractNameOrQuery(msg, new[] { "student", "search", "find", "details", "of", "for", "show", "profile", "roll", "admission" });
+                    var q = ExtractNameOrQuery(msg, new[] { "student", "students", "search", "find", "details", "of", "for", "show", "profile", "roll", "admission", "how", "many", "are", "there", "in", "our", "school", "all" });
                     var cls = ExtractClass(msg);
                     var sec = ExtractSection(msg);
 

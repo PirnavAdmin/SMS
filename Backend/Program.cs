@@ -225,6 +225,7 @@ builder.Services.AddHttpClient();
 builder.Services.AddScoped<DeterministicAiEngine>();
 builder.Services.AddScoped<GeminiAiProvider>();
 
+builder.Services.AddScoped<IAiTool, StudentOverviewTool>();
 builder.Services.AddScoped<IAiTool, StudentSearchTool>();
 builder.Services.AddScoped<IAiTool, StudentDetailsTool>();
 builder.Services.AddScoped<IAiTool, AttendanceDailySummaryTool>();
