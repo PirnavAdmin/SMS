@@ -1089,12 +1089,13 @@ export const AiAssistantView: React.FC = () => {
             </p>
           </form>
         </div>
-      </main>
+      </section>
       <KnowledgeDocsModal
         open={showKnowledgeModal}
         canManage={['Super Admin', 'SuperAdmin', 'Admin', 'Principal'].includes(role || '')}
         onClose={() => setShowKnowledgeModal(false)}
       />
     </div>
+  </div>
   );
 };
