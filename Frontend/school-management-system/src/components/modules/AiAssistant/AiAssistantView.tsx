@@ -607,63 +607,99 @@ export const AiAssistantView: React.FC = () => {
   const activeConv = conversations.find((c) => c.id === activeConversationId);
 
   return (
-    <div className="flex h-[calc(100vh-4.25rem)] w-full overflow-hidden bg-slate-50 dark:bg-slate-950">
-      {/* Mobile Drawer Overlay */}
-      {showMobileSidebar && (
-        <div
-          onClick={() => setShowMobileSidebar(false)}
-          className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm lg:hidden"
-        />
-      )}
-
-      {/* LEFT SIDEBAR: Conversation History */}
-      <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 transition-transform duration-300 lg:static lg:translate-x-0 ${
-          showMobileSidebar ? 'translate-x-0' : '-translate-x-full'
-        }`}
-      >
-        {/* Sidebar Header */}
-        <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 p-3.5">
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-tr from-sky-500 to-indigo-600 text-white shadow-sm">
-              <Sparkles className="h-4 w-4" />
-            </div>
-            <div>
-              <h2 className="text-sm font-bold text-slate-900 dark:text-white leading-tight">
-                School AI
-              </h2>
-              <p className="text-[10px] text-slate-500">ERP Copilot • v2.0</p>
-            </div>
+    <div className="space-y-3.5 animate-in fade-in">
+      {/* Page Header with Breadcrumb / Role Scope */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <div className="p-2.5 bg-gradient-to-tr from-sky-500 to-indigo-600 text-white rounded-2xl shadow-md shadow-sky-500/20">
+            <Sparkles className="w-5 h-5" />
           </div>
-          <button
-            onClick={() => setShowMobileSidebar(false)}
-            className="lg:hidden rounded-md p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-          >
-            <X className="h-5 w-5" />
-          </button>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="text-lg sm:text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+                AI School ERP Assistant
+              </h2>
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                Live ERP Connected
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Integrated across all 14 school modules • Role: <span className="font-semibold text-slate-700 dark:text-slate-300">{role || 'Administrator'}</span>
+              {selectedBranch ? ` • Campus: ${selectedBranch}` : ''}
+            </p>
+          </div>
         </div>
 
-        {/* New Chat Button & Search */}
-        <div className="p-3 space-y-2 border-b border-slate-100 dark:border-slate-800">
+        <div className="flex items-center gap-2">
           <button
             onClick={handleNewConversation}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 px-3 py-2 text-xs font-semibold text-white shadow-sm hover:from-sky-500 hover:to-indigo-500 transition-all"
+            className="flex items-center gap-2 rounded-2xl bg-gradient-to-r from-sky-600 to-indigo-600 px-3.5 py-2 text-xs font-bold text-white shadow-sm hover:from-sky-500 hover:to-indigo-500 transition-all active:scale-95 cursor-pointer"
           >
             <Plus className="h-4 w-4" />
             <span>New Chat</span>
           </button>
-
-          <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-            <input
-              type="text"
-              value={searchConvText}
-              onChange={(e) => setSearchConvText(e.target.value)}
-              placeholder="Search chat history..."
-              className="h-8 w-full rounded-lg border border-slate-200 bg-slate-50 pl-8 pr-2.5 text-xs text-slate-800 focus:border-sky-500 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
-            />
-          </div>
         </div>
+      </div>
+
+      {/* Main Chat Card Container (properly bounded below the header) */}
+      <div className="h-[calc(100vh-190px)] min-h-[580px] flex rounded-3xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-xl overflow-hidden backdrop-blur-xl relative">
+        {/* Mobile Drawer Overlay - Contained inside the card */}
+        {showMobileSidebar && (
+          <div
+            onClick={() => setShowMobileSidebar(false)}
+            className="absolute inset-0 z-20 bg-slate-900/40 backdrop-blur-xs lg:hidden"
+          />
+        )}
+
+        {/* LEFT SIDEBAR: Conversation History */}
+        <aside
+          className={`absolute inset-y-0 left-0 z-30 flex w-72 flex-col border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900 transition-transform duration-300 lg:static lg:translate-x-0 ${
+            showMobileSidebar ? 'translate-x-0' : '-translate-x-full'
+          }`}
+        >
+          {/* Sidebar Header */}
+          <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 p-3.5">
+            <div className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-tr from-sky-500 to-indigo-600 text-white shadow-sm">
+                <Sparkles className="h-4 w-4" />
+              </div>
+              <div>
+                <h2 className="text-sm font-bold text-slate-900 dark:text-white leading-tight">
+                  Conversations
+                </h2>
+                <p className="text-[10px] text-slate-500">Persistent Chat History</p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowMobileSidebar(false)}
+              className="lg:hidden rounded-md p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          {/* New Chat Button & Search */}
+          <div className="p-3 space-y-2 border-b border-slate-100 dark:border-slate-800">
+            <button
+              onClick={handleNewConversation}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 px-3 py-2 text-xs font-semibold text-white shadow-sm hover:from-sky-500 hover:to-indigo-500 transition-all cursor-pointer"
+            >
+              <Plus className="h-4 w-4" />
+              <span>New Conversation</span>
+            </button>
+
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+              <input
+                type="text"
+                value={searchConvText}
+                onChange={(e) => setSearchConvText(e.target.value)}
+                placeholder="Search chat history..."
+                className="h-8 w-full rounded-lg border border-slate-200 bg-slate-50 pl-8 pr-2.5 text-xs text-slate-800 focus:border-sky-500 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+              />
+            </div>
+          </div>
 
         {/* Conversations List */}
         <div className="flex-1 overflow-y-auto p-2 space-y-1">
@@ -758,7 +794,7 @@ export const AiAssistantView: React.FC = () => {
       </aside>
 
       {/* MAIN CHAT AREA */}
-      <main className="flex flex-1 flex-col overflow-hidden">
+      <section className="flex flex-1 flex-col overflow-hidden bg-slate-50/50 dark:bg-slate-950/50">
         {/* Top Chat Header */}
         <header className="flex h-14 items-center justify-between border-b border-slate-200 bg-white px-4 dark:border-slate-800 dark:bg-slate-900 shadow-xs">
           <div className="flex items-center gap-3">
@@ -1002,7 +1038,8 @@ export const AiAssistantView: React.FC = () => {
             </p>
           </form>
         </div>
-      </main>
+      </section>
     </div>
+  </div>
   );
 };
