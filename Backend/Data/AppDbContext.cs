@@ -5,7 +5,6 @@ using SMS.Api.Models;
 using SMS.Api.Models.AcademicManagement;
 using SMS.Api.Models.Ai;
 using SMS.Api.Models.Examination;
-using SMS.Api.Models.Ai;
 
 namespace SMS.Api.Data
 {
@@ -247,12 +246,6 @@ namespace SMS.Api.Data
         public DbSet<StudentAttendance> StudentAttendances { get; set; } = null!;
         public DbSet<ParentStudentMapping> ParentStudentMappings { get; set; } = null!;
         //public DbSet<AdmissionApplication> AdmissionApplications { get; set; } = null!;
-
-        // =====================================================
-        // AI Assistant Module
-        // =====================================================
-        public DbSet<AiConversation> AiConversations { get; set; } = null!;
-        public DbSet<AiChatMessage> AiChatMessages { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

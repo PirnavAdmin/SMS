@@ -47,6 +47,8 @@ namespace SMS.Api.Controllers
         }
 
         [HttpPatch("conversations/{conversationId}")]
+        [HttpPut("conversations/{conversationId}")]
+        [HttpPut("conversations/{conversationId}/rename")]
         public async Task<IActionResult> RenameConversation(string conversationId, [FromBody] RenameConversationDto dto)
         {
             if (dto == null || string.IsNullOrWhiteSpace(dto.Title))
@@ -112,6 +114,7 @@ namespace SMS.Api.Controllers
 
         [HttpGet("suggested-prompts")]
         [HttpGet("suggestions")]
+        [HttpGet("prompts")]
         public async Task<IActionResult> GetSuggestedPrompts()
         {
             var prompts = await _aiService.GetSuggestedPromptsAsync(User);
