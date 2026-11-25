@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using SMS.Api.Services.Ai.Interfaces;
+using SMS.Api.Services.Ai.Knowledge;
 
 namespace SMS.Api.Services.Ai.Providers
 {
@@ -16,12 +17,18 @@ namespace SMS.Api.Services.Ai.Providers
         private readonly IConfiguration _config;
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly ILogger<GeminiAiProvider> _logger;
+        private readonly IErpKnowledgeCatalog? _knowledgeCatalog;
 
-        public GeminiAiProvider(IConfiguration config, IHttpClientFactory httpClientFactory, ILogger<GeminiAiProvider> logger)
+        public GeminiAiProvider(
+            IConfiguration config,
+            IHttpClientFactory httpClientFactory,
+            ILogger<GeminiAiProvider> logger,
+            IErpKnowledgeCatalog? knowledgeCatalog = null)
         {
             _config = config;
             _httpClientFactory = httpClientFactory;
             _logger = logger;
+            _knowledgeCatalog = knowledgeCatalog;
         }
 
         public string ProviderName => "GoogleGemini";
@@ -50,7 +57,7 @@ namespace SMS.Api.Services.Ai.Providers
 
         private string BuildSystemInstruction(AiToolContext context)
         {
-            return $"You are the official School ERP AI Assistant for an enterprise school management system. " +
+            var baseInstruction = $"You are the official School ERP AI Assistant for an enterprise school management system. " +
                    $"Authenticated User: Name='{context.UserName}', Role='{context.UserRole}'. " +
                    $"Tenant / Branch: '{context.BranchName ?? "Madhapur Branch"}', Academic Year: '{context.AcademicYear ?? "2026-27"}'. " +
                    $"Instructions:\n" +
@@ -58,8 +65,16 @@ namespace SMS.Api.Services.Ai.Providers
                    $"- When asked for overall student strength, total students, enrollment counts, or grade distribution, call 'student_get_overview'.\n" +
                    $"- When asked for absent students or attendance percentages, call the appropriate attendance tool.\n" +
                    $"- When asked for fee collections, defaulters, or financial comparisons, call the fee tools.\n" +
+                   $"- For questions requiring information from multiple modules (e.g., students who use transport and have unpaid fees), invoke both tools to gather complete data.\n" +
                    $"- Never fabricate numbers or simulate database records.\n" +
-                   $"- Provide clear, concise, professional responses formatted in GitHub-flavored Markdown with bold key numbers and bullet points.";
+                   $"- Provide clear, concise, professional responses formatted in GitHub-flavored Markdown with bold key numbers and bullet points.\n\n";
+
+            if (_knowledgeCatalog != null)
+            {
+                baseInstruction += _knowledgeCatalog.GenerateKnowledgePrompt(context);
+            }
+
+            return baseInstruction;
         }
 
         public async Task<AiCompletionResult> GenerateChatResponseAsync(AiChatContext context, IEnumerable<IAiTool> availableTools)

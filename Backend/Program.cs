@@ -21,6 +21,7 @@ using SMS.Api.Services.Implementations.Examination;
 using SMS.Api.Services.Implementations.AcademicManagement;
 using SMS.Api.Services.Ai;
 using SMS.Api.Services.Ai.Interfaces;
+using SMS.Api.Services.Ai.Knowledge;
 using SMS.Api.Services.Ai.Providers;
 using SMS.Api.Services.Ai.Tools;
 
@@ -222,6 +223,8 @@ builder.Services.AddScoped<SMS.Api.Services.Interfaces.ILibraryService, SMS.Api.
 // AI SCHOOL ERP ASSISTANT SERVICES & TOOLS
 // =========================================================
 builder.Services.AddHttpClient();
+builder.Services.AddSingleton<IErpKnowledgeCatalog, ErpKnowledgeCatalog>();
+builder.Services.AddSingleton<UniversalIntentEngine>();
 builder.Services.AddScoped<DeterministicAiEngine>();
 builder.Services.AddScoped<GeminiAiProvider>();
 
