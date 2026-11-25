@@ -1,7 +1,8 @@
-import { defineConfig, loadEnv, type ProxyOptions } from 'vite';
+import { defineConfig, loadEnv, type ProxyOptions, type UserConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import http from 'http';
 import https from 'https';
+import net from 'net';
 import dns from 'dns';
 import fs from 'fs';
 import path from 'path';
@@ -22,10 +23,37 @@ const httpsAgent = new https.Agent({
   rejectUnauthorized: false,
 });
 
-export default defineConfig(({ mode }) => {
+const isPortReachable = (host: string, port: number, timeoutMs = 300): Promise<boolean> =>
+  new Promise((resolve) => {
+    const socket = net.createConnection({ host, port });
+    let settled = false;
+    const finish = (reachable: boolean) => {
+      if (settled) return;
+      settled = true;
+      socket.destroy();
+      resolve(reachable);
+    };
+    socket.setTimeout(timeoutMs);
+    socket.once('connect', () => finish(true));
+    socket.once('timeout', () => finish(false));
+    socket.once('error', () => finish(false));
+  });
+
+export default defineConfig(async ({ command, mode }): Promise<UserConfig> => {
   const env = loadEnv(mode, process.cwd(), '');
-  const rawTarget = env.VITE_BACKEND_TARGET || env.VITE_API_URL || 'http://127.0.0.1:5151';
-  const apiTarget = rawTarget.trim().replace(/\/+$/, '');
+  const configuredTarget = (env.VITE_BACKEND_TARGET || env.VITE_API_URL || '').trim().replace(/\/+$/, '');
+  const forceRemote = env.VITE_FORCE_REMOTE_PROXY === 'true';
+
+  let localTarget = '';
+  if (command === 'serve' && !forceRemote) {
+    if (await isPortReachable('127.0.0.1', 5151)) {
+      localTarget = 'http://127.0.0.1:5151';
+    } else if (await isPortReachable('::1', 5151)) {
+      localTarget = 'http://[::1]:5151';
+    }
+  }
+
+  const apiTarget = localTarget || configuredTarget || 'http://127.0.0.1:5151';
   const isHttps = apiTarget.startsWith('https');
 
   const sharedProxyOptions: ProxyOptions = {
