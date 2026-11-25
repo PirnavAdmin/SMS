@@ -77,11 +77,26 @@ namespace SMS.Api.Controllers
 
         [HttpPost("chat")]
         [HttpPost("message")]
-        public async Task<IActionResult> SendChatMessage([FromBody] AiChatRequestDto request)
+        public async Task<IActionResult> SendChatMessage(
+            [FromBody] AiChatRequestDto request,
+            [FromQuery] string? branch,
+            [FromQuery] string? academicYear,
+            [FromHeader(Name = "X-Branch-Id")] string? headerBranch,
+            [FromHeader(Name = "X-Academic-Year-Id")] string? headerAcademicYear)
         {
             if (request == null || string.IsNullOrWhiteSpace(request.Message))
             {
                 return BadRequest(new { success = false, message = "Message text is required." });
+            }
+
+            if (string.IsNullOrWhiteSpace(request.BranchName))
+            {
+                request.BranchName = !string.IsNullOrWhiteSpace(branch) ? branch : (!string.IsNullOrWhiteSpace(headerBranch) ? headerBranch : null);
+            }
+
+            if (string.IsNullOrWhiteSpace(request.AcademicYear))
+            {
+                request.AcademicYear = !string.IsNullOrWhiteSpace(academicYear) ? academicYear : (!string.IsNullOrWhiteSpace(headerAcademicYear) ? headerAcademicYear : null);
             }
 
             try

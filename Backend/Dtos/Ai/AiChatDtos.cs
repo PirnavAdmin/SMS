@@ -10,6 +10,8 @@ namespace SMS.Api.Dtos.Ai
         public string Message { get; set; } = string.Empty;
         public int? BranchId { get; set; }
         public int? AcademicYearId { get; set; }
+        public string? BranchName { get; set; }
+        public string? AcademicYear { get; set; }
     }
 
     public class AiChatResponseDto

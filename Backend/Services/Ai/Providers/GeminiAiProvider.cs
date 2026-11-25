@@ -43,13 +43,16 @@ namespace SMS.Api.Services.Ai.Providers
                 throw new InvalidOperationException("Gemini API key is not configured.");
             }
 
-            var model = _config["AiSettings:GeminiModel"] ?? "gemini-1.5-flash";
-            var url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}";
+            var configuredModel = _config["AiSettings:GeminiModel"] ?? "gemini-flash-lite-latest";
+            var candidateModels = new List<string> { configuredModel, "gemini-flash-lite-latest", "gemini-3.8-flash", "gemini-2.5-flash-lite" }
+                .Distinct()
+                .ToList();
 
             var systemInstruction = $"You are the intelligent School ERP AI Assistant for an enterprise school management system. " +
                 $"Current authenticated user: Name='{context.ToolContext.UserName}', Role='{context.ToolContext.UserRole}'. " +
-                $"School ID: {context.ToolContext.SchoolId}, Branch ID: {context.ToolContext.BranchId}. " +
+                $"School ID: {context.ToolContext.SchoolId}, Branch: '{context.ToolContext.BranchName ?? "Madhapur Branch"}', Academic Year: '{context.ToolContext.AcademicYear ?? "2026-27"}'. " +
                 $"Always answer using verified ERP tools and data. Never fabricate metrics, student records, fee amounts, or attendance. " +
+                $"When user asks for total students, student counts, or enrollment numbers, call student_get_overview. " +
                 $"Respond concisely and clearly in Markdown format.";
 
             var contents = new List<object>();
@@ -90,14 +93,34 @@ namespace SMS.Api.Services.Ai.Providers
 
             var jsonContent = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
             var client = _httpClientFactory.CreateClient();
-            client.Timeout = TimeSpan.FromSeconds(25);
+            client.Timeout = TimeSpan.FromSeconds(20);
 
-            var response = await client.PostAsync(url, jsonContent);
-            if (!response.IsSuccessStatusCode)
+            HttpResponseMessage? response = null;
+            string? lastError = null;
+
+            foreach (var model in candidateModels)
             {
-                var err = await response.Content.ReadAsStringAsync();
-                _logger.LogWarning($"Gemini API error: {response.StatusCode} - {err}");
-                throw new HttpRequestException($"Gemini API error ({response.StatusCode}): {err}");
+                var url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}";
+                try
+                {
+                    response = await client.PostAsync(url, jsonContent);
+                    if (response.IsSuccessStatusCode)
+                    {
+                        break;
+                    }
+                    lastError = await response.Content.ReadAsStringAsync();
+                    _logger.LogWarning($"[GeminiAiProvider] Model '{model}' failed ({response.StatusCode}): {lastError}. Trying next fallback...");
+                }
+                catch (Exception ex)
+                {
+                    lastError = ex.Message;
+                    _logger.LogWarning($"[GeminiAiProvider] Exception calling model '{model}': {ex.Message}. Trying next fallback...");
+                }
+            }
+
+            if (response == null || !response.IsSuccessStatusCode)
+            {
+                throw new HttpRequestException($"All Gemini models failed. Last error: {lastError}");
             }
 
             var resJson = await response.Content.ReadAsStringAsync();

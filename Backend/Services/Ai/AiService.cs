@@ -279,7 +279,9 @@ namespace SMS.Api.Services.Ai
 
             var ctx = await BuildToolContextAsync(user);
             if (request.BranchId.HasValue) ctx.BranchId = request.BranchId.Value;
+            if (!string.IsNullOrWhiteSpace(request.BranchName)) ctx.BranchName = request.BranchName.Trim();
             if (request.AcademicYearId.HasValue) ctx.AcademicYearId = request.AcademicYearId.Value;
+            if (!string.IsNullOrWhiteSpace(request.AcademicYear)) ctx.AcademicYear = request.AcademicYear.Trim();
 
             AiConversation? conversation = null;
             if (!string.IsNullOrWhiteSpace(request.ConversationId))

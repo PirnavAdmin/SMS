@@ -15,7 +15,9 @@ namespace SMS.Api.Services.Ai.Interfaces
         public string? TenantId { get; set; }
         public int? SchoolId { get; set; }
         public int? BranchId { get; set; }
+        public string? BranchName { get; set; }
         public int? AcademicYearId { get; set; }
+        public string? AcademicYear { get; set; }
         public int? StaffId { get; set; }
         public int? StudentId { get; set; }
         public List<int> LinkedChildStudentIds { get; set; } = new();

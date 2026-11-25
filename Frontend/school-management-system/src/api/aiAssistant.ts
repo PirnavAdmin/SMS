@@ -128,6 +128,8 @@ export const sendAiChatMessageApi = async (params: {
   message: string;
   branchId?: number;
   academicYearId?: number;
+  branchName?: string;
+  academicYear?: string;
 }): Promise<AiChatResponse> => {
   const res = await apiClient<{ success: boolean; data: AiChatResponse } | AiChatResponse>('/api/ai/chat', {
     method: 'POST',

@@ -497,12 +497,16 @@ export const AiAssistantView: React.FC = () => {
     try {
       const branchId = selectedBranch && /^\d+$/.test(selectedBranch) ? parseInt(selectedBranch) : undefined;
       const ayId = selectedAcademicYear && /^\d+$/.test(selectedAcademicYear) ? parseInt(selectedAcademicYear) : undefined;
+      const branchName = selectedBranch || undefined;
+      const academicYear = selectedAcademicYear || undefined;
 
       const res = await sendAiChatMessageApi({
         conversationId: activeConversationId || undefined,
         message: text,
         branchId,
         academicYearId: ayId,
+        branchName,
+        academicYear,
       });
 
       if (!res) {
