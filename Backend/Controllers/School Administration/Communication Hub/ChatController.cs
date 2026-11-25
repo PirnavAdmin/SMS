@@ -8,6 +8,7 @@ using SMS.Api.Data;
 using SMS.Api.Dtos;
 using SMS.Api.Models;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
@@ -96,6 +97,70 @@ public class ChatController : ControllerBase
         return (userId, userName, userRole, userEmail);
     }
 
+    // Helper to resolve official Student ID number (e.g. STU-2026-0120) instead of admission number (ADM-2026-0120)
+    private static string ResolveStudentIdNumber(string? rollNumber, string? admissionNumber, long studentId)
+    {
+        if (!string.IsNullOrWhiteSpace(rollNumber) && rollNumber.StartsWith("STU-", StringComparison.OrdinalIgnoreCase))
+        {
+            return rollNumber.Trim();
+        }
+        if (!string.IsNullOrWhiteSpace(admissionNumber) && admissionNumber.StartsWith("ADM-", StringComparison.OrdinalIgnoreCase))
+        {
+            return "STU-" + admissionNumber.Substring(4).Trim();
+        }
+        if (!string.IsNullOrWhiteSpace(rollNumber))
+        {
+            return rollNumber.Trim();
+        }
+        return $"STU-{studentId}";
+    }
+
+    // Thread-safe dictionary tracking the latest activity/heartbeat timestamp for users and entity IDs
+    private static readonly ConcurrentDictionary<string, DateTime> _onlineHeartbeats =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    // Records presence/heartbeat for the caller across all their associated IDs
+    private static void RecordPresence(IEnumerable<string>? ids, params string?[] additionalKeys)
+    {
+        var now = DateTime.UtcNow;
+        if (ids != null)
+        {
+            foreach (var id in ids)
+            {
+                if (!string.IsNullOrWhiteSpace(id))
+                {
+                    _onlineHeartbeats[id.Trim()] = now;
+                }
+            }
+        }
+        if (additionalKeys != null)
+        {
+            foreach (var key in additionalKeys)
+            {
+                if (!string.IsNullOrWhiteSpace(key))
+                {
+                    _onlineHeartbeats[key.Trim()] = now;
+                }
+            }
+        }
+    }
+
+    // Checks if any of the provided identifiers has been active within the last 2 minutes
+    private static bool IsEntityOnline(params string?[] keys)
+    {
+        var threshold = DateTime.UtcNow.AddMinutes(-2);
+        foreach (var k in keys)
+        {
+            if (!string.IsNullOrWhiteSpace(k) &&
+                _onlineHeartbeats.TryGetValue(k.Trim(), out var lastSeen) &&
+                lastSeen >= threshold)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
     // Helper to deeply resolve caller identity, database records, and all matching IDs
     private async Task<(string UserId, string UserName, string UserRole, string UserEmail, Staff? StaffUser, Student? StudentUser, HashSet<string> MyIds, string EffectiveId)> ResolveCurrentEntityAsync()
     {
@@ -180,6 +245,7 @@ public class ChatController : ControllerBase
     public async Task<IActionResult> GetContacts([FromQuery] string? classFilter = null, [FromQuery] string? staffCategory = null)
     {
         var (userId, userName, userRole, userEmail, staffUser, studentUser, myIds, effectiveMyId) = await ResolveCurrentEntityAsync();
+        RecordPresence(myIds, effectiveMyId, userId, userEmail);
         bool isStudent = studentUser != null || (string.Equals(userRole, "student", StringComparison.OrdinalIgnoreCase) && staffUser == null);
 
         var contacts = new List<ChatContactDto>();
@@ -245,18 +311,23 @@ public class ChatController : ControllerBase
                     continue;
             }
 
+            string resolvedEmpId = !string.IsNullOrWhiteSpace(t.EmployeeId)
+                ? t.EmployeeId.Trim()
+                : (resolvedStaffCategory == "Teaching Staff" ? $"TCH-{t.StaffId}" : $"NTS-{t.StaffId}");
+
             contacts.Add(new ChatContactDto
             {
                 Id = $"TEA-{t.StaffId}",
                 Name = $"{t.FirstName} {t.LastName}".Trim(),
                 Role = "teacher",
                 StaffCategory = resolvedStaffCategory,
+                EmployeeId = resolvedEmpId,
                 Department = t.Department,
                 Email = t.Email,
                 Phone = t.Phone,
                 Subject = t.PrimarySubject ?? t.Department ?? (resolvedStaffCategory == "Teaching Staff" ? "Academics" : "Administration"),
                 Designation = t.Designation ?? (t.SystemRole ?? (resolvedStaffCategory == "Teaching Staff" ? "Faculty Teacher" : "Staff Member")),
-                IsOnline = true
+                IsOnline = IsEntityOnline($"TEA-{t.StaffId}", t.StaffId.ToString(), t.EmployeeId, resolvedEmpId, t.Email, t.Phone)
             });
         }
 
@@ -297,7 +368,9 @@ public class ChatController : ControllerBase
                     ClassName = cleanClass,
                     Section = cleanSec,
                     AdmissionNo = c.AdmissionNumber,
-                    IsOnline = true
+                    StudentId = ResolveStudentIdNumber(c.RollNumber, c.AdmissionNumber, c.StudentId),
+                    RollNo = c.RollNumber,
+                    IsOnline = IsEntityOnline($"STU-{c.StudentId}", c.StudentId.ToString(), c.AdmissionNumber, c.RollNumber, c.Email, c.MobileNumber)
                 });
             }
         }
@@ -333,9 +406,11 @@ public class ChatController : ControllerBase
                     ClassName = cleanClass,
                     Section = cleanSec,
                     AdmissionNo = s.AdmissionNumber,
+                    StudentId = ResolveStudentIdNumber(s.RollNumber, s.AdmissionNumber, s.StudentId),
+                    RollNo = s.RollNumber,
                     Phone = s.MobileNumber,
                     Email = s.Email,
-                    IsOnline = true
+                    IsOnline = IsEntityOnline($"STU-{s.StudentId}", s.StudentId.ToString(), s.AdmissionNumber, s.RollNumber, s.Email, s.MobileNumber)
                 });
 
                 if (!string.IsNullOrEmpty(s.AdmissionNumber))
@@ -353,8 +428,10 @@ public class ChatController : ControllerBase
                     ClassName = cleanClass,
                     Section = cleanSec,
                     AdmissionNo = s.AdmissionNumber,
+                    StudentId = ResolveStudentIdNumber(s.RollNumber, s.AdmissionNumber, s.StudentId),
+                    RollNo = s.RollNumber,
                     Phone = s.FatherMobile ?? s.MotherMobile ?? s.MobileNumber,
-                    IsOnline = false
+                    IsOnline = IsEntityOnline($"PAR-{s.StudentId}", s.FatherMobile, s.MotherMobile, s.MobileNumber)
                 });
             }
 
@@ -391,8 +468,10 @@ public class ChatController : ControllerBase
                     ClassName = cleanClass,
                     Section = a.SectionLetter ?? "",
                     AdmissionNo = admNo,
+                    StudentId = ResolveStudentIdNumber(a.RollNo, admNo, a.AdmissionId),
+                    RollNo = a.RollNo,
                     Phone = a.FatherMobile,
-                    IsOnline = true
+                    IsOnline = IsEntityOnline($"ADM-{a.AdmissionId}", admNo, a.RollNo, a.FatherMobile)
                 });
 
                 var pName = !string.IsNullOrWhiteSpace(a.FatherName) ? a.FatherName : $"{sName}'s Parent";
@@ -405,7 +484,7 @@ public class ChatController : ControllerBase
                     Section = a.SectionLetter ?? "",
                     AdmissionNo = admNo,
                     Phone = a.FatherMobile,
-                    IsOnline = false
+                    IsOnline = IsEntityOnline($"PAR-ADM-{a.AdmissionId}", a.FatherMobile)
                 });
             }
         }
@@ -465,7 +544,16 @@ public class ChatController : ControllerBase
             return BadRequest(new { success = false, message = "contactId parameter is required." });
         }
 
-        var (_, userName, _, _, _, _, myIds, effectiveMyId) = await ResolveCurrentEntityAsync();
+        var (userId, userName, _, userEmail, _, _, myIds, effectiveMyId) = await ResolveCurrentEntityAsync();
+        RecordPresence(myIds, effectiveMyId, userId, userEmail);
+
+        string rawContactId = contactId
+            .Replace("STU-", "", StringComparison.OrdinalIgnoreCase)
+            .Replace("TEA-", "", StringComparison.OrdinalIgnoreCase)
+            .Replace("ADM-", "", StringComparison.OrdinalIgnoreCase)
+            .Replace("PAR-", "", StringComparison.OrdinalIgnoreCase);
+
+        bool isContactOnline = IsEntityOnline(contactId, rawContactId);
 
         var query = _context.DirectChatMessages
             .Where(m => 
@@ -517,6 +605,7 @@ public class ChatController : ControllerBase
         {
             success = true,
             contactId,
+            isContactOnline,
             data = dtoList
         });
     }
@@ -538,7 +627,8 @@ public class ChatController : ControllerBase
             return BadRequest(new { success = false, message = "Message text or attachment is required." });
         }
 
-        var (userId, userName, userRole, _, staffUser, studentUser, _, effectiveSenderId) = await ResolveCurrentEntityAsync();
+        var (userId, userName, userRole, userEmail, staffUser, studentUser, myIds, effectiveSenderId) = await ResolveCurrentEntityAsync();
+        RecordPresence(myIds, effectiveSenderId, userId, userEmail);
         bool isStudent = studentUser != null;
 
         string? senderClassName = null;
@@ -637,7 +727,8 @@ public class ChatController : ControllerBase
             return BadRequest(new { success = false, message = "Receiver ID is required to initiate call." });
         }
 
-        var (userId, userName, userRole, _, staffUser, studentUser, _, effectiveSenderId) = await ResolveCurrentEntityAsync();
+        var (userId, userName, userRole, userEmail, staffUser, studentUser, myIds, effectiveSenderId) = await ResolveCurrentEntityAsync();
+        RecordPresence(myIds, effectiveSenderId, userId, userEmail);
         bool isStudent = studentUser != null;
 
         string? senderClassName = null;
@@ -674,7 +765,11 @@ public class ChatController : ControllerBase
 
         // Generate clean, secure Jitsi Room Link
         var roomCode = $"SMS-{Guid.NewGuid():N}";
-        var callMeetingUrl = $"https://meet.jit.si/{roomCode}";
+        bool isVoice = string.Equals(dto.CallType, "audio", StringComparison.OrdinalIgnoreCase) || 
+                       string.Equals(dto.CallType, "voice", StringComparison.OrdinalIgnoreCase);
+        var callMeetingUrl = isVoice
+            ? $"https://meet.jit.si/{roomCode}#config.startAudioOnly=true&config.startWithVideoMuted=true"
+            : $"https://meet.jit.si/{roomCode}";
 
         // Save invitation record in chat
         var callMessage = new DirectChatMessage
@@ -686,8 +781,10 @@ public class ChatController : ControllerBase
             ReceiverId = dto.ReceiverId,
             ReceiverName = dto.ReceiverName ?? "Contact",
             ReceiverRole = dto.ReceiverRole ?? "User",
-            MessageText = $"Started an instant {dto.CallType} call meeting. Click 'Join Video Call' below to connect.",
-            CallType = dto.CallType ?? "video",
+            MessageText = isVoice
+                ? "Started an instant voice call. Click 'Join Voice Call' below to connect."
+                : "Started an instant video call. Click 'Join Video Call' below to connect.",
+            CallType = isVoice ? "audio" : "video",
             CallMeetingUrl = callMeetingUrl,
             IsRead = false,
             CreatedAt = DateTime.UtcNow
@@ -727,7 +824,8 @@ public class ChatController : ControllerBase
     [HttpGet("unread-count")]
     public async Task<IActionResult> GetUnreadCount()
     {
-        var (_, _, _, _, _, _, myIds, _) = await ResolveCurrentEntityAsync();
+        var (userId, _, _, userEmail, _, _, myIds, effectiveMyId) = await ResolveCurrentEntityAsync();
+        RecordPresence(myIds, effectiveMyId, userId, userEmail);
 
         var count = await _context.DirectChatMessages
             .CountAsync(m => myIds.Contains(m.ReceiverId) && !m.IsRead);
@@ -736,6 +834,84 @@ public class ChatController : ControllerBase
         {
             success = true,
             unreadCount = count
+        });
+    }
+
+    // =========================================================
+    // 6. HEARTBEAT / PRESENCE PING
+    // =========================================================
+    [HttpPost("heartbeat")]
+    public async Task<IActionResult> Heartbeat()
+    {
+        var (userId, _, _, userEmail, _, _, myIds, effectiveMyId) = await ResolveCurrentEntityAsync();
+        RecordPresence(myIds, effectiveMyId, userId, userEmail);
+        return Ok(new { success = true });
+    }
+
+    // =========================================================
+    // 7. DELETE CONVERSATION (CLEAR MESSAGES BETWEEN CALLER & CONTACT)
+    // =========================================================
+    [HttpDelete("conversation")]
+    public async Task<IActionResult> DeleteConversation([FromQuery] string contactId)
+    {
+        if (string.IsNullOrWhiteSpace(contactId))
+        {
+            return BadRequest(new { success = false, message = "contactId parameter is required." });
+        }
+
+        var (userId, _, _, userEmail, _, _, myIds, effectiveMyId) = await ResolveCurrentEntityAsync();
+        RecordPresence(myIds, effectiveMyId, userId, userEmail);
+
+        var messagesToDelete = await _context.DirectChatMessages
+            .Where(m => 
+                (myIds.Contains(m.SenderId) && m.ReceiverId == contactId) ||
+                (m.SenderId == contactId && myIds.Contains(m.ReceiverId)))
+            .ToListAsync();
+
+        if (messagesToDelete.Any())
+        {
+            _context.DirectChatMessages.RemoveRange(messagesToDelete);
+            await _context.SaveChangesAsync();
+        }
+
+        return Ok(new
+        {
+            success = true,
+            contactId,
+            deletedCount = messagesToDelete.Count,
+            message = "Conversation deleted successfully."
+        });
+    }
+
+    // =========================================================
+    // 8. DELETE SPECIFIC MESSAGES
+    // =========================================================
+    [HttpDelete("messages")]
+    public async Task<IActionResult> DeleteMessages([FromBody] DeleteMessagesDto dto)
+    {
+        if (dto == null || dto.MessageIds == null || !dto.MessageIds.Any())
+        {
+            return BadRequest(new { success = false, message = "No message IDs provided." });
+        }
+
+        var (userId, _, _, userEmail, _, _, myIds, effectiveMyId) = await ResolveCurrentEntityAsync();
+        RecordPresence(myIds, effectiveMyId, userId, userEmail);
+
+        var messagesToDelete = await _context.DirectChatMessages
+            .Where(m => dto.MessageIds.Contains(m.MessageId) && (myIds.Contains(m.SenderId) || myIds.Contains(m.ReceiverId)))
+            .ToListAsync();
+
+        if (messagesToDelete.Any())
+        {
+            _context.DirectChatMessages.RemoveRange(messagesToDelete);
+            await _context.SaveChangesAsync();
+        }
+
+        return Ok(new
+        {
+            success = true,
+            deletedCount = messagesToDelete.Count,
+            message = "Selected messages deleted successfully."
         });
     }
 }
