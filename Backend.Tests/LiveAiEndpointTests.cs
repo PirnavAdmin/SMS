@@ -50,6 +50,33 @@ namespace Backend.Tests
         }
 
         [Fact]
+        public void Test_CheckDatabaseCounts()
+        {
+            var dbs = new[] { "sms_new", "sms_new_test" };
+            foreach (var db in dbs)
+            {
+                try
+                {
+                    using var conn = new MySqlConnector.MySqlConnection($"Server=127.0.0.1;Port=3306;Database={db};User=root;Password=root;");
+                    conn.Open();
+                    using var cmd = conn.CreateCommand();
+                    cmd.CommandText = "SELECT (SELECT COUNT(*) FROM students) AS sCount, (SELECT COUNT(*) FROM admission_applications) AS aCount";
+                    using var reader = cmd.ExecuteReader();
+                    if (reader.Read())
+                    {
+                        var sCount = reader.GetInt32(0);
+                        var aCount = reader.GetInt32(1);
+                        _output.WriteLine($"Database {db}: Students={sCount}, Admissions={aCount}, Total={sCount + aCount}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _output.WriteLine($"Database {db} error: {ex.Message}");
+                }
+            }
+        }
+
+        [Fact]
         public async Task Test_StudentEnrollmentQuery_LiveGeminiMultiTurn()
         {
             var token = GenerateToken(1, "Admin", "Admin", "admin@nextgen.com");

@@ -13,6 +13,7 @@ using SMS.Api.Models;
 using SMS.Api.Models.Ai;
 using SMS.Api.Repositories.Interfaces.Parent;
 using SMS.Api.Services.Ai.Interfaces;
+using SMS.Api.Services.Ai.Knowledge;
 using SMS.Api.Services.Ai.Providers;
 
 namespace SMS.Api.Services.Ai
@@ -26,6 +27,7 @@ namespace SMS.Api.Services.Ai
         private readonly IParentRepository _parentRepository;
         private readonly IConfiguration _config;
         private readonly ILogger<AiService> _logger;
+        private readonly UniversalIntentEngine? _intentEngine;
 
         public AiService(
             AppDbContext context,
@@ -34,7 +36,8 @@ namespace SMS.Api.Services.Ai
             GeminiAiProvider geminiProvider,
             IParentRepository parentRepository,
             IConfiguration config,
-            ILogger<AiService> logger)
+            ILogger<AiService> logger,
+            UniversalIntentEngine? intentEngine = null)
         {
             _context = context;
             _tools = tools;
@@ -43,6 +46,7 @@ namespace SMS.Api.Services.Ai
             _parentRepository = parentRepository;
             _config = config;
             _logger = logger;
+            _intentEngine = intentEngine;
         }
 
         public async Task<AiToolContext> BuildToolContextAsync(ClaimsPrincipal user)
@@ -351,6 +355,41 @@ namespace SMS.Api.Services.Ai
             // Filter allowed tools based on user's authenticated role
             var allowedTools = _tools.Where(t => t.AllowedRoles.Any(r => r.Equals(ctx.UserRole, StringComparison.OrdinalIgnoreCase) ||
                                                                           r.Equals("All", StringComparison.OrdinalIgnoreCase))).ToList();
+
+            // Disambiguation & Context Assessment Engine
+            if (_intentEngine != null)
+            {
+                var disambiguation = _intentEngine.AnalyzePrompt(chatContext);
+                if (disambiguation.RequiresClarification && !string.IsNullOrWhiteSpace(disambiguation.ClarificationMessage))
+                {
+                    var assistMsg = new AiChatMessage
+                    {
+                        Id = Guid.NewGuid().ToString("N"),
+                        ConversationId = conversation.Id,
+                        Sender = "assistant",
+                        Content = disambiguation.ClarificationMessage,
+                        CreatedAt = DateTime.UtcNow
+                    };
+                    _context.AiChatMessages.Add(assistMsg);
+                    conversation.UpdatedAt = DateTime.UtcNow;
+                    await _context.SaveChangesAsync();
+
+                    return new AiChatResponseDto
+                    {
+                        ConversationId = conversation.Id,
+                        Reply = disambiguation.ClarificationMessage,
+                        VisualType = null,
+                        VisualData = null,
+                        ToolCallsExecuted = new List<AiToolExecutionDto>(),
+                        PendingAction = null
+                    };
+                }
+
+                if (!string.IsNullOrWhiteSpace(disambiguation.EnrichedContextHint))
+                {
+                    chatContext.LatestUserMessage += $"\n[Context Guidance: {disambiguation.EnrichedContextHint}]";
+                }
+            }
 
             AiCompletionResult completion;
             if (_geminiProvider.IsConfigured)
