@@ -14,11 +14,14 @@ from typing import Any
 
 from langgraph.graph import END, START, StateGraph
 
-from app.llm.base import LLMMessage, LLMToolCall
+from app.analytics.result_processor import StrictResultProcessor
+from app.llm.base import LLMMessage, LLMToolCall, LLMToolDefinition
 from app.llm.router import ModelRouter
 from app.orchestration.state import AgentState
 from app.planners.investigation_planner import InvestigationPlanner
+from app.planners.plan_validator import ExecutionPlanValidator
 from app.schemas.chat import ToolExecutionSummary
+from app.tools.discovery import SemanticToolDiscovery
 from app.tools.registry import ToolRegistry
 
 logger = logging.getLogger(__name__)
@@ -31,6 +34,8 @@ class AutonomousErpGraph:
         self._router = router
         self._registry = registry
         self._planner = InvestigationPlanner(router)
+        self._discovery = SemanticToolDiscovery(registry)
+        self._validator = ExecutionPlanValidator()
         self._graph = self._compile_graph()
 
     @staticmethod
@@ -73,9 +78,14 @@ class AutonomousErpGraph:
                 )
             )
         working.append(LLMMessage(role="user", content=state["user_query"]))
+
+        # Phase 2: Separate Tool Discovery from Tool Execution
+        discovery = self._discovery.discover(ctx, state["user_query"])
         return {
             "phase": "UNDERSTAND",
             "working_messages": working,
+            "investigation_depth": discovery.depth,
+            "discovered_tools": discovery.candidate_tools,
             "iteration": 0,
             "tool_calls_count": 0,
             "tokens_used": 0,
@@ -91,12 +101,22 @@ class AutonomousErpGraph:
 
     async def _node_plan(self, state: AgentState) -> dict[str, Any]:
         ctx = state["security_context"]
-        tool_defs = self._registry.to_llm_definitions(ctx)
+        depth = state.get("investigation_depth", "SIMPLE")
+        discovered = state.get("discovered_tools") or self._discovery.discover(ctx, state["user_query"]).candidate_tools
+        tool_defs = [
+            LLMToolDefinition(
+                name=t.name,
+                description=f"[{t.module}] {t.description}",
+                parameters_schema=t.json_schema(),
+            )
+            for t in discovered
+        ]
         plan, tokens = await self._planner.build_plan(
             ctx,
             state["user_query"],
             list(state.get("history") or []),
             tool_defs,
+            depth=depth,
         )
         await self._emit(
             state,
@@ -104,6 +124,7 @@ class AutonomousErpGraph:
             {
                 "stage": "PLAN",
                 "objective": plan.objective,
+                "depth": depth,
                 "modules": plan.modules_involved,
                 "steps": plan.steps,
             },
@@ -138,18 +159,30 @@ class AutonomousErpGraph:
     async def _node_select_tools(self, state: AgentState) -> dict[str, Any]:
         ctx = state["security_context"]
         budget = state["budget"]
-        tool_defs = self._registry.to_llm_definitions(ctx)
+        depth = state.get("investigation_depth", "SIMPLE")
+        discovered = state.get("discovered_tools") or self._discovery.discover(ctx, state["user_query"]).candidate_tools
+        tool_defs = [
+            LLMToolDefinition(
+                name=t.name,
+                description=f"[{t.module}] {t.description}",
+                parameters_schema=t.json_schema(),
+            )
+            for t in discovered
+        ]
         if not tool_defs:
             return {"phase": "SELECT_TOOLS", "pending_tool_calls": []}
 
+        max_allowed = 2 if depth == "SIMPLE" else (4 if depth == "ANALYTICAL" else budget.max_tool_calls)
         sys_prompt = (
             "You are an autonomous School ERP Investigation Agent.\n"
             f"Authenticated User: {ctx.user_name} | Role: {ctx.role} | Tenant: {ctx.tenant_id} | "
             f"BranchId: {ctx.active_branch_id} | AcademicYear: {ctx.academic_year_name or 'All'}.\n"
+            f"Assessed Request Depth: {depth}\n"
             f"Investigation Objective: {state.get('objective', state['user_query'])}\n"
             f"Planned Steps: {state.get('planned_steps', [])}\n"
             "Rules:\n"
-            "- Select the next tool call(s) needed to gather verified ERP evidence.\n"
+            f"- Select AT MOST {max_allowed} tool call(s) strictly needed to answer the request.\n"
+            "- ONLY select from the provided candidate tools. Never request unrelated tools.\n"
             "- Do NOT repeat identical tool calls unnecessarily.\n"
             "- Never fabricate numbers or claim records you have not retrieved.\n"
             "- If you already have complete verified evidence across all needed modules, return NO tool calls and summarize."
@@ -161,7 +194,7 @@ class AutonomousErpGraph:
             tier="reasoning",
             temperature=0.0,
         )
-        remaining_calls = max(0, budget.max_tool_calls - state.get("tool_calls_count", 0))
+        remaining_calls = min(max_allowed, max(0, budget.max_tool_calls - state.get("tool_calls_count", 0)))
         selected = list(resp.tool_calls[:remaining_calls])
         working = list(state.get("working_messages") or [])
         if selected:
@@ -189,6 +222,28 @@ class AutonomousErpGraph:
         if not pending:
             return {"phase": "EXECUTE"}
 
+        # Phase 4: Enforce Execution Plan Validation and Depth Guardrails
+        depth = state.get("investigation_depth", "SIMPLE")
+        max_for_depth = 2 if depth == "SIMPLE" else (4 if depth == "ANALYTICAL" else budget.max_tool_calls)
+        executed_names = {t.tool_name for t in state.get("executed_tools") or []}
+
+        validation = self._validator.validate_plan(
+            ctx,
+            pending,
+            state.get("discovered_tools") or [],
+            executed_names,
+            depth=depth,
+            max_calls_for_depth=max_for_depth,
+        )
+        approved_pending = validation.approved_calls
+        if not approved_pending:
+            logger.info("Plan Validator: No tool calls approved. Diagnostics: %s", validation.diagnostics)
+            return {
+                "phase": "EXECUTE",
+                "pending_tool_calls": [],
+                "plan_validation_diagnostics": validation.diagnostics,
+            }
+
         semaphore = asyncio.Semaphore(budget.max_parallel_tools)
 
         async def run_one(tc: LLMToolCall):
@@ -201,7 +256,7 @@ class AutonomousErpGraph:
                 out, dur = await tool.execute(ctx, tc.arguments)
                 return tc, out, dur
 
-        results = await asyncio.gather(*(run_one(tc) for tc in pending))
+        results = await asyncio.gather(*(run_one(tc) for tc in approved_pending))
 
         working = list(state.get("working_messages") or [])
         executed = list(state.get("executed_tools") or [])
@@ -271,6 +326,7 @@ class AutonomousErpGraph:
             "pending_action": pending_action,
             "tool_calls_count": state.get("tool_calls_count", 0) + len(results),
             "last_pass_executed_count": len(results),
+            "plan_validation_diagnostics": validation.diagnostics,
         }
 
     async def _node_observe(self, state: AgentState) -> dict[str, Any]:
@@ -309,6 +365,33 @@ class AutonomousErpGraph:
                 "should_continue": False,
             }
 
+        depth = state.get("investigation_depth", "SIMPLE")
+
+        # Phase 5 & 8: Investigation Depth Guardrails & Loop Termination
+        # 1. SIMPLE requests MUST terminate after 1 pass. Zero runaway loops!
+        if depth == "SIMPLE":
+            return {
+                "phase": "VALIDATE",
+                "is_sufficient": True,
+                "should_continue": False,
+            }
+
+        # 2. ANALYTICAL requests terminate after iteration 1 if tools executed
+        if depth == "ANALYTICAL" and state.get("iteration", 0) >= 1 and executed_names:
+            return {
+                "phase": "VALIDATE",
+                "is_sufficient": True,
+                "should_continue": False,
+            }
+
+        # 3. COMPLEX investigations terminate after iteration 2
+        if state.get("iteration", 0) >= 2:
+            return {
+                "phase": "VALIDATE",
+                "is_sufficient": True,
+                "should_continue": False,
+            }
+
         # If no tools were selected on the last select step, the agent believes it has enough information
         if not executed_names and state.get("iteration", 0) >= 1:
             return {"phase": "VALIDATE", "is_sufficient": True, "should_continue": False}
@@ -330,15 +413,16 @@ class AutonomousErpGraph:
             executed_names,
             obs_text,
         )
-        # Continue only if this pass actually executed tools, assessment says insufficient, and authorized tools remain
-        authorized_names = {t.name for t in self._registry.authorized_tools(state["security_context"])}
-        unexecuted = authorized_names - set(executed_names)
-        made_progress = state.get("last_pass_executed_count", 0) > 0
+
+        ctx = state["security_context"]
+        discovered = state.get("discovered_tools") or self._discovery.discover(ctx, state["user_query"]).candidate_tools
+        unexecuted = [t.name for t in discovered if t.name not in executed_names]
+
         should_continue = (
-            made_progress
-            and (not assessment.is_sufficient)
+            depth in ("ANALYTICAL", "COMPLEX")
+            and not assessment.is_sufficient
             and bool(unexecuted)
-            and (self._check_budget(state) is None)
+            and state.get("iteration", 0) < 2
         )
 
         await self._emit(
@@ -419,9 +503,18 @@ class AutonomousErpGraph:
             resp.content,
             list(state.get("modules_involved") or []),
         )
+
+        # Phase 6: Strict Result Processing Layer (clean Markdown tables, NO raw JSON)
+        final_presentation = StrictResultProcessor.format_final_response(
+            state["user_query"],
+            state.get("evidence") or [],
+            state.get("executed_tools") or [],
+            resp.content,
+        )
+
         return {
             "phase": "RESPOND",
-            "final_reply": resp.content,
+            "final_reply": final_presentation,
             "follow_up_questions": follow_ups,
             "tokens_used": state.get("tokens_used", 0) + resp.usage.total_tokens + fu_tokens,
             "provider_used": resp.provider or state.get("provider_used", ""),

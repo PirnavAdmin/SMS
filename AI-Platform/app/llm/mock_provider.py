@@ -280,41 +280,60 @@ class MockAutonomousLLMProvider(BaseLLMProvider):
         if any(k in q for k in ("policy", "rule", "circular", "procedure", "guideline", "regulation")):
             add_if("rag_search_documents", {"query": query})
 
-        # General module routing fallback based on tool descriptions
+        # Dedicated intent matching for staff attendance and directory
+        if "staff" in q or "teacher" in q or "faculty" in q:
+            if any(w in q for w in ("present", "absent", "attendance", "leave", "on duty")):
+                add_if("staff_attendance_leave")
+                if calls:
+                    return calls
+            if any(w in q for w in ("list", "directory", "who are", "show staff")):
+                add_if("staff_directory")
+                if calls:
+                    return calls
+
+        # General module routing fallback based on verified tool names in registry
         modules = self._infer_relevant_modules(query)
         module_tool_hints = {
-            "students": ["student_get_overview", "student_search"],
-            "admissions": ["admissions_get_summary"],
-            "finance": ["analytics_financial_health", "fee_get_collection_stats", "fee_get_defaulters"],
-            "attendance": ["attendance_get_daily_summary", "attendance_get_class_comparison"],
-            "hostel": ["hostel_get_occupancy_overview", "hostel_get_room_availability"],
-            "transport": ["transport_get_fleet_info", "transport_get_student_assignments"],
-            "examination": ["exam_get_results_overview", "exam_get_schedules"],
-            "staff": ["admin_get_staff_list", "hr_payroll_leave_summary"],
-            "library": ["library_search_catalog"],
-            "uniform": ["uniform_get_stock_overview"],
-            "organization": ["school_get_overview"],
-            "ml": ["ml_detect_attendance_anomalies", "ml_forecast_enrollment"],
+            "students": ["student_overview", "student_get_overview", "student_search"],
+            "admissions": ["admissions_overview", "admissions_get_summary"],
+            "finance": ["fee_collections_summary", "student_fee_dues", "analytics_financial_health"],
+            "attendance": ["attendance_overview", "student_low_attendance"],
+            "hostel": ["hostel_occupancy_fees", "analytics_hostel_financial_occupancy"],
+            "transport": ["transport_operations", "analytics_transport_usage_dues"],
+            "examination": ["examination_results"],
+            "staff": ["staff_attendance_leave", "staff_directory", "payroll_summary"],
+            "library": ["library_operations"],
+            "uniform": ["uniform_inventory"],
+            "organization": ["organization_governance", "school_get_overview"],
+            "ml": ["ml_detect_attendance_anomalies", "ml_forecast_enrollment", "ml_data_readiness_audit"],
             "rag": ["rag_search_documents"],
         }
         for mod in modules:
             for tname in module_tool_hints.get(mod, []):
                 add_if(tname)
+                if len(calls) >= 2:
+                    break
+            if calls:
+                return calls
 
-        # Dynamic schema-description fallback so any newly registered tool is discoverable without hardcoded mappings
-        if not calls:
-            q_tokens = {tok for tok in q.replace("_", " ").replace("-", " ").split() if len(tok) > 2}
-            scored: list[tuple[int, str]] = []
-            for t in tools:
-                if t.name in already_called:
-                    continue
-                haystack = f"{t.name.replace('_', ' ')} {t.description}".lower()
-                score = sum(1 for tok in q_tokens if tok in haystack)
-                if score > 0:
-                    scored.append((score, t.name))
-            scored.sort(reverse=True)
-            for _sc, tname in scored[:3]:
-                add_if(tname)
+        # Dynamic schema-description fallback: ONLY if no module tools were identified at all
+        if not calls and not already_called:
+            q_tokens = {tok for tok in q.replace("_", " ").replace("-", " ").split() if len(tok) > 3}
+            # Exclude generic noise tokens from matching
+            noise = {"list", "show", "what", "which", "give", "display", "please", "today", "here"}
+            meaningful_tokens = q_tokens - noise
+            if meaningful_tokens:
+                scored: list[tuple[int, str]] = []
+                for t in tools:
+                    if t.name in already_called:
+                        continue
+                    haystack = f"{t.name.replace('_', ' ')} {t.description}".lower()
+                    score = sum(2 for tok in meaningful_tokens if tok in haystack)
+                    if score > 0:
+                        scored.append((score, t.name))
+                scored.sort(reverse=True)
+                for _sc, tname in scored[:2]:
+                    add_if(tname)
 
         return calls
 
