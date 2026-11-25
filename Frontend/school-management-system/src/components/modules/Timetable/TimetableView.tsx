@@ -2197,11 +2197,11 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
             title={`Teacher Timetable - ${selectedTeacherName}`}
             subtitle={`Academic Session: ${academicYear}`}
           />
-          <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="glass-card p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 relative z-30">
             <div className="flex items-center gap-3 no-print">
               <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Select Teacher:</label>
               
-              <div className="relative">
+              <div className="relative z-40">
                 <button
                   type="button"
                   onClick={() => setIsTeacherDropdownOpen(!isTeacherDropdownOpen)}
@@ -2224,83 +2224,89 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
                 </button>
 
                 {isTeacherDropdownOpen && (
-                  <div className="absolute z-50 mt-1 w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl p-2.5 space-y-2 max-h-60 overflow-y-auto min-w-[280px]">
-                    <div className="relative">
-                      <input
-                        type="text"
-                        placeholder="Search teacher or employee ID..."
-                        value={teacherSearchQuery}
-                        onChange={e => setTeacherSearchQuery(e.target.value)}
-                        className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold outline-none placeholder:text-slate-400 focus:border-sky-500"
-                        onClick={e => e.stopPropagation()}
-                      />
-                      <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-                    </div>
-                    
-                    <div className="space-y-0.5">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedTeacherName('');
-                          setIsTeacherDropdownOpen(false);
-                          setTeacherSearchQuery('');
-                        }}
-                        className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-between ${
-                          !selectedTeacherName
-                            ? 'bg-sky-50 dark:bg-sky-950/40 text-sky-600 dark:text-sky-400 border border-sky-100 dark:border-sky-900/40'
-                            : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
-                        }`}
-                      >
-                        <span>-- Select Teacher --</span>
-                      </button>
+                  <>
+                    <div 
+                      className="fixed inset-0 z-40 cursor-default" 
+                      onClick={() => setIsTeacherDropdownOpen(false)} 
+                    />
+                    <div className="absolute left-0 top-full z-50 mt-1.5 w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-2.5 space-y-2 max-h-72 overflow-y-auto min-w-[320px] animate-in fade-in zoom-in-95 duration-150">
+                      <div className="relative">
+                        <input
+                          type="text"
+                          placeholder="Search teacher or employee ID..."
+                          value={teacherSearchQuery}
+                          onChange={e => setTeacherSearchQuery(e.target.value)}
+                          className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold outline-none placeholder:text-slate-400 focus:border-sky-500"
+                          onClick={e => e.stopPropagation()}
+                        />
+                        <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                      </div>
+                      
+                      <div className="space-y-0.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedTeacherName('');
+                            setIsTeacherDropdownOpen(false);
+                            setTeacherSearchQuery('');
+                          }}
+                          className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-between ${
+                            !selectedTeacherName
+                              ? 'bg-sky-50 dark:bg-sky-950/40 text-sky-600 dark:text-sky-400 border border-sky-100 dark:border-sky-900/40'
+                              : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
+                          }`}
+                        >
+                          <span>-- Select Teacher --</span>
+                        </button>
 
-                      {(teachingStaff || []).filter(st => {
-                        const name = `${st.firstName} ${st.lastName}`;
-                        const empId = st.empId || st.id;
-                        const dept = st.department || 'Faculty';
-                        const query = teacherSearchQuery.toLowerCase();
-                        return name.toLowerCase().includes(query) ||
-                          empId.toLowerCase().includes(query) ||
-                          dept.toLowerCase().includes(query);
-                      }).length === 0 ? (
-                        <p className="text-[10px] text-slate-400 text-center py-2">No matching teachers found</p>
-                      ) : (
-                        (teachingStaff || [])
-                          .filter(st => {
-                            const name = `${st.firstName} ${st.lastName}`;
-                            const empId = st.empId || st.id;
-                            const dept = st.department || 'Faculty';
-                            const query = teacherSearchQuery.toLowerCase();
-                            return name.toLowerCase().includes(query) ||
-                              empId.toLowerCase().includes(query) ||
-                              dept.toLowerCase().includes(query);
-                          })
-                          .map(st => {
-                            const name = `${st.firstName} ${st.lastName}`;
-                            const empId = st.empId || st.id;
-                            const dept = st.department || 'Faculty';
-                            return (
-                              <button
-                                key={st.id}
-                                type="button"
-                                onClick={() => {
-                                  setSelectedTeacherName(name);
-                                  setIsTeacherDropdownOpen(false);
-                                  setTeacherSearchQuery('');
-                                }}
-                                className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-between ${
-                                  selectedTeacherName === name
-                                    ? 'bg-sky-50 dark:bg-sky-950/40 text-sky-600 dark:text-sky-400 border border-sky-100 dark:border-sky-900/40'
-                                    : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
-                                }`}
-                              >
-                                <span>{name} ({empId}) - {dept}</span>
-                              </button>
-                            );
-                          })
-                      )}
+                        {(teachingStaff || []).filter(st => {
+                          const name = `${st.firstName} ${st.lastName}`;
+                          const empId = st.empId || st.id;
+                          const dept = st.department || 'Faculty';
+                          const query = teacherSearchQuery.toLowerCase();
+                          return name.toLowerCase().includes(query) ||
+                            empId.toLowerCase().includes(query) ||
+                            dept.toLowerCase().includes(query);
+                        }).length === 0 ? (
+                          <p className="text-[10px] text-slate-400 text-center py-2">No matching teachers found</p>
+                        ) : (
+                          (teachingStaff || [])
+                            .filter(st => {
+                              const name = `${st.firstName} ${st.lastName}`;
+                              const empId = st.empId || st.id;
+                              const dept = st.department || 'Faculty';
+                              const query = teacherSearchQuery.toLowerCase();
+                              return name.toLowerCase().includes(query) ||
+                                empId.toLowerCase().includes(query) ||
+                                dept.toLowerCase().includes(query);
+                            })
+                            .map(st => {
+                              const name = `${st.firstName} ${st.lastName}`;
+                              const empId = st.empId || st.id;
+                              const dept = st.department || 'Faculty';
+                              return (
+                                <button
+                                  key={st.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedTeacherName(name);
+                                    setIsTeacherDropdownOpen(false);
+                                    setTeacherSearchQuery('');
+                                  }}
+                                  className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-between ${
+                                    selectedTeacherName === name
+                                      ? 'bg-sky-50 dark:bg-sky-950/40 text-sky-600 dark:text-sky-400 border border-sky-100 dark:border-sky-900/40'
+                                      : 'hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300'
+                                  }`}
+                                >
+                                  <span>{name} ({empId}) - {dept}</span>
+                                </button>
+                              );
+                            })
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  </>
                 )}
               </div>
             </div>
@@ -2308,7 +2314,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
           </div>
 
           {!selectedTeacherName ? (
-            <div className="text-center py-16 border border-dashed border-slate-200 dark:border-slate-800 rounded-3xl bg-white dark:bg-slate-900 text-left">
+            <div className="text-center py-16 border border-dashed border-slate-200 dark:border-slate-800 rounded-3xl bg-white dark:bg-slate-900 text-left relative z-10">
               <div className="w-12 h-12 mx-auto mb-3 bg-sky-50 dark:bg-sky-950/40 rounded-full flex items-center justify-center border border-sky-100 dark:border-sky-900/60 shadow-sm animate-pulse">
                 <User className="w-5 h-5 text-sky-650 dark:text-sky-400" />
               </div>
@@ -2318,7 +2324,7 @@ export const TimetableView: React.FC<{ onNavigate?: (module: string) => void }> 
               </p>
             </div>
           ) : (
-            <div className="glass-card p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4 text-left">
+            <div className="glass-card p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-4 text-left relative z-10">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
                 <div>
                   <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
