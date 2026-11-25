@@ -281,7 +281,15 @@ builder.Services.AddScoped<IAiTool, SchoolOverviewTool>();
 builder.Services.AddScoped<IAiTool, ActionCreateAnnouncementTool>();
 builder.Services.AddScoped<IAiTool, ActionScheduleMeetingTool>();
 
-builder.Services.AddScoped<IAiService, AiService>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddHttpClient("AiPlatform", client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(60);
+});
+builder.Services.AddScoped<AiContextTokenService>();
+builder.Services.AddScoped<IAiPlatformProxyService, AiPlatformProxyService>();
+builder.Services.AddScoped<AiService>();
+builder.Services.AddScoped<IAiService, HybridAiService>();
 
 // =========================================================
 // 3. JWT AUTHENTICATION

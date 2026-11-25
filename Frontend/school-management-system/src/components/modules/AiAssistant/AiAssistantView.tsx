@@ -41,10 +41,16 @@ import {
   createAiConversationApi,
   renameAiConversationApi,
   deleteAiConversationApi,
-  sendAiChatMessageApi,
+  streamAiChatMessageApi,
   confirmAiActionApi,
   fetchAiSuggestedPromptsApi,
 } from '../../../api/aiAssistant';
+import {
+  InvestigationTracePanel,
+  LiveInvestigationProgressCard,
+  StreamProgressEvent,
+} from './InvestigationTracePanel';
+import { KnowledgeDocsModal } from './KnowledgeDocsModal';
 
 // Simple markdown renderer that supports bold, italic, code, lists, headings, and quotes
 const renderMarkdown = (text: string) => {
@@ -412,6 +418,8 @@ export const AiAssistantView: React.FC = () => {
   const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null);
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
+  const [streamEvents, setStreamEvents] = useState<StreamProgressEvent[]>([]);
+  const [showKnowledgeModal, setShowKnowledgeModal] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -500,14 +508,19 @@ export const AiAssistantView: React.FC = () => {
       const branchName = selectedBranch || undefined;
       const academicYear = selectedAcademicYear || undefined;
 
-      const res = await sendAiChatMessageApi({
-        conversationId: activeConversationId || undefined,
-        message: text,
-        branchId,
-        academicYearId: ayId,
-        branchName,
-        academicYear,
-      });
+      setStreamEvents([{ stage: 'started', message: 'Launching multi-step ERP investigation...' }]);
+      const res = await streamAiChatMessageApi(
+        {
+          conversationId: activeConversationId || undefined,
+          message: text,
+          branchId,
+          academicYearId: ayId,
+          branchName,
+          academicYear,
+        },
+        (ev) => setStreamEvents((prev) => [...prev, ev])
+      );
+      setStreamEvents([]);
 
       if (!res) {
         setErrorBanner('The AI service did not return a response. Please ensure the backend server is running and try again.');
@@ -525,7 +538,13 @@ export const AiAssistantView: React.FC = () => {
         content: res.reply || 'I processed your request.',
         visualType: res.visualType,
         visualData: res.visualData,
+        additionalVisuals: res.additionalVisuals,
         toolCalls: res.toolCallsExecuted,
+        evidence: res.evidence,
+        investigationPlan: res.investigationPlan,
+        followUpQuestions: res.followUpQuestions,
+        latencyMs: res.latencyMs,
+        providerUsed: res.providerUsed,
         pendingAction: res.pendingAction,
         createdAt: res.timestamp || new Date().toISOString(),
       };
@@ -785,6 +804,14 @@ export const AiAssistantView: React.FC = () => {
 
           <div className="flex items-center gap-2">
             <button
+              type="button"
+              onClick={() => setShowKnowledgeModal(true)}
+              className="hidden sm:flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+            >
+              <BookOpen className="h-3.5 w-3.5 text-violet-600" />
+              <span>Knowledge Base</span>
+            </button>
+            <button
               onClick={handleNewConversation}
               className="hidden sm:flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
             >
@@ -901,6 +928,29 @@ export const AiAssistantView: React.FC = () => {
                     />
                   )}
 
+                  {/* Additional Analytical Charts / Tables */}
+                  {!isUser &&
+                    Array.isArray(msg.additionalVisuals) &&
+                    msg.additionalVisuals.slice(1).map((av, avIdx) => (
+                      <div key={avIdx} className="mt-2">
+                        {av.visual_type === 'table' && av.data && <DynamicTable data={av.data} />}
+                        {av.visual_type === 'chart' && av.data && <DynamicChart data={av.data} />}
+                      </div>
+                    ))}
+
+                  {/* Evidence Provenance, Investigation Plan, Contradictions & Follow-up Chips */}
+                  {!isUser && (
+                    <InvestigationTracePanel
+                      plan={msg.investigationPlan}
+                      evidence={msg.evidence}
+                      toolCalls={msg.toolCalls}
+                      followUps={msg.followUpQuestions}
+                      latencyMs={msg.latencyMs}
+                      providerUsed={msg.providerUsed}
+                      onSelectFollowUp={(q) => handleSendMessage(q)}
+                    />
+                  )}
+
                   {/* Message Footer: Timestamp & Copy Button */}
                   <div className={`mt-2 flex items-center justify-between gap-2 text-[10px] ${isUser ? 'text-sky-200' : 'text-slate-400'}`}>
                     <span>
@@ -938,8 +988,9 @@ export const AiAssistantView: React.FC = () => {
               <div className="rounded-2xl rounded-bl-none border border-slate-200 bg-white p-3.5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
                 <div className="flex items-center gap-2 text-xs text-slate-500">
                   <div className="h-2 w-2 rounded-full bg-sky-500 animate-ping" />
-                  <span>Consulting ERP databases & calculating response...</span>
+                  <span>Running autonomous multi-module ERP investigation...</span>
                 </div>
+                <LiveInvestigationProgressCard events={streamEvents} />
               </div>
             </div>
           )}
@@ -1003,6 +1054,11 @@ export const AiAssistantView: React.FC = () => {
           </form>
         </div>
       </main>
+      <KnowledgeDocsModal
+        open={showKnowledgeModal}
+        canManage={['Super Admin', 'SuperAdmin', 'Admin', 'Principal'].includes(role || '')}
+        onClose={() => setShowKnowledgeModal(false)}
+      />
     </div>
   );
 };

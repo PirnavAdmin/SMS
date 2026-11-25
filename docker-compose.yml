@@ -10,10 +10,58 @@ services:
       ASPNETCORE_URLS: http://+:5000
       AppUrl: "https://${DOMAIN:-pupilscholar.com}"
       ConnectionStrings__DefaultConnection: "Server=${DB_HOST:-15.206.4.182};Port=${DB_PORT:-3306};Database=${DB_NAME:-smsdb};User=${DB_USER:-smsdbuser};Password=${DB_PASSWORD:-Pirnav@2026};"
+      AiPlatform__Enabled: "true"
+      AiPlatform__BaseUrl: "http://ai-platform:8100"
+      AiPlatform__HmacSecret: "${AI_CONTEXT_HMAC_SECRET:-pirnav-dev-ai-bridge-hmac-secret-key-2026-32chars!}"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
       - backend_uploads:/app/wwwroot/uploads
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    restart: unless-stopped
+
+  ai-platform:
+    build:
+      context: ./AI-Platform
+      dockerfile: Dockerfile
+    ports:
+      - "8100:8100"
+    environment:
+      APP_ENV: production
+      AI_HOST: 0.0.0.0
+      AI_PORT: 8100
+      LLM_PROVIDER: "${LLM_PROVIDER:-gemini}"
+      GEMINI_API_KEY: "${GEMINI_API_KEY:-}"
+      AI_CONTEXT_HMAC_SECRET: "${AI_CONTEXT_HMAC_SECRET:-pirnav-dev-ai-bridge-hmac-secret-key-2026-32chars!}"
+      ERP_BASE_URL: "http://backend:5000"
+      MYSQL_HOST: "${DB_HOST:-host.docker.internal}"
+      MYSQL_PORT: "${DB_PORT:-3306}"
+      MYSQL_DATABASE: "${DB_NAME:-smsdb}"
+      MYSQL_USER: "${DB_USER:-smsdbuser}"
+      MYSQL_PASSWORD: "${DB_PASSWORD:-Pirnav@2026}"
+      MYSQL_READONLY: "true"
+      REDIS_URL: "redis://redis:6379/0"
+      QDRANT_URL: "http://qdrant:6333"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - redis
+      - qdrant
+    volumes:
+      - ai_platform_data:/app/data
     restart: unless-stopped
 
   frontend:
@@ -31,3 +79,5 @@ services:
 
 volumes:
   backend_uploads:
+  ai_platform_data:
+  qdrant_data:

@@ -24,6 +24,13 @@ namespace SMS.Api.Dtos.Ai
         public List<AiToolExecutionDto> ToolCallsExecuted { get; set; } = new();
         public AiPendingActionDto? PendingAction { get; set; }
         public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+        public List<object> AdditionalVisuals { get; set; } = new();
+        public List<object> Evidence { get; set; } = new();
+        public object? InvestigationPlan { get; set; }
+        public List<string> FollowUpQuestions { get; set; } = new();
+        public int TokensUsed { get; set; }
+        public double LatencyMs { get; set; }
+        public string? ProviderUsed { get; set; }
     }
 
     public class AiToolExecutionDto
@@ -32,6 +39,9 @@ namespace SMS.Api.Dtos.Ai
         public string Description { get; set; } = string.Empty;
         public bool Success { get; set; }
         public object? Summary { get; set; }
+        public string? Module { get; set; }
+        public double DurationMs { get; set; }
+        public int RecordCount { get; set; }
     }
 
     public class AiPendingActionDto

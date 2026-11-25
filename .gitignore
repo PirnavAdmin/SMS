@@ -10,3 +10,11 @@ Frontend/school-management-system/.env
 Frontend/school-management-system/.env
 
 Backend/appsettings.Development.json
+
+# Python AI Platform
+AI-Platform/.venv/
+AI-Platform/.env
+AI-Platform/data/
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
