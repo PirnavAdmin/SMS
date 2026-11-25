@@ -19,6 +19,7 @@ namespace SMS.Api.Services.Ai.Interfaces
         public string ReplyText { get; set; } = string.Empty;
         public List<AiToolCallRequest> ToolCallsRequested { get; set; } = new();
         public bool HasToolCalls => ToolCallsRequested.Count > 0;
+        public object? RawModelTurn { get; set; }
     }
 
     public class AiToolCallRequest

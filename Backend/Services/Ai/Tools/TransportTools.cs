@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using SMS.Api.Data;
+using SMS.Api.Models;
 using SMS.Api.Services.Ai.Interfaces;
 
 namespace SMS.Api.Services.Ai.Tools
@@ -171,6 +172,97 @@ namespace SMS.Api.Services.Ai.Tools
                 columns = new[] { "RouteName", "RouteCode", "VehicleNumber", "DriverName", "DriverPhone", "MonthlyFee", "Status" },
                 rows = list
             });
+        }
+    }
+
+    public class TransportStudentAssignmentsTool : IAiTool
+    {
+        private readonly AppDbContext _context;
+
+        public TransportStudentAssignmentsTool(AppDbContext context)
+        {
+            _context = context;
+        }
+
+        public string Name => "transport_get_student_assignments";
+        public string Description => "Lists students assigned to school transport routes, buses, and pickup stops with contact details and allocation status.";
+        public string ParametersJsonSchema => @"
+        {
+            ""type"": ""object"",
+            ""properties"": {
+                ""routeName"": { ""type"": ""string"", ""description"": ""Optional route name filter"" },
+                ""studentName"": { ""type"": ""string"", ""description"": ""Optional student name or admission number"" }
+            }
+        }";
+
+        public string[] AllowedRoles => new[] { "Admin", "SuperAdmin", "Super Admin", "Principal", "TransportManager", "Teacher", "Staff", "Accountant" };
+
+        public async Task<AiToolResult> ExecuteAsync(AiToolContext context, JsonElement arguments)
+        {
+            string? rName = arguments.TryGetProperty("routeName", out var rElem) ? rElem.GetString()?.Trim().ToLowerInvariant() : null;
+            string? sName = arguments.TryGetProperty("studentName", out var sElem) ? sElem.GetString()?.Trim().ToLowerInvariant() : null;
+
+            var query = _context.StudentTransportAssignments
+                .AsNoTracking()
+                .Include(a => a.Route)
+                .Include(a => a.PickupPoint)
+                .Where(a => a.Status && !a.IsDeleted);
+
+            if (!string.IsNullOrEmpty(rName))
+            {
+                query = query.Where(a => a.Route != null && (a.Route.RouteName.ToLower().Contains(rName) || a.Route.RouteCode.ToLower().Contains(rName)));
+            }
+
+            var assignments = await query.Take(50).ToListAsync();
+
+            if (assignments.Count == 0)
+            {
+                return AiToolResult.Ok("No active transport student assignments found matching criteria.");
+            }
+
+            var studentIds = assignments.Where(a => a.StudentId.HasValue).Select(a => (int)a.StudentId!.Value).Distinct().ToList();
+            var students = await _context.Students
+                .AsNoTracking()
+                .Include(s => s.ClassGrade)
+                .Include(s => s.ClassSection)
+                .Where(s => studentIds.Contains(s.StudentId))
+                .ToDictionaryAsync(s => s.StudentId);
+
+            var rows = assignments.Select(a =>
+            {
+                Student? stu = null;
+                if (a.StudentId.HasValue)
+                {
+                    students.TryGetValue((int)a.StudentId.Value, out stu);
+                }
+                return new
+                {
+                    StudentId = a.StudentId ?? 0,
+                    AdmissionNo = a.AdmissionNo ?? stu?.AdmissionNumber ?? "-",
+                    StudentName = stu?.StudentName ?? a.AdmissionNo ?? "Student",
+                    Class = stu?.ClassGrade?.ClassName ?? "-",
+                    Section = stu?.ClassSection?.SectionName ?? "-",
+                    Route = a.Route?.RouteName ?? "-",
+                    PickupPoint = a.PickupPoint?.PickupPointName ?? "Assigned Stop",
+                    ParentMobile = stu?.FatherMobile ?? stu?.MobileNumber ?? "-",
+                    MonthlyFee = a.Route?.MonthlyFee ?? 0
+                };
+            }).ToList();
+
+            if (!string.IsNullOrEmpty(sName))
+            {
+                rows = rows.Where(r => r.StudentName.ToLower().Contains(sName) || r.AdmissionNo.ToLower().Contains(sName)).ToList();
+            }
+
+            string summary = $"Found {rows.Count} student(s) actively assigned to school transport.";
+            var visualData = new
+            {
+                title = "Transport Student Allocations Roster",
+                columns = new[] { "AdmissionNo", "StudentName", "Class", "Route", "PickupPoint", "ParentMobile", "MonthlyFee" },
+                rows = rows
+            };
+
+            return AiToolResult.Ok(summary, rows, "table", visualData);
         }
     }
 }

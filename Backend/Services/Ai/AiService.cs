@@ -353,7 +353,6 @@ namespace SMS.Api.Services.Ai
                                                                           r.Equals("All", StringComparison.OrdinalIgnoreCase))).ToList();
 
             AiCompletionResult completion;
-            // Attempt Gemini provider if configured; fallback to Deterministic Engine seamlessly
             if (_geminiProvider.IsConfigured)
             {
                 try
@@ -362,8 +361,11 @@ namespace SMS.Api.Services.Ai
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning($"[AiService] Gemini provider invocation failed: {ex.Message}. Falling back to Deterministic AI Engine.");
-                    completion = await _deterministicEngine.GenerateChatResponseAsync(chatContext, allowedTools);
+                    _logger.LogError(ex, $"[AiService] Gemini provider error: {ex.Message}");
+                    completion = new AiCompletionResult
+                    {
+                        ReplyText = "⚠️ The AI Assistant encountered an issue connecting with Google Gemini. Please check your network or API quota and try again."
+                    };
                 }
             }
             else
@@ -372,6 +374,7 @@ namespace SMS.Api.Services.Ai
             }
 
             var toolExecutions = new List<AiToolExecutionDto>();
+            var toolOutputsForGemini = new List<(string ToolName, string Summary, object? Data)>();
             string finalReply = completion.ReplyText;
             string? visualType = null;
             object? visualData = null;
@@ -398,6 +401,7 @@ namespace SMS.Api.Services.Ai
 
                             if (toolResult.Success)
                             {
+                                toolOutputsForGemini.Add((tool.Name, toolResult.Summary, toolResult.Data ?? toolResult.VisualData));
                                 if (!string.IsNullOrWhiteSpace(toolResult.Summary))
                                 {
                                     finalReply = toolResult.Summary;
@@ -414,6 +418,7 @@ namespace SMS.Api.Services.Ai
                             }
                             else if (!string.IsNullOrWhiteSpace(toolResult.ErrorMessage))
                             {
+                                toolOutputsForGemini.Add((tool.Name, $"Error: {toolResult.ErrorMessage}", null));
                                 finalReply = $"⚠️ {toolResult.ErrorMessage}";
                             }
                         }
@@ -428,6 +433,23 @@ namespace SMS.Api.Services.Ai
                                 Summary = $"Tool execution error: {ex.Message}"
                             });
                         }
+                    }
+                }
+
+                // Multi-Turn Synthesis: Send tool outputs back to Gemini so it generates a context-aware, natural markdown response
+                if (completion.RawModelTurn != null && toolOutputsForGemini.Count > 0 && _geminiProvider.IsConfigured)
+                {
+                    try
+                    {
+                        var synthesized = await _geminiProvider.SynthesizeToolResponsesAsync(chatContext, completion.RawModelTurn, toolOutputsForGemini, allowedTools);
+                        if (!string.IsNullOrWhiteSpace(synthesized))
+                        {
+                            finalReply = synthesized;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "[AiService] Multi-turn synthesis via Gemini failed, keeping tool summary.");
                     }
                 }
             }

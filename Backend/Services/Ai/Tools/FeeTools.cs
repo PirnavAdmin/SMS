@@ -199,4 +199,150 @@ namespace SMS.Api.Services.Ai.Tools
             return AiToolResult.Ok(summary, stats, "chart", visualData);
         }
     }
+
+    public class FeeDefaultersTool : IAiTool
+    {
+        private readonly IFeeCollectionService _feeService;
+
+        public FeeDefaultersTool(IFeeCollectionService feeService)
+        {
+            _feeService = feeService;
+        }
+
+        public string Name => "fee_get_defaulters";
+        public string Description => "Retrieves list of students with unpaid school fees, pending balances, overdue days, parent contact numbers, and critical defaulter metrics.";
+        public string ParametersJsonSchema => @"
+        {
+            ""type"": ""object"",
+            ""properties"": {
+                ""className"": { ""type"": ""string"", ""description"": ""Optional class name filter e.g. 'Class 10' or '10'"" },
+                ""sectionName"": { ""type"": ""string"", ""description"": ""Optional section name filter e.g. 'A'"" },
+                ""minDaysOverdue"": { ""type"": ""integer"", ""description"": ""Minimum days overdue (default 0 for all pending)"" }
+            }
+        }";
+
+        public string[] AllowedRoles => new[] { "Admin", "SuperAdmin", "Super Admin", "Principal", "Accountant" };
+
+        public async Task<AiToolResult> ExecuteAsync(AiToolContext context, JsonElement arguments)
+        {
+            string? className = arguments.TryGetProperty("className", out var cElem) ? cElem.GetString()?.Trim() : null;
+            string? sectionName = arguments.TryGetProperty("sectionName", out var sElem) ? sElem.GetString()?.Trim() : null;
+            int minDays = arguments.TryGetProperty("minDaysOverdue", out var mElem) && mElem.TryGetInt32(out var md) ? md : 0;
+
+            var dues = await _feeService.GetDueFeesSummaryAsync(className, sectionName, minDays);
+
+            if (dues == null || dues.Items == null || dues.Items.Count == 0)
+            {
+                return AiToolResult.Ok("No fee defaulters found for the specified criteria.");
+            }
+
+            var rows = dues.Items.Take(30).Select(d => new
+            {
+                StudentId = d.StudentId,
+                AdmissionNo = d.AdmissionNo,
+                StudentName = d.StudentName,
+                Class = $"{d.ClassName} - {d.Section}".Trim('-', ' '),
+                ParentName = d.ParentName,
+                ParentMobile = d.ParentMobile,
+                DueAmount = $"₹{d.TotalDueAmount:N0}",
+                OverdueDays = d.MaxDaysOverdue
+            }).ToList();
+
+            string summary = $"Fee Defaulters Summary: Found **{dues.TotalOverdueStudents} student(s)** with unpaid fees. " +
+                             $"Total Outstanding Overdue: **{dues.FormattedTotalOverdue}**, Critical Defaulters: **{dues.CriticalDefaultersCount}**.";
+
+            var visualData = new
+            {
+                title = $"Students with Pending Fees ({dues.TotalOverdueStudents} Students - Total {dues.FormattedTotalOverdue})",
+                columns = new[] { "AdmissionNo", "StudentName", "Class", "ParentName", "ParentMobile", "DueAmount", "OverdueDays" },
+                rows = rows
+            };
+
+            return AiToolResult.Ok(summary, dues, "table", visualData);
+        }
+    }
+
+    public class FeeCompareCollectionsTool : IAiTool
+    {
+        private readonly AppDbContext _context;
+
+        public FeeCompareCollectionsTool(AppDbContext context)
+        {
+            _context = context;
+        }
+
+        public string Name => "fee_compare_collections";
+        public string Description => "Compares fee collections between months, terms, or recent periods to identify collection trends, growth, and total revenue.";
+        public string ParametersJsonSchema => @"
+        {
+            ""type"": ""object"",
+            ""properties"": {
+                ""monthsBack"": { ""type"": ""integer"", ""description"": ""Number of months to compare (default 3)"" }
+            }
+        }";
+
+        public string[] AllowedRoles => new[] { "Admin", "SuperAdmin", "Super Admin", "Principal", "Accountant" };
+
+        public async Task<AiToolResult> ExecuteAsync(AiToolContext context, JsonElement arguments)
+        {
+            int months = arguments.TryGetProperty("monthsBack", out var mElem) && mElem.TryGetInt32(out var mb) ? Math.Max(2, mb) : 3;
+
+            var now = DateTime.UtcNow;
+            var startDate = new DateTime(now.Year, now.Month, 1).AddMonths(-months + 1);
+
+            var payments = await _context.FeePayments
+                .AsNoTracking()
+                .Where(p => p.PaymentDate >= startDate)
+                .ToListAsync();
+
+            var monthlyGroups = payments
+                .GroupBy(p => new { Year = p.PaymentDate.Year, Month = p.PaymentDate.Month })
+                .Select(g => new
+                {
+                    MonthLabel = new DateTime(g.Key.Year, g.Key.Month, 1).ToString("MMM yyyy"),
+                    Year = g.Key.Year,
+                    Month = g.Key.Month,
+                    TotalCollected = g.Sum(p => p.Amount),
+                    TransactionsCount = g.Count()
+                })
+                .OrderBy(g => g.Year).ThenBy(g => g.Month)
+                .ToList();
+
+            var thisMonth = monthlyGroups.LastOrDefault();
+            var prevMonth = monthlyGroups.Count >= 2 ? monthlyGroups[monthlyGroups.Count - 2] : null;
+
+            decimal thisAmt = thisMonth?.TotalCollected ?? 0m;
+            decimal prevAmt = prevMonth?.TotalCollected ?? 0m;
+            decimal diff = thisAmt - prevAmt;
+            string trend = diff >= 0 ? $"+₹{diff:N0} (Upward)" : $"-₹{Math.Abs(diff):N0} (Downward)";
+
+            string summary = $"Fee Collection Comparison: This Month ({thisMonth?.MonthLabel ?? "Current"}) collected **₹{thisAmt:N0}**, compared to Previous Month ({prevMonth?.MonthLabel ?? "Prior"}) which collected **₹{prevAmt:N0}**. Net Difference: **{trend}**.";
+
+            var visualData = new
+            {
+                title = "Monthly Fee Collection Trend & Comparison",
+                chart = new
+                {
+                    type = "bar",
+                    labels = monthlyGroups.Select(m => m.MonthLabel).ToArray(),
+                    datasets = new[]
+                    {
+                        new { label = "Collection (₹)", data = monthlyGroups.Select(m => m.TotalCollected).ToArray() }
+                    }
+                },
+                table = new
+                {
+                    columns = new[] { "Month", "TotalCollected", "Transactions" },
+                    rows = monthlyGroups.Select(m => new
+                    {
+                        Month = m.MonthLabel,
+                        TotalCollected = $"₹{m.TotalCollected:N0}",
+                        Transactions = m.TransactionsCount
+                    }).ToList()
+                }
+            };
+
+            return AiToolResult.Ok(summary, monthlyGroups, "chart", visualData);
+        }
+    }
 }

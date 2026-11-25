@@ -274,7 +274,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
 
         var feeStructures = await _context.DynamicFeeStructures.AsNoTracking().ToListAsync();
 
-        var allHostelConfigs = await _context.HostelFeeConfigs.AsNoTracking()
+        var allHostelConfigs = await _context.HostelFeeConfigs.IgnoreQueryFilters().AsNoTracking()
             .Where(h => h.Status == "Active" || string.IsNullOrEmpty(h.Status))
             .ToListAsync();
 
@@ -541,11 +541,14 @@ public class FeeCollectionRepository : IFeeCollectionRepository
         var matchYear = System.Text.RegularExpressions.Regex.Match(activeAYName, @"\d{4}");
         string yearPrefix = matchYear.Success ? matchYear.Value : activeAYName;
 
-        var feeStructures = await _context.DynamicFeeStructures.AsNoTracking()
-            .Where(f => (f.Status == "Active" || string.IsNullOrEmpty(f.Status)) &&
-                        (string.IsNullOrEmpty(f.AcademicYear) || f.AcademicYear.Contains(yearPrefix) || f.AcademicYear.Equals(activeAYName, StringComparison.OrdinalIgnoreCase)) &&
-                        (string.IsNullOrEmpty(branchName) || string.IsNullOrEmpty(f.Branch) || f.Branch.Equals("All", StringComparison.OrdinalIgnoreCase) || f.Branch.Equals(branchName, StringComparison.OrdinalIgnoreCase)))
+        var allStructures = await _context.DynamicFeeStructures.AsNoTracking()
+            .Where(f => f.Status == "Active" || string.IsNullOrEmpty(f.Status))
             .ToListAsync();
+
+        var feeStructures = allStructures
+            .Where(f => (string.IsNullOrEmpty(f.AcademicYear) || f.AcademicYear.Contains(yearPrefix) || f.AcademicYear.Equals(activeAYName, StringComparison.OrdinalIgnoreCase)) &&
+                        (string.IsNullOrEmpty(branchName) || string.IsNullOrEmpty(f.Branch) || f.Branch.Equals("All", StringComparison.OrdinalIgnoreCase) || f.Branch.Equals(branchName, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
 
         var matchedStructure = feeStructures.FirstOrDefault(f => 
             !string.IsNullOrEmpty(f.ClassName) && 
@@ -2729,7 +2732,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
             .Where(a => a.StudentType == "Residential")
             .ToList();
 
-        var allHostelConfigs = await _context.HostelFeeConfigs.AsNoTracking()
+        var allHostelConfigs = await _context.HostelFeeConfigs.IgnoreQueryFilters().AsNoTracking()
             .Where(h => h.Status == "Active" || string.IsNullOrEmpty(h.Status))
             .ToListAsync();
 
@@ -3854,7 +3857,7 @@ public class FeeCollectionRepository : IFeeCollectionRepository
         decimal securityDepositAmount = 0m;
 
         string cName = student?.ClassGrade?.ClassName ?? "";
-        var allHostelConfigs = await _context.HostelFeeConfigs.AsNoTracking()
+        var allHostelConfigs = await _context.HostelFeeConfigs.IgnoreQueryFilters().AsNoTracking()
             .Where(h => h.Status == "Active" || string.IsNullOrEmpty(h.Status))
             .ToListAsync();
 

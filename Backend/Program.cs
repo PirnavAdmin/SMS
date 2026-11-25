@@ -225,20 +225,59 @@ builder.Services.AddHttpClient();
 builder.Services.AddScoped<DeterministicAiEngine>();
 builder.Services.AddScoped<GeminiAiProvider>();
 
+// 1. Student Management
 builder.Services.AddScoped<IAiTool, StudentOverviewTool>();
 builder.Services.AddScoped<IAiTool, StudentSearchTool>();
 builder.Services.AddScoped<IAiTool, StudentDetailsTool>();
+
+// 2. Parent Management
+builder.Services.AddScoped<IAiTool, ParentChildrenProfileTool>();
+
+// 3. Teacher and Staff Management
+builder.Services.AddScoped<IAiTool, AdminStaffDirectoryTool>();
+
+// 4. Admissions
+builder.Services.AddScoped<IAiTool, AdmissionSummaryTool>();
+builder.Services.AddScoped<IAiTool, AdmissionApplicationsTool>();
+
+// 5. Academic Management
+builder.Services.AddScoped<IAiTool, AdminClassesTool>();
+
+// 6. Attendance
 builder.Services.AddScoped<IAiTool, AttendanceDailySummaryTool>();
 builder.Services.AddScoped<IAiTool, AttendanceClassSummaryTool>();
+
+// 7. Finance & Fee Management
 builder.Services.AddScoped<IAiTool, FeeStudentProfileTool>();
 builder.Services.AddScoped<IAiTool, FeeCollectionStatsTool>();
+builder.Services.AddScoped<IAiTool, FeeDefaultersTool>();
+builder.Services.AddScoped<IAiTool, FeeCompareCollectionsTool>();
+
+// 8. Transport Management
+builder.Services.AddScoped<IAiTool, TransportFleetTool>();
+builder.Services.AddScoped<IAiTool, TransportStudentAssignmentsTool>();
+
+// 9. Hostel Management
+builder.Services.AddScoped<IAiTool, HostelOccupancyOverviewTool>();
+builder.Services.AddScoped<IAiTool, HostelRoomAvailabilityTool>();
+
+// 10. Examination & Results
 builder.Services.AddScoped<IAiTool, ExamStudentResultsTool>();
 builder.Services.AddScoped<IAiTool, ExamScheduleTool>();
-builder.Services.AddScoped<IAiTool, TransportFleetTool>();
+
+// 11. Library Management
 builder.Services.AddScoped<IAiTool, LibraryCatalogTool>();
+
+// 12. Timetable Management
 builder.Services.AddScoped<IAiTool, TimetableScheduleTool>();
-builder.Services.AddScoped<IAiTool, AdminStaffDirectoryTool>();
-builder.Services.AddScoped<IAiTool, AdminClassesTool>();
+
+// 13. Uniform Management
+builder.Services.AddScoped<IAiTool, UniformStockOverviewTool>();
+
+// 14. Organization & School Overview
+builder.Services.AddScoped<IAiTool, SchoolOverviewTool>();
+
+// Authorized Two-Phase Confirmation Write Actions
 builder.Services.AddScoped<IAiTool, ActionCreateAnnouncementTool>();
 builder.Services.AddScoped<IAiTool, ActionScheduleMeetingTool>();
 
