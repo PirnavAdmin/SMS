@@ -224,25 +224,82 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
 
   // Dynamically map student record overlay for selected Academic Year without mutating master profile
   const displayStudents = useMemo(() => {
+    const normalizeKey = (val: any): string => String(val ?? '').trim().toLowerCase();
+    const isFormattedStudentCode = (val: string): boolean => Boolean(val) && !/^\d+$/.test(val);
+
     // Merge admissions applications from main admin panel into student directory
     const sourceApps = (admissions && admissions.length > 0 ? admissions : applications) || [];
-    const admittedFromApps: Student[] = sourceApps
+    const admittedFromApps: (Student & { _hasExplicitCode?: boolean })[] = sourceApps
       .filter(app => {
         const st = (app.status || '').toLowerCase().trim();
-        return st === 'admitted' || st === 'enrolled' || st === 'active';
+        if (st !== 'admitted' && st !== 'enrolled' && st !== 'active') return false;
+
+        if (selectedBranch && selectedBranch !== 'All' && selectedBranch !== 'All Branches') {
+          const appBranch = normalizeKey(app.branch || (app as any).branchName);
+          const selBranch = normalizeKey(selectedBranch);
+          if (
+            appBranch &&
+            appBranch !== 'all' &&
+            appBranch !== 'all branches' &&
+            appBranch !== selBranch &&
+            !appBranch.includes(selBranch) &&
+            !selBranch.includes(appBranch)
+          ) {
+            return false;
+          }
+        }
+
+        const appAy = String((app as any).academicYear || '').trim();
+        if (selectedAcademicYear && selectedAcademicYear !== 'All' && appAy && appAy !== 'All') {
+          const selClean = selectedAcademicYear.replace(/[^0-9]/g, '');
+          const appClean = appAy.replace(/[^0-9]/g, '');
+          const ayMatched = selClean && appClean
+            ? selClean === appClean || selClean.slice(0, 4) === appClean.slice(0, 4) || appAy === selectedAcademicYear
+            : appAy === selectedAcademicYear;
+          if (!ayMatched) return false;
+        }
+
+        return true;
       })
       .map(app => {
         const fullName = (app.applicantName || (app as any).studentName || `${app.firstName || ''} ${app.lastName || ''}`).trim();
         const nameParts = fullName ? fullName.split(' ') : [];
-        const regNo = app.applicationNo || (app as any).registrationNo || (app as any).applicationNumber || (app as any).admissionNo || (app.id ? formatConfiguredStudentAdmissionNo(undefined, app.id) : '');
+        const rawAppId = String(app.id || '').trim();
+        const explicitCode =
+          (app as any).admissionNo ||
+          (app as any).admissionNumber ||
+          app.applicationNo ||
+          (app as any).registrationNo ||
+          (app as any).registrationNumber ||
+          (app as any).applicationNumber ||
+          (app as any).studentId ||
+          '';
+        const regNo = explicitCode || (app.id ? formatConfiguredStudentAdmissionNo(undefined, app.id) : '');
+        const resolvedStudentCode =
+          (app as any).studentId ||
+          (app as any).registrationNo ||
+          (app as any).registrationNumber ||
+          (app as any).rollNo ||
+          '';
+        const resolvedAdmNo =
+          (app as any).admissionNo ||
+          (app as any).admissionNumber ||
+          regNo;
+        const syntheticId = rawAppId
+          ? (rawAppId.startsWith('adm-') ? rawAppId : `adm-${rawAppId}`)
+          : `adm-${resolvedAdmNo || fullName}`;
         return {
-          id: String(app.id || ''),
+          id: syntheticId,
+          studentId: resolvedStudentCode || resolvedAdmNo,
+          registrationNo: (app as any).registrationNo || (app as any).registrationNumber || '',
+          registrationNumber: (app as any).registrationNumber || (app as any).registrationNo || '',
           firstName: app.firstName || nameParts[0] || '',
           lastName: app.lastName || nameParts.slice(1).join(' ') || '',
           className: app.appliedClass || (app as any).applyingForClass || (app as any).className || '',
           section: (app as any).section || (app as any).sectionLetter || 'A',
-          rollNo: (app as any).rollNo || (regNo ? regNo.replace(/\D/g, '').slice(-3) : ''),
-          admissionNo: regNo,
+          rollNo: resolvedStudentCode || (regNo ? regNo.replace(/\D/g, '').slice(-3) : ''),
+          admissionNo: resolvedAdmNo,
+          academicYear: (app as any).academicYear || '',
           fatherName: app.parentName || (app as any).fatherName || '',
           fatherPhone: app.phone || (app as any).fatherMobile || (app as any).parentPhone || '',
           motherName: app.motherName || '',
@@ -271,20 +328,67 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
           dropPoint: app.transportRequired ? (app.dropPoint || '') : '',
           hostelBlock: app.studentType === 'Hosteller' || app.studentType === 'Residential' ? (app.hostelBlock || '') : '',
           hostelRoom: app.studentType === 'Hosteller' || app.studentType === 'Residential' ? (app.hostelRoom || '') : '',
-          hostelBed: app.studentType === 'Hosteller' || app.studentType === 'Residential' ? (app.hostelBed || '') : ''
+          hostelBed: app.studentType === 'Hosteller' || app.studentType === 'Residential' ? (app.hostelBed || '') : '',
+          _hasExplicitCode: Boolean(explicitCode),
         };
       });
 
-    const existingIds = new Set(
-      (students || []).flatMap(s => [
-        String(s.id).trim().toLowerCase(),
-        (s.admissionNo || '').trim().toLowerCase()
-      ]).filter(Boolean)
-    );
-    const newAdmissions = admittedFromApps.filter(s => 
-      !existingIds.has(String(s.id).trim().toLowerCase()) && 
-      !existingIds.has((s.admissionNo || '').trim().toLowerCase())
-    );
+    // Match by formatted business codes (ADM/STU/REG) and name+phone/class — never raw DB table PKs
+    const existingBusinessCodes = new Set<string>();
+    const existingNamePhoneKeys = new Set<string>();
+    const existingNameClassKeys = new Set<string>();
+
+    (students || []).forEach((s: any) => {
+      [
+        s.admissionNo,
+        s.admissionNumber,
+        s.registrationNo,
+        s.registrationNumber,
+        s.applicationNo,
+        s.studentId,
+        s.rollNo,
+        s.rollNumber,
+      ].forEach(code => {
+        const clean = normalizeKey(code);
+        if (isFormattedStudentCode(clean)) {
+          existingBusinessCodes.add(clean);
+        }
+      });
+
+      const full =
+        `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase() ||
+        normalizeKey(s.studentName || s.name);
+      const phone = normalizeKey(s.fatherPhone || s.parentPhone || s.phone);
+      const cls = normalizeKey(s.className);
+      if (full && phone) existingNamePhoneKeys.add(`${full}|${phone}`);
+      if (full && cls) existingNameClassKeys.add(`${full}|${cls}`);
+    });
+
+    const seenAdmittedKeys = new Set<string>();
+    const newAdmissions = admittedFromApps.filter(s => {
+      const codes = [
+        (s as any).admissionNo,
+        (s as any).registrationNo,
+        (s as any).registrationNumber,
+        (s as any).studentId,
+        (s as any).rollNo,
+      ]
+        .map(normalizeKey)
+        .filter(isFormattedStudentCode);
+
+      if (codes.some(c => existingBusinessCodes.has(c))) return false;
+
+      const full = `${s.firstName || ''} ${s.lastName || ''}`.trim().toLowerCase();
+      const phone = normalizeKey(s.fatherPhone || s.phone);
+      const cls = normalizeKey(s.className);
+      if (full && phone && existingNamePhoneKeys.has(`${full}|${phone}`)) return false;
+      if (!s._hasExplicitCode && full && cls && existingNameClassKeys.has(`${full}|${cls}`)) return false;
+
+      const dedupKey = codes[0] || (full && cls ? `${full}|${cls}` : s.id);
+      if (dedupKey && seenAdmittedKeys.has(dedupKey)) return false;
+      if (dedupKey) seenAdmittedKeys.add(dedupKey);
+      return true;
+    });
     const allCombined = [...(students || []), ...newAdmissions];
 
     const mapped = allCombined.map((s) => {
@@ -325,7 +429,7 @@ export const StudentList: React.FC<{ onNavigate?: (module: string) => void }> = 
     }
 
     return mapped;
-  }, [students, admissions, applications, selectedAcademicYear, isWardenRole]);
+  }, [students, admissions, applications, selectedBranch, selectedAcademicYear, isWardenRole]);
 
   // Overall Class Overview dataset dynamically computed from Class Management module & sorted in ascending order
   const classOverviewList = useMemo(() => {
