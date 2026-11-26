@@ -115,7 +115,7 @@ export default defineConfig(async ({ command, mode }): Promise<UserConfig> => {
               'Content-Type': 'application/json',
               'Retry-After': '2',
             });
-            httpRes.end(JSON.stringify({ error: 'Backend starting or offline', details: err.message }));
+            httpRes.end(JSON.stringify({ error: 'Backend server unavailable', details: err.message }));
           }
         });
       },
