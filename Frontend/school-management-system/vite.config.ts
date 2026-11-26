@@ -58,12 +58,14 @@ export default defineConfig(async ({ command, mode }): Promise<UserConfig> => {
   let lastCheckedAt = 0;
   let lastProxyWarnAt = 0;
 
-  const resolveProxyTarget = async (): Promise<string> => {
+  const resolveProxyTarget = async (forceRefresh = false): Promise<string> => {
     if (command === 'serve' && !forceRemote) {
       const now = Date.now();
-      if (!cachedTarget || now - lastCheckedAt > 1500) {
+      if (forceRefresh || !cachedTarget || now - lastCheckedAt > 1500) {
         const reachable = await pickLocalTarget();
-        cachedTarget = reachable || 'http://127.0.0.1:5151';
+        // When no local ASP.NET backend is running on :5151 (e.g. remote teammates using a shared tunnel),
+        // fall back to VITE_BACKEND_TARGET / VITE_API_URL instead of forcing 127.0.0.1:5151.
+        cachedTarget = reachable || configuredTarget || 'http://127.0.0.1:5151';
         lastCheckedAt = now;
       }
       return cachedTarget;
@@ -71,8 +73,27 @@ export default defineConfig(async ({ command, mode }): Promise<UserConfig> => {
     return configuredTarget || 'http://127.0.0.1:5151';
   };
 
+  const isLocalTargetUrl = (target: string): boolean =>
+    /^https?:\/\/(127\.0\.0\.1|localhost|\[::1\])(:|\/|$)/i.test(target);
+
+  const applyProxyTarget = (options: ProxyOptions, target: string) => {
+    options.target = target;
+    options.agent = target.startsWith('https') ? httpsAgent : httpAgent;
+  };
+
+  const attachDynamicTargetRefresh = (options: ProxyOptions) => {
+    if (command === 'serve' && !forceRemote) {
+      const timer = setInterval(() => {
+        void resolveProxyTarget().then((nextTarget) => {
+          applyProxyTarget(options, nextTarget);
+        });
+      }, 2000);
+      timer.unref();
+    }
+  };
+
   const initialTarget = await resolveProxyTarget();
-  const isHttps = forceRemote && initialTarget.startsWith('https');
+  const isHttps = initialTarget.startsWith('https');
 
   const sharedProxyOptions: ProxyOptions = {
     target: initialTarget,
@@ -90,24 +111,24 @@ export default defineConfig(async ({ command, mode }): Promise<UserConfig> => {
     '/api': {
       ...sharedProxyOptions,
       configure: (proxyServer, options) => {
-        if (command === 'serve' && !forceRemote) {
-          const timer = setInterval(() => {
-            void resolveProxyTarget().then((nextTarget) => {
-              options.target = nextTarget;
-            });
-          }, 2000);
-          timer.unref();
-        }
+        attachDynamicTargetRefresh(options);
         proxyServer.on('error', (err, _req, res) => {
-          void resolveProxyTarget().then((nextTarget) => {
-            options.target = nextTarget;
+          const failedTarget = String(options.target || initialTarget);
+          void resolveProxyTarget(true).then((nextTarget) => {
+            applyProxyTarget(options, nextTarget);
           });
           const now = Date.now();
           if (now - lastProxyWarnAt > 5000) {
             lastProxyWarnAt = now;
-            console.warn(
-              `[vite proxy] Local ASP.NET Core backend is unavailable (${err.message}). Wait for "dotnet run" on :5151 or run .\\start-dev.ps1.`
-            );
+            if (isLocalTargetUrl(failedTarget)) {
+              console.warn(
+                `[vite proxy] Local ASP.NET Core backend is unavailable (${err.message}). Wait for "dotnet run" on :5151, run .\\start-dev.ps1, or set VITE_BACKEND_TARGET / VITE_API_URL to a running tunnel.`
+              );
+            } else {
+              console.warn(
+                `[vite proxy] Remote backend target ${failedTarget} is unavailable (${err.message}). Verify the backend and tunnel are running.`
+              );
+            }
           }
           const httpRes = res as http.ServerResponse | undefined;
           if (httpRes && !httpRes.headersSent && typeof httpRes.writeHead === 'function') {
@@ -115,7 +136,7 @@ export default defineConfig(async ({ command, mode }): Promise<UserConfig> => {
               'Content-Type': 'application/json',
               'Retry-After': '2',
             });
-            httpRes.end(JSON.stringify({ error: 'Backend starting or offline', details: err.message }));
+            httpRes.end(JSON.stringify({ error: 'Backend starting or offline', target: failedTarget, details: err.message }));
           }
         });
       },
@@ -132,8 +153,12 @@ export default defineConfig(async ({ command, mode }): Promise<UserConfig> => {
         } catch { }
         return undefined;
       },
-      configure: (proxyServer) => {
+      configure: (proxyServer, options) => {
+        attachDynamicTargetRefresh(options);
         proxyServer.on('error', (_err, req, res) => {
+          void resolveProxyTarget(true).then((nextTarget) => {
+            applyProxyTarget(options, nextTarget);
+          });
           const httpRes = res as http.ServerResponse | undefined;
           if (httpRes && !httpRes.headersSent && typeof httpRes.writeHead === 'function') {
             const reqUrl = ((req && req.url) || '').toLowerCase();
@@ -154,6 +179,11 @@ export default defineConfig(async ({ command, mode }): Promise<UserConfig> => {
   return {
     plugins: [react()],
     server: {
+      host: true,
+      allowedHosts: true,
+      proxy,
+    },
+    preview: {
       host: true,
       allowedHosts: true,
       proxy,

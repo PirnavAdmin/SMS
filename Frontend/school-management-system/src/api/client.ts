@@ -143,19 +143,28 @@ export const apiClient = async <T = any>(endpoint: string, options: RequestInit 
     window.location.hostname.endsWith('.local')
   );
 
-  // Primary URL is always based on the configured VITE_API_URL
-  let primaryUrl = endpoint.startsWith('http') ? endpoint : ((baseUrl && !isLocalHost) ? `${baseUrl}${cleanEndpoint}` : cleanEndpoint);
-  let fallbackUrl = '';
+  const forceRemoteProxy = (import.meta.env.VITE_FORCE_REMOTE_PROXY as string) === 'true';
 
-  // When running locally on localhost, always prioritize local direct/proxy endpoint to ensure real-time local DB access
+  // Primary URL uses same-origin proxy on localhost/LAN and VITE_API_URL on hosted environments.
+  let primaryUrl = cleanEndpoint;
+  const fallbackUrls: string[] = [];
+
   if (endpoint.startsWith('http')) {
     primaryUrl = endpoint;
   } else if (isLocalHost) {
     primaryUrl = cleanEndpoint;
-    const localHost = (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost')
-      ? (window.location.hostname === '127.0.0.1' ? '127.0.0.1:5151' : 'localhost:5151')
-      : `${window.location.hostname}:5151`;
-    fallbackUrl = `http://${localHost}${cleanEndpoint}`;
+    if (!forceRemoteProxy && typeof window !== 'undefined' && window.location.protocol === 'http:') {
+      const localHost = (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost')
+        ? (window.location.hostname === '127.0.0.1' ? '127.0.0.1:5151' : 'localhost:5151')
+        : `${window.location.hostname}:5151`;
+      fallbackUrls.push(`http://${localHost}${cleanEndpoint}`);
+    }
+    if (baseUrl) {
+      const remoteCandidate = `${baseUrl}${cleanEndpoint}`;
+      if (remoteCandidate !== primaryUrl && !fallbackUrls.includes(remoteCandidate)) {
+        fallbackUrls.push(remoteCandidate);
+      }
+    }
   } else if (baseUrl) {
     primaryUrl = `${baseUrl}${cleanEndpoint}`;
   }
@@ -169,45 +178,40 @@ export const apiClient = async <T = any>(endpoint: string, options: RequestInit 
     activeAbortControllers.add(internalController);
   }
 
+  const isGatewayErrorStatus = (status: number) =>
+    status === 502 || status === 503 || status === 504 || status === 530;
+
   let response: Response;
   try {
-    try {
-      response = await fetch(primaryUrl, {
-        ...options,
-        headers,
-        signal,
-      });
-    } catch (fetchError: any) {
-      if (fetchError?.name === 'AbortError') {
-        throw fetchError;
-      }
-      if (fallbackUrl && fallbackUrl !== primaryUrl) {
-        try {
-          response = await fetch(fallbackUrl, {
-            ...options,
-            headers,
-            signal,
-          });
-        } catch (fallbackError: any) {
-          throw fallbackError || fetchError;
-        }
-      } else {
-        throw fetchError;
-      }
-    }
+    let lastFetchError: any = null;
+    let resolvedResponse: Response | null = null;
+    const candidateUrls = [primaryUrl, ...fallbackUrls];
 
-    if (!response.ok && (response.status === 502 || response.status === 503 || response.status === 504 || response.status === 530) && fallbackUrl && fallbackUrl !== primaryUrl) {
+    for (const candidateUrl of candidateUrls) {
       try {
-        const fallbackRes = await fetch(fallbackUrl, {
+        const res = await fetch(candidateUrl, {
           ...options,
           headers,
           signal,
         });
-        if (fallbackRes.ok) {
-          response = fallbackRes;
+        if (!isGatewayErrorStatus(res.status)) {
+          resolvedResponse = res;
+          break;
         }
-      } catch { }
+        // Keep the latest gateway error response in case all fallbacks also return gateway errors.
+        resolvedResponse = res;
+      } catch (fetchError: any) {
+        if (fetchError?.name === 'AbortError') {
+          throw fetchError;
+        }
+        lastFetchError = fetchError;
+      }
     }
+
+    if (!resolvedResponse) {
+      throw lastFetchError || new Error('Network request failed');
+    }
+    response = resolvedResponse;
   } finally {
     if (internalController) {
       activeAbortControllers.delete(internalController);
