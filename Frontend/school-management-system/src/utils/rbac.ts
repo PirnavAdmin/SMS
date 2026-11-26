@@ -55,10 +55,10 @@ export type ModuleId = (typeof MODULES)[number];
 // Central Role-Based Access Control matrix
 export const ROLE_PERMISSIONS: Record<Role, ModuleId[]> = {
   "Super Admin": [...SUPERADMIN_MODULES],
-  Admin: [...SCHOOL_MODULES],
+  Admin: [...SCHOOL_MODULES.filter(m => m !== "ai-assistant")],
   Principal: [
     "dashboard",
-    "ai-assistant",
+    // "ai-assistant", /* Temporarily disabled */
     "students",
     "staff",
     "fees",
@@ -78,7 +78,7 @@ export const ROLE_PERMISSIONS: Record<Role, ModuleId[]> = {
   ],
   Teacher: [
     "dashboard",
-    "ai-assistant",
+    // "ai-assistant", /* Temporarily disabled */
     "students",
     "attendance",
     "timetable",
@@ -90,29 +90,29 @@ export const ROLE_PERMISSIONS: Record<Role, ModuleId[]> = {
     "events",
     "staff",
   ],
-  HR: ["dashboard", "ai-assistant", "staff", "communication", "events", "training"],
+  HR: ["dashboard", /* "ai-assistant", */ "staff", "communication", "events", "training"],
   Accountant: [
     "dashboard",
-    "ai-assistant",
+    // "ai-assistant", /* Temporarily disabled */
     "staff",
     "fees",
     "inventory",
     "communication",
     "events",
   ],
-  Librarian: ["dashboard", "ai-assistant", "library", "communication", "events", "staff"],
+  Librarian: ["dashboard", /* "ai-assistant", */ "library", "communication", "events", "staff"],
   "Transport Manager": [
     "dashboard",
-    "ai-assistant",
+    // "ai-assistant", /* Temporarily disabled */
     "transport",
     "communication",
     "events",
     "training",
   ],
-  Driver: ["dashboard", "ai-assistant", "transport", "communication", "events", "staff"],
+  Driver: ["dashboard", /* "ai-assistant", */ "transport", "communication", "events", "staff"],
   "Hostel Warden": [
     "dashboard",
-    "ai-assistant",
+    // "ai-assistant", /* Temporarily disabled */
     "hostel",
     "students",
     "communication",
@@ -121,7 +121,7 @@ export const ROLE_PERMISSIONS: Record<Role, ModuleId[]> = {
   ],
   Receptionist: [
     "dashboard",
-    "ai-assistant",
+    // "ai-assistant", /* Temporarily disabled */
     "admissions",
     "students",
     "certificates",
@@ -131,7 +131,7 @@ export const ROLE_PERMISSIONS: Record<Role, ModuleId[]> = {
   ],
   Student: [
     "dashboard",
-    "ai-assistant",
+    // "ai-assistant", /* Temporarily disabled */
     "attendance",
     "timetable",
     "report-cards",
@@ -146,7 +146,7 @@ export const ROLE_PERMISSIONS: Record<Role, ModuleId[]> = {
   ],
   Parent: [
     "dashboard",
-    "ai-assistant",
+    // "ai-assistant", /* Temporarily disabled */
     "attendance",
     "timetable",
     "report-cards",
@@ -158,7 +158,7 @@ export const ROLE_PERMISSIONS: Record<Role, ModuleId[]> = {
     "staff",
     "transport",
   ],
-  Staff: ["dashboard", "ai-assistant", "staff", "communication", "events", "training"],
+  Staff: ["dashboard", /* "ai-assistant", */ "staff", "communication", "events", "training"],
 };
 
 const normalizeRoleForRbac = (roleStr: string): Role => {

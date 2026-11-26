@@ -220,8 +220,9 @@ builder.Services.AddScoped<SMS.Api.Services.Interfaces.IBackupService, SMS.Api.S
 builder.Services.AddScoped<SMS.Api.Services.Interfaces.ILibraryService, SMS.Api.Services.Implementations.LibraryService>();
 
 // =========================================================
-// AI SCHOOL ERP ASSISTANT SERVICES & TOOLS
+// AI SCHOOL ERP ASSISTANT SERVICES & TOOLS [TEMPORARILY COMMENTED OUT]
 // =========================================================
+/*
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<IErpKnowledgeCatalog, ErpKnowledgeCatalog>();
 builder.Services.AddSingleton<UniversalIntentEngine>();
@@ -284,7 +285,6 @@ builder.Services.AddScoped<IAiTool, SchoolOverviewTool>();
 builder.Services.AddScoped<IAiTool, ActionCreateAnnouncementTool>();
 builder.Services.AddScoped<IAiTool, ActionScheduleMeetingTool>();
 
-builder.Services.AddHttpContextAccessor();
 builder.Services.AddHttpClient("AiPlatform", client =>
 {
     client.Timeout = TimeSpan.FromSeconds(60);
@@ -293,6 +293,9 @@ builder.Services.AddScoped<AiContextTokenService>();
 builder.Services.AddScoped<IAiPlatformProxyService, AiPlatformProxyService>();
 builder.Services.AddScoped<AiService>();
 builder.Services.AddScoped<IAiService, HybridAiService>();
+*/
+
+builder.Services.AddHttpContextAccessor();
 
 // =========================================================
 // 3. JWT AUTHENTICATION
@@ -582,6 +585,7 @@ using (var scope = app.Services.CreateScope())
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
                 ");
 
+                /* [TEMPORARILY COMMENTED OUT - AI Chatbot tables]
                 context.Database.ExecuteSqlRaw(@"
                     CREATE TABLE IF NOT EXISTS `ai_conversations` (
                         `id` varchar(64) NOT NULL,
@@ -611,10 +615,11 @@ using (var scope = app.Services.CreateScope())
                         `pending_action_json` longtext NULL,
                         `is_action_executed` tinyint(1) NULL,
                         `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-                        PRIMARY KEY (`id`),
+                        `PRIMARY KEY` (`id`),
                         KEY `IX_ai_chat_messages_conv` (`conversation_id`)
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
                 ");
+                */
 
                 context.Database.ExecuteSqlRaw(@"
                     CREATE TABLE IF NOT EXISTS `subscription_packages` (
@@ -637,6 +642,7 @@ using (var scope = app.Services.CreateScope())
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
                 ");
 
+                /* [TEMPORARILY COMMENTED OUT - AI Chatbot tables duplicate]
                 context.Database.ExecuteSqlRaw(@"
                     CREATE TABLE IF NOT EXISTS `ai_conversations` (
                         `id` varchar(64) NOT NULL,
@@ -670,6 +676,7 @@ using (var scope = app.Services.CreateScope())
                         KEY `IX_ai_chat_messages_conv` (`conversation_id`)
                     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
                 ");
+                */
             }
             catch { }
 
@@ -692,7 +699,7 @@ using (var scope = app.Services.CreateScope())
                     "employee_salary_assignments", "faculty_training_participations",
                     "leave_applications", "staff_attendances", "staff_documents",
                     "staff_experiences", "staff_qualifications", "teacher_attendance_corrections",
-                    "teacher_substitutions", "homework_submissions", "ai_conversations", "ai_chat_messages"
+                    "teacher_substitutions", "homework_submissions"
                 };
 
                 foreach (var tbl in multiTenantTables)

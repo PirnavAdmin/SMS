@@ -749,7 +749,7 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Right side tools: Notifications & User Profile */}
         <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-          {/* AI Assistant Quick Access */}
+          {/* AI Assistant Quick Access (Temporarily disabled)
           <button
             type="button"
             onClick={() => onNavigate?.('ai-assistant')}
@@ -759,6 +759,7 @@ export const Header: React.FC<HeaderProps> = ({
             <Sparkles className="w-4 h-4 text-sky-600 dark:text-sky-400 stroke-[2.2] animate-pulse" />
             <span className="hidden sm:inline">Ask AI</span>
           </button>
+          */}
 
           {/* Theme Customizer Quick Studio Toggle */}
           <button

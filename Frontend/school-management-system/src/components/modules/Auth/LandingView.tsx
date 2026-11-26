@@ -34,7 +34,9 @@ import {
   Layers,
   HardDrive,
   Eye,
-  Image as ImageIcon
+  Image as ImageIcon,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import {
   PackagePlan,
@@ -409,55 +411,157 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
   const [activePackageIndex, setActivePackageIndex] = useState(0);
   const [isPackageHovered, setIsPackageHovered] = useState(false);
 
+  const getPortalCardStep = () => {
+    if (!portalScrollRef.current) return 340;
+    const children = portalScrollRef.current.children;
+    if (children.length >= 2) {
+      const step = (children[1] as HTMLElement).offsetLeft - (children[0] as HTMLElement).offsetLeft;
+      if (step > 50) return step;
+    }
+    const cardEl = portalScrollRef.current.firstElementChild as HTMLElement | null;
+    return cardEl ? cardEl.getBoundingClientRect().width + 16 : 340;
+  };
+
+  const getModuleCardStep = () => {
+    if (!moduleScrollRef.current) return 310;
+    const children = moduleScrollRef.current.children;
+    if (children.length >= 2) {
+      const step = (children[1] as HTMLElement).offsetLeft - (children[0] as HTMLElement).offsetLeft;
+      if (step > 50) return step;
+    }
+    const cardEl = moduleScrollRef.current.firstElementChild as HTMLElement | null;
+    return cardEl ? cardEl.getBoundingClientRect().width + 16 : 310;
+  };
+
+  const getPackageCardStep = () => {
+    if (!packageScrollRef.current) return 350;
+    const children = packageScrollRef.current.children;
+    if (children.length >= 2) {
+      const step = (children[1] as HTMLElement).offsetLeft - (children[0] as HTMLElement).offsetLeft;
+      if (step > 50) return step;
+    }
+    const cardEl = packageScrollRef.current.firstElementChild as HTMLElement | null;
+    return cardEl ? cardEl.getBoundingClientRect().width + 16 : 350;
+  };
+
   const checkPortalScroll = () => {
     if (!portalScrollRef.current || portalRoles.length === 0) return;
     const { scrollLeft } = portalScrollRef.current;
-    const cardEl = portalScrollRef.current.firstElementChild as HTMLElement | null;
-    const cardWidth = cardEl ? cardEl.offsetWidth + 16 : 336;
-    const rawIdx = Math.round(scrollLeft / cardWidth);
+    const cardStep = getPortalCardStep();
+    const rawIdx = Math.round(scrollLeft / cardStep);
     setActivePortalIndex(Math.min(portalRoles.length - 1, Math.max(0, rawIdx)));
   };
 
   const scrollToPortalIndex = (index: number) => {
     if (!portalScrollRef.current || portalRoles.length === 0) return;
-    const cardEl = portalScrollRef.current.firstElementChild as HTMLElement | null;
-    const cardWidth = cardEl ? cardEl.offsetWidth + 16 : 336;
-    portalScrollRef.current.scrollTo({ left: index * cardWidth, behavior: 'smooth' });
+    const { scrollWidth, clientWidth } = portalScrollRef.current;
+    const maxScroll = Math.max(0, scrollWidth - clientWidth);
+    const cardStep = getPortalCardStep();
+    const target = Math.min(index * cardStep, maxScroll);
+    portalScrollRef.current.scrollTo({ left: target, behavior: 'smooth' });
     setActivePortalIndex(index);
+  };
+
+  const scrollPortalPrev = () => {
+    if (!portalScrollRef.current) return;
+    const { scrollLeft, scrollWidth, clientWidth } = portalScrollRef.current;
+    const cardStep = getPortalCardStep();
+    if (scrollLeft <= 10) {
+      portalScrollRef.current.scrollTo({ left: Math.max(0, scrollWidth - clientWidth), behavior: 'smooth' });
+    } else {
+      portalScrollRef.current.scrollBy({ left: -cardStep, behavior: 'smooth' });
+    }
+  };
+
+  const scrollPortalNext = () => {
+    if (!portalScrollRef.current) return;
+    const { scrollLeft, scrollWidth, clientWidth } = portalScrollRef.current;
+    const cardStep = getPortalCardStep();
+    if (scrollLeft + clientWidth >= scrollWidth - 15) {
+      portalScrollRef.current.scrollTo({ left: 0, behavior: 'smooth' });
+    } else {
+      portalScrollRef.current.scrollBy({ left: cardStep, behavior: 'smooth' });
+    }
   };
 
   const checkModuleScroll = () => {
     if (!moduleScrollRef.current || erpFeatures.length === 0) return;
     const { scrollLeft } = moduleScrollRef.current;
-    const cardEl = moduleScrollRef.current.firstElementChild as HTMLElement | null;
-    const cardWidth = cardEl ? cardEl.offsetWidth + 16 : 310;
-    const rawIdx = Math.round(scrollLeft / cardWidth);
+    const cardStep = getModuleCardStep();
+    const rawIdx = Math.round(scrollLeft / cardStep);
     setActiveModuleIndex(Math.min(erpFeatures.length - 1, Math.max(0, rawIdx)));
   };
 
   const scrollToModuleIndex = (index: number) => {
     if (!moduleScrollRef.current || erpFeatures.length === 0) return;
-    const cardEl = moduleScrollRef.current.firstElementChild as HTMLElement | null;
-    const cardWidth = cardEl ? cardEl.offsetWidth + 16 : 310;
-    moduleScrollRef.current.scrollTo({ left: index * cardWidth, behavior: 'smooth' });
+    const { scrollWidth, clientWidth } = moduleScrollRef.current;
+    const maxScroll = Math.max(0, scrollWidth - clientWidth);
+    const cardStep = getModuleCardStep();
+    const target = Math.min(index * cardStep, maxScroll);
+    moduleScrollRef.current.scrollTo({ left: target, behavior: 'smooth' });
     setActiveModuleIndex(index);
+  };
+
+  const scrollModulePrev = () => {
+    if (!moduleScrollRef.current) return;
+    const { scrollLeft, scrollWidth, clientWidth } = moduleScrollRef.current;
+    const cardStep = getModuleCardStep();
+    if (scrollLeft <= 10) {
+      moduleScrollRef.current.scrollTo({ left: Math.max(0, scrollWidth - clientWidth), behavior: 'smooth' });
+    } else {
+      moduleScrollRef.current.scrollBy({ left: -cardStep, behavior: 'smooth' });
+    }
+  };
+
+  const scrollModuleNext = () => {
+    if (!moduleScrollRef.current) return;
+    const { scrollLeft, scrollWidth, clientWidth } = moduleScrollRef.current;
+    const cardStep = getModuleCardStep();
+    if (scrollLeft + clientWidth >= scrollWidth - 15) {
+      moduleScrollRef.current.scrollTo({ left: 0, behavior: 'smooth' });
+    } else {
+      moduleScrollRef.current.scrollBy({ left: cardStep, behavior: 'smooth' });
+    }
   };
 
   const checkPackageScroll = () => {
     if (!packageScrollRef.current || activePackages.length <= 3) return;
     const { scrollLeft } = packageScrollRef.current;
-    const cardEl = packageScrollRef.current.firstElementChild as HTMLElement | null;
-    const cardWidth = cardEl ? cardEl.offsetWidth + 16 : 356;
-    const rawIdx = Math.round(scrollLeft / cardWidth);
+    const cardStep = getPackageCardStep();
+    const rawIdx = Math.round(scrollLeft / cardStep);
     setActivePackageIndex(Math.min(activePackages.length - 1, Math.max(0, rawIdx)));
   };
 
   const scrollToPackageIndex = (index: number) => {
     if (!packageScrollRef.current || activePackages.length <= 3) return;
-    const cardEl = packageScrollRef.current.firstElementChild as HTMLElement | null;
-    const cardWidth = cardEl ? cardEl.offsetWidth + 16 : 356;
-    packageScrollRef.current.scrollTo({ left: index * cardWidth, behavior: 'smooth' });
+    const { scrollWidth, clientWidth } = packageScrollRef.current;
+    const maxScroll = Math.max(0, scrollWidth - clientWidth);
+    const cardStep = getPackageCardStep();
+    const target = Math.min(index * cardStep, maxScroll);
+    packageScrollRef.current.scrollTo({ left: target, behavior: 'smooth' });
     setActivePackageIndex(index);
+  };
+
+  const scrollPackagePrev = () => {
+    if (!packageScrollRef.current) return;
+    const { scrollLeft, scrollWidth, clientWidth } = packageScrollRef.current;
+    const cardStep = getPackageCardStep();
+    if (scrollLeft <= 10) {
+      packageScrollRef.current.scrollTo({ left: Math.max(0, scrollWidth - clientWidth), behavior: 'smooth' });
+    } else {
+      packageScrollRef.current.scrollBy({ left: -cardStep, behavior: 'smooth' });
+    }
+  };
+
+  const scrollPackageNext = () => {
+    if (!packageScrollRef.current) return;
+    const { scrollLeft, scrollWidth, clientWidth } = packageScrollRef.current;
+    const cardStep = getPackageCardStep();
+    if (scrollLeft + clientWidth >= scrollWidth - 15) {
+      packageScrollRef.current.scrollTo({ left: 0, behavior: 'smooth' });
+    } else {
+      packageScrollRef.current.scrollBy({ left: cardStep, behavior: 'smooth' });
+    }
   };
 
   // Continuous auto-rotate Portals Carousel Timer (every 3.5 seconds)
@@ -467,13 +571,12 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
     const timer = setInterval(() => {
       if (portalScrollRef.current) {
         const { scrollLeft, scrollWidth, clientWidth } = portalScrollRef.current;
-        const cardEl = portalScrollRef.current.firstElementChild as HTMLElement | null;
-        const cardWidth = cardEl ? cardEl.offsetWidth + 16 : 336;
+        const cardStep = getPortalCardStep();
 
-        if (scrollLeft + clientWidth >= scrollWidth - 20) {
+        if (scrollLeft + clientWidth >= scrollWidth - 15) {
           portalScrollRef.current.scrollTo({ left: 0, behavior: 'smooth' });
         } else {
-          portalScrollRef.current.scrollBy({ left: cardWidth, behavior: 'smooth' });
+          portalScrollRef.current.scrollBy({ left: cardStep, behavior: 'smooth' });
         }
       }
     }, 3500);
@@ -488,13 +591,12 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
     const timer = setInterval(() => {
       if (moduleScrollRef.current) {
         const { scrollLeft, scrollWidth, clientWidth } = moduleScrollRef.current;
-        const cardEl = moduleScrollRef.current.firstElementChild as HTMLElement | null;
-        const cardWidth = cardEl ? cardEl.offsetWidth + 16 : 310;
+        const cardStep = getModuleCardStep();
 
-        if (scrollLeft + clientWidth >= scrollWidth - 20) {
+        if (scrollLeft + clientWidth >= scrollWidth - 15) {
           moduleScrollRef.current.scrollTo({ left: 0, behavior: 'smooth' });
         } else {
-          moduleScrollRef.current.scrollBy({ left: cardWidth, behavior: 'smooth' });
+          moduleScrollRef.current.scrollBy({ left: cardStep, behavior: 'smooth' });
         }
       }
     }, 3500);
@@ -509,13 +611,12 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
     const timer = setInterval(() => {
       if (packageScrollRef.current) {
         const { scrollLeft, scrollWidth, clientWidth } = packageScrollRef.current;
-        const cardEl = packageScrollRef.current.firstElementChild as HTMLElement | null;
-        const cardWidth = cardEl ? cardEl.offsetWidth + 16 : 356;
+        const cardStep = getPackageCardStep();
 
-        if (scrollLeft + clientWidth >= scrollWidth - 20) {
+        if (scrollLeft + clientWidth >= scrollWidth - 15) {
           packageScrollRef.current.scrollTo({ left: 0, behavior: 'smooth' });
         } else {
-          packageScrollRef.current.scrollBy({ left: cardWidth, behavior: 'smooth' });
+          packageScrollRef.current.scrollBy({ left: cardStep, behavior: 'smooth' });
         }
       }
     }, 3500);
@@ -978,7 +1079,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
                 <div
                   key={role.id}
                   onClick={() => onLoginClick(role.id)}
-                  className="w-[85vw] sm:w-[320px] md:w-[330px] lg:w-[340px] shrink-0 snap-start group relative bg-white/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 hover:border-sky-500/50 rounded-2xl p-5 transition-all duration-300 hover:-translate-y-1 cursor-pointer flex flex-col justify-between shadow-md hover:shadow-xl backdrop-blur-md select-none"
+                  className="w-full sm:w-[calc((100%-1rem)/2)] lg:w-[calc((100%-2rem)/3)] shrink-0 snap-start snap-always group relative bg-white/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 hover:border-sky-500/50 rounded-2xl p-5 transition-all duration-300 hover:-translate-y-1 cursor-pointer flex flex-col justify-between shadow-md hover:shadow-xl backdrop-blur-md select-none"
                 >
                   <div>
                     <div className="flex items-center justify-between mb-3">
@@ -1017,21 +1118,41 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
             })}
           </div>
 
-          {/* Dot Indicators */}
-          <div className="flex items-center justify-center gap-1.5 mt-3.5">
-            {portalRoles.map((role, idx) => (
-              <button
-                key={role.id}
-                type="button"
-                onClick={() => scrollToPortalIndex(idx)}
-                className={`transition-all duration-300 rounded-full cursor-pointer ${
-                  activePortalIndex === idx
-                    ? 'w-6 h-2 bg-sky-500 dark:bg-sky-400'
-                    : 'w-2 h-2 bg-slate-300 dark:bg-slate-700 hover:bg-slate-400 dark:hover:bg-slate-600'
-                }`}
-                aria-label={`Go to portal ${idx + 1}`}
-              />
-            ))}
+          {/* Dot Indicators & Carousel Controls */}
+          <div className="flex items-center justify-center gap-2.5 mt-4">
+            <button
+              type="button"
+              onClick={scrollPortalPrev}
+              className="p-1.5 rounded-full border border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 text-slate-600 dark:text-slate-300 hover:text-sky-600 dark:hover:text-sky-400 hover:border-sky-300 dark:hover:border-sky-600 transition-all shadow-sm hover:shadow cursor-pointer"
+              aria-label="Previous portal"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+            </button>
+
+            <div className="flex items-center gap-1.5">
+              {portalRoles.map((role, idx) => (
+                <button
+                  key={role.id}
+                  type="button"
+                  onClick={() => scrollToPortalIndex(idx)}
+                  className={`transition-all duration-300 rounded-full cursor-pointer ${
+                    activePortalIndex === idx
+                      ? 'w-6 h-2 bg-sky-500 dark:bg-sky-400'
+                      : 'w-2 h-2 bg-slate-300 dark:bg-slate-700 hover:bg-slate-400 dark:hover:bg-slate-600'
+                  }`}
+                  aria-label={`Go to portal ${idx + 1}`}
+                />
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={scrollPortalNext}
+              className="p-1.5 rounded-full border border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 text-slate-600 dark:text-slate-300 hover:text-sky-600 dark:hover:text-sky-400 hover:border-sky-300 dark:hover:border-sky-600 transition-all shadow-sm hover:shadow cursor-pointer"
+              aria-label="Next portal"
+            >
+              <ChevronRight className="w-3.5 h-3.5" />
+            </button>
           </div>
         </section>
 
@@ -1068,7 +1189,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
               return (
                 <div
                   key={feat.title}
-                  className="w-[85vw] sm:w-[280px] md:w-[290px] lg:w-[310px] shrink-0 snap-start p-5 rounded-2xl bg-white/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800/90 hover:border-slate-300 dark:hover:border-slate-700 transition-all hover:bg-white dark:hover:bg-slate-900 group shadow-md backdrop-blur-md flex flex-col justify-between select-none"
+                  className="w-full sm:w-[calc((100%-1rem)/2)] lg:w-[calc((100%-2rem)/3)] xl:w-[calc((100%-3rem)/4)] shrink-0 snap-start snap-always p-5 rounded-2xl bg-white/80 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800/90 hover:border-slate-300 dark:hover:border-slate-700 transition-all hover:bg-white dark:hover:bg-slate-900 group shadow-md backdrop-blur-md flex flex-col justify-between select-none"
                 >
                   <div>
                     <div className="flex items-center justify-between mb-3">
@@ -1087,22 +1208,42 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
             })}
           </div>
 
-          {/* Dot Indicators */}
+          {/* Dot Indicators & Carousel Controls */}
           {erpFeatures.length > 1 && (
-            <div className="flex items-center justify-center gap-1.5 mt-3.5">
-              {erpFeatures.map((_, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => scrollToModuleIndex(idx)}
-                  className={`transition-all duration-300 rounded-full cursor-pointer ${
-                    activeModuleIndex === idx
-                      ? 'w-6 h-2 bg-sky-500 dark:bg-sky-400'
-                      : 'w-2 h-2 bg-slate-300 dark:bg-slate-700 hover:bg-slate-400 dark:hover:bg-slate-600'
-                  }`}
-                  aria-label={`Go to module ${idx + 1}`}
-                />
-              ))}
+            <div className="flex items-center justify-center gap-2.5 mt-4">
+              <button
+                type="button"
+                onClick={scrollModulePrev}
+                className="p-1.5 rounded-full border border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 text-slate-600 dark:text-slate-300 hover:text-sky-600 dark:hover:text-sky-400 hover:border-sky-300 dark:hover:border-sky-600 transition-all shadow-sm hover:shadow cursor-pointer"
+                aria-label="Previous module"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </button>
+
+              <div className="flex items-center gap-1.5">
+                {erpFeatures.map((_, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => scrollToModuleIndex(idx)}
+                    className={`transition-all duration-300 rounded-full cursor-pointer ${
+                      activeModuleIndex === idx
+                        ? 'w-6 h-2 bg-sky-500 dark:bg-sky-400'
+                        : 'w-2 h-2 bg-slate-300 dark:bg-slate-700 hover:bg-slate-400 dark:hover:bg-slate-600'
+                    }`}
+                    aria-label={`Go to module ${idx + 1}`}
+                  />
+                ))}
+              </div>
+
+              <button
+                type="button"
+                onClick={scrollModuleNext}
+                className="p-1.5 rounded-full border border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 text-slate-600 dark:text-slate-300 hover:text-sky-600 dark:hover:text-sky-400 hover:border-sky-300 dark:hover:border-sky-600 transition-all shadow-sm hover:shadow cursor-pointer"
+                aria-label="Next module"
+              >
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
             </div>
           )}
         </section>
@@ -1189,7 +1330,7 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
                     key={pkg.id || pkg.name}
                     className={`${
                       isCarousel
-                        ? 'w-[85vw] sm:w-[320px] md:w-[340px] lg:w-[350px] shrink-0 snap-start'
+                        ? 'w-full sm:w-[calc((100%-1rem)/2)] lg:w-[calc((100%-2rem)/3)] shrink-0 snap-start snap-always'
                         : 'w-full max-w-[340px] sm:w-[310px] md:w-[320px] lg:w-[310px] xl:w-[350px]'
                     } relative rounded-2xl p-4 sm:p-5 flex flex-col justify-between transition-all duration-300 hover:scale-[1.01] backdrop-blur-xl select-none ${
                       isPopular
@@ -1298,22 +1439,42 @@ export const LandingView: React.FC<LandingViewProps> = ({ onLoginClick }) => {
               })}
             </div>
 
-            {/* Dot Indicators */}
+            {/* Dot Indicators & Carousel Controls */}
             {activePackages.length > 3 && (
-              <div className="flex items-center justify-center gap-1.5 mt-3.5">
-                {activePackages.map((pkg, idx) => (
-                  <button
-                    key={pkg.id || idx}
-                    type="button"
-                    onClick={() => scrollToPackageIndex(idx)}
-                    className={`transition-all duration-300 rounded-full cursor-pointer ${
-                      activePackageIndex === idx
-                        ? 'w-6 h-2 bg-sky-500 dark:bg-sky-400'
-                        : 'w-2 h-2 bg-slate-300 dark:bg-slate-700 hover:bg-slate-400 dark:hover:bg-slate-600'
-                    }`}
-                    aria-label={`Go to plan ${idx + 1}`}
-                  />
-                ))}
+              <div className="flex items-center justify-center gap-2.5 mt-4">
+                <button
+                  type="button"
+                  onClick={scrollPackagePrev}
+                  className="p-1.5 rounded-full border border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 text-slate-600 dark:text-slate-300 hover:text-sky-600 dark:hover:text-sky-400 hover:border-sky-300 dark:hover:border-sky-600 transition-all shadow-sm hover:shadow cursor-pointer"
+                  aria-label="Previous subscription tier"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                </button>
+
+                <div className="flex items-center gap-1.5">
+                  {activePackages.map((pkg, idx) => (
+                    <button
+                      key={pkg.id || idx}
+                      type="button"
+                      onClick={() => scrollToPackageIndex(idx)}
+                      className={`transition-all duration-300 rounded-full cursor-pointer ${
+                        activePackageIndex === idx
+                          ? 'w-6 h-2 bg-sky-500 dark:bg-sky-400'
+                          : 'w-2 h-2 bg-slate-300 dark:bg-slate-700 hover:bg-slate-400 dark:hover:bg-slate-600'
+                      }`}
+                      aria-label={`Go to plan ${idx + 1}`}
+                    />
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={scrollPackageNext}
+                  className="p-1.5 rounded-full border border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 text-slate-600 dark:text-slate-300 hover:text-sky-600 dark:hover:text-sky-400 hover:border-sky-300 dark:hover:border-sky-600 transition-all shadow-sm hover:shadow cursor-pointer"
+                  aria-label="Next subscription tier"
+                >
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
               </div>
             )}
           </section>

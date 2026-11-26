@@ -1,3 +1,7 @@
+// ============================================================================
+// [TEMPORARILY DISABLED] AI Platform Stream Controller disabled for now
+// ============================================================================
+/*
 using System;
 using System.Net.Http;
 using System.Threading;
@@ -66,3 +70,4 @@ public class AiPlatformStreamController : ControllerBase
         return Ok(new { success = true, data });
     }
 }
+*/
