@@ -1,3 +1,7 @@
+// ============================================================================
+// [TEMPORARILY DISABLED] AI Chatbot module disabled for now
+// ============================================================================
+/*
 using System;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
@@ -137,3 +141,4 @@ namespace SMS.Api.Controllers
         }
     }
 }
+*/

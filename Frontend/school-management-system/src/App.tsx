@@ -85,7 +85,7 @@ import { SuperAdminMetricsView } from "./components/modules/SuperAdmin/SuperAdmi
 import { SuperAdminTicketsView } from "./components/modules/SuperAdmin/SuperAdminTicketsView";
 import { SuperAdminAuditView } from "./components/modules/SuperAdmin/SuperAdminAuditView";
 import { SuperAdminProfileView } from "./components/modules/SuperAdmin/SuperAdminProfileView";
-import { AiAssistantView } from "./components/modules/AiAssistant/AiAssistantView";
+// import { AiAssistantView } from "./components/modules/AiAssistant/AiAssistantView"; /* Temporarily commented out */
 
 const formatEmailToName = (email?: string): string => {
   if (!email || !email.includes('@')) return '';
@@ -495,8 +495,8 @@ const MainLayout: React.FC = () => {
     }
 
     switch (activeModule) {
-      case "ai-assistant":
-        return <AiAssistantView />;
+      // case "ai-assistant":
+      //   return <AiAssistantView />; /* Temporarily commented out */
       case "dashboard":
         if (userRole === "super admin" || userRole === "superadmin" || (role || "").toLowerCase() === "super admin") {
           return <SuperAdminDashboardView onNavigate={(mod) => setActiveModule(mod)} />;

@@ -1,3 +1,7 @@
+// ============================================================================
+// [TEMPORARILY DISABLED] Internal AI Bridge Controller disabled for now
+// ============================================================================
+/*
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -321,3 +325,4 @@ public class InternalAiBridgeController : ControllerBase
         }
     }
 }
+*/
