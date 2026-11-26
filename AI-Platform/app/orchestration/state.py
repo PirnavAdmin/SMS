@@ -29,9 +29,12 @@ class AgentState(TypedDict, total=False):
     # Investigation lifecycle state
     phase: str
     objective: str
+    investigation_depth: str
     modules_involved: list[str]
     planned_steps: list[str]
     requires_cross_module: bool
+    discovered_tools: list[Any]
+    plan_validation_diagnostics: list[str]
 
     # Iteration & budget counters
     iteration: int

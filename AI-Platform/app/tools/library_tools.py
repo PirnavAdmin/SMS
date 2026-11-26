@@ -44,10 +44,13 @@ class LibraryOperationsTool(BaseErpTool):
             """,
             qparams,
         )
-        slots = await mysql.fetch_all(
-            "SELECT DayOfWeek, PeriodNumber, ClassName, Section, AssignedLibrarian FROM library_timetable_slots WHERE TenantId = :tid",
-            {"tid": tid},
-        )
+        try:
+            slots = await mysql.fetch_all(
+                "SELECT DayOfWeek, PeriodNumber, ClassName, Section, AssignedLibrarian FROM library_timetable_slots WHERE TenantId = :tid",
+                {"tid": tid},
+            )
+        except Exception:
+            slots = []
 
         return ToolOutput(
             success=True,

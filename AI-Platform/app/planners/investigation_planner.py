@@ -11,8 +11,10 @@ from app.schemas.security import AiSecurityContext
 
 class StructuredInvestigationPlan(BaseModel):
     objective: str
+    investigation_depth: str = "SIMPLE"  # SIMPLE | ANALYTICAL | COMPLEX
     modules_involved: list[str] = Field(default_factory=list)
     steps: list[str] = Field(default_factory=list)
+    planned_tools: list[str] = Field(default_factory=list)
     requires_cross_module_analysis: bool = False
     requires_ml: bool = False
     requires_rag: bool = False
@@ -41,15 +43,19 @@ class InvestigationPlanner:
         query: str,
         history: list[LLMMessage],
         available_tools: list[LLMToolDefinition],
+        depth: str = "SIMPLE",
     ) -> tuple[StructuredInvestigationPlan, int]:
-        tool_summary = "\n".join(f"- {t.name}: {t.description}" for t in available_tools[:35])
+        tool_summary = "\n".join(f"- {t.name}: {t.description}" for t in available_tools)
         system_prompt = (
             "You are the ERP Investigation Planner for Pirnav School Management System.\n"
             f"User Role: {ctx.role}, Tenant: {ctx.tenant_id}, BranchId: {ctx.active_branch_id}, AcademicYear: {ctx.academic_year_name or 'All'}.\n"
-            "Available authorized tools:\n"
-            f"{tool_summary}\n\n"
-            "Decompose the user's request into clear investigation steps and identify all relevant ERP modules. "
-            "Do not fabricate data or output internal private chain-of-thought."
+            f"Assessed Investigation Depth: {depth}\n"
+            "Discovered Candidate Tools (Only select from these):\n"
+            f"{tool_summary or 'None available'}\n\n"
+            "Rules:\n"
+            "1. If Investigation Depth is 'SIMPLE', plan at most 1-2 tools directly answering the request (e.g. 'List Staff Present Today' -> ONLY staff attendance tool).\n"
+            "2. Never plan unrelated tools from other modules (e.g. no student fees or exams for a staff query).\n"
+            "3. Identify required modules and planned tools precisely."
         )
         msgs = [*history[-6:], LLMMessage(role="user", content=query)]
         resp = await self._router.generate(
@@ -61,9 +67,11 @@ class InvestigationPlanner:
         )
         if resp.structured_data:
             plan = StructuredInvestigationPlan.model_validate(resp.structured_data)
+            plan.investigation_depth = depth
         else:
             plan = StructuredInvestigationPlan(
                 objective=f"Investigate: {query[:120]}",
+                investigation_depth=depth,
                 modules_involved=[],
                 steps=["Retrieve relevant authorized ERP records", "Validate and synthesize evidence"],
             )

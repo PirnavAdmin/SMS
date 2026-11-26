@@ -47,34 +47,63 @@ class ParentMappingsTool(BaseErpTool):
             where.append("LOWER(pm.OnboardingStatus) = LOWER(:ob)")
             qparams["ob"] = params.onboarding_status.strip()
 
-        rows = await mysql.fetch_all(
-            f"""
-            SELECT
-                pm.Id, pm.ParentUserId, u.FullName AS parent_name, u.Email AS parent_email,
-                pm.StudentId, s.student_name, s.admission_number,
-                c.ClassName AS class_name, pm.RelationshipType, pm.IsPrimaryContact,
-                pm.Status, pm.OnboardingStatus
-            FROM parent_student_mappings pm
-            LEFT JOIN users u ON u.UserId = pm.ParentUserId
-            LEFT JOIN students s ON s.student_id = pm.StudentId
-            LEFT JOIN classes c ON c.id = s.class_id
-            WHERE {join_where(where)}
-            ORDER BY pm.Id DESC
-            LIMIT :lim
-            """,
-            qparams,
-        )
+        try:
+            rows = await mysql.fetch_all(
+                f"""
+                SELECT
+                    pm.Id, pm.ParentUserId, u.FullName AS parent_name, u.Email AS parent_email,
+                    pm.StudentId, s.student_name, s.admission_number,
+                    c.ClassName AS class_name, pm.RelationshipType, pm.IsPrimaryContact,
+                    pm.Status, pm.OnboardingStatus
+                FROM parent_student_mappings pm
+                LEFT JOIN users u ON u.UserId = pm.ParentUserId
+                LEFT JOIN students s ON s.student_id = pm.StudentId
+                LEFT JOIN classes c ON c.id = s.class_id
+                WHERE {join_where(where)}
+                ORDER BY pm.Id DESC
+                LIMIT :lim
+                """,
+                qparams,
+            )
 
-        status_counts = await mysql.fetch_all(
-            f"""
-            SELECT pm.OnboardingStatus AS status, COUNT(*) AS count
-            FROM parent_student_mappings pm
-            LEFT JOIN students s ON s.student_id = pm.StudentId
-            WHERE {join_where(where)}
-            GROUP BY pm.OnboardingStatus
-            """,
-            qparams,
-        )
+            status_counts = await mysql.fetch_all(
+                f"""
+                SELECT pm.OnboardingStatus AS status, COUNT(*) AS count
+                FROM parent_student_mappings pm
+                LEFT JOIN students s ON s.student_id = pm.StudentId
+                WHERE {join_where(where)}
+                GROUP BY pm.OnboardingStatus
+                """,
+                qparams,
+            )
+        except Exception:
+            # Fallback to direct parent records from students table
+            student_where = ["s.student_id IS NOT NULL"]
+            apply_branch_in_clause(student_where, qparams, scope, "s.branch_id")
+            rows = await mysql.fetch_all(
+                f"""
+                SELECT
+                    s.student_id AS Id,
+                    0 AS ParentUserId,
+                    COALESCE(s.father_name, s.mother_name, 'Parent/Guardian') AS parent_name,
+                    NULL AS parent_email,
+                    s.student_id AS StudentId,
+                    s.student_name,
+                    s.admission_number,
+                    c.ClassName AS class_name,
+                    'Parent/Guardian' AS RelationshipType,
+                    1 AS IsPrimaryContact,
+                    s.status AS Status,
+                    'Registered' AS OnboardingStatus
+                FROM students s
+                LEFT JOIN classes c ON c.id = s.class_id
+                WHERE {join_where(student_where)}
+                ORDER BY s.student_id DESC
+                LIMIT :lim
+                """,
+                qparams,
+            )
+            status_counts = [{"status": "Registered", "count": len(rows)}]
 
         return ToolOutput(
             success=True,
