@@ -58,6 +58,10 @@ builder.Services.AddDbContext<TenantStoreDbContext>(options =>
         connectionString,
         new MySqlServerVersion(new Version(8, 0, 30)),
         mysqlOptions => mysqlOptions
+            .EnableRetryOnFailure(
+                maxRetryCount: 3,
+                maxRetryDelay: TimeSpan.FromSeconds(5),
+                errorNumbersToAdd: null)
             .UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery)));
 
 // Finbuckle Multi-Tenant Configuration
@@ -71,6 +75,10 @@ builder.Services.AddDbContext<AppDbContext>(options =>
         connectionString,
         new MySqlServerVersion(new Version(8, 0, 30)),
         mysqlOptions => mysqlOptions
+            .EnableRetryOnFailure(
+                maxRetryCount: 3,
+                maxRetryDelay: TimeSpan.FromSeconds(5),
+                errorNumbersToAdd: null)
             .UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery)));
 
 // =========================================================

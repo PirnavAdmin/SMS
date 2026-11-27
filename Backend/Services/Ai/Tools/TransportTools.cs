@@ -210,7 +210,7 @@ namespace SMS.Api.Services.Ai.Tools
 
             if (!string.IsNullOrEmpty(rName))
             {
-                query = query.Where(a => a.Route != null && (a.Route.RouteName.ToLower().Contains(rName) || a.Route.RouteCode.ToLower().Contains(rName)));
+                query = query.Where(a => a.Route != null && ((a.Route.RouteName != null && a.Route.RouteName.ToLower().Contains(rName)) || (a.Route.RouteCode != null && a.Route.RouteCode.ToLower().Contains(rName))));
             }
 
             var assignments = await query.Take(50).ToListAsync();
